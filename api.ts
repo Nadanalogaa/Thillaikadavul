@@ -226,9 +226,28 @@ export const submitContactForm = async (data: ContactFormData): Promise<{success
 export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
   try {
     const usersToInsert = userData.map(user => ({
-      ...user,
+      name: user.name,
+      email: user.email,
+      password: user.password,
       role: user.role || 'Student',
-      date_of_joining: new Date().toISOString(),
+      class_preference: user.classPreference,
+      photo_url: user.photoUrl,
+      dob: user.dob,
+      sex: user.sex,
+      contact_number: user.contactNumber,
+      address: user.address,
+      schedules: user.schedules || [],
+      documents: user.documents || [],
+      date_of_joining: user.dateOfJoining || new Date().toISOString(),
+      courses: user.courses || [],
+      father_name: user.fatherName,
+      standard: user.standard,
+      school_name: user.schoolName,
+      grade: user.grade,
+      notes: user.notes,
+      course_expertise: user.courseExpertise || [],
+      educational_qualifications: user.educationalQualifications,
+      employment_type: user.employmentType,
       created_at: new Date().toISOString()
     }));
 
@@ -252,9 +271,12 @@ export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
 export const registerAdmin = async (userData: Partial<User>): Promise<any> => {
   try {
     const adminData = {
-      ...userData,
+      name: userData.name,
+      email: userData.email,
+      password: userData.password,
       role: 'Admin',
       class_preference: 'Hybrid',
+      contact_number: userData.contactNumber,
       date_of_joining: new Date().toISOString(),
       created_at: new Date().toISOString()
     };
