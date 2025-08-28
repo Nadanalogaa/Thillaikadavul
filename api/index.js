@@ -1,9 +1,10 @@
-const express = require('express');
-const serverless = require('serverless-http');
-const cors = require('cors');
-const bcrypt = require('bcryptjs');
-const nodemailer = require('nodemailer');
-const { createClient } = require('@supabase/supabase-js');
+import express from 'express';
+import serverless from 'serverless-http';
+import cors from 'cors';
+import bcrypt from 'bcryptjs';
+import nodemailer from 'nodemailer';
+import { createClient } from '@supabase/supabase-js';
+import jwt from 'jsonwebtoken';
 
 const app = express();
 
@@ -54,7 +55,6 @@ try {
 }
 
 // Helper function to create JWT token for sessions
-const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 function createToken(user) {
@@ -642,4 +642,4 @@ app.put('/api/notifications/:id/read', ensureAuthenticated, async (req, res) => 
   }
 });
 
-module.exports = serverless(app);
+export default serverless(app);
