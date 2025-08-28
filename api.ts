@@ -232,13 +232,13 @@ export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
       role: user.role || 'Student',
       class_preference: user.classPreference,
       photo_url: user.photoUrl,
-      dob: user.dob,
+      dob: user.dob ? new Date(user.dob).toISOString().split('T')[0] : null, // YYYY-MM-DD format
       sex: user.sex,
       contact_number: user.contactNumber,
       address: user.address,
       schedules: user.schedules || [],
       documents: user.documents || [],
-      date_of_joining: user.dateOfJoining || new Date().toISOString(),
+      date_of_joining: user.dateOfJoining || new Date().toISOString().split('T')[0], // YYYY-MM-DD format
       courses: user.courses || [],
       father_name: user.fatherName,
       standard: user.standard,
@@ -277,7 +277,7 @@ export const registerAdmin = async (userData: Partial<User>): Promise<any> => {
       role: 'Admin',
       class_preference: 'Hybrid',
       contact_number: userData.contactNumber,
-      date_of_joining: new Date().toISOString(),
+      date_of_joining: new Date().toISOString().split('T')[0], // YYYY-MM-DD format (10 chars)
       created_at: new Date().toISOString()
     };
 
