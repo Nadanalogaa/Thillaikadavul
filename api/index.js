@@ -7,11 +7,22 @@ const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 
-// Initialize Supabase
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
+// Initialize Supabase with error handling
+let supabase;
+try {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+    console.error('Missing Supabase environment variables');
+    throw new Error('Supabase credentials not configured');
+  }
+  
+  supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_ANON_KEY
+  );
+  console.log('Supabase initialized successfully');
+} catch (error) {
+  console.error('Failed to initialize Supabase:', error);
+}
 
 // Middleware
 app.use(express.json({ limit: '50mb' }));
@@ -213,17 +224,24 @@ app.post('/api/contact', async (req, res) => {
 
 app.get('/api/courses', async (req, res) => {
   try {
+    if (!supabase) {
+      return res.status(500).json({ message: 'Database connection not available' });
+    }
+    
     const { data: courses, error } = await supabase
       .from('courses')
       .select('*')
       .order('created_at');
       
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
     
-    res.json(courses);
+    res.json(courses || []);
   } catch (error) {
     console.error('Courses error:', error);
-    res.status(500).json({ message: 'Server error fetching courses.' });
+    res.status(500).json({ message: 'Server error fetching courses.', error: error.message });
   }
 });
 
