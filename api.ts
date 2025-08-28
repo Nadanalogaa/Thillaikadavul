@@ -88,14 +88,53 @@ export const logout = async (): Promise<void> => {
   console.log('User logged out');
 };
 
+// Helper function to initialize basic courses if none exist
+const initializeBasicCourses = (): Course[] => {
+  const basicCourses: Course[] = [
+    {
+      id: 'course-1',
+      name: 'Bharatanatyam',
+      description: 'Classical Indian dance form',
+      icon: 'Bharatanatyam'
+    },
+    {
+      id: 'course-2',
+      name: 'Vocal',
+      description: 'Carnatic vocal music',
+      icon: 'Vocal'
+    },
+    {
+      id: 'course-3',
+      name: 'Drawing',
+      description: 'Art and drawing classes',
+      icon: 'Drawing'
+    },
+    {
+      id: 'course-4',
+      name: 'Abacus',
+      description: 'Mental arithmetic training',
+      icon: 'Abacus'
+    }
+  ];
+  
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('courses', JSON.stringify(basicCourses));
+  }
+  return basicCourses;
+};
+
 export const getCourses = async (): Promise<Course[]> => {
   if (typeof window !== 'undefined') {
     const courses = localStorage.getItem('courses');
     if (courses) {
-      return JSON.parse(courses);
+      const parsedCourses = JSON.parse(courses);
+      if (parsedCourses.length > 0) {
+        return parsedCourses;
+      }
     }
+    // Initialize basic courses if none exist
+    return initializeBasicCourses();
   }
-  // Return empty array if no courses exist
   return [];
 };
 
@@ -319,12 +358,38 @@ export const restoreUser = async (userId: string): Promise<User> => ({ id: userI
 export const deleteUserPermanently = async (userId: string): Promise<void> => {};
 
 // Location functions
+// Helper function to initialize basic locations if none exist
+const initializeBasicLocations = (): Location[] => {
+  const basicLocations: Location[] = [
+    {
+      id: 'loc-1',
+      name: 'Main Center',
+      address: 'Enter your main location address'
+    },
+    {
+      id: 'loc-2',
+      name: 'Branch 1',
+      address: 'Enter branch location address'
+    }
+  ];
+  
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('locations', JSON.stringify(basicLocations));
+  }
+  return basicLocations;
+};
+
 export const getPublicLocations = async (): Promise<Location[]> => {
   if (typeof window !== 'undefined') {
     const locations = localStorage.getItem('locations');
     if (locations) {
-      return JSON.parse(locations);
+      const parsedLocations = JSON.parse(locations);
+      if (parsedLocations.length > 0) {
+        return parsedLocations;
+      }
     }
+    // Initialize basic locations if none exist
+    return initializeBasicLocations();
   }
   return [];
 };
