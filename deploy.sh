@@ -22,8 +22,23 @@ sudo npm install -g pm2
 echo "📦 Installing Nginx..."
 sudo apt install nginx git -y
 
+# Clone/pull repository
+if [ ! -d "/home/ubuntu/Thillaikadavul" ]; then
+    echo "📥 Cloning repository..."
+    cd /home/ubuntu
+    git clone https://github.com/Nadanalogaa/Thillaikadavul.git
+else
+    echo "📥 Updating repository..."
+    cd /home/ubuntu/Thillaikadavul
+    git pull origin main
+fi
+
 # Navigate to app directory
 cd /home/ubuntu/Thillaikadavul
+
+# Setup production environment
+echo "⚙️  Setting up production environment..."
+cp server/.env.production server/.env
 
 # Install dependencies
 echo "📦 Installing application dependencies..."
