@@ -10,15 +10,20 @@ const app = express();
 // Initialize Supabase with error handling
 let supabase;
 try {
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
-    console.error('Missing Supabase environment variables');
+  // Try multiple possible environment variable names
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_JWT_SECRET;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    console.error('Missing Supabase environment variables:', {
+      hasUrl: !!supabaseUrl,
+      hasKey: !!supabaseKey,
+      envVars: Object.keys(process.env).filter(key => key.includes('SUPABASE'))
+    });
     throw new Error('Supabase credentials not configured');
   }
   
-  supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_ANON_KEY
-  );
+  supabase = createClient(supabaseUrl, supabaseKey);
   console.log('Supabase initialized successfully');
 } catch (error) {
   console.error('Failed to initialize Supabase:', error);
