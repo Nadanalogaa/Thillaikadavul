@@ -11,55 +11,98 @@ export const checkEmailExists = async (email: string): Promise<{ exists: boolean
 };
 
 export const loginUser = async (email: string, password: string): Promise<User> => {
-  // Enhanced mock login with proper admin detection
   const normalizedEmail = email.toLowerCase().trim();
   
-  let role: 'Admin' | 'Student' | 'Teacher' = 'Student';
-  let name = 'Demo User';
-  
-  // First check if this is a registered admin in localStorage
   if (typeof window !== 'undefined') {
+    // First check if this is a registered admin
     const registeredAdmins = JSON.parse(localStorage.getItem('registeredAdmins') || '[]');
     const registeredAdmin = registeredAdmins.find((admin: any) => admin.email?.toLowerCase() === normalizedEmail);
     
     if (registeredAdmin) {
-      role = 'Admin';
-      name = registeredAdmin.name || 'Administrator';
+      const adminUser: User = {
+        id: registeredAdmin.id || 'admin-001',
+        name: registeredAdmin.name || 'Administrator',
+        email: normalizedEmail,
+        role: 'Admin',
+        classPreference: 'Hybrid'
+      };
+      
+      currentUser = adminUser;
+      localStorage.setItem('currentUser', JSON.stringify(adminUser));
+      console.log('Admin logged in:', adminUser);
+      return adminUser;
+    }
+    
+    // Check if this is a registered user (student/teacher/parent)
+    const registeredUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+    const registeredUser = registeredUsers.find((user: User) => user.email?.toLowerCase() === normalizedEmail);
+    
+    if (registeredUser) {
+      const userData: User = {
+        ...registeredUser,
+        id: registeredUser.id || `user-${Date.now()}`,
+        email: normalizedEmail
+      };
+      
+      currentUser = userData;
+      localStorage.setItem('currentUser', JSON.stringify(userData));
+      console.log('Registered user logged in:', userData);
+      return userData;
+    }
+    
+    // Check for students registered under this email (parent login)
+    const familyStudents = registeredUsers.filter((user: User) => {
+      if (user.role !== 'Student') return false;
+      const studentEmailBase = user.email?.split('+')[0];
+      return studentEmailBase === normalizedEmail;
+    });
+    
+    if (familyStudents.length > 0) {
+      // Create parent/guardian user based on first student's data
+      const firstStudent = familyStudents[0];
+      const parentUser: User = {
+        id: `parent-${Date.now()}`,
+        name: firstStudent.fatherName || 'Guardian',
+        email: normalizedEmail,
+        role: 'Student', // Parents use student dashboard to view family
+        classPreference: 'Online',
+        contactNumber: firstStudent.contactNumber,
+        address: firstStudent.address,
+        country: firstStudent.country,
+        state: firstStudent.state,
+        city: firstStudent.city,
+        postalCode: firstStudent.postalCode
+      };
+      
+      currentUser = parentUser;
+      localStorage.setItem('currentUser', JSON.stringify(parentUser));
+      console.log('Parent logged in:', parentUser);
+      return parentUser;
     }
   }
   
-  // Fallback: Check for default admin emails
-  if (role !== 'Admin' && (normalizedEmail === 'admin@nadanaloga.com' || 
+  // Fallback for default admin emails
+  if (normalizedEmail === 'admin@nadanaloga.com' || 
       normalizedEmail.includes('admin') || 
-      normalizedEmail === 'nadanalogaa@gmail.com')) {
-    role = 'Admin';
-    name = 'Administrator';
-  } else if (role !== 'Admin' && normalizedEmail.includes('teacher')) {
-    role = 'Teacher';
-    name = 'Demo Teacher';
-  } else if (role !== 'Admin') {
-    role = 'Student';
-    name = 'Demo Student';
+      normalizedEmail === 'nadanalogaa@gmail.com') {
+    const adminUser: User = {
+      id: 'admin-001',
+      name: 'Administrator',
+      email: normalizedEmail,
+      role: 'Admin',
+      classPreference: 'Hybrid'
+    };
+    
+    currentUser = adminUser;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('currentUser', JSON.stringify(adminUser));
+    }
+    console.log('Default admin logged in:', adminUser);
+    return adminUser;
   }
   
-  const mockUser: User = {
-    id: role === 'Admin' ? 'admin-001' : `user-${Date.now()}`,
-    name: name,
-    email: normalizedEmail,
-    role: role,
-    classPreference: role === 'Admin' ? 'Hybrid' : 'Online'
-  };
-  
-  // Store in session
-  currentUser = mockUser;
-  
-  // Also store in localStorage for persistence
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('currentUser', JSON.stringify(mockUser));
-  }
-  
-  console.log('User logged in:', mockUser);
-  return mockUser;
+  // If no match found, throw error
+  throw new Error('Invalid email or password. Please check your credentials or register first.');
 };
 
 export const getCurrentUser = async (): Promise<User | null> => {
@@ -321,10 +364,21 @@ export const getFamilyStudents = async (): Promise<User[]> => {
     const currentUserData = localStorage.getItem('currentUser');
     if (currentUserData) {
       const currentUser = JSON.parse(currentUserData);
-      const familyStudents = localStorage.getItem(`familyStudents_${currentUser.email}`);
-      if (familyStudents) {
-        return JSON.parse(familyStudents);
-      }
+      const allUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+      
+      // Find students that belong to this family
+      // Students are registered with guardian's email or guardian's email+studentN format
+      const familyStudents = allUsers.filter((user: User) => {
+        if (user.role !== 'Student') return false;
+        
+        // Check if this student belongs to current user's family
+        const studentEmailBase = user.email?.split('+')[0]; // Remove +student2 etc
+        const currentUserEmailBase = currentUser.email?.split('+')[0];
+        
+        return studentEmailBase === currentUserEmailBase;
+      });
+      
+      return familyStudents;
     }
   }
   return [];
