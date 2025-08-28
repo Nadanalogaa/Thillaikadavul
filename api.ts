@@ -866,7 +866,7 @@ export const addEvent = async (event: Omit<Event, 'id'>): Promise<Event> => {
       .insert([{
         title: event.title,
         description: event.description,
-        date: event.date.toISOString(),
+        date: event.date instanceof Date ? event.date.toISOString() : new Date(event.date).toISOString(),
         time: event.time,
         location: event.location,
         is_public: event.isPublic,
@@ -901,7 +901,7 @@ export const updateEvent = async (id: string, event: Partial<Event>): Promise<Ev
     const updateData: any = {};
     if (event.title) updateData.title = event.title;
     if (event.description) updateData.description = event.description;
-    if (event.date) updateData.date = event.date.toISOString();
+    if (event.date) updateData.date = event.date instanceof Date ? event.date.toISOString() : new Date(event.date).toISOString();
     if (event.time) updateData.time = event.time;
     if (event.location) updateData.location = event.location;
     if (event.isPublic !== undefined) updateData.is_public = event.isPublic;
@@ -953,19 +953,152 @@ export const deleteEvent = async (id: string): Promise<void> => {
 };
 
 export const getGradeExams = async (): Promise<GradeExam[]> => {
-  if (typeof window !== 'undefined') {
-    const exams = localStorage.getItem('gradeExams');
-    if (exams) {
-      return JSON.parse(exams);
+  try {
+    const { data, error } = await supabase
+      .from('grade_exams')
+      .select('*')
+      .order('date', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching grade exams:', error);
+      return [];
     }
+
+    return (data || []).map(exam => ({
+      id: exam.id,
+      title: exam.title,
+      description: exam.description,
+      date: new Date(exam.date),
+      time: exam.time,
+      duration: exam.duration,
+      course: exam.course,
+      grade: exam.grade,
+      syllabusUrl: exam.syllabus_url,
+      registrationFee: exam.registration_fee,
+      registrationDeadline: exam.registration_deadline ? new Date(exam.registration_deadline) : undefined,
+      isOpen: exam.is_open,
+      createdAt: new Date(exam.created_at)
+    }));
+  } catch (error) {
+    console.error('Error in getGradeExams:', error);
+    return [];
   }
-  return [];
 };
 
 export const getAdminGradeExams = async (): Promise<GradeExam[]> => getGradeExams();
-export const addGradeExam = async (exam: Omit<GradeExam, 'id'>): Promise<GradeExam> => ({ ...exam, id: '123' } as GradeExam);
-export const updateGradeExam = async (id: string, exam: Partial<GradeExam>): Promise<GradeExam> => ({ ...exam, id } as GradeExam);
-export const deleteGradeExam = async (id: string): Promise<void> => {};
+
+export const addGradeExam = async (exam: Omit<GradeExam, 'id'>): Promise<GradeExam> => {
+  try {
+    const { data, error } = await supabase
+      .from('grade_exams')
+      .insert([{
+        title: exam.title,
+        description: exam.description,
+        date: exam.date instanceof Date ? exam.date.toISOString() : new Date(exam.date).toISOString(),
+        time: exam.time,
+        duration: exam.duration,
+        course: exam.course,
+        grade: exam.grade,
+        syllabus_url: exam.syllabusUrl,
+        registration_fee: exam.registrationFee,
+        registration_deadline: exam.registrationDeadline ? (exam.registrationDeadline instanceof Date ? exam.registrationDeadline.toISOString() : new Date(exam.registrationDeadline).toISOString()) : null,
+        is_open: exam.isOpen !== false,
+        created_at: new Date().toISOString()
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding grade exam:', error);
+      throw new Error(`Failed to add grade exam: ${error.message}`);
+    }
+
+    return {
+      id: data.id,
+      title: data.title,
+      description: data.description,
+      date: new Date(data.date),
+      time: data.time,
+      duration: data.duration,
+      course: data.course,
+      grade: data.grade,
+      syllabusUrl: data.syllabus_url,
+      registrationFee: data.registration_fee,
+      registrationDeadline: data.registration_deadline ? new Date(data.registration_deadline) : undefined,
+      isOpen: data.is_open,
+      createdAt: new Date(data.created_at)
+    };
+  } catch (error) {
+    console.error('Error in addGradeExam:', error);
+    throw error;
+  }
+};
+
+export const updateGradeExam = async (id: string, exam: Partial<GradeExam>): Promise<GradeExam> => {
+  try {
+    const updateData: any = {};
+    if (exam.title) updateData.title = exam.title;
+    if (exam.description) updateData.description = exam.description;
+    if (exam.date) updateData.date = exam.date instanceof Date ? exam.date.toISOString() : new Date(exam.date).toISOString();
+    if (exam.time) updateData.time = exam.time;
+    if (exam.duration) updateData.duration = exam.duration;
+    if (exam.course) updateData.course = exam.course;
+    if (exam.grade) updateData.grade = exam.grade;
+    if (exam.syllabusUrl) updateData.syllabus_url = exam.syllabusUrl;
+    if (exam.registrationFee !== undefined) updateData.registration_fee = exam.registrationFee;
+    if (exam.registrationDeadline) updateData.registration_deadline = exam.registrationDeadline instanceof Date ? exam.registrationDeadline.toISOString() : new Date(exam.registrationDeadline).toISOString();
+    if (exam.isOpen !== undefined) updateData.is_open = exam.isOpen;
+    updateData.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from('grade_exams')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating grade exam:', error);
+      throw new Error(`Failed to update grade exam: ${error.message}`);
+    }
+
+    return {
+      id: data.id,
+      title: data.title,
+      description: data.description,
+      date: new Date(data.date),
+      time: data.time,
+      duration: data.duration,
+      course: data.course,
+      grade: data.grade,
+      syllabusUrl: data.syllabus_url,
+      registrationFee: data.registration_fee,
+      registrationDeadline: data.registration_deadline ? new Date(data.registration_deadline) : undefined,
+      isOpen: data.is_open,
+      createdAt: new Date(data.created_at)
+    };
+  } catch (error) {
+    console.error('Error in updateGradeExam:', error);
+    throw error;
+  }
+};
+
+export const deleteGradeExam = async (id: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('grade_exams')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting grade exam:', error);
+      throw new Error(`Failed to delete grade exam: ${error.message}`);
+    }
+  } catch (error) {
+    console.error('Error in deleteGradeExam:', error);
+    throw error;
+  }
+};
 
 export const getBookMaterials = async (): Promise<BookMaterial[]> => {
   if (typeof window !== 'undefined') {
