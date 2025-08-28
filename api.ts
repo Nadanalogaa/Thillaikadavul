@@ -69,7 +69,11 @@ export const loginUser = async (email: string, password: string): Promise<User> 
       schoolName: user.school_name,
       standard: user.standard,
       grade: user.grade,
-      photoUrl: user.photo_url
+      photoUrl: user.photo_url,
+      courses: user.courses || [],
+      courseExpertise: user.course_expertise || [],
+      preferredTimings: user.preferred_timings || [],
+      dateOfJoining: user.date_of_joining
     };
 
     currentUser = userData;
@@ -229,12 +233,12 @@ export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
       name: user.name,
       email: user.email,
       password: user.password,
-      role: user.role || 'Student',
-      class_preference: user.classPreference,
+      role: (user.role || 'Student').substring(0, 20), // Ensure max 20 chars
+      class_preference: user.classPreference ? user.classPreference.substring(0, 20) : null, // Ensure max 20 chars
       photo_url: user.photoUrl,
       dob: user.dob ? new Date(user.dob).toISOString().split('T')[0] : null, // YYYY-MM-DD format
-      sex: user.sex,
-      contact_number: user.contactNumber,
+      sex: user.sex ? user.sex.substring(0, 10) : null, // Ensure max 10 chars for sex field
+      contact_number: user.contactNumber ? user.contactNumber.substring(0, 20) : null, // Limit to 20 chars
       address: user.address,
       schedules: user.schedules || [],
       documents: user.documents || [],
@@ -243,11 +247,11 @@ export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
       father_name: user.fatherName,
       standard: user.standard,
       school_name: user.schoolName,
-      grade: user.grade,
+      grade: user.grade ? user.grade.substring(0, 20) : null, // Ensure max 20 chars
       notes: user.notes,
       course_expertise: user.courseExpertise || [],
       educational_qualifications: user.educationalQualifications,
-      employment_type: user.employmentType,
+      employment_type: user.employmentType ? user.employmentType.substring(0, 20) : null, // Ensure max 20 chars
       created_at: new Date().toISOString()
     }));
 
@@ -274,9 +278,9 @@ export const registerAdmin = async (userData: Partial<User>): Promise<any> => {
       name: userData.name,
       email: userData.email,
       password: userData.password,
-      role: 'Admin',
-      class_preference: 'Hybrid',
-      contact_number: userData.contactNumber,
+      role: 'Admin', // Already within 20 chars
+      class_preference: 'Hybrid', // Already within 20 chars
+      contact_number: userData.contactNumber ? userData.contactNumber.substring(0, 20) : null, // Limit to 20 chars
       date_of_joining: new Date().toISOString().split('T')[0], // YYYY-MM-DD format (10 chars)
       created_at: new Date().toISOString()
     };
@@ -614,28 +618,64 @@ export const getStudentEnrollments = async (): Promise<StudentEnrollment[]> => {
 
 // Family functions
 export const getFamilyStudents = async (): Promise<User[]> => {
-  if (typeof window !== 'undefined') {
-    const currentUserData = localStorage.getItem('currentUser');
-    if (currentUserData) {
-      const currentUser = JSON.parse(currentUserData);
-      const allUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
-      
-      // Find students that belong to this family
-      // Students are registered with guardian's email or guardian's email+studentN format
-      const familyStudents = allUsers.filter((user: User) => {
-        if (user.role !== 'Student') return false;
+  try {
+    if (typeof window !== 'undefined') {
+      const currentUserData = localStorage.getItem('currentUser');
+      if (currentUserData) {
+        const currentUser = JSON.parse(currentUserData);
         
-        // Check if this student belongs to current user's family
-        const studentEmailBase = user.email?.split('+')[0]; // Remove +student2 etc
-        const currentUserEmailBase = currentUser.email?.split('+')[0];
+        // Query database for family students
+        const { data, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('role', 'Student');
         
-        return studentEmailBase === currentUserEmailBase;
-      });
-      
-      return familyStudents;
+        if (error) {
+          console.error('Error fetching family students:', error);
+          return [];
+        }
+        
+        // Find students that belong to this family
+        const familyStudents = (data || []).filter((user: any) => {
+          // Check if this student belongs to current user's family
+          const studentEmailBase = user.email?.split('+')[0]; // Remove +student2 etc
+          const currentUserEmailBase = currentUser.email?.split('+')[0];
+          
+          return studentEmailBase === currentUserEmailBase;
+        });
+        
+        // Map database fields to User interface
+        return familyStudents.map((user: any) => ({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          classPreference: user.class_preference,
+          contactNumber: user.contact_number,
+          address: user.address,
+          country: user.country,
+          state: user.state,
+          city: user.city,
+          postalCode: user.postal_code,
+          fatherName: user.father_name,
+          dob: user.dob,
+          sex: user.sex,
+          schoolName: user.school_name,
+          standard: user.standard,
+          grade: user.grade,
+          photoUrl: user.photo_url,
+          courses: user.courses || [],
+          courseExpertise: user.course_expertise || [],
+          preferredTimings: user.preferred_timings || [],
+          dateOfJoining: user.date_of_joining
+        }));
+      }
     }
+    return [];
+  } catch (error) {
+    console.error('Error in getFamilyStudents:', error);
+    return [];
   }
-  return [];
 };
 
 export const getStudentInvoicesForFamily = async (studentId: string): Promise<Invoice[]> => {
