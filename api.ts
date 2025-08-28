@@ -11,24 +11,70 @@ export const checkEmailExists = async (email: string): Promise<{ exists: boolean
 };
 
 export const loginUser = async (email: string, password: string): Promise<User> => {
-  // Simple mock login for demo
+  // Enhanced mock login with proper admin detection
+  const normalizedEmail = email.toLowerCase().trim();
+  
+  let role: 'Admin' | 'Student' | 'Teacher' = 'Student';
+  let name = 'Demo User';
+  
+  // Check for admin emails
+  if (normalizedEmail === 'admin@nadanaloga.com' || 
+      normalizedEmail.includes('admin') || 
+      normalizedEmail === 'nadanalogaa@gmail.com') {
+    role = 'Admin';
+    name = 'Administrator';
+  } else if (normalizedEmail.includes('teacher')) {
+    role = 'Teacher';
+    name = 'Demo Teacher';
+  } else {
+    role = 'Student';
+    name = 'Demo Student';
+  }
+  
   const mockUser: User = {
-    id: '1',
-    name: 'Demo User',
-    email: email,
-    role: email === 'admin@nadanaloga.com' ? 'Admin' : 'Student',
+    id: role === 'Admin' ? 'admin-001' : `user-${Date.now()}`,
+    name: name,
+    email: normalizedEmail,
+    role: role,
     classPreference: 'Online'
   };
+  
+  // Store in session
   currentUser = mockUser;
+  
+  // Also store in localStorage for persistence
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('currentUser', JSON.stringify(mockUser));
+  }
+  
+  console.log('User logged in:', mockUser);
   return mockUser;
 };
 
 export const getCurrentUser = async (): Promise<User | null> => {
+  // Try to restore from localStorage if currentUser is null
+  if (!currentUser && typeof window !== 'undefined') {
+    const storedUser = localStorage.getItem('currentUser');
+    if (storedUser) {
+      try {
+        currentUser = JSON.parse(storedUser);
+        console.log('User restored from localStorage:', currentUser);
+      } catch (error) {
+        console.error('Error parsing stored user:', error);
+        localStorage.removeItem('currentUser');
+      }
+    }
+  }
   return currentUser;
 };
 
 export const logout = async (): Promise<void> => {
   currentUser = null;
+  // Clear localStorage
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('currentUser');
+  }
+  console.log('User logged out');
 };
 
 export const getCourses = async (): Promise<Course[]> => {
