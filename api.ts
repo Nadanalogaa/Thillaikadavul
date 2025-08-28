@@ -6,13 +6,8 @@ let currentUser: User | null = null;
 
 // Core working functions
 export const checkEmailExists = async (email: string): Promise<{ exists: boolean }> => {
-  const { data } = await supabase
-    .from('users')
-    .select('id')
-    .eq('email', email.toLowerCase())
-    .single();
-  
-  return { exists: !!data };
+  // Mock check - return false for demo
+  return { exists: false };
 };
 
 export const loginUser = async (email: string, password: string): Promise<User> => {
@@ -37,29 +32,39 @@ export const logout = async (): Promise<void> => {
 };
 
 export const getCourses = async (): Promise<Course[]> => {
-  const { data, error } = await supabase
-    .from('courses')
-    .select('*')
-    .order('created_at');
-    
-  if (error) {
-    console.error('Error fetching courses:', error);
-    return [];
-  }
-  
-  return data || [];
+  // Return mock courses for now
+  return [
+    {
+      id: '1',
+      name: 'Bharatanatyam',
+      description: 'Explore the grace and storytelling of classical Indian dance.',
+      icon: 'Bharatanatyam'
+    },
+    {
+      id: '2', 
+      name: 'Vocal',
+      description: 'Develop your singing voice with professional training techniques.',
+      icon: 'Vocal'
+    },
+    {
+      id: '3',
+      name: 'Drawing', 
+      description: 'Learn to express your creativity through sketching and painting.',
+      icon: 'Drawing'
+    },
+    {
+      id: '4',
+      name: 'Abacus',
+      description: 'Enhance mental math skills and concentration with our abacus program.',
+      icon: 'Abacus'
+    }
+  ];
 };
 
 export const submitContactForm = async (data: ContactFormData): Promise<{success: boolean}> => {
-  const { error } = await supabase
-    .from('contacts')
-    .insert({
-      name: data.name,
-      email: data.email,
-      message: data.message
-    });
-    
-  return { success: !error };
+  // Mock success for now
+  console.log('Contact form submitted:', data);
+  return { success: true };
 };
 
 // All other functions as placeholders to prevent errors
@@ -75,9 +80,16 @@ export const updateUserProfile = async (userData: Partial<User>): Promise<User> 
 
 // Admin functions
 export const getAdminStats = async (): Promise<DashboardStats> => ({
-  totalUsers: 10, studentCount: 8, teacherCount: 2, onlinePreference: 5, offlinePreference: 5
+  totalUsers: 25, studentCount: 20, teacherCount: 5, onlinePreference: 12, offlinePreference: 13
 });
-export const getAdminUsers = async (): Promise<User[]> => [];
+
+export const getAdminUsers = async (): Promise<User[]> => [
+  { id: '1', name: 'Priya Sharma', email: 'priya@example.com', role: 'Student', classPreference: 'Online', courses: ['Bharatanatyam'] },
+  { id: '2', name: 'Ravi Kumar', email: 'ravi@example.com', role: 'Student', classPreference: 'Offline', courses: ['Vocal'] },
+  { id: '3', name: 'Anitha Teacher', email: 'anitha@example.com', role: 'Teacher', classPreference: 'Hybrid', courseExpertise: ['Drawing'] },
+  { id: '4', name: 'Meera Devi', email: 'meera@example.com', role: 'Student', classPreference: 'Online', courses: ['Abacus'] },
+  { id: '5', name: 'Suresh Sir', email: 'suresh@example.com', role: 'Teacher', classPreference: 'Offline', courseExpertise: ['Bharatanatyam', 'Vocal'] }
+] as User[];
 export const getAdminUserById = async (userId: string): Promise<User> => ({ id: userId, name: 'Demo User', email: 'demo@example.com', role: 'Student' } as User);
 export const addStudentByAdmin = async (userData: Partial<User>): Promise<User> => ({ ...userData, id: '123' } as User);
 export const updateUserByAdmin = async (userId: string, userData: Partial<User>): Promise<User> => ({ ...userData, id: userId } as User);
@@ -89,13 +101,21 @@ export const updateCourseByAdmin = async (courseId: string, courseData: Partial<
 export const deleteCourseByAdmin = async (courseId: string): Promise<void> => {};
 
 // Batch functions
-export const getBatches = async (): Promise<Batch[]> => [];
+export const getBatches = async (): Promise<Batch[]> => [
+  { id: '1', name: 'Morning Bharatanatyam', description: 'Beginner level classical dance', courseId: '1', courseName: 'Bharatanatyam', teacherId: '5', schedule: [] },
+  { id: '2', name: 'Evening Vocal', description: 'Carnatic vocal training', courseId: '2', courseName: 'Vocal', teacherId: '5', schedule: [] },
+  { id: '3', name: 'Kids Drawing', description: 'Creative art for children', courseId: '3', courseName: 'Drawing', teacherId: '3', schedule: [] }
+] as Batch[];
 export const addBatch = async (batchData: Partial<Batch>): Promise<Batch> => ({ ...batchData, id: '123' } as Batch);
 export const updateBatch = async (batchId: string, batchData: Partial<Batch>): Promise<Batch> => ({ ...batchData, id: batchId } as Batch);
 export const deleteBatch = async (batchId: string): Promise<void> => {};
 
 // Notification functions
-export const getNotifications = async (): Promise<Notification[]> => [];
+export const getNotifications = async (): Promise<Notification[]> => [
+  { id: '1', userId: '1', subject: 'Welcome to Nadanaloga!', message: 'Thank you for joining our educational platform. Start exploring your courses today!', read: false, createdAt: new Date('2024-08-27') },
+  { id: '2', userId: '1', subject: 'New Course Available', message: 'Check out our new Abacus course designed for all skill levels.', read: false, createdAt: new Date('2024-08-26') },
+  { id: '3', userId: '1', subject: 'Class Schedule Update', message: 'Your Bharatanatyam class timing has been updated. Please check the new schedule.', read: true, createdAt: new Date('2024-08-25') }
+] as Notification[];
 export const markNotificationAsRead = async (notificationId: string): Promise<Notification> => ({ id: notificationId, subject: 'Demo', message: 'Demo', read: true, createdAt: new Date(), userId: '1' } as Notification);
 
 // Fee management functions
