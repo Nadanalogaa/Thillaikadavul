@@ -808,19 +808,127 @@ export const deleteLocation = async (id: string): Promise<void> => {
 
 // Content functions
 export const getEvents = async (): Promise<Event[]> => {
-  if (typeof window !== 'undefined') {
-    const events = localStorage.getItem('events');
-    if (events) {
-      return JSON.parse(events);
+  try {
+    const { data, error } = await supabase
+      .from('events')
+      .select('*')
+      .order('date', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching events:', error);
+      return [];
     }
+
+    return (data || []).map(event => ({
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      date: new Date(event.date),
+      time: event.time,
+      location: event.location,
+      isPublic: event.is_public,
+      createdAt: new Date(event.created_at)
+    }));
+  } catch (error) {
+    console.error('Error in getEvents:', error);
+    return [];
   }
-  return [];
 };
 
 export const getAdminEvents = async (): Promise<Event[]> => getEvents();
-export const addEvent = async (event: Omit<Event, 'id'>): Promise<Event> => ({ ...event, id: '123' } as Event);
-export const updateEvent = async (id: string, event: Partial<Event>): Promise<Event> => ({ ...event, id } as Event);
-export const deleteEvent = async (id: string): Promise<void> => {};
+
+export const addEvent = async (event: Omit<Event, 'id'>): Promise<Event> => {
+  try {
+    const { data, error } = await supabase
+      .from('events')
+      .insert([{
+        title: event.title,
+        description: event.description,
+        date: event.date.toISOString(),
+        time: event.time,
+        location: event.location,
+        is_public: event.isPublic,
+        created_at: new Date().toISOString()
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding event:', error);
+      throw new Error(`Failed to add event: ${error.message}`);
+    }
+
+    return {
+      id: data.id,
+      title: data.title,
+      description: data.description,
+      date: new Date(data.date),
+      time: data.time,
+      location: data.location,
+      isPublic: data.is_public,
+      createdAt: new Date(data.created_at)
+    };
+  } catch (error) {
+    console.error('Error in addEvent:', error);
+    throw error;
+  }
+};
+
+export const updateEvent = async (id: string, event: Partial<Event>): Promise<Event> => {
+  try {
+    const updateData: any = {};
+    if (event.title) updateData.title = event.title;
+    if (event.description) updateData.description = event.description;
+    if (event.date) updateData.date = event.date.toISOString();
+    if (event.time) updateData.time = event.time;
+    if (event.location) updateData.location = event.location;
+    if (event.isPublic !== undefined) updateData.is_public = event.isPublic;
+    updateData.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from('events')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating event:', error);
+      throw new Error(`Failed to update event: ${error.message}`);
+    }
+
+    return {
+      id: data.id,
+      title: data.title,
+      description: data.description,
+      date: new Date(data.date),
+      time: data.time,
+      location: data.location,
+      isPublic: data.is_public,
+      createdAt: new Date(data.created_at)
+    };
+  } catch (error) {
+    console.error('Error in updateEvent:', error);
+    throw error;
+  }
+};
+
+export const deleteEvent = async (id: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('events')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting event:', error);
+      throw new Error(`Failed to delete event: ${error.message}`);
+    }
+  } catch (error) {
+    console.error('Error in deleteEvent:', error);
+    throw error;
+  }
+};
 
 export const getGradeExams = async (): Promise<GradeExam[]> => {
   if (typeof window !== 'undefined') {
