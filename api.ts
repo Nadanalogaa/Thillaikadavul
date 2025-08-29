@@ -382,7 +382,51 @@ export const getAdminUsers = async (): Promise<User[]> => {
   }
 };
 export const getAdminUserById = async (userId: string): Promise<User> => ({ id: userId, name: 'Demo User', email: 'demo@example.com', role: 'Student' } as User);
-export const addStudentByAdmin = async (userData: Partial<User>): Promise<User> => ({ ...userData, id: '123' } as User);
+export const addStudentByAdmin = async (userData: Partial<User>): Promise<User> => {
+  try {
+    // Call the registerUser function with the student data as an array
+    const result = await registerUser([userData]);
+    
+    if (result && result.users && result.users.length > 0) {
+      // Return the first (and only) user from the result
+      const savedUser = result.users[0];
+      
+      // Map database fields to User interface
+      return {
+        id: savedUser.id,
+        name: savedUser.name,
+        email: savedUser.email,
+        role: savedUser.role,
+        classPreference: savedUser.class_preference,
+        contactNumber: savedUser.contact_number,
+        address: savedUser.address,
+        country: savedUser.country,
+        state: savedUser.state,
+        city: savedUser.city,
+        postalCode: savedUser.postal_code,
+        fatherName: savedUser.father_name,
+        dob: savedUser.dob,
+        sex: savedUser.sex,
+        schoolName: savedUser.school_name,
+        standard: savedUser.standard,
+        grade: savedUser.grade,
+        photoUrl: savedUser.photo_url,
+        courses: savedUser.courses || [],
+        courseExpertise: savedUser.course_expertise || [],
+        preferredTimings: savedUser.preferred_timings || [],
+        dateOfJoining: savedUser.date_of_joining,
+        schedules: savedUser.schedules || [],
+        documents: savedUser.documents || [],
+        notes: savedUser.notes
+      };
+    } else {
+      throw new Error('Failed to add student - no user returned');
+    }
+  } catch (error) {
+    console.error('Error in addStudentByAdmin:', error);
+    throw error;
+  }
+};
 export const updateUserByAdmin = async (userId: string, userData: Partial<User>): Promise<User> => ({ ...userData, id: userId } as User);
 export const deleteUserByAdmin = async (userId: string): Promise<void> => {};
 export const sendNotification = async (userIds: string[], subject: string, message: string): Promise<{success: boolean}> => ({ success: true });
@@ -559,7 +603,7 @@ export const getNotifications = async (): Promise<Notification[]> => {
   }
   return [];
 };
-export const markNotificationAsRead = async (notificationId: string): Promise<Notification> => ({ id: notificationId, subject: 'Demo', message: 'Demo', read: true, createdAt: new Date(), userId: '1' } as Notification);
+export const markNotificationAsRead = async (notificationId: string): Promise<Notification> => ({ id: notificationId, subject: 'Demo', message: 'Demo', read: true, createdAt: new Date().toISOString(), userId: '1' });
 
 // Fee management functions
 export const getFeeStructures = async (): Promise<FeeStructure[]> => {
@@ -907,8 +951,8 @@ export const addEvent = async (event: Omit<Event, 'id'>): Promise<Event> => {
         title: event.title,
         description: event.description,
         date: event.date instanceof Date ? event.date.toISOString() : new Date(event.date).toISOString(),
-        time: event.time,
-        location: event.location,
+        time: event.time || '12:00 PM', // Provide default time if null
+        location: event.location || 'To be announced', // Provide default location if null
         is_public: event.isPublic,
         created_at: new Date().toISOString()
       }])

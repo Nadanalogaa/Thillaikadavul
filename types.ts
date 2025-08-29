@@ -158,14 +158,21 @@ export interface Batch {
   courseId: string;
   courseName: string;
   teacherId?: Partial<User> | string; // Can be string or populated object
+  teacherName?: string; // For display purposes
   schedule: BatchSchedule[];
+  capacity?: number; // Maximum number of students
+  enrolled?: number; // Current number of enrolled students  
   mode?: ClassPreference.Online | ClassPreference.Offline;
   locationId?: string;
   location?: Location; // Populated field
+  startDate?: string; // ISO date string
+  endDate?: string; // ISO date string
+  isActive?: boolean; // Whether the batch is active
 }
 
 // --- Student Enrollment Type ---
 export interface StudentEnrollment {
+    studentId: string; // Student ID for the enrollment
     batchName: string;
     courseName: string;
     timings: string[];
@@ -239,9 +246,11 @@ export interface Event {
   id: string;
   title: string;
   description: string;
-  date: string; // ISO string
-  location: string;
-  isOnline: boolean;
+  date: Date; // Date object
+  time?: string; // Time string like "12:00 PM"
+  location?: string;
+  isPublic?: boolean; // Whether event is public
+  createdAt?: Date; // Creation timestamp
   recipientIds?: string[];
 }
 
@@ -267,9 +276,16 @@ export interface GradeExam {
   id: string;
   title: string;
   description: string;
-  examDate: string; // ISO string
-  registrationDeadline: string; // ISO string
-  syllabusLink?: string;
+  date: Date; // Exam date
+  time?: string; // Exam time
+  duration?: string; // Exam duration
+  course?: string; // Course name  
+  grade?: string; // Grade/level
+  syllabusUrl?: string; // URL to syllabus
+  registrationFee?: number; // Registration fee amount
+  registrationDeadline?: Date; // Registration deadline
+  isOpen?: boolean; // Whether registration is open
+  createdAt?: Date; // Creation timestamp
   recipientIds?: string[];
 }
 
