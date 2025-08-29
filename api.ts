@@ -381,7 +381,74 @@ export const getAdminUsers = async (): Promise<User[]> => {
     return [];
   }
 };
-export const getAdminUserById = async (userId: string): Promise<User> => ({ id: userId, name: 'Demo User', email: 'demo@example.com', role: 'Student' } as User);
+export const getAdminUserById = async (userId: string): Promise<User> => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching user by ID:', error);
+      throw new Error(`Failed to fetch user: ${error.message}`);
+    }
+
+    if (!data) {
+      throw new Error('User not found');
+    }
+
+    // Map database fields to User interface
+    return {
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      role: data.role,
+      classPreference: data.class_preference,
+      contactNumber: data.contact_number,
+      alternateContactNumber: data.alternate_contact_number,
+      address: data.address,
+      country: data.country,
+      state: data.state,
+      city: data.city,
+      postalCode: data.postal_code,
+      timezone: data.timezone,
+      preferredTimings: data.preferred_timings || [],
+      status: data.status,
+      locationId: data.location_id,
+      
+      // Student specific fields
+      courses: data.courses || [],
+      fatherName: data.father_name,
+      standard: data.standard,
+      schoolName: data.school_name,
+      grade: data.grade,
+      notes: data.notes,
+      schedules: data.schedules || [],
+      documents: data.documents || [],
+      
+      // Teacher specific fields
+      courseExpertise: data.course_expertise || [],
+      educationalQualifications: data.educational_qualifications,
+      employmentType: data.employment_type,
+      yearsOfExperience: data.years_of_experience,
+      availableTimeSlots: data.available_time_slots || [],
+      
+      // Common fields
+      photoUrl: data.photo_url,
+      dob: data.dob,
+      sex: data.sex,
+      dateOfJoining: data.date_of_joining,
+      
+      // Soft delete fields
+      isDeleted: data.is_deleted,
+      deletedAt: data.deleted_at
+    };
+  } catch (error) {
+    console.error('Error in getAdminUserById:', error);
+    throw error;
+  }
+};
 export const addStudentByAdmin = async (userData: Partial<User>): Promise<User> => {
   try {
     // Call the registerUser function with the student data as an array
@@ -427,7 +494,116 @@ export const addStudentByAdmin = async (userData: Partial<User>): Promise<User> 
     throw error;
   }
 };
-export const updateUserByAdmin = async (userId: string, userData: Partial<User>): Promise<User> => ({ ...userData, id: userId } as User);
+export const updateUserByAdmin = async (userId: string, userData: Partial<User>): Promise<User> => {
+  try {
+    const updateData: any = {};
+    
+    // Map User interface fields to database fields
+    if (userData.name !== undefined) updateData.name = userData.name;
+    if (userData.email !== undefined) updateData.email = userData.email;
+    if (userData.role !== undefined) updateData.role = userData.role;
+    if (userData.classPreference !== undefined) updateData.class_preference = userData.classPreference;
+    if (userData.contactNumber !== undefined) updateData.contact_number = userData.contactNumber;
+    if (userData.alternateContactNumber !== undefined) updateData.alternate_contact_number = userData.alternateContactNumber;
+    if (userData.address !== undefined) updateData.address = userData.address;
+    if (userData.country !== undefined) updateData.country = userData.country;
+    if (userData.state !== undefined) updateData.state = userData.state;
+    if (userData.city !== undefined) updateData.city = userData.city;
+    if (userData.postalCode !== undefined) updateData.postal_code = userData.postalCode;
+    if (userData.timezone !== undefined) updateData.timezone = userData.timezone;
+    if (userData.preferredTimings !== undefined) updateData.preferred_timings = userData.preferredTimings;
+    if (userData.status !== undefined) updateData.status = userData.status;
+    if (userData.locationId !== undefined) updateData.location_id = userData.locationId;
+    
+    // Student specific fields
+    if (userData.courses !== undefined) updateData.courses = userData.courses;
+    if (userData.fatherName !== undefined) updateData.father_name = userData.fatherName;
+    if (userData.standard !== undefined) updateData.standard = userData.standard;
+    if (userData.schoolName !== undefined) updateData.school_name = userData.schoolName;
+    if (userData.grade !== undefined) updateData.grade = userData.grade;
+    if (userData.notes !== undefined) updateData.notes = userData.notes;
+    if (userData.schedules !== undefined) updateData.schedules = userData.schedules;
+    if (userData.documents !== undefined) updateData.documents = userData.documents;
+    
+    // Teacher specific fields
+    if (userData.courseExpertise !== undefined) updateData.course_expertise = userData.courseExpertise;
+    if (userData.educationalQualifications !== undefined) updateData.educational_qualifications = userData.educationalQualifications;
+    if (userData.employmentType !== undefined) updateData.employment_type = userData.employmentType;
+    if (userData.yearsOfExperience !== undefined) updateData.years_of_experience = userData.yearsOfExperience;
+    if (userData.availableTimeSlots !== undefined) updateData.available_time_slots = userData.availableTimeSlots;
+    
+    // Common fields
+    if (userData.photoUrl !== undefined) updateData.photo_url = userData.photoUrl;
+    if (userData.dob !== undefined) updateData.dob = userData.dob;
+    if (userData.sex !== undefined) updateData.sex = userData.sex;
+    if (userData.dateOfJoining !== undefined) updateData.date_of_joining = userData.dateOfJoining;
+    
+    // Always update the updated_at timestamp
+    updateData.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from('users')
+      .update(updateData)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating user:', error);
+      throw new Error(`Failed to update user: ${error.message}`);
+    }
+
+    // Map database fields back to User interface
+    return {
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      role: data.role,
+      classPreference: data.class_preference,
+      contactNumber: data.contact_number,
+      alternateContactNumber: data.alternate_contact_number,
+      address: data.address,
+      country: data.country,
+      state: data.state,
+      city: data.city,
+      postalCode: data.postal_code,
+      timezone: data.timezone,
+      preferredTimings: data.preferred_timings || [],
+      status: data.status,
+      locationId: data.location_id,
+      
+      // Student specific fields
+      courses: data.courses || [],
+      fatherName: data.father_name,
+      standard: data.standard,
+      schoolName: data.school_name,
+      grade: data.grade,
+      notes: data.notes,
+      schedules: data.schedules || [],
+      documents: data.documents || [],
+      
+      // Teacher specific fields
+      courseExpertise: data.course_expertise || [],
+      educationalQualifications: data.educational_qualifications,
+      employmentType: data.employment_type,
+      yearsOfExperience: data.years_of_experience,
+      availableTimeSlots: data.available_time_slots || [],
+      
+      // Common fields
+      photoUrl: data.photo_url,
+      dob: data.dob,
+      sex: data.sex,
+      dateOfJoining: data.date_of_joining,
+      
+      // Soft delete fields
+      isDeleted: data.is_deleted,
+      deletedAt: data.deleted_at
+    };
+  } catch (error) {
+    console.error('Error in updateUserByAdmin:', error);
+    throw error;
+  }
+};
 export const deleteUserByAdmin = async (userId: string): Promise<void> => {};
 export const sendNotification = async (userIds: string[], subject: string, message: string): Promise<{success: boolean}> => ({ success: true });
 export const getAdminCourses = async (): Promise<Course[]> => getCourses();
