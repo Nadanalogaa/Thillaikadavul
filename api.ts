@@ -1364,6 +1364,33 @@ export const getEvents = async (): Promise<Event[]> => {
 
 export const getAdminEvents = async (): Promise<Event[]> => getEvents();
 
+export const getPublicEvents = async (): Promise<Event[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('events')
+      .select('*')
+      .eq('is_public', true)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    
+    return data?.map(event => ({
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      date: new Date(event.date),
+      time: event.time,
+      location: event.location,
+      isPublic: event.is_public,
+      createdAt: new Date(event.created_at),
+      updatedAt: event.updated_at ? new Date(event.updated_at) : undefined
+    })) || [];
+  } catch (error) {
+    console.error('Error in getPublicEvents:', error);
+    return [];
+  }
+};
+
 export const addEvent = async (event: Omit<Event, 'id'>): Promise<Event> => {
   try {
     const { data, error } = await supabase
