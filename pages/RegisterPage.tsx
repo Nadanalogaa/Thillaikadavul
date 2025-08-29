@@ -5,7 +5,6 @@ import type { User, Course, Location } from '../types';
 import { registerUser, getCourses, checkEmailExists, getPublicLocations } from '../api';
 import PreferredTimingSelector from '../components/registration/PreferredTimingSelector';
 import { XCircleIcon } from '../components/icons';
-import Stepper from '../components/registration/Stepper';
 import { COUNTRIES } from '../constants';
 
 interface RegisterPageProps {
@@ -14,14 +13,12 @@ interface RegisterPageProps {
 
 const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
     const [registrationType, setRegistrationType] = useState<'student' | 'teacher' | null>(null);
-    
-    // Student wizard state
     const [currentStep, setCurrentStep] = useState(1);
-    const studentSteps = ["Account Details", "Contact Information", "Student Details"];
-    
-    // Teacher wizard state
-    const [teacherCurrentStep, setTeacherCurrentStep] = useState(1);
-    const teacherSteps = ["Account Details", "Contact Information", "Professional Details"];
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [success, setSuccess] = useState(false);
+    const [courses, setCourses] = useState<Course[]>([]);
+    const [locations, setLocations] = useState<Location[]>([]);
     
     // Guardian & Student Form State
     const [guardianData, setGuardianData] = useState({ 
@@ -35,15 +32,11 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
     const [activeStudentIndex, setActiveStudentIndex] = useState(0);
 
     // Teacher Form State
-    const [teacherData, setTeacherData] = useState<Partial<User>>({ role: UserRole.Teacher, sex: Sex.Male, employmentType: EmploymentType.PartTime, classPreference: ClassPreference.Hybrid, courseExpertise: [], photoUrl: ''});
+    const [teacherData, setTeacherData] = useState<Partial<User>>({ 
+        role: UserRole.Teacher, sex: Sex.Male, employmentType: EmploymentType.PartTime, 
+        classPreference: ClassPreference.Hybrid, courseExpertise: [], photoUrl: ''
+    });
     const [teacherPasswordConfirmation, setTeacherPasswordConfirmation] = useState('');
-    
-    // Common State
-    const [courses, setCourses] = useState<Course[]>([]);
-    const [locations, setLocations] = useState<Location[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [success, setSuccess] = useState(false);
     
     const photoInputRef = useRef<HTMLInputElement>(null);
 
@@ -66,40 +59,27 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
         fetchPrerequisites();
     }, []);
 
-    // --- Student Form Handlers ---
-    const handleGuardianChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setGuardianData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    // Form handlers (keeping existing logic but simplified)
+    const handleGuardianChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => 
+        setGuardianData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    
     const handleStudentDataChange = (index: number, field: keyof User, value: any) => setStudents(prev => {
         const newStudents = [...prev];
         const student = { ...newStudents[index], [field]: value };
-        // If changing to online, clear locationId
         if (field === 'classPreference' && value === ClassPreference.Online) {
             delete student.locationId;
         }
         newStudents[index] = student;
         return newStudents;
     });
+
     const handleStudentCourseChange = (index: number, courseName: string, isChecked: boolean) => {
         const student = students[index];
         const currentCourses = student.courses || [];
         const updatedCourses = isChecked ? [...currentCourses, courseName] : currentCourses.filter(c => c !== courseName);
         handleStudentDataChange(index, 'courses', updatedCourses);
     };
-    const handleAddStudent = () => {
-        setStudents(prev => {
-            const newStudents = [...prev, { role: UserRole.Student, classPreference: ClassPreference.Online, sex: Sex.Male, courses: [], preferredTimings: [], photoUrl: '' }];
-            setActiveStudentIndex(newStudents.length - 1);
-            return newStudents;
-        });
-    };
-    const handleRemoveStudent = (indexToRemove: number) => {
-        if (students.length > 1) {
-            const newStudents = students.filter((_, i) => i !== indexToRemove);
-            setStudents(newStudents);
-            setActiveStudentIndex(prev => Math.min(prev, newStudents.length - 1));
-        }
-    };
 
-    // --- Teacher Form Handlers ---
     const handleTeacherChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         const newTeacherData = {...teacherData, [name]: value};
@@ -108,55 +88,31 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
         }
         setTeacherData(newTeacherData);
     };
+
     const handleTeacherExpertiseChange = (courseName: string, isChecked: boolean) => {
         const current = teacherData.courseExpertise || [];
         const updated = isChecked ? [...current, courseName] : current.filter(c => c !== courseName);
         setTeacherData(prev => ({...prev, courseExpertise: updated}));
-    }
-
-    // --- Common Handlers ---
-    const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>, forTeacher: boolean) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                const photoUrl = reader.result as string;
-                if(forTeacher) {
-                    setTeacherData(prev => ({...prev, photoUrl}));
-                } else {
-                    handleStudentDataChange(activeStudentIndex, 'photoUrl', photoUrl);
-                }
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-    const handleRemovePhoto = (forTeacher: boolean) => {
-        if(forTeacher) {
-            setTeacherData(prev => ({...prev, photoUrl: ''}));
-        } else {
-            handleStudentDataChange(activeStudentIndex, 'photoUrl', '');
-        }
-    };
-    const handleBackToSelection = () => {
-        setRegistrationType(null);
-        setError(null);
-        setCurrentStep(1);
-        setTeacherCurrentStep(1);
     };
 
-    // --- Form Submission & Validation ---
-    const handleNextStep = async () => {
+    const validateAndProceed = async () => {
         setError(null);
-        if (!guardianData.name.trim() || !guardianData.email.trim() || !guardianData.password || !guardianData.contactNumber.trim()) return setError("All account details are required.");
-        if (guardianData.password.length < 6) return setError("Password must be at least 6 characters long.");
-        if (guardianData.password !== passwordConfirmation) return setError("Passwords do not match.");
+        const isTeacher = registrationType === 'teacher';
+        const data = isTeacher ? teacherData : guardianData;
+        const confirmation = isTeacher ? teacherPasswordConfirmation : passwordConfirmation;
+
+        if (!data.name?.trim() || !data.email?.trim() || !data.password || !data.contactNumber?.trim()) {
+            return setError("All account details are required.");
+        }
+        if (data.password.length < 6) return setError("Password must be at least 6 characters long.");
+        if (data.password !== confirmation) return setError("Passwords do not match.");
         
         setIsLoading(true);
         try {
-            const { exists } = await checkEmailExists(guardianData.email.toLowerCase());
+            const { exists } = await checkEmailExists(data.email.toLowerCase());
             if (exists) {
                 setError("This email is already registered. Please log in instead.");
-                onLoginNeeded(guardianData.email);
+                onLoginNeeded(data.email);
             } else {
                 setCurrentStep(2);
             }
@@ -166,57 +122,6 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
             setIsLoading(false);
         }
     };
-    
-    const handleContactNextStep = () => {
-        setError(null);
-        if (!guardianData.address.trim() || !guardianData.country.trim() || !guardianData.state.trim() || !guardianData.city.trim() || !guardianData.postalCode.trim()) {
-            return setError("All contact information fields are required.");
-        }
-        setCurrentStep(3);
-    };
-    
-    const handlePreviousStep = () => { setError(null); setCurrentStep(prev => prev - 1); };
-
-    const handleTeacherNextStep = async () => {
-        setError(null);
-        if (!teacherData.name?.trim() || !teacherData.email?.trim() || !teacherData.password || !teacherData.contactNumber?.trim()) {
-            return setError("All account details are required.");
-        }
-        if (teacherData.password.length < 6) {
-            return setError("Password must be at least 6 characters long.");
-        }
-        if (teacherData.password !== teacherPasswordConfirmation) {
-            return setError("Passwords do not match.");
-        }
-
-        setIsLoading(true);
-        try {
-            const { exists } = await checkEmailExists(teacherData.email.toLowerCase());
-            if (exists) {
-                setError("This email is already registered. Please log in instead.");
-                onLoginNeeded(teacherData.email);
-            } else {
-                setTeacherCurrentStep(2);
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Could not verify email.");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleTeacherContactNextStep = () => {
-        setError(null);
-        if (!teacherData.address?.trim() || !teacherData.country?.trim() || !teacherData.state?.trim() || !teacherData.city?.trim() || !teacherData.postalCode?.trim()) {
-            return setError("All contact information fields are required.");
-        }
-        setTeacherCurrentStep(3);
-    };
-
-    const handleTeacherPreviousStep = () => {
-        setError(null);
-        setTeacherCurrentStep(prev => prev - 1);
-    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -225,46 +130,45 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
 
         try {
             let usersToRegister: Partial<User>[] = [];
-            const commonContactInfo = {
-                address: guardianData.address,
-                country: guardianData.country,
-                state: guardianData.state,
-                city: guardianData.city,
-                postalCode: guardianData.postalCode,
-            };
 
             if (registrationType === 'student') {
+                // Validate all students
                 for (let i = 0; i < students.length; i++) {
                     const student = students[i];
                     if (!student.name?.trim() || !student.dob || !student.courses || student.courses.length === 0) {
-                        setActiveStudentIndex(i);
-                        setCurrentStep(3);
                         throw new Error(`Please complete all required fields for Student ${i + 1}.`);
                     }
                     if (student.classPreference === ClassPreference.Offline && !student.locationId) {
-                         setActiveStudentIndex(i);
-                         setCurrentStep(3);
                          throw new Error(`Please select a location for Student ${i + 1}.`);
                     }
                 }
+
                 usersToRegister = students.map((student, index) => ({
                     ...student, 
                     fatherName: guardianData.name, 
                     contactNumber: guardianData.contactNumber,
-                    ...commonContactInfo,
-                    email: index === 0 ? guardianData.email.toLowerCase() : `${guardianData.email.split('@')[0]}+student${index + 1}@${guardianData.email.split('@')[1]}`.toLowerCase(),
-                    password: guardianData.password, dateOfJoining: new Date().toISOString(),
+                    address: guardianData.address,
+                    country: guardianData.country,
+                    state: guardianData.state,
+                    city: guardianData.city,
+                    postalCode: guardianData.postalCode,
+                    email: index === 0 ? guardianData.email.toLowerCase() : 
+                          `${guardianData.email.split('@')[0]}+student${index + 1}@${guardianData.email.split('@')[1]}`.toLowerCase(),
+                    password: guardianData.password, 
+                    dateOfJoining: new Date().toISOString(),
                 }));
             } else if (registrationType === 'teacher') {
                  if (!teacherData.dob || !teacherData.educationalQualifications?.trim() || (teacherData.courseExpertise || []).length === 0) {
-                    setTeacherCurrentStep(3);
                     throw new Error("Please complete your professional details, including DOB, qualifications, and at least one course expertise.");
                 }
                 if (teacherData.classPreference === ClassPreference.Offline && !teacherData.locationId) {
-                    setTeacherCurrentStep(3);
                     throw new Error("Please select a location for offline classes.");
                 }
-                usersToRegister.push({ ...teacherData, email: teacherData.email!.toLowerCase(), dateOfJoining: new Date().toISOString() });
+                usersToRegister.push({ 
+                    ...teacherData, 
+                    email: teacherData.email!.toLowerCase(), 
+                    dateOfJoining: new Date().toISOString() 
+                });
             }
 
             await registerUser(usersToRegister);
@@ -276,192 +180,527 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
         }
     };
 
-    // --- Render Logic ---
     if (success) {
         const loginEmail = registrationType === 'student' ? guardianData.email : teacherData.email || '';
         return (
-            <div className="container mx-auto px-6 py-16 text-center">
-                <h1 className="text-3xl font-bold text-green-600">Registration Successful!</h1>
-                <p className="mt-4 text-lg text-gray-700">Thank you for registering. You can now log in to your account.</p>
-                <button onClick={() => onLoginNeeded(loginEmail)} className="mt-8 btn-primary-lg">Login Now</button>
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+                <div className="text-center p-8 bg-white rounded-2xl shadow-xl max-w-md">
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                    </div>
+                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome to Nadanaloga!</h1>
+                    <p className="text-gray-600 mb-6">Your registration is complete. Ready to begin your artistic journey?</p>
+                    <button 
+                        onClick={() => onLoginNeeded(loginEmail)} 
+                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg"
+                    >
+                        Login to Your Account
+                    </button>
+                </div>
             </div>
         );
     }
-    
-    const renderContactForm = (data: any, handler: any) => (
-        <fieldset className="mt-4">
-            <legend className="form-legend">Contact Information</legend>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-                <div className="md:col-span-2">
-                    <label className="form-label">Address</label>
-                    <textarea name="address" value={data.address || ''} onChange={handler} required className="form-textarea w-full" rows={3}></textarea>
-                </div>
-                <div>
-                    <label className="form-label">Country</label>
-                    <select name="country" value={data.country || ''} onChange={handler} required className="form-select w-full">
-                        <option value="">Select Country</option>
-                        {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                </div>
-                <div>
-                    <label className="form-label">State / Province</label>
-                    <input name="state" value={data.state || ''} onChange={handler} required className="form-input"/>
-                </div>
-                <div>
-                    <label className="form-label">City / Location</label>
-                    <input name="city" value={data.city || ''} onChange={handler} required className="form-input"/>
-                </div>
-                <div>
-                    <label className="form-label">Postal Code</label>
-                    <input name="postalCode" value={data.postalCode || ''} onChange={handler} required className="form-input"/>
-                </div>
-            </div>
-        </fieldset>
-    );
-
-    const renderStudentForm = () => {
-        const currentStudentData = students[activeStudentIndex] || {};
-        return <>
-            <Stepper steps={studentSteps} currentStep={currentStep} />
-            {currentStep === 1 && (
-                <fieldset className="mt-4"><legend className="form-legend">Guardian Account Details</legend>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-5">
-                        <div><label className="form-label">Full Name</label><input name="name" value={guardianData.name} onChange={handleGuardianChange} required className="form-input"/></div>
-                        <div><label className="form-label">Email Address</label><input name="email" type="email" value={guardianData.email} onChange={handleGuardianChange} required className="form-input"/></div>
-                        <div><label className="form-label">Password</label><input name="password" type="password" value={guardianData.password} onChange={handleGuardianChange} required className="form-input"/></div>
-                        <div><label className="form-label">Confirm Password</label><input name="passwordConfirmation" type="password" value={passwordConfirmation} onChange={(e) => setPasswordConfirmation(e.target.value)} required className="form-input"/></div>
-                        <div><label className="form-label">Contact Number</label><input name="contactNumber" type="tel" value={guardianData.contactNumber} onChange={handleGuardianChange} required className="form-input"/></div>
-                    </div>
-                </fieldset>
-            )}
-            {currentStep === 2 && renderContactForm(guardianData, handleGuardianChange)}
-            {currentStep === 3 && (
-                 <fieldset><legend className="form-legend">Student Details</legend>
-                    <div className="border-b border-gray-200"><nav className="-mb-px flex space-x-2">{students.map((s, i) => <div key={i} className="relative"><button type="button" onClick={() => setActiveStudentIndex(i)} className={`whitespace-nowrap py-3 px-1 border-b-2 text-sm font-medium transition-colors ${activeStudentIndex === i ? 'border-brand-primary text-brand-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>{s.name || `Student ${i + 1}`}</button>{students.length > 1 && <button type="button" onClick={() => handleRemoveStudent(i)} className="absolute -top-1 -right-1 bg-red-100 text-red-600 rounded-full h-5 w-5 flex items-center justify-center text-xs font-bold hover:bg-red-200">&times;</button>}</div>)}<button type="button" onClick={handleAddStudent} className="px-3 py-2 text-sm font-medium text-brand-primary hover:bg-brand-light rounded-t-md">+ Add Student</button></nav></div>
-                    <div className="pt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div className="lg:col-span-2 space-y-5">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                <div><label className="form-label">Full Name</label><input type="text" value={currentStudentData.name || ''} onChange={e => handleStudentDataChange(activeStudentIndex, 'name', e.target.value)} required className="form-input"/></div>
-                                <div><label className="form-label">Date of Birth</label><input type="date" value={currentStudentData.dob || ''} onChange={e => handleStudentDataChange(activeStudentIndex, 'dob', e.target.value)} required className="form-input"/></div>
-                                <div><label className="form-label">Gender</label><select value={currentStudentData.sex} onChange={e => handleStudentDataChange(activeStudentIndex, 'sex', e.target.value)} className="form-select">{Object.values(Sex).map(s => <option key={s} value={s}>{s}</option>)}</select></div>
-                                <div><label className="form-label">Class Preference</label><select value={currentStudentData.classPreference} onChange={e => handleStudentDataChange(activeStudentIndex, 'classPreference', e.target.value)} className="form-select">{[ClassPreference.Online, ClassPreference.Offline].map(s => <option key={s} value={s}>{s}</option>)}</select></div>
-                                {currentStudentData.classPreference === ClassPreference.Offline && (
-                                    <div>
-                                        <label className="form-label">Location</label>
-                                        <select value={currentStudentData.locationId || ''} onChange={e => handleStudentDataChange(activeStudentIndex, 'locationId', e.target.value)} required className="form-select">
-                                            <option value="">Select Location</option>
-                                            {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
-                                        </select>
-                                    </div>
-                                )}
-                            </div>
-                            <div><label className="form-label">Course Selection</label><div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2">{courses.map(c => <label key={c.id} className="flex items-center space-x-2 p-2 border rounded-lg hover:bg-gray-50 text-sm"><input type="checkbox" value={c.name} checked={currentStudentData.courses?.includes(c.name)} onChange={(e) => handleStudentCourseChange(activeStudentIndex, c.name, e.target.checked)} className="h-4 w-4 rounded text-brand-primary focus:ring-brand-primary"/><span>{c.name}</span></label>)}</div></div>
-                        </div>
-                        <div className="lg:col-span-1 flex flex-col items-center">
-                            <label className="form-label">Profile Photo (Optional)</label>
-                            <div className="relative group w-32 h-32 bg-brand-light/30 rounded-full overflow-hidden flex items-center justify-center"><img src={currentStudentData.photoUrl || `https://ui-avatars.com/api/?name=${currentStudentData.name || '?'}&background=e8eaf6&color=1a237e&size=128&font-size=0.5`} alt="Preview" className="w-full h-full object-cover"/>{currentStudentData.photoUrl && <button type="button" onClick={() => handleRemovePhoto(false)} className="absolute top-1 right-1 btn-remove-photo"><XCircleIcon /></button>}</div>
-                            <input type="file" ref={photoInputRef} onChange={(e) => handlePhotoChange(e, false)} className="hidden" accept="image/*"/>
-                            <button type="button" onClick={() => photoInputRef.current?.click()} className="mt-2 text-sm text-brand-primary hover:underline">Upload Photo</button>
-                        </div>
-                        {(currentStudentData.courses?.length || 0) > 0 && <div className="lg:col-span-3 pt-6 border-t"><label className="form-label">Preferred Timings (Optional)</label><p className="text-sm text-gray-500 mb-4">Help us find the best batch for this student.</p><PreferredTimingSelector selectedTimings={currentStudentData.preferredTimings || []} onChange={(timings) => handleStudentDataChange(activeStudentIndex, 'preferredTimings', timings)} /></div>}
-                    </div>
-                 </fieldset>
-            )}
-        </>;
-    };
-
-    const renderTeacherForm = () => (
-        <>
-            <Stepper steps={teacherSteps} currentStep={teacherCurrentStep} />
-            {teacherCurrentStep === 1 && (
-                 <fieldset className="mt-4">
-                    <legend className="form-legend">Account Details</legend>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-5">
-                        <div><label className="form-label">Full Name</label><input name="name" value={teacherData.name || ''} onChange={handleTeacherChange} required className="form-input"/></div>
-                        <div><label className="form-label">Email Address</label><input name="email" type="email" value={teacherData.email || ''} onChange={handleTeacherChange} required className="form-input"/></div>
-                        <div><label className="form-label">Password</label><input name="password" type="password" value={teacherData.password || ''} onChange={handleTeacherChange} required className="form-input"/></div>
-                        <div><label className="form-label">Confirm Password</label><input name="teacherPasswordConfirmation" type="password" value={teacherPasswordConfirmation} onChange={(e) => setTeacherPasswordConfirmation(e.target.value)} required className="form-input"/></div>
-                        <div><label className="form-label">Contact Number</label><input name="contactNumber" type="tel" value={teacherData.contactNumber || ''} onChange={handleTeacherChange} required className="form-input"/></div>
-                    </div>
-                </fieldset>
-            )}
-            {teacherCurrentStep === 2 && renderContactForm(teacherData, handleTeacherChange)}
-            {teacherCurrentStep === 3 && (
-                <fieldset>
-                    <legend className="form-legend">Professional Details</legend>
-                    <div className="pt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div className="lg:col-span-2 space-y-5">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                <div><label className="form-label">Date of Birth</label><input name="dob" type="date" value={teacherData.dob || ''} onChange={handleTeacherChange} required className="form-input"/></div>
-                                <div><label className="form-label">Gender</label><select name="sex" value={teacherData.sex} onChange={handleTeacherChange} className="form-select">{Object.values(Sex).map(s=><option key={s} value={s}>{s}</option>)}</select></div>
-                                <div><label className="form-label">Employment</label><select name="employmentType" value={teacherData.employmentType} onChange={handleTeacherChange} className="form-select">{Object.values(EmploymentType).map(s=><option key={s} value={s}>{s}</option>)}</select></div>
-                                <div><label className="form-label">Class Preference</label><select name="classPreference" value={teacherData.classPreference} onChange={handleTeacherChange} className="form-select">{Object.values(ClassPreference).map(s=><option key={s} value={s}>{s}</option>)}</select></div>
-                                {teacherData.classPreference === ClassPreference.Offline && (
-                                    <div>
-                                        <label className="form-label">Location</label>
-                                        <select name="locationId" value={teacherData.locationId || ''} onChange={handleTeacherChange} required className="form-select">
-                                            <option value="">Select Location</option>
-                                            {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
-                                        </select>
-                                    </div>
-                                )}
-                                <div className="md:col-span-2"><label className="form-label">Educational Qualifications</label><input name="educationalQualifications" value={teacherData.educationalQualifications || ''} onChange={handleTeacherChange} required className="form-input"/></div>
-                            </div>
-                            <div><label className="form-label">Course Expertise</label><div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2">{courses.map(c => <label key={c.id} className="flex items-center space-x-2 p-2 border rounded-lg hover:bg-gray-50 text-sm"><input type="checkbox" value={c.name} checked={teacherData.courseExpertise?.includes(c.name)} onChange={e=>handleTeacherExpertiseChange(c.name, e.target.checked)} className="h-4 w-4 rounded text-brand-primary focus:ring-brand-primary"/><span>{c.name}</span></label>)}</div></div>
-                        </div>
-                        <div className="lg:col-span-1 flex flex-col items-center">
-                            <label className="form-label">Profile Photo (Optional)</label>
-                            <div className="relative group w-32 h-32 bg-brand-light/30 rounded-full overflow-hidden flex items-center justify-center"><img src={teacherData.photoUrl || `https://ui-avatars.com/api/?name=${teacherData.name || '?'}&background=e8eaf6&color=1a237e&size=128&font-size=0.5`} alt="Preview" className="w-full h-full object-cover"/>{teacherData.photoUrl && <button type="button" onClick={() => handleRemovePhoto(true)} className="absolute top-1 right-1 btn-remove-photo"><XCircleIcon /></button>}</div>
-                            <input type="file" ref={photoInputRef} onChange={e => handlePhotoChange(e, true)} className="hidden" accept="image/*"/>
-                            <button type="button" onClick={() => photoInputRef.current?.click()} className="mt-2 text-sm text-brand-primary hover:underline">Upload Photo</button>
-                        </div>
-                    </div>
-                </fieldset>
-            )}
-        </>
-    );
 
     return (
-        <div className="bg-gray-50 py-12">
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-8">
+            {/* Modern CSS-in-JS styles */}
             <style>{`
-                .form-legend { font-size: 1.125rem; font-weight: 600; color: #1a237e; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #e0e0e0; }
-                .btn-primary-lg { display: inline-flex; justify-content: center; padding: 0.75rem 2rem; border: 1px solid transparent; border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); font-size: 1rem; font-weight: 500; color: white; background-color: #1a237e; }
-                .btn-primary-lg:hover { background-color: #0d113d; }
-                .btn-secondary { display: inline-flex; justify-content: center; padding: 0.75rem 2rem; border: 1px solid #d1d5db; border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); font-size: 1rem; font-weight: 500; color: #374151; background-color: white; }
-                .btn-secondary:hover { background-color: #f9fafb; }
-                .btn-remove-photo { background-color: rgba(255,255,255,0.7); color: #374151; border-radius: 9999px; padding: 0.25rem; opacity: 0; transition: opacity 0.2s; }
-                .group:hover .btn-remove-photo { opacity: 1; }
+                .form-card { background: white; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
+                .form-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 16px 16px 0 0; text-align: center; }
+                .form-input, .form-select, .form-textarea { 
+                    width: 100%; padding: 0.65rem 0.75rem; border: 2px solid #e5e7eb; border-radius: 8px; 
+                    font-size: 0.875rem; font-weight: 500; transition: all 0.2s; background: #fafafa;
+                }
+                .form-input:focus, .form-select:focus, .form-textarea:focus { 
+                    border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); outline: none; background: white;
+                }
+                .form-label { display: block; font-size: 0.75rem; font-weight: 600; color: #374151; margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px; }
+                .step-indicator { display: flex; justify-content: center; align-items: center; margin: 1.5rem 0; }
+                .step-dot { width: 2rem; height: 2rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.75rem; margin: 0 0.5rem; transition: all 0.3s; }
+                .step-dot.active { background: linear-gradient(135deg, #667eea, #764ba2); color: white; transform: scale(1.1); }
+                .step-dot.completed { background: #10b981; color: white; }
+                .step-dot.inactive { background: #e5e7eb; color: #9ca3af; }
+                .step-line { flex: 1; height: 2px; background: #e5e7eb; margin: 0 0.5rem; }
+                .step-line.completed { background: #10b981; }
+                .btn-primary { 
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    color: white; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; font-size: 0.875rem;
+                    border: none; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                }
+                .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.15); }
+                .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+                .btn-secondary { 
+                    background: white; color: #6b7280; padding: 0.75rem 1.5rem; border: 2px solid #e5e7eb; 
+                    border-radius: 8px; font-weight: 600; font-size: 0.875rem; cursor: pointer; transition: all 0.3s;
+                }
+                .btn-secondary:hover { border-color: #d1d5db; background: #f9fafb; }
+                .course-card { 
+                    border: 2px solid #e5e7eb; border-radius: 8px; padding: 0.75rem; text-align: center; 
+                    transition: all 0.3s; cursor: pointer; background: #fafafa;
+                }
+                .course-card:hover { border-color: #667eea; background: white; }
+                .course-card.selected { border-color: #667eea; background: linear-gradient(135deg, #667eea15, #764ba215); }
+                .student-tab { 
+                    padding: 0.5rem 1rem; border-radius: 6px 6px 0 0; font-size: 0.75rem; font-weight: 600; 
+                    cursor: pointer; transition: all 0.2s; margin-right: 0.25rem;
+                }
+                .student-tab.active { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+                .student-tab.inactive { background: #f3f4f6; color: #6b7280; }
+                .student-tab.inactive:hover { background: #e5e7eb; }
+                .registration-type-card { 
+                    border: 2px solid #e5e7eb; border-radius: 12px; padding: 2rem; text-align: center; 
+                    transition: all 0.3s; cursor: pointer; background: white;
+                }
+                .registration-type-card:hover { 
+                    border-color: #667eea; transform: translateY(-2px); 
+                    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+                }
+                .error-alert { 
+                    background: #fee2e2; border: 1px solid #fca5a5; color: #dc2626; 
+                    padding: 0.75rem; border-radius: 8px; font-size: 0.875rem; margin: 1rem 0;
+                }
             `}</style>
-            <div className="container mx-auto px-6">
-                <div className="max-w-5xl mx-auto bg-white p-6 md:p-8 rounded-xl shadow-2xl">
-                    <div className="text-center mb-4">
-                        <h1 className="text-3xl font-bold text-brand-primary">Join Nadanaloga</h1>
-                        <p className="text-gray-600 mt-2">Create an account as a guardian or a teacher.</p>
-                    </div>
-                    {error && <div className="text-sm text-red-600 text-center bg-red-50 p-3 rounded-md my-4">{error}</div>}
-                    
-                    {!registrationType ? (
-                        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                           <button onClick={() => setRegistrationType('student')} className="p-8 border rounded-lg text-left hover:border-brand-primary hover:shadow-lg transition-all">
-                                <h2 className="text-xl font-bold text-brand-dark">Register as a Guardian/Student</h2>
-                                <p className="mt-2 text-gray-600">Create an account to enroll one or more students in our courses.</p>
-                           </button>
-                           <button onClick={() => setRegistrationType('teacher')} className="p-8 border rounded-lg text-left hover:border-brand-primary hover:shadow-lg transition-all">
-                                <h2 className="text-xl font-bold text-brand-dark">Register as a Teacher</h2>
-                                <p className="mt-2 text-gray-600">Apply to join our team of talented instructors.</p>
-                           </button>
+
+            <div className="container mx-auto px-4 max-w-4xl">
+                {!registrationType ? (
+                    <div className="form-card">
+                        <div className="form-header">
+                            <h1 className="text-2xl font-bold mb-2">Join Nadanaloga Fine Arts Academy</h1>
+                            <p className="opacity-90">Discover your artistic potential with expert guidance</p>
                         </div>
-                    ) : (
-                        <form onSubmit={handleSubmit} className="mt-4">
-                            {registrationType === 'student' ? renderStudentForm() : renderTeacherForm()}
-                            <div className="pt-6 mt-6 border-t flex justify-between items-center">
-                                <div className="flex items-center space-x-2">
-                                    <button type="button" onClick={handleBackToSelection} className="btn-secondary">Back</button>
-                                    {((registrationType === 'student' && currentStep > 1) || (registrationType === 'teacher' && teacherCurrentStep > 1)) && (
+                        <div className="p-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <button 
+                                    onClick={() => setRegistrationType('student')} 
+                                    className="registration-type-card"
+                                >
+                                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                                        </svg>
+                                    </div>
+                                    <h2 className="text-xl font-bold text-gray-900 mb-2">Student & Guardian</h2>
+                                    <p className="text-gray-600 text-sm">Enroll in our arts programs and begin your creative journey</p>
+                                </button>
+                                <button 
+                                    onClick={() => setRegistrationType('teacher')} 
+                                    className="registration-type-card"
+                                >
+                                    <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m8 6V8a2 2 0 00-2-2H10a2 2 0 00-2 2v8a2 2 0 002 2h4a2 2 0 002-2v-2"></path>
+                                        </svg>
+                                    </div>
+                                    <h2 className="text-xl font-bold text-gray-900 mb-2">Instructor</h2>
+                                    <p className="text-gray-600 text-sm">Join our team of passionate arts educators</p>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="form-card">
+                        <div className="form-header">
+                            <h1 className="text-xl font-bold">
+                                {registrationType === 'student' ? 'Student Registration' : 'Instructor Application'}
+                            </h1>
+                            <div className="step-indicator mt-4">
+                                <div className={`step-dot ${currentStep >= 1 ? 'active' : 'inactive'}`}>1</div>
+                                <div className={`step-line ${currentStep > 1 ? 'completed' : ''}`}></div>
+                                <div className={`step-dot ${currentStep === 2 ? 'active' : currentStep > 2 ? 'completed' : 'inactive'}`}>2</div>
+                            </div>
+                        </div>
+
+                        {error && <div className="error-alert mx-6 mt-6">{error}</div>}
+
+                        <form onSubmit={handleSubmit} className="p-6">
+                            {currentStep === 1 && (
+                                <div className="space-y-6">
+                                    <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">
+                                        {registrationType === 'student' ? 'Guardian Account Details' : 'Your Account Details'}
+                                    </h3>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="form-label">Full Name</label>
+                                            <input 
+                                                name="name" 
+                                                value={registrationType === 'student' ? guardianData.name : teacherData.name || ''} 
+                                                onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
+                                                required 
+                                                className="form-input"
+                                                placeholder="Enter your full name"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="form-label">Email Address</label>
+                                            <input 
+                                                name="email" 
+                                                type="email" 
+                                                value={registrationType === 'student' ? guardianData.email : teacherData.email || ''} 
+                                                onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
+                                                required 
+                                                className="form-input"
+                                                placeholder="your.email@example.com"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="form-label">Password</label>
+                                            <input 
+                                                name="password" 
+                                                type="password" 
+                                                value={registrationType === 'student' ? guardianData.password : teacherData.password || ''} 
+                                                onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
+                                                required 
+                                                className="form-input"
+                                                placeholder="Minimum 6 characters"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="form-label">Confirm Password</label>
+                                            <input 
+                                                type="password" 
+                                                value={registrationType === 'student' ? passwordConfirmation : teacherPasswordConfirmation} 
+                                                onChange={(e) => registrationType === 'student' ? setPasswordConfirmation(e.target.value) : setTeacherPasswordConfirmation(e.target.value)} 
+                                                required 
+                                                className="form-input"
+                                                placeholder="Re-enter password"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="form-label">Contact Number</label>
+                                            <input 
+                                                name="contactNumber" 
+                                                type="tel" 
+                                                value={registrationType === 'student' ? guardianData.contactNumber : teacherData.contactNumber || ''} 
+                                                onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
+                                                required 
+                                                className="form-input"
+                                                placeholder="+1 234 567 8900"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="form-label">Country</label>
+                                            <select 
+                                                name="country" 
+                                                value={registrationType === 'student' ? guardianData.country : teacherData.country || ''} 
+                                                onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
+                                                required 
+                                                className="form-select"
+                                            >
+                                                <option value="">Select your country</option>
+                                                {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div>
+                                            <label className="form-label">State/Province</label>
+                                            <input 
+                                                name="state" 
+                                                value={registrationType === 'student' ? guardianData.state : teacherData.state || ''} 
+                                                onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
+                                                required 
+                                                className="form-input"
+                                                placeholder="State/Province"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="form-label">City</label>
+                                            <input 
+                                                name="city" 
+                                                value={registrationType === 'student' ? guardianData.city : teacherData.city || ''} 
+                                                onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
+                                                required 
+                                                className="form-input"
+                                                placeholder="City"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="form-label">Postal Code</label>
+                                            <input 
+                                                name="postalCode" 
+                                                value={registrationType === 'student' ? guardianData.postalCode : teacherData.postalCode || ''} 
+                                                onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
+                                                required 
+                                                className="form-input"
+                                                placeholder="12345"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="form-label">Address</label>
+                                        <textarea 
+                                            name="address" 
+                                            value={registrationType === 'student' ? guardianData.address : teacherData.address || ''} 
+                                            onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
+                                            required 
+                                            className="form-textarea" 
+                                            rows={3}
+                                            placeholder="Enter your complete address"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {currentStep === 2 && registrationType === 'student' && (
+                                <div className="space-y-6">
+                                    <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Student Details</h3>
+                                    
+                                    {/* Student tabs */}
+                                    <div className="flex border-b">
+                                        {students.map((student, index) => (
+                                            <button
+                                                key={index}
+                                                type="button"
+                                                onClick={() => setActiveStudentIndex(index)}
+                                                className={`student-tab ${activeStudentIndex === index ? 'active' : 'inactive'}`}
+                                            >
+                                                {student.name || `Student ${index + 1}`}
+                                                {students.length > 1 && (
+                                                    <span 
+                                                        className="ml-2 text-xs opacity-75 hover:opacity-100"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (students.length > 1) {
+                                                                const newStudents = students.filter((_, i) => i !== index);
+                                                                setStudents(newStudents);
+                                                                setActiveStudentIndex(prev => Math.min(prev, newStudents.length - 1));
+                                                            }
+                                                        }}
+                                                    >
+                                                        ×
+                                                    </span>
+                                                )}
+                                            </button>
+                                        ))}
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const newStudents = [...students, { 
+                                                    role: UserRole.Student, classPreference: ClassPreference.Online, 
+                                                    sex: Sex.Male, courses: [], preferredTimings: [], photoUrl: '' 
+                                                }];
+                                                setStudents(newStudents);
+                                                setActiveStudentIndex(newStudents.length - 1);
+                                            }}
+                                            className="student-tab inactive text-blue-600"
+                                        >
+                                            + Add Student
+                                        </button>
+                                    </div>
+
+                                    {/* Current student form */}
+                                    {students[activeStudentIndex] && (
+                                        <div className="space-y-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                <div>
+                                                    <label className="form-label">Student Name</label>
+                                                    <input 
+                                                        type="text" 
+                                                        value={students[activeStudentIndex].name || ''} 
+                                                        onChange={e => handleStudentDataChange(activeStudentIndex, 'name', e.target.value)} 
+                                                        required 
+                                                        className="form-input"
+                                                        placeholder="Full name"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="form-label">Date of Birth</label>
+                                                    <input 
+                                                        type="date" 
+                                                        value={students[activeStudentIndex].dob || ''} 
+                                                        onChange={e => handleStudentDataChange(activeStudentIndex, 'dob', e.target.value)} 
+                                                        required 
+                                                        className="form-input"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="form-label">Gender</label>
+                                                    <select 
+                                                        value={students[activeStudentIndex].sex} 
+                                                        onChange={e => handleStudentDataChange(activeStudentIndex, 'sex', e.target.value)} 
+                                                        className="form-select"
+                                                    >
+                                                        {Object.values(Sex).map(s => <option key={s} value={s}>{s}</option>)}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="form-label">Learning Preference</label>
+                                                    <select 
+                                                        value={students[activeStudentIndex].classPreference} 
+                                                        onChange={e => handleStudentDataChange(activeStudentIndex, 'classPreference', e.target.value)} 
+                                                        className="form-select"
+                                                    >
+                                                        <option value={ClassPreference.Online}>Online Classes</option>
+                                                        <option value={ClassPreference.Offline}>In-Person Classes</option>
+                                                    </select>
+                                                </div>
+                                                {students[activeStudentIndex].classPreference === ClassPreference.Offline && (
+                                                    <div>
+                                                        <label className="form-label">Location</label>
+                                                        <select 
+                                                            value={students[activeStudentIndex].locationId || ''} 
+                                                            onChange={e => handleStudentDataChange(activeStudentIndex, 'locationId', e.target.value)} 
+                                                            required 
+                                                            className="form-select"
+                                                        >
+                                                            <option value="">Choose location</option>
+                                                            {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
+                                                        </select>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div>
+                                                <label className="form-label">Course Selection</label>
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+                                                    {courses.map(course => (
+                                                        <label key={course.id} className={`course-card ${students[activeStudentIndex].courses?.includes(course.name) ? 'selected' : ''}`}>
+                                                            <input 
+                                                                type="checkbox" 
+                                                                value={course.name} 
+                                                                checked={students[activeStudentIndex].courses?.includes(course.name) || false} 
+                                                                onChange={(e) => handleStudentCourseChange(activeStudentIndex, course.name, e.target.checked)} 
+                                                                className="sr-only"
+                                                            />
+                                                            <div className="text-sm font-semibold">{course.name}</div>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {(students[activeStudentIndex].courses?.length || 0) > 0 && (
+                                                <div>
+                                                    <label className="form-label">Preferred Class Times (Optional)</label>
+                                                    <p className="text-xs text-gray-600 mb-3">Help us find the best schedule for you</p>
+                                                    <PreferredTimingSelector 
+                                                        selectedTimings={students[activeStudentIndex].preferredTimings || []} 
+                                                        onChange={(timings) => handleStudentDataChange(activeStudentIndex, 'preferredTimings', timings)} 
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {currentStep === 2 && registrationType === 'teacher' && (
+                                <div className="space-y-6">
+                                    <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Professional Details</h3>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="form-label">Date of Birth</label>
+                                            <input 
+                                                name="dob" 
+                                                type="date" 
+                                                value={teacherData.dob || ''} 
+                                                onChange={handleTeacherChange} 
+                                                required 
+                                                className="form-input"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="form-label">Gender</label>
+                                            <select 
+                                                name="sex" 
+                                                value={teacherData.sex} 
+                                                onChange={handleTeacherChange} 
+                                                className="form-select"
+                                            >
+                                                {Object.values(Sex).map(s => <option key={s} value={s}>{s}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="form-label">Employment Type</label>
+                                            <select 
+                                                name="employmentType" 
+                                                value={teacherData.employmentType} 
+                                                onChange={handleTeacherChange} 
+                                                className="form-select"
+                                            >
+                                                {Object.values(EmploymentType).map(s => <option key={s} value={s}>{s}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="form-label">Teaching Preference</label>
+                                            <select 
+                                                name="classPreference" 
+                                                value={teacherData.classPreference} 
+                                                onChange={handleTeacherChange} 
+                                                className="form-select"
+                                            >
+                                                {Object.values(ClassPreference).map(s => <option key={s} value={s}>{s}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {teacherData.classPreference === ClassPreference.Offline && (
+                                        <div>
+                                            <label className="form-label">Preferred Location</label>
+                                            <select 
+                                                name="locationId" 
+                                                value={teacherData.locationId || ''} 
+                                                onChange={handleTeacherChange} 
+                                                required 
+                                                className="form-select"
+                                            >
+                                                <option value="">Select location</option>
+                                                {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
+                                            </select>
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <label className="form-label">Educational Qualifications</label>
+                                        <input 
+                                            name="educationalQualifications" 
+                                            value={teacherData.educationalQualifications || ''} 
+                                            onChange={handleTeacherChange} 
+                                            required 
+                                            className="form-input"
+                                            placeholder="e.g., Master's in Fine Arts, Bachelor's in Music"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="form-label">Course Expertise</label>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+                                            {courses.map(course => (
+                                                <label key={course.id} className={`course-card ${teacherData.courseExpertise?.includes(course.name) ? 'selected' : ''}`}>
+                                                    <input 
+                                                        type="checkbox" 
+                                                        value={course.name} 
+                                                        checked={teacherData.courseExpertise?.includes(course.name) || false} 
+                                                        onChange={(e) => handleTeacherExpertiseChange(course.name, e.target.checked)} 
+                                                        className="sr-only"
+                                                    />
+                                                    <div className="text-sm font-semibold">{course.name}</div>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Form Actions */}
+                            <div className="flex justify-between items-center pt-8 border-t">
+                                <div className="flex space-x-3">
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setRegistrationType(null)} 
+                                        className="btn-secondary"
+                                    >
+                                        ← Back to Selection
+                                    </button>
+                                    {currentStep > 1 && (
                                         <button 
                                             type="button" 
-                                            onClick={registrationType === 'student' ? handlePreviousStep : handleTeacherPreviousStep} 
-                                            disabled={isLoading} 
+                                            onClick={() => setCurrentStep(prev => prev - 1)} 
                                             className="btn-secondary"
                                         >
                                             Previous
@@ -469,16 +708,33 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                     )}
                                 </div>
 
-                                {registrationType === 'student' && currentStep === 1 && <button type="button" onClick={handleNextStep} disabled={isLoading} className="btn-primary-lg">{isLoading ? 'Verifying...' : 'Next'}</button>}
-                                {registrationType === 'student' && currentStep === 2 && <button type="button" onClick={handleContactNextStep} disabled={isLoading} className="btn-primary-lg">Next</button>}
-                                {registrationType === 'student' && currentStep === 3 && <button type="submit" disabled={isLoading} className="btn-primary-lg bg-green-600 hover:bg-green-700">{isLoading ? 'Registering...' : 'Complete Registration'}</button>}
-
-                                {registrationType === 'teacher' && teacherCurrentStep === 1 && <button type="button" onClick={handleTeacherNextStep} disabled={isLoading} className="btn-primary-lg">{isLoading ? 'Verifying...' : 'Next'}</button>}
-                                {registrationType === 'teacher' && teacherCurrentStep === 2 && <button type="button" onClick={handleTeacherContactNextStep} disabled={isLoading} className="btn-primary-lg">Next</button>}
-                                {registrationType === 'teacher' && teacherCurrentStep === 3 && <button type="submit" disabled={isLoading} className="btn-primary-lg bg-green-600 hover:bg-green-700">{isLoading ? 'Registering...' : 'Complete Registration'}</button>}
+                                {currentStep === 1 ? (
+                                    <button 
+                                        type="button" 
+                                        onClick={validateAndProceed} 
+                                        disabled={isLoading} 
+                                        className="btn-primary"
+                                    >
+                                        {isLoading ? 'Verifying...' : 'Next →'}
+                                    </button>
+                                ) : (
+                                    <button 
+                                        type="submit" 
+                                        disabled={isLoading} 
+                                        className="btn-primary bg-gradient-to-r from-green-500 to-green-600"
+                                    >
+                                        {isLoading ? 'Creating Account...' : 'Complete Registration'}
+                                    </button>
+                                )}
                             </div>
                         </form>
-                    )}
+                    </div>
+                )}
+
+                <div className="text-center mt-8">
+                    <Link to="/login" className="text-sm text-gray-600 hover:text-blue-600 font-medium">
+                        Already have an account? Sign in here
+                    </Link>
                 </div>
             </div>
         </div>
