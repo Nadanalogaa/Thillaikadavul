@@ -229,10 +229,10 @@ export const submitContactForm = async (data: ContactFormData): Promise<{success
 // All other functions as placeholders to prevent errors
 export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
   try {
-    // Step 1: Insert with ONLY essential fields that we know work
+    // Step 1: Insert with ONLY essential fields that we know work - CACHE BUST
     const usersToInsert = userData.map((user, index) => ({
       name: 'Student',
-      email: `temp${Date.now()}${index}@temp.com`,  // Unique email for each
+      email: `temp${Date.now()}${index}${Math.random()}@temp.com`,  // UNIQUE email
       password: '123456',
       role: 'Student'
     }));
