@@ -229,21 +229,31 @@ export const submitContactForm = async (data: ContactFormData): Promise<{success
 // All other functions as placeholders to prevent errors
 export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
   try {
-    // Minimal registration with only essential fields including required password
-    const usersToInsert = userData.map(user => {
-      const safeUser = {
-        name: user.name ? String(user.name).substring(0, 50) : 'User',
-        email: user.email ? String(user.email).substring(0, 100) : null,
-        password: user.password ? String(user.password).substring(0, 50) : 'temp123',
-        role: 'Student',
-        created_at: new Date().toISOString()
-      };
-      
-      console.log('Inserting user data:', JSON.stringify(safeUser));
-      return safeUser;
-    });
-
-    console.log('Final insert data:', JSON.stringify(usersToInsert));
+    const usersToInsert = userData.map(user => ({
+      name: user.name || 'User',
+      email: user.email,
+      password: user.password || 'temp123',
+      role: user.role || 'Student',
+      class_preference: user.classPreference,
+      photo_url: user.photoUrl,
+      dob: user.dob ? new Date(user.dob).toISOString().split('T')[0] : null,
+      sex: user.sex,
+      contact_number: user.contactNumber,
+      address: user.address,
+      schedules: user.schedules || [],
+      documents: user.documents || [],
+      date_of_joining: user.dateOfJoining || new Date().toISOString().split('T')[0],
+      courses: user.courses || [],
+      father_name: user.fatherName,
+      standard: user.standard,
+      school_name: user.schoolName,
+      grade: user.grade,
+      notes: user.notes,
+      course_expertise: user.courseExpertise || [],
+      educational_qualifications: user.educationalQualifications,
+      employment_type: user.employmentType,
+      created_at: new Date().toISOString()
+    }));
 
     const { data, error } = await supabase
       .from('users')
@@ -251,7 +261,7 @@ export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
       .select();
 
     if (error) {
-      console.error('Registration error details:', error);
+      console.error('Registration error:', error);
       throw new Error(`Registration failed: ${error.message}`);
     }
 
@@ -1091,13 +1101,20 @@ export const getFamilyStudents = async (): Promise<User[]> => {
         }
         
         // Find students that belong to this family
+        console.log('Current user email:', currentUser.email);
+        console.log('All students found:', data?.map(u => ({email: u.email, name: u.name})));
+        
         const familyStudents = (data || []).filter((user: any) => {
           // Check if this student belongs to current user's family
-          const studentEmailBase = user.email?.split('+')[0]; // Remove +student2 etc
-          const currentUserEmailBase = currentUser.email?.split('+')[0];
+          const studentEmailBase = user.email?.split('+')[0]?.split('@')[0]; // Remove +student2 and @domain
+          const currentUserEmailBase = currentUser.email?.split('+')[0]?.split('@')[0]; // Remove +student2 and @domain
           
-          return studentEmailBase === currentUserEmailBase;
+          console.log('Comparing:', studentEmailBase, 'vs', currentUserEmailBase);
+          
+          return studentEmailBase === currentUserEmailBase || user.email === currentUser.email;
         });
+        
+        console.log('Filtered family students:', familyStudents.map(u => ({email: u.email, name: u.name})));
         
         // Map database fields to User interface
         return familyStudents.map((user: any) => ({
