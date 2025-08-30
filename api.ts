@@ -229,11 +229,12 @@ export const submitContactForm = async (data: ContactFormData): Promise<{success
 // All other functions as placeholders to prevent errors
 export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
   try {
-    // Minimal registration with only essential fields
+    // Minimal registration with only essential fields including required password
     const usersToInsert = userData.map(user => {
       const safeUser = {
-        name: user.name ? String(user.name).substring(0, 15) : 'User',
-        email: user.email ? String(user.email).substring(0, 15) : null,
+        name: user.name ? String(user.name).substring(0, 50) : 'User',
+        email: user.email ? String(user.email).substring(0, 100) : null,
+        password: user.password ? String(user.password).substring(0, 50) : 'temp123',
         role: 'Student',
         created_at: new Date().toISOString()
       };
