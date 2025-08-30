@@ -230,28 +230,28 @@ export const submitContactForm = async (data: ContactFormData): Promise<{success
 export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
   try {
     const usersToInsert = userData.map(user => ({
-      name: user.name,
-      email: user.email,
-      password: user.password,
-      role: (user.role || 'Student').substring(0, 20), // Ensure max 20 chars
-      class_preference: user.classPreference ? user.classPreference.substring(0, 20) : null, // Ensure max 20 chars
+      name: user.name ? user.name.substring(0, 100) : null,
+      email: user.email ? user.email.substring(0, 100) : null,
+      password: user.password ? user.password.substring(0, 100) : null,
+      role: (user.role || 'Student').substring(0, 50),
+      class_preference: user.classPreference ? user.classPreference.substring(0, 50) : null,
       photo_url: user.photoUrl,
-      dob: user.dob ? new Date(user.dob).toISOString().split('T')[0] : null, // YYYY-MM-DD format
-      sex: user.sex ? user.sex.substring(0, 10) : null, // Ensure max 10 chars for sex field
-      contact_number: user.contactNumber ? user.contactNumber.substring(0, 20) : null, // Limit to 20 chars
+      dob: user.dob ? new Date(user.dob).toISOString().split('T')[0] : null,
+      sex: user.sex ? user.sex.substring(0, 20) : null,
+      contact_number: user.contactNumber ? user.contactNumber.substring(0, 50) : null,
       address: user.address,
       schedules: user.schedules || [],
       documents: user.documents || [],
-      date_of_joining: user.dateOfJoining || new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+      date_of_joining: user.dateOfJoining || new Date().toISOString().split('T')[0],
       courses: user.courses || [],
-      father_name: user.fatherName,
-      standard: user.standard,
-      school_name: user.schoolName,
-      grade: user.grade ? user.grade.substring(0, 20) : null, // Ensure max 20 chars
+      father_name: user.fatherName ? user.fatherName.substring(0, 100) : null,
+      standard: user.standard ? user.standard.substring(0, 50) : null,
+      school_name: user.schoolName ? user.schoolName.substring(0, 200) : null,
+      grade: user.grade ? user.grade.substring(0, 50) : null,
       notes: user.notes,
       course_expertise: user.courseExpertise || [],
       educational_qualifications: user.educationalQualifications,
-      employment_type: user.employmentType ? user.employmentType.substring(0, 20) : null, // Ensure max 20 chars
+      employment_type: user.employmentType ? user.employmentType.substring(0, 50) : null,
       created_at: new Date().toISOString()
     }));
 
@@ -275,13 +275,13 @@ export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
 export const registerAdmin = async (userData: Partial<User>): Promise<any> => {
   try {
     const adminData = {
-      name: userData.name,
-      email: userData.email,
-      password: userData.password,
-      role: 'Admin', // Already within 20 chars
-      class_preference: 'Hybrid', // Already within 20 chars
-      contact_number: userData.contactNumber ? userData.contactNumber.substring(0, 20) : null, // Limit to 20 chars
-      date_of_joining: new Date().toISOString().split('T')[0], // YYYY-MM-DD format (10 chars)
+      name: userData.name ? userData.name.substring(0, 100) : null,
+      email: userData.email ? userData.email.substring(0, 100) : null,
+      password: userData.password ? userData.password.substring(0, 100) : null,
+      role: 'Admin',
+      class_preference: 'Hybrid',
+      contact_number: userData.contactNumber ? userData.contactNumber.substring(0, 50) : null,
+      date_of_joining: new Date().toISOString().split('T')[0],
       created_at: new Date().toISOString()
     };
 
