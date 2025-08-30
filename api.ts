@@ -229,60 +229,58 @@ export const submitContactForm = async (data: ContactFormData): Promise<{success
 // All other functions as placeholders to prevent errors
 export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
   try {
-    // Step 1: Insert with ONLY essential fields that we know work - CACHE BUST
-    const usersToInsert = userData.map((user, index) => ({
-      name: 'Student',
-      email: `temp${Date.now()}${index}${Math.random()}@temp.com`,  // UNIQUE email
-      password: '123456',
-      role: 'Student'
-    }));
+    const finalUsersData = [];
+    
+    // Process each user individually to avoid conflicts
+    for (const user of userData) {
+      // Step 1: Insert with real email but minimal data to avoid constraints
+      const tempUser = {
+        name: user.name || 'Student',
+        email: user.email,
+        password: user.password || '123456',
+        role: user.role || 'Student'
+      };
 
-    const { data, error } = await supabase
-      .from('users')
-      .insert(usersToInsert)
-      .select();
+      const { data, error } = await supabase
+        .from('users')
+        .insert([tempUser])
+        .select()
+        .single();
 
-    if (error) {
-      console.error('Registration error:', error);
-      throw new Error(`Registration failed: ${error.message}`);
-    }
-
-    // Step 2: Update each user with real data using UPDATE (which may not have same constraints)
-    for (let i = 0; i < data.length; i++) {
-      const insertedUser = data[i];
-      const originalData = userData[i];
-      
-      try {
-        await supabase
-          .from('users')
-          .update({
-            name: originalData.name || 'Student',
-            email: originalData.email || 'temp@temp.com',
-            password: originalData.password || '123456',
-            class_preference: originalData.classPreference,
-            photo_url: originalData.photoUrl,
-            dob: originalData.dob ? new Date(originalData.dob).toISOString().split('T')[0] : null,
-            sex: originalData.sex,
-            contact_number: originalData.contactNumber,
-            address: originalData.address,
-            father_name: originalData.fatherName,
-            standard: originalData.standard,
-            school_name: originalData.schoolName,
-            grade: originalData.grade,
-            notes: originalData.notes,
-            educational_qualifications: originalData.educationalQualifications,
-            employment_type: originalData.employmentType,
-          })
-          .eq('id', insertedUser.id);
-      } catch (updateError) {
-        console.log('Update error (non-critical):', updateError);
+      if (error) {
+        throw new Error(`Registration failed: ${error.message}`);
       }
+
+      // Step 2: Update with all additional data
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({
+          class_preference: user.classPreference,
+          photo_url: user.photoUrl,
+          dob: user.dob ? new Date(user.dob).toISOString().split('T')[0] : null,
+          sex: user.sex,
+          contact_number: user.contactNumber,
+          address: user.address,
+          father_name: user.fatherName,
+          standard: user.standard,
+          school_name: user.schoolName,
+          grade: user.grade,
+          notes: user.notes,
+          educational_qualifications: user.educationalQualifications,
+          employment_type: user.employmentType,
+          courses: user.courses || [],
+          schedules: user.schedules || [],
+          documents: user.documents || [],
+          preferred_timings: user.preferredTimings || [], // ADD this field
+          date_of_joining: user.dateOfJoining || new Date().toISOString().split('T')[0]
+        })
+        .eq('id', data.id);
+      
+      finalUsersData.push(data);
     }
 
-    console.log('Users registered successfully:', data);
-    return { message: 'Registration successful', users: data };
+    return { message: 'Registration successful', users: finalUsersData };
   } catch (error) {
-    console.error('Registration error:', error);
     throw error;
   }
 };
@@ -1115,20 +1113,18 @@ export const getFamilyStudents = async (): Promise<User[]> => {
         }
         
         // Find students that belong to this family
-        console.log('Current user email:', currentUser.email);
-        console.log('All students found:', data?.map(u => ({email: u.email, name: u.name})));
-        
         const familyStudents = (data || []).filter((user: any) => {
-          // Check if this student belongs to current user's family
-          const studentEmailBase = user.email?.split('+')[0]?.split('@')[0]; // Remove +student2 and @domain
-          const currentUserEmailBase = currentUser.email?.split('+')[0]?.split('@')[0]; // Remove +student2 and @domain
+          // Skip temp emails from failed registrations
+          if (user.email?.startsWith('temp')) {
+            return false;
+          }
           
-          console.log('Comparing:', studentEmailBase, 'vs', currentUserEmailBase);
+          // Check if this student belongs to current user's family
+          const studentEmailBase = user.email?.split('+')[0]?.split('@')[0]; 
+          const currentUserEmailBase = currentUser.email?.split('+')[0]?.split('@')[0]; 
           
           return studentEmailBase === currentUserEmailBase || user.email === currentUser.email;
         });
-        
-        console.log('Filtered family students:', familyStudents.map(u => ({email: u.email, name: u.name})));
         
         // Map database fields to User interface
         return familyStudents.map((user: any) => ({
@@ -1152,8 +1148,13 @@ export const getFamilyStudents = async (): Promise<User[]> => {
           photoUrl: user.photo_url,
           courses: user.courses || [],
           courseExpertise: user.course_expertise || [],
-          preferredTimings: user.preferred_timings || [],
-          dateOfJoining: user.date_of_joining
+          preferredTimings: user.preferred_timings || [], // correct field mapping
+          dateOfJoining: user.date_of_joining,
+          notes: user.notes,
+          educationalQualifications: user.educational_qualifications,
+          employmentType: user.employment_type,
+          schedules: user.schedules || [],
+          documents: user.documents || []
         }));
       }
     }
