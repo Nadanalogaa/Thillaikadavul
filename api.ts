@@ -251,30 +251,38 @@ export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
         throw new Error(`Registration failed: ${error.message}`);
       }
 
-      // Step 2: Update with all additional data
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({
-          class_preference: user.classPreference,
-          photo_url: user.photoUrl,
-          dob: user.dob ? new Date(user.dob).toISOString().split('T')[0] : null,
-          sex: user.sex,
-          contact_number: user.contactNumber,
-          address: user.address,
-          father_name: user.fatherName,
-          standard: user.standard,
-          school_name: user.schoolName,
-          grade: user.grade,
-          notes: user.notes,
-          educational_qualifications: user.educationalQualifications,
-          employment_type: user.employmentType,
-          courses: user.courses || [],
-          schedules: user.schedules || [],
-          documents: user.documents || [],
-          preferred_timings: user.preferredTimings || [], // ADD this field
-          date_of_joining: user.dateOfJoining || new Date().toISOString().split('T')[0]
-        })
-        .eq('id', data.id);
+      // Step 2: Update with all additional data (only non-null values)
+      const updateData: any = {};
+      
+      if (user.classPreference) updateData.class_preference = user.classPreference;
+      if (user.photoUrl) updateData.photo_url = user.photoUrl;
+      if (user.dob) updateData.dob = new Date(user.dob).toISOString().split('T')[0];
+      if (user.sex) updateData.sex = user.sex;
+      if (user.contactNumber) updateData.contact_number = user.contactNumber;
+      if (user.address) updateData.address = user.address;
+      if (user.fatherName) updateData.father_name = user.fatherName;
+      if (user.standard) updateData.standard = user.standard;
+      if (user.schoolName) updateData.school_name = user.schoolName;
+      if (user.grade) updateData.grade = user.grade;
+      if (user.notes) updateData.notes = user.notes;
+      if (user.educationalQualifications) updateData.educational_qualifications = user.educationalQualifications;
+      if (user.employmentType) updateData.employment_type = user.employmentType;
+      if (user.courses) updateData.courses = user.courses;
+      if (user.schedules) updateData.schedules = user.schedules;
+      if (user.documents) updateData.documents = user.documents;
+      if (user.preferredTimings) updateData.preferred_timings = user.preferredTimings;
+      if (user.dateOfJoining) updateData.date_of_joining = user.dateOfJoining;
+
+      if (Object.keys(updateData).length > 0) {
+        const { error: updateError } = await supabase
+          .from('users')
+          .update(updateData)
+          .eq('id', data.id);
+          
+        if (updateError) {
+          console.error('Update error for user:', data.id, updateError);
+        }
+      }
       
       finalUsersData.push(data);
     }
