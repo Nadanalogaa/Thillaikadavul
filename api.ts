@@ -229,31 +229,39 @@ export const submitContactForm = async (data: ContactFormData): Promise<{success
 // All other functions as placeholders to prevent errors
 export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
   try {
-    const usersToInsert = userData.map(user => ({
-      name: user.name || 'User',
-      email: user.email,
-      password: user.password || 'temp123',
-      role: user.role || 'Student',
-      class_preference: user.classPreference,
-      photo_url: user.photoUrl,
-      dob: user.dob ? new Date(user.dob).toISOString().split('T')[0] : null,
-      sex: user.sex,
-      contact_number: user.contactNumber,
-      address: user.address,
-      schedules: user.schedules || [],
-      documents: user.documents || [],
-      date_of_joining: user.dateOfJoining || new Date().toISOString().split('T')[0],
-      courses: user.courses || [],
-      father_name: user.fatherName,
-      standard: user.standard,
-      school_name: user.schoolName,
-      grade: user.grade,
-      notes: user.notes,
-      course_expertise: user.courseExpertise || [],
-      educational_qualifications: user.educationalQualifications,
-      employment_type: user.employmentType,
-      created_at: new Date().toISOString()
-    }));
+    const usersToInsert = userData.map(user => {
+      // Safe truncate function
+      const safeTruncate = (value: any, maxLength: number) => {
+        if (!value) return null;
+        return String(value).substring(0, maxLength);
+      };
+
+      return {
+        name: safeTruncate(user.name, 19) || 'User',
+        email: safeTruncate(user.email, 19),
+        password: safeTruncate(user.password, 19) || 'temp123',
+        role: safeTruncate(user.role, 19) || 'Student',
+        class_preference: safeTruncate(user.classPreference, 19),
+        photo_url: safeTruncate(user.photoUrl, 19),
+        dob: user.dob ? new Date(user.dob).toISOString().split('T')[0] : null,
+        sex: safeTruncate(user.sex, 19),
+        contact_number: safeTruncate(user.contactNumber, 19),
+        address: safeTruncate(user.address, 19),
+        schedules: user.schedules || [],
+        documents: user.documents || [],
+        date_of_joining: user.dateOfJoining || new Date().toISOString().split('T')[0],
+        courses: user.courses || [],
+        father_name: safeTruncate(user.fatherName, 19),
+        standard: safeTruncate(user.standard, 19),
+        school_name: safeTruncate(user.schoolName, 19),
+        grade: safeTruncate(user.grade, 19),
+        notes: safeTruncate(user.notes, 19),
+        course_expertise: user.courseExpertise || [],
+        educational_qualifications: safeTruncate(user.educationalQualifications, 19),
+        employment_type: safeTruncate(user.employmentType, 19),
+        created_at: new Date().toISOString()
+      };
+    });
 
     const { data, error } = await supabase
       .from('users')
