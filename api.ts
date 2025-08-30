@@ -230,9 +230,9 @@ export const submitContactForm = async (data: ContactFormData): Promise<{success
 export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
   try {
     // Step 1: Insert with ONLY essential fields that we know work
-    const usersToInsert = userData.map(user => ({
+    const usersToInsert = userData.map((user, index) => ({
       name: 'Student',
-      email: 'temp@temp.com',
+      email: `temp${Date.now()}${index}@temp.com`,  // Unique email for each
       password: '123456',
       role: 'Student'
     }));
