@@ -230,28 +230,28 @@ export const submitContactForm = async (data: ContactFormData): Promise<{success
 export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
   try {
     const usersToInsert = userData.map(user => ({
-      name: user.name ? user.name.substring(0, 100) : null,
-      email: user.email ? user.email.substring(0, 100) : null,
-      password: user.password ? user.password.substring(0, 100) : null,
-      role: (user.role || 'Student').substring(0, 50),
-      class_preference: user.classPreference ? user.classPreference.substring(0, 50) : null,
-      photo_url: user.photoUrl,
+      name: user.name ? String(user.name).substring(0, 20) : null,
+      email: user.email ? String(user.email).substring(0, 20) : null,
+      password: user.password ? String(user.password).substring(0, 20) : null,
+      role: String(user.role || 'Student').substring(0, 20),
+      class_preference: user.classPreference ? String(user.classPreference).substring(0, 20) : null,
+      photo_url: user.photoUrl ? String(user.photoUrl).substring(0, 20) : null,
       dob: user.dob ? new Date(user.dob).toISOString().split('T')[0] : null,
-      sex: user.sex ? user.sex.substring(0, 20) : null,
-      contact_number: user.contactNumber ? user.contactNumber.substring(0, 50) : null,
-      address: user.address,
+      sex: user.sex ? String(user.sex).substring(0, 20) : null,
+      contact_number: user.contactNumber ? String(user.contactNumber).substring(0, 20) : null,
+      address: user.address ? String(user.address).substring(0, 20) : null,
       schedules: user.schedules || [],
       documents: user.documents || [],
       date_of_joining: user.dateOfJoining || new Date().toISOString().split('T')[0],
       courses: user.courses || [],
-      father_name: user.fatherName ? user.fatherName.substring(0, 100) : null,
-      standard: user.standard ? user.standard.substring(0, 50) : null,
-      school_name: user.schoolName ? user.schoolName.substring(0, 200) : null,
-      grade: user.grade ? user.grade.substring(0, 50) : null,
-      notes: user.notes,
+      father_name: user.fatherName ? String(user.fatherName).substring(0, 20) : null,
+      standard: user.standard ? String(user.standard).substring(0, 20) : null,
+      school_name: user.schoolName ? String(user.schoolName).substring(0, 20) : null,
+      grade: user.grade ? String(user.grade).substring(0, 20) : null,
+      notes: user.notes ? String(user.notes).substring(0, 20) : null,
       course_expertise: user.courseExpertise || [],
-      educational_qualifications: user.educationalQualifications,
-      employment_type: user.employmentType ? user.employmentType.substring(0, 50) : null,
+      educational_qualifications: user.educationalQualifications ? String(user.educationalQualifications).substring(0, 20) : null,
+      employment_type: user.employmentType ? String(user.employmentType).substring(0, 20) : null,
       created_at: new Date().toISOString()
     }));
 
@@ -275,12 +275,12 @@ export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
 export const registerAdmin = async (userData: Partial<User>): Promise<any> => {
   try {
     const adminData = {
-      name: userData.name ? userData.name.substring(0, 100) : null,
-      email: userData.email ? userData.email.substring(0, 100) : null,
-      password: userData.password ? userData.password.substring(0, 100) : null,
+      name: userData.name ? String(userData.name).substring(0, 20) : null,
+      email: userData.email ? String(userData.email).substring(0, 20) : null,
+      password: userData.password ? String(userData.password).substring(0, 20) : null,
       role: 'Admin',
       class_preference: 'Hybrid',
-      contact_number: userData.contactNumber ? userData.contactNumber.substring(0, 50) : null,
+      contact_number: userData.contactNumber ? String(userData.contactNumber).substring(0, 20) : null,
       date_of_joining: new Date().toISOString().split('T')[0],
       created_at: new Date().toISOString()
     };
