@@ -736,28 +736,39 @@ export const deleteCourseByAdmin = async (courseId: string): Promise<void> => {
 // Batch functions
 export const getBatches = async (): Promise<Batch[]> => {
   try {
+    // First try to get just the basic batch data
     const { data, error } = await supabase
       .from('batches')
-      .select(`
-        *,
-        course:courses(name),
-        teacher:users(name)
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching batches:', error);
+      // If table doesn't exist, return empty array
+      if (error.message.includes('relation') && error.message.includes('does not exist')) {
+        console.log('Batches table does not exist yet. Run the schema_complete_fix.sql script.');
+        return [];
+      }
       return [];
     }
+
+    // Get courses and users for mapping names
+    const [coursesResult, usersResult] = await Promise.allSettled([
+      supabase.from('courses').select('id, name'),
+      supabase.from('users').select('id, name, role').eq('role', 'Teacher')
+    ]);
+
+    const courses = coursesResult.status === 'fulfilled' ? coursesResult.value.data || [] : [];
+    const teachers = usersResult.status === 'fulfilled' ? usersResult.value.data || [] : [];
 
     return (data || []).map(batch => ({
       id: batch.id,
       name: batch.name,
       description: batch.description,
       courseId: batch.course_id,
-      courseName: batch.course?.name || 'Unknown Course',
+      courseName: courses.find(c => c.id === batch.course_id)?.name || 'Unknown Course',
       teacherId: batch.teacher_id,
-      teacherName: batch.teacher?.name || 'Unassigned',
+      teacherName: teachers.find(t => t.id === batch.teacher_id)?.name || 'Unassigned',
       schedule: batch.schedule || [],
       capacity: batch.capacity,
       enrolled: batch.enrolled || 0,
@@ -1734,6 +1745,11 @@ export const getBookMaterials = async (): Promise<BookMaterial[]> => {
 
     if (error) {
       console.error('Error fetching book materials:', error);
+      // If table doesn't exist, return empty array
+      if (error.message.includes('relation') && error.message.includes('does not exist')) {
+        console.log('Book materials table does not exist yet. Run the schema_complete_fix.sql script.');
+        return [];
+      }
       return [];
     }
 
