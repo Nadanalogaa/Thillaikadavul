@@ -2346,7 +2346,9 @@ const sendEmailNotifications = async (userIds: string[], subject: string, messag
   } catch (error) {
     console.error('Error sending email notifications:', error);
   }
-};// Get notifications for a specific user (for student dashboard)
+};
+
+// Get notifications for a specific user (compatible with existing schema)
 export const getUserNotifications = async (userId: string): Promise<any[]> => {
   try {
     const { data, error } = await supabase
@@ -2363,37 +2365,16 @@ export const getUserNotifications = async (userId: string): Promise<any[]> => {
 
     return (data || []).map(notification => ({
       id: notification.id,
-      title: notification.title,
+      subject: notification.title || notification.subject,
       message: notification.message,
-      type: notification.type,
-      isRead: notification.is_read,
+      type: notification.type || 'Info',
+      read: notification.is_read || notification.read || false,
       createdAt: new Date(notification.created_at),
       updatedAt: notification.updated_at ? new Date(notification.updated_at) : undefined
     }));
   } catch (error) {
     console.error('Error in getUserNotifications:', error);
     return [];
-  }
-};
-
-// Mark notification as read
-export const markNotificationAsRead = async (notificationId: string): Promise<void> => {
-  try {
-    const { error } = await supabase
-      .from('notifications')
-      .update({ 
-        is_read: true,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', notificationId);
-
-    if (error) {
-      console.error('Error marking notification as read:', error);
-      throw new Error(`Failed to mark notification as read: ${error.message}`);
-    }
-  } catch (error) {
-    console.error('Error in markNotificationAsRead:', error);
-    throw error;
   }
 };
 
@@ -2404,7 +2385,7 @@ export const getUnreadNotificationCount = async (userId: string): Promise<number
       .from('notifications')
       .select('*', { count: 'exact', head: true })
       .or(`user_id.eq.${userId},recipient_id.eq.${userId}`)
-      .eq('is_read', false);
+      .or('is_read.eq.false,read.eq.false');
 
     if (error) {
       console.error('Error fetching unread notification count:', error);
