@@ -1953,6 +1953,11 @@ export const addBookMaterial = async (material: Omit<BookMaterial, 'id'>): Promi
       insertData.data = material.data;
     }
 
+    // Add recipient_ids if provided
+    if (material.recipientIds && material.recipientIds.length > 0) {
+      insertData.recipient_ids = material.recipientIds;
+    }
+
     const { data, error } = await supabase
       .from('book_materials')
       .insert([insertData])
@@ -1973,7 +1978,7 @@ export const addBookMaterial = async (material: Omit<BookMaterial, 'id'>): Promi
       type: data.type,
       url: data.url,
       data: data.data,
-      recipientIds: []
+      recipientIds: data.recipient_ids || []
     };
   } catch (error) {
     console.error('Error in addBookMaterial:', error);
@@ -1990,6 +1995,7 @@ export const updateBookMaterial = async (id: string, material: Partial<BookMater
     if (material.type !== undefined) updateData.type = material.type;
     if (material.url !== undefined) updateData.url = material.url;
     if (material.data !== undefined) updateData.data = material.data;
+    if (material.recipientIds !== undefined) updateData.recipient_ids = material.recipientIds;
     updateData.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase
@@ -2013,7 +2019,7 @@ export const updateBookMaterial = async (id: string, material: Partial<BookMater
       type: data.type,
       url: data.url,
       data: data.data,
-      recipientIds: []
+      recipientIds: data.recipient_ids || []
     };
   } catch (error) {
     console.error('Error in updateBookMaterial:', error);
