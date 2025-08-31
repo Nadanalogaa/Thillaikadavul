@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { UserRole, Sex, ClassPreference, EmploymentType } from '../types';
-import type { User, Course, Location } from '../types';
+import type { User, Course, Location, CourseTimingSlot } from '../types';
 import { registerUser, getCourses, checkEmailExists, getPublicLocations } from '../api';
 import PreferredTimingSelector from '../components/registration/PreferredTimingSelector';
 import { XCircleIcon } from '../components/icons';
-import { COUNTRIES } from '../constants';
+import { COUNTRIES, TIMEZONES } from '../constants';
 
 interface RegisterPageProps {
   onLoginNeeded: (email: string) => void;
@@ -28,18 +28,18 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
     // Guardian & Student Form State
     const [guardianData, setGuardianData] = useState({ 
         name: '', email: '', password: '', contactNumber: '',
-        address: '', country: '', state: '', city: '', postalCode: '',
+        address: '', country: '', state: '', city: '', postalCode: '', timezone: '',
     });
     const [passwordConfirmation, setPasswordConfirmation] = useState('');
     const [students, setStudents] = useState<Partial<User>[]>([
-        { role: UserRole.Student, classPreference: ClassPreference.Online, sex: Sex.Male, courses: [], preferredTimings: [], photoUrl: '' }
+        { role: UserRole.Student, classPreference: ClassPreference.Online, sex: Sex.Male, courses: [], preferredTimings: [] as CourseTimingSlot[], photoUrl: '' }
     ]);
     const [activeStudentIndex, setActiveStudentIndex] = useState(0);
 
     // Teacher Form State
     const [teacherData, setTeacherData] = useState<Partial<User>>({ 
         role: UserRole.Teacher, sex: Sex.Male, employmentType: EmploymentType.PartTime, 
-        classPreference: ClassPreference.Hybrid, courseExpertise: [], photoUrl: ''
+        classPreference: ClassPreference.Hybrid, courseExpertise: [], photoUrl: '', timezone: ''
     });
     const [teacherPasswordConfirmation, setTeacherPasswordConfirmation] = useState('');
     
@@ -537,6 +537,20 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                             placeholder="Enter your complete address"
                                         />
                                     </div>
+
+                                    <div>
+                                        <label className="form-label">Time Zone</label>
+                                        <select 
+                                            name="timezone" 
+                                            value={registrationType === 'student' ? guardianData.timezone : teacherData.timezone || ''} 
+                                            onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
+                                            required 
+                                            className="form-select"
+                                        >
+                                            <option value="">Select your timezone</option>
+                                            {TIMEZONES.map(tz => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
+                                        </select>
+                                    </div>
                                 </div>
                             )}
 
@@ -672,8 +686,10 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                     <label className="form-label">Preferred Class Times (Optional)</label>
                                                     <p className="text-xs text-gray-600 mb-3">Help us find the best schedule for you</p>
                                                     <PreferredTimingSelector 
-                                                        selectedTimings={students[activeStudentIndex].preferredTimings || []} 
-                                                        onChange={(timings) => handleStudentDataChange(activeStudentIndex, 'preferredTimings', timings)} 
+                                                        selectedCourses={students[activeStudentIndex].courses || []}
+                                                        selectedTimings={students[activeStudentIndex].preferredTimings as CourseTimingSlot[] || []} 
+                                                        onChange={(timings) => handleStudentDataChange(activeStudentIndex, 'preferredTimings', timings)}
+                                                        userTimezone={guardianData.timezone}
                                                     />
                                                 </div>
                                             )}

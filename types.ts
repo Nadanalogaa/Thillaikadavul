@@ -17,6 +17,18 @@ export interface FAQItem {
   answer: string;
 }
 
+export interface CourseTimingSlot {
+  id: string;
+  courseId: string;
+  courseName: string;
+  day: string;
+  timeSlot: string;
+  utcTime: string;
+  localTime: string;
+  istTime: string;
+  timezone: string;
+}
+
 export interface Notification {
     id: string;
     userId: string;
@@ -99,7 +111,7 @@ export interface User {
   city?: string;
   postalCode?: string;
   timezone?: string;
-  preferredTimings?: string[];
+  preferredTimings?: CourseTimingSlot[];
   status?: UserStatus;
   locationId?: string; // For offline preference
   location?: Location; // Populated field
