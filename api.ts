@@ -775,22 +775,43 @@ export const getBatches = async (): Promise<Batch[]> => {
 
 export const addBatch = async (batchData: Partial<Batch>): Promise<Batch> => {
   try {
+    const insertData: any = {
+      name: batchData.name,
+      description: batchData.description,
+      schedule: batchData.schedule || [],
+      capacity: batchData.capacity,
+      mode: batchData.mode,
+      is_active: true,
+      created_at: new Date().toISOString()
+    };
+
+    // Only add course_id if courseId is provided and not empty
+    if (batchData.courseId && batchData.courseId.trim() !== '') {
+      insertData.course_id = batchData.courseId;
+    }
+
+    // Only add teacher_id if teacherId is provided and not empty
+    if (batchData.teacherId && typeof batchData.teacherId === 'string' && batchData.teacherId.trim() !== '') {
+      insertData.teacher_id = batchData.teacherId;
+    }
+
+    // Only add location_id if locationId is provided and not empty
+    if (batchData.locationId && batchData.locationId.trim() !== '') {
+      insertData.location_id = batchData.locationId;
+    }
+
+    // Add dates if provided
+    if (batchData.startDate) {
+      insertData.start_date = batchData.startDate;
+    }
+
+    if (batchData.endDate) {
+      insertData.end_date = batchData.endDate;
+    }
+
     const { data, error } = await supabase
       .from('batches')
-      .insert([{
-        name: batchData.name,
-        description: batchData.description,
-        course_id: batchData.courseId,
-        teacher_id: batchData.teacherId,
-        schedule: batchData.schedule || [],
-        capacity: batchData.capacity,
-        mode: batchData.mode,
-        location_id: batchData.locationId,
-        start_date: batchData.startDate,
-        end_date: batchData.endDate,
-        is_active: true,
-        created_at: new Date().toISOString()
-      }])
+      .insert([insertData])
       .select()
       .single();
 
@@ -1590,14 +1611,22 @@ export const addGradeExam = async (exam: Omit<GradeExam, 'id'>): Promise<GradeEx
       .insert([{
         title: exam.title,
         description: exam.description,
-        date: exam.date instanceof Date ? exam.date.toISOString() : new Date(exam.date).toISOString(),
+        date: (() => {
+          if (!exam.date) return null;
+          const dateObj = exam.date instanceof Date ? exam.date : new Date(exam.date);
+          return isNaN(dateObj.getTime()) ? null : dateObj.toISOString().split('T')[0];
+        })(),
         time: exam.time,
         duration: exam.duration,
         course: exam.course,
         grade: exam.grade,
         syllabus_url: exam.syllabusUrl,
         registration_fee: exam.registrationFee,
-        registration_deadline: exam.registrationDeadline ? (exam.registrationDeadline instanceof Date ? exam.registrationDeadline.toISOString() : new Date(exam.registrationDeadline).toISOString()) : null,
+        registration_deadline: (() => {
+          if (!exam.registrationDeadline) return null;
+          const deadlineObj = exam.registrationDeadline instanceof Date ? exam.registrationDeadline : new Date(exam.registrationDeadline);
+          return isNaN(deadlineObj.getTime()) ? null : deadlineObj.toISOString().split('T')[0];
+        })(),
         is_open: exam.isOpen !== false,
         created_at: new Date().toISOString()
       }])
@@ -1728,18 +1757,32 @@ export const getBookMaterials = async (): Promise<BookMaterial[]> => {
 export const getAdminBookMaterials = async (): Promise<BookMaterial[]> => getBookMaterials();
 export const addBookMaterial = async (material: Omit<BookMaterial, 'id'>): Promise<BookMaterial> => {
   try {
+    const insertData: any = {
+      title: material.title,
+      description: material.description,
+      type: material.type,
+      url: material.url,
+      created_at: new Date().toISOString()
+    };
+
+    // Only add course_id if courseId is provided and not empty
+    if (material.courseId && material.courseId.trim() !== '') {
+      insertData.course_id = material.courseId;
+    }
+    
+    // Only add course_name if courseName is provided and not empty
+    if (material.courseName && material.courseName.trim() !== '') {
+      insertData.course_name = material.courseName;
+    }
+
+    // Only add data if it's provided
+    if (material.data) {
+      insertData.data = material.data;
+    }
+
     const { data, error } = await supabase
       .from('book_materials')
-      .insert([{
-        title: material.title,
-        description: material.description,
-        course_id: material.courseId,
-        course_name: material.courseName,
-        type: material.type,
-        url: material.url,
-        data: material.data,
-        created_at: new Date().toISOString()
-      }])
+      .insert([insertData])
       .select()
       .single();
 
