@@ -2044,6 +2044,33 @@ export const deleteBookMaterial = async (id: string): Promise<void> => {
   }
 };
 
+// Send book material to specific recipients (students, groups, or batches)
+export const sendBookMaterial = async (materialId: string, recipientIds: string[]): Promise<void> => {
+  try {
+    console.log('Sending book material to recipients:', materialId, recipientIds);
+    
+    const { data, error } = await supabase
+      .from('book_materials')
+      .update({ 
+        recipient_ids: recipientIds,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', materialId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error sending book material:', error);
+      throw new Error(`Failed to send book material: ${error.message}`);
+    }
+
+    console.log('Book material sent successfully to recipients:', data);
+  } catch (error) {
+    console.error('Error in sendBookMaterial:', error);
+    throw error;
+  }
+};
+
 export const getNotices = async (): Promise<Notice[]> => {
   try {
     const { data, error } = await supabase

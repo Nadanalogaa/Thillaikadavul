@@ -5,7 +5,7 @@ import ModalHeader from '../ModalHeader';
 import TabButton from './TabButton';
 import type { User, Batch, Course, Event, GradeExam, BookMaterial, Notice } from '../../types';
 import { UserRole } from '../../types';
-import { getAdminUsers, getBatches, getAdminCourses, sendContentNotification } from '../../api';
+import { getAdminUsers, getBatches, getAdminCourses, sendContentNotification, sendBookMaterial } from '../../api';
 import { WhatsAppIcon } from '../icons';
 
 type ContentItem = Event | GradeExam | BookMaterial | Notice;
@@ -192,6 +192,11 @@ const SendContentNotificationModal: React.FC<SendContentNotificationModalProps> 
             const subject = `${contentType}: ${contentItem.title}`;
             const message = `A new ${contentType.toLowerCase()} has been posted: "${contentItem.title}". Please log in to your dashboard to view the details.`;
             
+            // For BookMaterial, also update the recipient_ids in the database
+            if (contentType === 'BookMaterial') {
+                await sendBookMaterial(contentItem.id, finalUserIds);
+            }
+            
             const response = await sendContentNotification({
                 contentId: contentItem.id,
                 contentType,
@@ -200,7 +205,11 @@ const SendContentNotificationModal: React.FC<SendContentNotificationModalProps> 
                 message,
                 sendWhatsApp,
             });
-            setSuccess(response.message);
+            
+            setSuccess(contentType === 'BookMaterial' ? 
+                'Book material shared successfully with selected recipients!' : 
+                response.message
+            );
             setTimeout(() => {
                 onClose();
             }, 3000);
