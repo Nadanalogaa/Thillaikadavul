@@ -480,23 +480,26 @@ BEGIN
 END $$;
 
 -- Final Success Message
-RAISE NOTICE '';
-RAISE NOTICE '🎉 ================================== 🎉';
-RAISE NOTICE '     SCHEMA DEPLOYMENT COMPLETE!';
-RAISE NOTICE '🎉 ================================== 🎉';
-RAISE NOTICE '';
-RAISE NOTICE '✅ All tables created and verified';
-RAISE NOTICE '✅ All indexes optimized for performance';
-RAISE NOTICE '✅ All triggers configured for auto-updates';
-RAISE NOTICE '✅ Book materials schema completely fixed';
-RAISE NOTICE '✅ User soft delete functionality working';
-RAISE NOTICE '✅ MongoDB to PostgreSQL migration COMPLETE';
-RAISE NOTICE '';
-RAISE NOTICE '🚀 Your application is now ready for production!';
-RAISE NOTICE '   All "column does not exist" errors resolved.';
-RAISE NOTICE '   Student deletion now works properly.';
-RAISE NOTICE '   Book materials with full functionality.';
-RAISE NOTICE '';
-RAISE NOTICE '================================================';
+DO $$
+BEGIN
+    RAISE NOTICE '';
+    RAISE NOTICE '🎉 ================================== 🎉';
+    RAISE NOTICE '     SCHEMA DEPLOYMENT COMPLETE!';
+    RAISE NOTICE '🎉 ================================== 🎉';
+    RAISE NOTICE '';
+    RAISE NOTICE '✅ All tables created and verified';
+    RAISE NOTICE '✅ All indexes optimized for performance';
+    RAISE NOTICE '✅ All triggers configured for auto-updates';
+    RAISE NOTICE '✅ Book materials schema completely fixed';
+    RAISE NOTICE '✅ User soft delete functionality working';
+    RAISE NOTICE '✅ MongoDB to PostgreSQL migration COMPLETE';
+    RAISE NOTICE '';
+    RAISE NOTICE '🚀 Your application is now ready for production!';
+    RAISE NOTICE '   All "column does not exist" errors resolved.';
+    RAISE NOTICE '   Student deletion now works properly.';
+    RAISE NOTICE '   Book materials with full functionality.';
+    RAISE NOTICE '';
+    RAISE NOTICE '================================================';
+END $$;
 
 
