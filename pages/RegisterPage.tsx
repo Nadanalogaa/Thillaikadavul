@@ -687,7 +687,11 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                     <p className="text-xs text-gray-600 mb-3">Help us find the best schedule for you</p>
                                                     <PreferredTimingSelector 
                                                         selectedCourses={students[activeStudentIndex].courses || []}
-                                                        selectedTimings={students[activeStudentIndex].preferredTimings as CourseTimingSlot[] || []} 
+                                                        selectedTimings={
+                                                            Array.isArray(students[activeStudentIndex].preferredTimings) 
+                                                                ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object')
+                                                                : []
+                                                        } 
                                                         onChange={(timings) => handleStudentDataChange(activeStudentIndex, 'preferredTimings', timings)}
                                                         userTimezone={guardianData.timezone}
                                                     />

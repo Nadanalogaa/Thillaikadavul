@@ -57,8 +57,8 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
         const slotId = `${selectedCourse}-${fullDay}-${timeSlot}`;
         
         // Check if this slot is already selected for this course
-        const existingSlotIndex = selectedTimings.findIndex(
-            slot => slot.id === slotId
+        const existingSlotIndex = (selectedTimings || []).findIndex(
+            slot => slot && typeof slot === 'object' && slot.id === slotId
         );
         
         if (existingSlotIndex !== -1) {
@@ -82,7 +82,8 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
         };
         
         // Check for overlaps with existing slots
-        const hasOverlap = selectedTimings.some(existing => 
+        const hasOverlap = (selectedTimings || []).some(existing => 
+            existing && typeof existing === 'object' && existing.day && 
             doSlotsOverlap(existing, newSlot)
         );
         
@@ -92,7 +93,9 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
         }
         
         // Check if course already has 2 slots (1 hour × 2 days per week)
-        const courseSlots = selectedTimings.filter(slot => slot.courseName === selectedCourse);
+        const courseSlots = (selectedTimings || []).filter(slot => 
+            slot && typeof slot === 'object' && slot.courseName === selectedCourse
+        );
         if (courseSlots.length >= 2) {
             alert(`${selectedCourse} already has 2 time slots selected. Please remove one to add another.`);
             return;
@@ -102,7 +105,9 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
     };
     
     const removeSlot = (slotId: string) => {
-        const newTimings = selectedTimings.filter(slot => slot.id !== slotId);
+        const newTimings = (selectedTimings || []).filter(slot => 
+            slot && typeof slot === 'object' && slot.id !== slotId
+        );
         onChange(newTimings);
     };
     
@@ -110,7 +115,9 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
         if (!activeDay || !selectedCourse) return false;
         const fullDay = WEEKDAY_MAP[activeDay as keyof typeof WEEKDAY_MAP];
         const slotId = `${selectedCourse}-${fullDay}-${timeSlot}`;
-        return selectedTimings.some(slot => slot.id === slotId);
+        return (selectedTimings || []).some(slot => 
+            slot && typeof slot === 'object' && slot.id === slotId
+        );
     };
     
     const isSlotDisabled = (timeSlot: string): boolean => {
@@ -118,15 +125,20 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
         const fullDay = WEEKDAY_MAP[activeDay as keyof typeof WEEKDAY_MAP];
         
         // Check if any other course has this slot
-        return selectedTimings.some(slot => 
+        return (selectedTimings || []).some(slot => 
+            slot && typeof slot === 'object' &&
             slot.day === fullDay && 
             slot.timeSlot === timeSlot && 
             slot.courseName !== selectedCourse
         );
     };
 
-    // Group selected timings by course
-    const timingsByCourse = selectedTimings.reduce((acc, slot) => {
+    // Group selected timings by course (with safety check)
+    const timingsByCourse = (selectedTimings || []).reduce((acc, slot) => {
+        // Skip if slot is not a proper CourseTimingSlot object
+        if (!slot || typeof slot !== 'object' || !slot.courseName || !slot.day) {
+            return acc;
+        }
         if (!acc[slot.courseName]) {
             acc[slot.courseName] = [];
         }
