@@ -6,8 +6,23 @@ let currentUser: User | null = null;
 
 // Core working functions
 export const checkEmailExists = async (email: string): Promise<{ exists: boolean }> => {
-  // Mock check - return false for demo
-  return { exists: false };
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('email')
+      .eq('email', email.toLowerCase().trim())
+      .limit(1);
+
+    if (error) {
+      console.error('Error checking email:', error);
+      throw new Error('Failed to check email availability');
+    }
+
+    return { exists: data && data.length > 0 };
+  } catch (error) {
+    console.error('Error in checkEmailExists:', error);
+    throw error;
+  }
 };
 
 export const loginUser = async (email: string, password: string): Promise<User> => {

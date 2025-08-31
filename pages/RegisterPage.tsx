@@ -19,6 +19,11 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
     const [success, setSuccess] = useState(false);
     const [courses, setCourses] = useState<Course[]>([]);
     const [locations, setLocations] = useState<Location[]>([]);
+    const [emailValidation, setEmailValidation] = useState<{
+        isChecking: boolean;
+        isValid: boolean | null;
+        message: string | null;
+    }>({ isChecking: false, isValid: null, message: null });
     
     // Guardian & Student Form State
     const [guardianData, setGuardianData] = useState({ 
@@ -39,6 +44,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
     const [teacherPasswordConfirmation, setTeacherPasswordConfirmation] = useState('');
     
     const photoInputRef = useRef<HTMLInputElement>(null);
+    const emailCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         const fetchPrerequisites = async () => {
@@ -59,9 +65,63 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
         fetchPrerequisites();
     }, []);
 
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (emailCheckTimeoutRef.current) {
+                clearTimeout(emailCheckTimeoutRef.current);
+            }
+        };
+    }, []);
+
+    // Email validation with debouncing
+    const validateEmail = async (email: string, isTeacher: boolean = false) => {
+        if (!email.trim() || !email.includes('@')) {
+            setEmailValidation({ isChecking: false, isValid: null, message: null });
+            return;
+        }
+
+        setEmailValidation({ isChecking: true, isValid: null, message: 'Checking email...' });
+
+        try {
+            const { exists } = await checkEmailExists(email.toLowerCase().trim());
+            if (exists) {
+                setEmailValidation({
+                    isChecking: false,
+                    isValid: false,
+                    message: 'Email already registered. Please login or use different email.'
+                });
+            } else {
+                setEmailValidation({
+                    isChecking: false,
+                    isValid: true,
+                    message: 'Email is available'
+                });
+            }
+        } catch (error) {
+            setEmailValidation({
+                isChecking: false,
+                isValid: null,
+                message: 'Could not verify email. Please try again.'
+            });
+        }
+    };
+
     // Form handlers (keeping existing logic but simplified)
-    const handleGuardianChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => 
-        setGuardianData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const handleGuardianChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setGuardianData(prev => ({ ...prev, [name]: value }));
+        
+        // Debounced email validation
+        if (name === 'email') {
+            if (emailCheckTimeoutRef.current) {
+                clearTimeout(emailCheckTimeoutRef.current);
+            }
+            emailCheckTimeoutRef.current = setTimeout(() => {
+                validateEmail(value, false);
+            }, 500);
+        }
+    };
     
     const handleStudentDataChange = (index: number, field: keyof User, value: any) => setStudents(prev => {
         const newStudents = [...prev];
@@ -87,6 +147,16 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
             delete newTeacherData.locationId;
         }
         setTeacherData(newTeacherData);
+        
+        // Debounced email validation for teachers
+        if (name === 'email') {
+            if (emailCheckTimeoutRef.current) {
+                clearTimeout(emailCheckTimeoutRef.current);
+            }
+            emailCheckTimeoutRef.current = setTimeout(() => {
+                validateEmail(value, true);
+            }, 500);
+        }
     };
 
     const handleTeacherExpertiseChange = (courseName: string, isChecked: boolean) => {
@@ -107,8 +177,14 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
         if (data.password.length < 6) return setError("Password must be at least 6 characters long.");
         if (data.password !== confirmation) return setError("Passwords do not match.");
         
+        // Check if email validation failed
+        if (emailValidation.isValid === false) {
+            return setError("Please use a different email address. This email is already registered.");
+        }
+        
         setIsLoading(true);
         try {
+            // Final email check before proceeding
             const { exists } = await checkEmailExists(data.email.toLowerCase());
             if (exists) {
                 setError("This email is already registered. Please log in instead.");
@@ -335,15 +411,33 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                         </div>
                                         <div>
                                             <label className="form-label">Email Address</label>
-                                            <input 
-                                                name="email" 
-                                                type="email" 
-                                                value={registrationType === 'student' ? guardianData.email : teacherData.email || ''} 
-                                                onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
-                                                required 
-                                                className="form-input"
-                                                placeholder="your.email@example.com"
-                                            />
+                                            <div className="relative">
+                                                <input 
+                                                    name="email" 
+                                                    type="email" 
+                                                    value={registrationType === 'student' ? guardianData.email : teacherData.email || ''} 
+                                                    onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
+                                                    required 
+                                                    className={`form-input ${
+                                                        emailValidation.isValid === false ? 'border-red-500' : 
+                                                        emailValidation.isValid === true ? 'border-green-500' : ''
+                                                    }`}
+                                                    placeholder="your.email@example.com"
+                                                />
+                                                {emailValidation.isChecking && (
+                                                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {emailValidation.message && (
+                                                <p className={`text-xs mt-1 ${
+                                                    emailValidation.isValid === false ? 'text-red-600' : 
+                                                    emailValidation.isValid === true ? 'text-green-600' : 'text-gray-500'
+                                                }`}>
+                                                    {emailValidation.message}
+                                                </p>
+                                            )}
                                         </div>
                                         <div>
                                             <label className="form-label">Password</label>
