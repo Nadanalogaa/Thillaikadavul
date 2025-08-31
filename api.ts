@@ -248,62 +248,70 @@ export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
     
     // Process each user individually to avoid conflicts
     for (const user of userData) {
-      // Step 1: Insert with real email but minimal data to avoid constraints
-      const tempUser = {
+      // Prepare complete user data in one go to avoid two-step process issues
+      const completeUserData: any = {
         name: user.name || 'Student',
         email: user.email,
         password: user.password || '123456',
         role: user.role || 'Student'
       };
+      
+      // Add all optional fields if they exist
+      if (user.classPreference) completeUserData.class_preference = user.classPreference;
+      if (user.photoUrl) completeUserData.photo_url = user.photoUrl;
+      if (user.dob) {
+        // Ensure DOB is in correct format
+        const dobDate = new Date(user.dob);
+        completeUserData.dob = dobDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+      }
+      if (user.sex) completeUserData.sex = user.sex;
+      if (user.contactNumber) completeUserData.contact_number = user.contactNumber;
+      if (user.address) completeUserData.address = user.address;
+      if (user.country) completeUserData.country = user.country;
+      if (user.state) completeUserData.state = user.state;
+      if (user.city) completeUserData.city = user.city;
+      if (user.postalCode) completeUserData.postal_code = user.postalCode;
+      if (user.fatherName) completeUserData.father_name = user.fatherName;
+      if (user.standard) completeUserData.standard = user.standard;
+      if (user.schoolName) completeUserData.school_name = user.schoolName;
+      if (user.grade) completeUserData.grade = user.grade;
+      if (user.notes) completeUserData.notes = user.notes;
+      if (user.educationalQualifications) completeUserData.educational_qualifications = user.educationalQualifications;
+      if (user.employmentType) completeUserData.employment_type = user.employmentType;
+      if (user.courses && user.courses.length > 0) completeUserData.courses = user.courses;
+      if (user.schedules) completeUserData.schedules = user.schedules;
+      if (user.documents) completeUserData.documents = user.documents;
+      if (user.preferredTimings && user.preferredTimings.length > 0) {
+        completeUserData.preferred_timings = user.preferredTimings;
+      }
+      if (user.dateOfJoining) {
+        const joinDate = new Date(user.dateOfJoining);
+        completeUserData.date_of_joining = joinDate.toISOString().split('T')[0];
+      } else {
+        completeUserData.date_of_joining = new Date().toISOString().split('T')[0];
+      }
 
+      console.log('Registering user with data:', completeUserData);
+      
+      // Single insert with all data
       const { data, error } = await supabase
         .from('users')
-        .insert([tempUser])
+        .insert([completeUserData])
         .select()
         .single();
 
       if (error) {
+        console.error('Registration error:', error);
         throw new Error(`Registration failed: ${error.message}`);
       }
 
-      // Step 2: Update with all additional data (only non-null values)
-      const updateData: any = {};
-      
-      if (user.classPreference) updateData.class_preference = user.classPreference;
-      if (user.photoUrl) updateData.photo_url = user.photoUrl;
-      if (user.dob) updateData.dob = new Date(user.dob).toISOString().split('T')[0];
-      if (user.sex) updateData.sex = user.sex;
-      if (user.contactNumber) updateData.contact_number = user.contactNumber;
-      if (user.address) updateData.address = user.address;
-      if (user.fatherName) updateData.father_name = user.fatherName;
-      if (user.standard) updateData.standard = user.standard;
-      if (user.schoolName) updateData.school_name = user.schoolName;
-      if (user.grade) updateData.grade = user.grade;
-      if (user.notes) updateData.notes = user.notes;
-      if (user.educationalQualifications) updateData.educational_qualifications = user.educationalQualifications;
-      if (user.employmentType) updateData.employment_type = user.employmentType;
-      if (user.courses) updateData.courses = user.courses;
-      if (user.schedules) updateData.schedules = user.schedules;
-      if (user.documents) updateData.documents = user.documents;
-      if (user.preferredTimings) updateData.preferred_timings = user.preferredTimings;
-      if (user.dateOfJoining) updateData.date_of_joining = user.dateOfJoining;
-
-      if (Object.keys(updateData).length > 0) {
-        const { error: updateError } = await supabase
-          .from('users')
-          .update(updateData)
-          .eq('id', data.id);
-          
-        if (updateError) {
-          console.error('Update error for user:', data.id, updateError);
-        }
-      }
-      
+      console.log('User registered successfully:', data);
       finalUsersData.push(data);
     }
 
     return { message: 'Registration successful', users: finalUsersData };
   } catch (error) {
+    console.error('Registration process error:', error);
     throw error;
   }
 };
@@ -1150,35 +1158,40 @@ export const getFamilyStudents = async (): Promise<User[]> => {
         });
         
         // Map database fields to User interface
-        return familyStudents.map((user: any) => ({
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          classPreference: user.class_preference,
-          contactNumber: user.contact_number,
-          address: user.address,
-          country: user.country,
-          state: user.state,
-          city: user.city,
-          postalCode: user.postal_code,
-          fatherName: user.father_name,
-          dob: user.dob,
-          sex: user.sex,
-          schoolName: user.school_name,
-          standard: user.standard,
-          grade: user.grade,
-          photoUrl: user.photo_url,
-          courses: user.courses || [],
-          courseExpertise: user.course_expertise || [],
-          preferredTimings: user.preferred_timings || [], // correct field mapping
-          dateOfJoining: user.date_of_joining,
-          notes: user.notes,
-          educationalQualifications: user.educational_qualifications,
-          employmentType: user.employment_type,
-          schedules: user.schedules || [],
-          documents: user.documents || []
-        }));
+        return familyStudents.map((user: any) => {
+          console.log('Raw user data from database:', user);
+          const mappedUser = {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            classPreference: user.class_preference,
+            contactNumber: user.contact_number,
+            address: user.address,
+            country: user.country,
+            state: user.state,
+            city: user.city,
+            postalCode: user.postal_code,
+            fatherName: user.father_name,
+            dob: user.dob,
+            sex: user.sex,
+            schoolName: user.school_name,
+            standard: user.standard,
+            grade: user.grade,
+            photoUrl: user.photo_url,
+            courses: user.courses || [],
+            courseExpertise: user.course_expertise || [],
+            preferredTimings: user.preferred_timings || [], // correct field mapping
+            dateOfJoining: user.date_of_joining,
+            notes: user.notes,
+            educationalQualifications: user.educational_qualifications,
+            employmentType: user.employment_type,
+            schedules: user.schedules || [],
+            documents: user.documents || []
+          };
+          console.log('Mapped user data:', mappedUser);
+          return mappedUser;
+        });
       }
     }
     return [];
