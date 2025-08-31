@@ -382,14 +382,14 @@ DECLARE
     test_course_id UUID;
     test_material_id UUID;
 BEGIN
-    -- Insert test course
+    -- Insert test course with unique name
     INSERT INTO courses (name, description, icon) 
-    VALUES ('Test Course', 'Test Description', 'TestIcon') 
+    VALUES ('Test Course ' || gen_random_uuid(), 'Test Description', 'TestIcon') 
     RETURNING id INTO test_course_id;
     
     -- Test book material insert with all columns including recipient_ids
     INSERT INTO book_materials (title, description, course_id, course_name, type, url, data, recipient_ids)
-    VALUES ('Test Material', 'Test Description', test_course_id, 'Test Course', 'PDF', 'test-url', 'test-data', '["test-user-id"]')
+    VALUES ('Test Material ' || gen_random_uuid(), 'Test Description', test_course_id, 'Test Course', 'PDF', 'test-url', 'test-data', '["test-user-id"]')
     RETURNING id INTO test_material_id;
     
     -- Test book material update with recipient_ids
@@ -412,9 +412,9 @@ DO $$
 DECLARE
     test_user_id UUID;
 BEGIN
-    -- Insert test user (password can be null)
+    -- Insert test user with unique email (password can be null)
     INSERT INTO users (name, email, role, is_deleted, deleted_at)
-    VALUES ('Test User', 'test@example.com', 'Student', false, null)
+    VALUES ('Test User', 'test-' || gen_random_uuid() || '@example.com', 'Student', false, null)
     RETURNING id INTO test_user_id;
     
     -- Test soft delete
