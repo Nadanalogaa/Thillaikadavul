@@ -301,8 +301,14 @@ export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
         .single();
 
       if (error) {
-        console.error('Registration error:', error);
-        throw new Error(`Registration failed: ${error.message}`);
+        console.error('Registration error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          userData: completeUserData
+        });
+        throw new Error(`Registration failed: ${error.message}. Details: ${error.details || 'No additional details'}`);
       }
 
       console.log('User registered successfully:', data);
