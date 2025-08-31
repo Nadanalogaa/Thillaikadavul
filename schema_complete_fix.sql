@@ -120,6 +120,13 @@
           WHEN duplicate_column THEN NULL;
       END;
 
+      -- Remove NOT NULL constraint from password column if it exists
+      BEGIN
+          ALTER TABLE users ALTER COLUMN password DROP NOT NULL;
+      EXCEPTION
+          WHEN OTHERS THEN NULL;
+      END;
+
   END $$;
 
   CREATE TABLE IF NOT EXISTS courses (
@@ -405,7 +412,7 @@ DO $$
 DECLARE
     test_user_id UUID;
 BEGIN
-    -- Insert test user
+    -- Insert test user (password can be null)
     INSERT INTO users (name, email, role, is_deleted, deleted_at)
     VALUES ('Test User', 'test@example.com', 'Student', false, null)
     RETURNING id INTO test_user_id;
