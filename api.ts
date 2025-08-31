@@ -365,7 +365,8 @@ export const getAdminStats = async (): Promise<DashboardStats> => {
   try {
     const { data: users, error } = await supabase
       .from('users')
-      .select('role, class_preference');
+      .select('role, class_preference')
+      .eq('is_deleted', false);
 
     if (error) {
       console.error('Error fetching admin stats:', error);
@@ -395,6 +396,7 @@ export const getAdminUsers = async (): Promise<User[]> => {
     const { data, error } = await supabase
       .from('users')
       .select('*')
+      .eq('is_deleted', false)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -653,7 +655,29 @@ export const updateUserByAdmin = async (userId: string, userData: Partial<User>)
     throw error;
   }
 };
-export const deleteUserByAdmin = async (userId: string): Promise<void> => {};
+export const deleteUserByAdmin = async (userId: string): Promise<void> => {
+  try {
+    // Soft delete - mark as deleted instead of hard delete
+    const { error } = await supabase
+      .from('users')
+      .update({ 
+        is_deleted: true, 
+        deleted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId);
+
+    if (error) {
+      console.error('Error soft deleting user:', error);
+      throw new Error(`Failed to delete user: ${error.message}`);
+    }
+
+    console.log('User soft deleted successfully:', userId);
+  } catch (error) {
+    console.error('Error in deleteUserByAdmin:', error);
+    throw error;
+  }
+};
 export const sendNotification = async (userIds: string[], subject: string, message: string): Promise<{success: boolean}> => ({ success: true });
 export const getAdminCourses = async (): Promise<Course[]> => getCourses();
 export const addCourseByAdmin = async (courseData: Omit<Course, 'id'>): Promise<Course> => {
@@ -755,7 +779,7 @@ export const getBatches = async (): Promise<Batch[]> => {
     // Get courses and users for mapping names
     const [coursesResult, usersResult] = await Promise.allSettled([
       supabase.from('courses').select('id, name'),
-      supabase.from('users').select('id, name, role').eq('role', 'Teacher')
+      supabase.from('users').select('id, name, role').eq('role', 'Teacher').eq('is_deleted', false)
     ]);
 
     const courses = coursesResult.status === 'fulfilled' ? coursesResult.value.data || [] : [];
@@ -1174,7 +1198,8 @@ export const getFamilyStudents = async (): Promise<User[]> => {
         const { data, error } = await supabase
           .from('users')
           .select('*')
-          .eq('role', 'Student');
+          .eq('role', 'Student')
+          .eq('is_deleted', false);
         
         if (error) {
           console.error('Error fetching family students:', error);
@@ -1262,9 +1287,141 @@ export const getStudentEnrollmentsForFamily = async (studentId: string): Promise
 };
 
 // Trash functions
-export const getTrashedUsers = async (): Promise<User[]> => [];
-export const restoreUser = async (userId: string): Promise<User> => ({ id: userId } as User);
-export const deleteUserPermanently = async (userId: string): Promise<void> => {};
+export const getTrashedUsers = async (): Promise<User[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('is_deleted', true)
+      .order('deleted_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching trashed users:', error);
+      return [];
+    }
+
+    return (data || []).map(user => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      classPreference: user.class_preference,
+      photoUrl: user.photo_url,
+      dob: user.dob ? new Date(user.dob) : undefined,
+      sex: user.sex,
+      contactNumber: user.contact_number,
+      alternateContactNumber: user.alternate_contact_number,
+      address: user.address,
+      country: user.country,
+      state: user.state,
+      city: user.city,
+      postalCode: user.postal_code,
+      timezone: user.timezone,
+      preferredTimings: user.preferred_timings || [],
+      status: user.status,
+      locationId: user.location_id,
+      courses: user.courses || [],
+      fatherName: user.father_name,
+      standard: user.standard,
+      schoolName: user.school_name,
+      grade: user.grade,
+      notes: user.notes,
+      schedules: user.schedules || [],
+      documents: user.documents || [],
+      courseExpertise: user.course_expertise || [],
+      educationalQualifications: user.educational_qualifications,
+      employmentType: user.employment_type,
+      yearsOfExperience: user.years_of_experience,
+      availableTimeSlots: user.available_time_slots || [],
+      dateOfJoining: user.date_of_joining ? new Date(user.date_of_joining) : undefined,
+      createdAt: new Date(user.created_at),
+      updatedAt: user.updated_at ? new Date(user.updated_at) : undefined
+    }));
+  } catch (error) {
+    console.error('Error in getTrashedUsers:', error);
+    return [];
+  }
+};
+
+export const restoreUser = async (userId: string): Promise<User> => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .update({ 
+        is_deleted: false, 
+        deleted_at: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error restoring user:', error);
+      throw new Error(`Failed to restore user: ${error.message}`);
+    }
+
+    return {
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      role: data.role,
+      classPreference: data.class_preference,
+      photoUrl: data.photo_url,
+      dob: data.dob ? new Date(data.dob) : undefined,
+      sex: data.sex,
+      contactNumber: data.contact_number,
+      alternateContactNumber: data.alternate_contact_number,
+      address: data.address,
+      country: data.country,
+      state: data.state,
+      city: data.city,
+      postalCode: data.postal_code,
+      timezone: data.timezone,
+      preferredTimings: data.preferred_timings || [],
+      status: data.status,
+      locationId: data.location_id,
+      courses: data.courses || [],
+      fatherName: data.father_name,
+      standard: data.standard,
+      schoolName: data.school_name,
+      grade: data.grade,
+      notes: data.notes,
+      schedules: data.schedules || [],
+      documents: data.documents || [],
+      courseExpertise: data.course_expertise || [],
+      educationalQualifications: data.educational_qualifications,
+      employmentType: data.employment_type,
+      yearsOfExperience: data.years_of_experience,
+      availableTimeSlots: data.available_time_slots || [],
+      dateOfJoining: data.date_of_joining ? new Date(data.date_of_joining) : undefined,
+      createdAt: new Date(data.created_at),
+      updatedAt: data.updated_at ? new Date(data.updated_at) : undefined
+    };
+  } catch (error) {
+    console.error('Error in restoreUser:', error);
+    throw error;
+  }
+};
+
+export const deleteUserPermanently = async (userId: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', userId);
+
+    if (error) {
+      console.error('Error permanently deleting user:', error);
+      throw new Error(`Failed to permanently delete user: ${error.message}`);
+    }
+
+    console.log('User permanently deleted:', userId);
+  } catch (error) {
+    console.error('Error in deleteUserPermanently:', error);
+    throw error;
+  }
+};
 
 // Location functions
 export const getPublicLocations = async (): Promise<Location[]> => {

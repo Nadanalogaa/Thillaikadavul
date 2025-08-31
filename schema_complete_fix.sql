@@ -250,6 +250,12 @@ BEGIN
     END;
 
     BEGIN
+        ALTER TABLE book_materials ADD COLUMN url TEXT;
+    EXCEPTION
+        WHEN duplicate_column THEN NULL;
+    END;
+
+    BEGIN
         ALTER TABLE book_materials ADD COLUMN data TEXT;
     EXCEPTION
         WHEN duplicate_column THEN NULL;
