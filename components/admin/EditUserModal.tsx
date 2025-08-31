@@ -383,11 +383,11 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, user, on
             return schedule;
         };
 
-        const preferredTimings = formData.preferredTimings || [];
+        const preferredTimings = Array.isArray(formData.preferredTimings) ? formData.preferredTimings : [];
 
         return (
             <>
-                 {preferredTimings.length > 0 && (
+                 {preferredTimings && preferredTimings.length > 0 && (
                     <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                         <h4 className="text-sm font-semibold text-yellow-800">Student's Preferred Timings</h4>
                         <div className="flex flex-wrap gap-2 mt-2">
@@ -458,10 +458,17 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, user, on
                             const selectedTimingsForCourse = timingSelections.get(courseName);
                             const newBatchForCourse = selectedTimingsForCourse ? allBatches.find(b => b.id === pendingChange?.newBatchId) : null;
 
-                            const preferredTimingsSet = new Set(preferredTimings);
+                            const preferredTimingsSet = new Set(
+                                preferredTimings.map((t: string | CourseTimingSlot) => 
+                                    typeof t === 'string' ? t : 
+                                    (t && typeof t === 'object' && t.courseName && t.day && t.timeSlot) 
+                                        ? `${t.courseName}: ${t.day.substring(0, 3)} ${t.timeSlot}`
+                                        : ''
+                                ).filter(Boolean)
+                            );
                             const matchingBatches = availableBatchesForCourse.filter(b => b.schedule.some(s => preferredTimingsSet.has(s.timing)));
                             const otherBatches = availableBatchesForCourse.filter(b => !matchingBatches.some(matching => matching.id === b.id));
-                            const hasNoMatchingBatches = matchingBatches.length === 0 && preferredTimings.length > 0;
+                            const hasNoMatchingBatches = matchingBatches.length === 0 && preferredTimings && preferredTimings.length > 0;
 
                             const renderOption = (batch: Batch) => {
                                 const hasConflict = batch.schedule.some(s => studentSchedule.has(s.timing));

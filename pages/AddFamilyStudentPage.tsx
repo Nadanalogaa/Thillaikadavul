@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useOutletContext } from 'react-router-dom';
-import type { User, Course, Location } from '../types';
+import type { User, Course, Location, CourseTimingSlot } from '../types';
 import { Sex, ClassPreference, UserRole } from '../types';
 import { registerUser, getCourses, getFamilyStudents, getPublicLocations } from '../api';
 import PreferredTimingSelector from '../components/registration/PreferredTimingSelector';
@@ -13,7 +13,7 @@ const AddFamilyStudentPage: React.FC = () => {
         classPreference: ClassPreference.Online,
         sex: Sex.Male,
         courses: [],
-        preferredTimings: [],
+        preferredTimings: [] as CourseTimingSlot[],
         photoUrl: '',
         name: '',
         dob: ''
@@ -212,7 +212,16 @@ const AddFamilyStudentPage: React.FC = () => {
                                     <div className="lg:col-span-3 pt-6 border-t">
                                         <label className="form-label">Preferred Timings (Optional)</label>
                                         <p className="text-sm text-gray-500 mb-4">Help us find the best batch for this student.</p>
-                                        <PreferredTimingSelector selectedTimings={studentData.preferredTimings || []} onChange={(timings) => handleChange('preferredTimings', timings)} />
+                                        <PreferredTimingSelector 
+                                            selectedCourses={studentData.courses || []}
+                                            selectedTimings={
+                                                Array.isArray(studentData.preferredTimings) 
+                                                    ? (studentData.preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object')
+                                                    : []
+                                            }
+                                            onChange={(timings) => handleChange('preferredTimings', timings)}
+                                            userTimezone={user.timezone}
+                                        />
                                     </div>
                                 }
                             </div>

@@ -26,13 +26,13 @@ const QuickBatchCreateModal: React.FC<QuickBatchCreateModalProps> = ({ isOpen, o
     useEffect(() => {
         if (isOpen && course) {
             // Reset form
-            setName(`${course.name} - ${preferredTimings.length > 0 ? 
+            setName(`${course.name} - ${preferredTimings && preferredTimings.length > 0 ? 
                 (typeof preferredTimings[0] === 'string' ? preferredTimings[0].split(' ')[0] : 
                  preferredTimings[0]?.day?.substring(0, 3) || 'New') : 'New'} Batch`);
             setTeacherId('');
             setMode(ClassPreference.Online);
             // Pre-populate with preferred timings if available
-            setSchedule(preferredTimings.length > 0 ? preferredTimings.map(t => {
+            setSchedule(preferredTimings && preferredTimings.length > 0 ? preferredTimings.map(t => {
                 // Handle both old string format and new CourseTimingSlot object format
                 const timingString = typeof t === 'string' ? t : 
                     (t && typeof t === 'object' && t.courseName && t.day && t.timeSlot) 
