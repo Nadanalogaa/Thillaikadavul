@@ -127,12 +127,6 @@
           WHEN OTHERS THEN NULL;
       END;
 
-      -- Remove NOT NULL constraint from grade_exams date column if it exists
-      BEGIN
-          ALTER TABLE grade_exams ALTER COLUMN date DROP NOT NULL;
-      EXCEPTION
-          WHEN OTHERS THEN NULL;
-      END;
 
   END $$;
 
@@ -210,12 +204,14 @@ CREATE TABLE IF NOT EXISTS events (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Grade Exams table
-CREATE TABLE IF NOT EXISTS grade_exams (
+-- Grade Exams table - Drop and recreate to fix constraints
+DROP TABLE IF EXISTS grade_exams CASCADE;
+
+CREATE TABLE grade_exams (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     title TEXT NOT NULL,
     description TEXT,
-    date DATE, -- Allow NULL dates for flexibility
+    date DATE, -- Allow NULL dates for flexibility - this is the critical fix
     time TEXT,
     duration TEXT,
     course TEXT,
