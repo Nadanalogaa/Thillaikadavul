@@ -127,6 +127,13 @@
           WHEN OTHERS THEN NULL;
       END;
 
+      -- Remove NOT NULL constraint from grade_exams date column if it exists
+      BEGIN
+          ALTER TABLE grade_exams ALTER COLUMN date DROP NOT NULL;
+      EXCEPTION
+          WHEN OTHERS THEN NULL;
+      END;
+
   END $$;
 
   CREATE TABLE IF NOT EXISTS courses (
@@ -208,7 +215,7 @@ CREATE TABLE IF NOT EXISTS grade_exams (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     title TEXT NOT NULL,
     description TEXT,
-    date DATE NOT NULL,
+    date DATE, -- Allow NULL dates for flexibility
     time TEXT,
     duration TEXT,
     course TEXT,
