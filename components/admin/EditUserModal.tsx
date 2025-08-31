@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import type { User, Document, Course, Batch } from '../../types';
+import type { User, Document, Course, Batch, CourseTimingSlot } from '../../types';
 import { UserRole, ClassPreference, Sex, EmploymentType, Grade, UserStatus } from '../../types';
 import { GRADES } from '../../constants';
 import { getAdminUsers, getCourses, getBatches as getAdminBatches } from '../../api';
@@ -391,11 +391,24 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, user, on
                     <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                         <h4 className="text-sm font-semibold text-yellow-800">Student's Preferred Timings</h4>
                         <div className="flex flex-wrap gap-2 mt-2">
-                            {preferredTimings.map(timing => (
-                                <span key={timing} className="bg-yellow-400 text-yellow-900 text-xs font-medium px-2 py-1 rounded-full">
-                                    {timing}
-                                </span>
-                            ))}
+                            {preferredTimings.map((timing: string | CourseTimingSlot, index: number) => {
+                                // Handle both old string format and new CourseTimingSlot object format
+                                if (typeof timing === 'string') {
+                                    return (
+                                        <span key={timing} className="bg-yellow-400 text-yellow-900 text-xs font-medium px-2 py-1 rounded-full">
+                                            {timing}
+                                        </span>
+                                    );
+                                } else if (timing && typeof timing === 'object' && timing.courseName && timing.day && timing.timeSlot) {
+                                    const displayText = `${timing.courseName}: ${timing.day.substring(0, 3)} ${timing.timeSlot}`;
+                                    return (
+                                        <span key={timing.id || `${timing.courseName}-${timing.day}-${timing.timeSlot}-${index}`} className="bg-yellow-400 text-yellow-900 text-xs font-medium px-2 py-1 rounded-full">
+                                            {displayText}
+                                        </span>
+                                    );
+                                }
+                                return null;
+                            }).filter(Boolean)}
                         </div>
                     </div>
                 )}

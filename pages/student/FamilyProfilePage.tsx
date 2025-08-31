@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import type { User, StudentEnrollment } from '../../types';
+import type { User, StudentEnrollment, CourseTimingSlot } from '../../types';
 import { getFamilyStudents, getStudentEnrollmentsForFamily } from '../../api';
 import { MapPinIcon } from '../../components/icons';
 
@@ -55,7 +55,16 @@ const StudentProfileTab: React.FC<{ student: User }> = ({ student }) => (
             <h4 className="text-xs font-medium text-gray-500 uppercase">Preferred Timings</h4>
             {student.preferredTimings && student.preferredTimings.length > 0 ? (
                 <div className="flex flex-wrap gap-2 mt-2">
-                    {student.preferredTimings.map(t => <span key={t} className="badge-yellow">{t}</span>)}
+                    {student.preferredTimings.map((t: string | CourseTimingSlot, index: number) => {
+                        // Handle both old string format and new CourseTimingSlot object format
+                        if (typeof t === 'string') {
+                            return <span key={t} className="badge-yellow">{t}</span>;
+                        } else if (t && typeof t === 'object' && t.courseName && t.day && t.timeSlot) {
+                            const displayText = `${t.courseName}: ${t.day.substring(0, 3)} ${t.timeSlot}`;
+                            return <span key={t.id || `${t.courseName}-${t.day}-${t.timeSlot}-${index}`} className="badge-yellow">{displayText}</span>;
+                        }
+                        return null;
+                    }).filter(Boolean)}
                 </div>
             ) : <p className="text-gray-400 italic text-sm mt-1">No preferred timings set.</p>}
         </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleGenAI } from '@google/genai';
-import type { User, Course, Batch, Invoice, ClassPreference } from '../../types';
+import type { User, Course, Batch, Invoice, ClassPreference, CourseTimingSlot } from '../../types';
 import { getAdminUserById, getCourses, getBatches, getAdminInvoices, updateUserByAdmin, updateBatch } from '../../api';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import { CourseIcon, SparklesIcon } from '../../components/icons';
@@ -253,11 +253,24 @@ const StudentProfileViewPage: React.FC<StudentProfileViewPageProps> = ({ student
                             <h4 className="text-sm font-medium text-gray-500 mb-2">Student's Preferred Timings</h4>
                             {student.preferredTimings && student.preferredTimings.length > 0 ? (
                                 <div className="flex flex-wrap gap-2">
-                                    {student.preferredTimings.map(timing => (
-                                        <span key={timing} className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-1 rounded-full">
-                                            {timing}
-                                        </span>
-                                    ))}
+                                    {student.preferredTimings.map((timing: string | CourseTimingSlot, index: number) => {
+                                        // Handle both old string format and new CourseTimingSlot object format
+                                        if (typeof timing === 'string') {
+                                            return (
+                                                <span key={timing} className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-1 rounded-full">
+                                                    {timing}
+                                                </span>
+                                            );
+                                        } else if (timing && typeof timing === 'object' && timing.courseName && timing.day && timing.timeSlot) {
+                                            const displayText = `${timing.courseName}: ${timing.day.substring(0, 3)} ${timing.timeSlot}`;
+                                            return (
+                                                <span key={timing.id || `${timing.courseName}-${timing.day}-${timing.timeSlot}-${index}`} className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-1 rounded-full">
+                                                    {displayText}
+                                                </span>
+                                            );
+                                        }
+                                        return null;
+                                    }).filter(Boolean)}
                                 </div>
                             ) : <p className="text-gray-400 italic">No preferred timings set.</p>}
                         </div>
