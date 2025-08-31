@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useOutletContext, Link } from 'react-router-dom';
 import type { User, Event, Notice } from '../../types';
 import { getFamilyStudents, getEvents, getNotices } from '../../api';
+import NotificationBell from '../../components/NotificationBell';
 
 const StatCard: React.FC<{ title: string; value: string | number; linkTo: string; bgColor: string; textColor: string }> = ({ title, value, linkTo, bgColor, textColor }) => (
     <Link to={linkTo} className={`block p-6 rounded-xl shadow-md transition-transform hover:-translate-y-1 ${bgColor}`}>
@@ -55,9 +56,12 @@ const StudentDashboardHomePage: React.FC = () => {
                     <h1 className="text-3xl font-bold text-dark-text">Welcome, {guardianName}!</h1>
                     <p className="text-light-text mt-1">{dateString}</p>
                 </div>
-                 <div className="flex items-center space-x-3">
-                    <span className="text-dark-text font-medium">{guardianName}</span>
-                    <img src={user.photoUrl || `https://ui-avatars.com/api/?name=${guardianName.replace(/\s/g, '+')}&background=7B61FF&color=fff`} alt={guardianName} className="w-12 h-12 rounded-full object-cover" />
+                 <div className="flex items-center space-x-4">
+                    <NotificationBell user={user} />
+                    <div className="flex items-center space-x-3">
+                        <span className="text-dark-text font-medium">{guardianName}</span>
+                        <img src={user.photoUrl || `https://ui-avatars.com/api/?name=${guardianName.replace(/\s/g, '+')}&background=7B61FF&color=fff`} alt={guardianName} className="w-12 h-12 rounded-full object-cover" />
+                    </div>
                 </div>
             </div>
 

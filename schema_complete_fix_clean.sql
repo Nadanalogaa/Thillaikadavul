@@ -109,10 +109,8 @@ CREATE TABLE batches (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Events table - Force recreate to ensure all columns exist
-DROP TABLE IF EXISTS events CASCADE;
-
-CREATE TABLE events (
+-- Events table
+CREATE TABLE IF NOT EXISTS events (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     title TEXT NOT NULL,
     description TEXT,
@@ -120,8 +118,6 @@ CREATE TABLE events (
     time TIME,
     location TEXT,
     is_active BOOLEAN DEFAULT TRUE,
-    is_public BOOLEAN DEFAULT FALSE, -- CRITICAL: is_public column for public/private events
-    recipient_ids JSONB DEFAULT '[]', -- For targeting specific recipients
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -142,7 +138,6 @@ CREATE TABLE grade_exams (
     registration_fee DECIMAL(10,2),
     registration_deadline DATE,
     is_open BOOLEAN DEFAULT TRUE,
-    recipient_ids JSONB DEFAULT '[]', -- For targeting specific recipients
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -172,16 +167,13 @@ CREATE TABLE notices (
     title TEXT NOT NULL,
     content TEXT,
     target_audience TEXT DEFAULT 'All', -- CRITICAL: target_audience column
-    recipient_ids JSONB DEFAULT '[]', -- For targeting specific recipients
     issued_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Fee Structures table - Force recreate to ensure all columns exist
-DROP TABLE IF EXISTS fee_structures CASCADE;
-
-CREATE TABLE fee_structures (
+-- Fee Structures table
+CREATE TABLE IF NOT EXISTS fee_structures (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
     course_name TEXT,
@@ -193,10 +185,8 @@ CREATE TABLE fee_structures (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Invoices table - Force recreate to ensure all columns exist
-DROP TABLE IF EXISTS invoices CASCADE;
-
-CREATE TABLE invoices (
+-- Invoices table
+CREATE TABLE IF NOT EXISTS invoices (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     student_id UUID REFERENCES users(id) ON DELETE CASCADE,
     student_name TEXT,
@@ -208,13 +198,10 @@ CREATE TABLE invoices (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Notifications table - Force recreate to ensure all columns exist
-DROP TABLE IF EXISTS notifications CASCADE;
-
-CREATE TABLE notifications (
+-- Notifications table
+CREATE TABLE IF NOT EXISTS notifications (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    recipient_id UUID REFERENCES users(id) ON DELETE CASCADE, -- CRITICAL: recipient_id column
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE, -- CRITICAL: user_id column (application uses this)
+    recipient_id UUID REFERENCES users(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     message TEXT,
     type TEXT CHECK (type IN ('Info', 'Warning', 'Success', 'Error')),
@@ -223,17 +210,15 @@ CREATE TABLE notifications (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Contacts table - Force recreate to ensure all columns exist
-DROP TABLE IF EXISTS contacts CASCADE;
-
-CREATE TABLE contacts (
+-- Contacts table
+CREATE TABLE IF NOT EXISTS contacts (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     name TEXT NOT NULL,
     email TEXT,
     phone TEXT,
     subject TEXT,
     message TEXT,
-    status TEXT DEFAULT 'New' CHECK (status IN ('New', 'In Progress', 'Resolved')), -- CRITICAL: status column
+    status TEXT DEFAULT 'New' CHECK (status IN ('New', 'In Progress', 'Resolved')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

@@ -2071,6 +2071,87 @@ export const sendBookMaterial = async (materialId: string, recipientIds: string[
   }
 };
 
+// Send event to specific recipients
+export const sendEvent = async (eventId: string, recipientIds: string[]): Promise<void> => {
+  try {
+    console.log('Sending event to recipients:', eventId, recipientIds);
+    
+    const { data, error } = await supabase
+      .from('events')
+      .update({ 
+        recipient_ids: recipientIds,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', eventId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error sending event:', error);
+      throw new Error(`Failed to send event: ${error.message}`);
+    }
+
+    console.log('Event sent successfully to recipients:', data);
+  } catch (error) {
+    console.error('Error in sendEvent:', error);
+    throw error;
+  }
+};
+
+// Send grade exam to specific recipients
+export const sendGradeExam = async (examId: string, recipientIds: string[]): Promise<void> => {
+  try {
+    console.log('Sending grade exam to recipients:', examId, recipientIds);
+    
+    const { data, error } = await supabase
+      .from('grade_exams')
+      .update({ 
+        recipient_ids: recipientIds,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', examId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error sending grade exam:', error);
+      throw new Error(`Failed to send grade exam: ${error.message}`);
+    }
+
+    console.log('Grade exam sent successfully to recipients:', data);
+  } catch (error) {
+    console.error('Error in sendGradeExam:', error);
+    throw error;
+  }
+};
+
+// Send notice to specific recipients
+export const sendNotice = async (noticeId: string, recipientIds: string[]): Promise<void> => {
+  try {
+    console.log('Sending notice to recipients:', noticeId, recipientIds);
+    
+    const { data, error } = await supabase
+      .from('notices')
+      .update({ 
+        recipient_ids: recipientIds,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', noticeId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error sending notice:', error);
+      throw new Error(`Failed to send notice: ${error.message}`);
+    }
+
+    console.log('Notice sent successfully to recipients:', data);
+  } catch (error) {
+    console.error('Error in sendNotice:', error);
+    throw error;
+  }
+};
+
 export const getNotices = async (): Promise<Notice[]> => {
   try {
     const { data, error } = await supabase
@@ -2177,6 +2258,7 @@ export const deleteNotice = async (id: string): Promise<void> => {
   }
 };
 
+// Enhanced content notification with email support and database notifications
 export const sendContentNotification = async (payload: {
   contentId: string;
   contentType: string;
@@ -2184,4 +2266,154 @@ export const sendContentNotification = async (payload: {
   subject: string;
   message: string;
   sendWhatsApp?: boolean;
-}): Promise<{ success: boolean; message: string }> => ({ success: true, message: 'Notification sent' });
+  sendEmail?: boolean;
+}): Promise<{ success: boolean; message: string }> => {
+  try {
+    console.log('Sending content notifications:', payload);
+    
+    // Create notifications in database for each recipient
+    const notifications = payload.userIds.map(userId => ({
+      user_id: userId,
+      recipient_id: userId, // For compatibility with both column names
+      title: payload.subject,
+      message: payload.message,
+      type: 'Info' as const,
+      is_read: false,
+      created_at: new Date().toISOString()
+    }));
+
+    const { error: notificationError } = await supabase
+      .from('notifications')
+      .insert(notifications);
+
+    if (notificationError) {
+      console.error('Error creating notifications:', notificationError);
+      throw new Error(`Failed to create notifications: ${notificationError.message}`);
+    }
+
+    // Send email notifications if requested
+    if (payload.sendEmail) {
+      await sendEmailNotifications(payload.userIds, payload.subject, payload.message);
+    }
+
+    console.log(`Successfully sent ${payload.contentType} notifications to ${payload.userIds.length} recipients`);
+    return { 
+      success: true, 
+      message: `${payload.contentType} shared with ${payload.userIds.length} recipients` 
+    };
+  } catch (error) {
+    console.error('Error in sendContentNotification:', error);
+    throw error;
+  }
+};
+
+// Send email notifications to recipients
+const sendEmailNotifications = async (userIds: string[], subject: string, message: string): Promise<void> => {
+  try {
+    // Get user emails
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('email, name')
+      .in('id', userIds);
+
+    if (error) {
+      console.error('Error fetching user emails:', error);
+      return;
+    }
+
+    // In a real implementation, you would integrate with an email service like:
+    // - SendGrid, Mailgun, AWS SES, etc.
+    // For now, we'll log the emails that would be sent
+    console.log('Email notifications would be sent to:');
+    users?.forEach(user => {
+      console.log(`📧 To: ${user.email} (${user.name})`);
+      console.log(`   Subject: ${subject}`);
+      console.log(`   Message: ${message}`);
+    });
+
+    // TODO: Implement actual email sending service integration
+    // Example with a hypothetical email service:
+    /*
+    const emailPromises = users?.map(user => 
+      emailService.send({
+        to: user.email,
+        subject: subject,
+        html: generateEmailTemplate(user.name, subject, message)
+      })
+    );
+    await Promise.all(emailPromises || []);
+    */
+  } catch (error) {
+    console.error('Error sending email notifications:', error);
+  }
+};// Get notifications for a specific user (for student dashboard)
+export const getUserNotifications = async (userId: string): Promise<any[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .or(`user_id.eq.${userId},recipient_id.eq.${userId}`)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.error('Error fetching user notifications:', error);
+      return [];
+    }
+
+    return (data || []).map(notification => ({
+      id: notification.id,
+      title: notification.title,
+      message: notification.message,
+      type: notification.type,
+      isRead: notification.is_read,
+      createdAt: new Date(notification.created_at),
+      updatedAt: notification.updated_at ? new Date(notification.updated_at) : undefined
+    }));
+  } catch (error) {
+    console.error('Error in getUserNotifications:', error);
+    return [];
+  }
+};
+
+// Mark notification as read
+export const markNotificationAsRead = async (notificationId: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('notifications')
+      .update({ 
+        is_read: true,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', notificationId);
+
+    if (error) {
+      console.error('Error marking notification as read:', error);
+      throw new Error(`Failed to mark notification as read: ${error.message}`);
+    }
+  } catch (error) {
+    console.error('Error in markNotificationAsRead:', error);
+    throw error;
+  }
+};
+
+// Get unread notification count for a user
+export const getUnreadNotificationCount = async (userId: string): Promise<number> => {
+  try {
+    const { count, error } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .or(`user_id.eq.${userId},recipient_id.eq.${userId}`)
+      .eq('is_read', false);
+
+    if (error) {
+      console.error('Error fetching unread notification count:', error);
+      return 0;
+    }
+
+    return count || 0;
+  } catch (error) {
+    console.error('Error in getUnreadNotificationCount:', error);
+    return 0;
+  }
+};

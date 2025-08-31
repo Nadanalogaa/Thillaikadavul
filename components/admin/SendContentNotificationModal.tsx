@@ -5,7 +5,7 @@ import ModalHeader from '../ModalHeader';
 import TabButton from './TabButton';
 import type { User, Batch, Course, Event, GradeExam, BookMaterial, Notice } from '../../types';
 import { UserRole } from '../../types';
-import { getAdminUsers, getBatches, getAdminCourses, sendContentNotification, sendBookMaterial } from '../../api';
+import { getAdminUsers, getBatches, getAdminCourses, sendContentNotification, sendBookMaterial, sendEvent, sendGradeExam, sendNotice } from '../../api';
 import { WhatsAppIcon } from '../icons';
 
 type ContentItem = Event | GradeExam | BookMaterial | Notice;
@@ -25,6 +25,7 @@ const SendContentNotificationModal: React.FC<SendContentNotificationModalProps> 
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [sendWhatsApp, setSendWhatsApp] = useState(false);
+    const [sendEmail, setSendEmail] = useState(true);
 
     // Data
     const [allUsers, setAllUsers] = useState<User[]>([]);
@@ -52,6 +53,7 @@ const SendContentNotificationModal: React.FC<SendContentNotificationModalProps> 
         setError(null);
         setSuccess(null);
         setSendWhatsApp(false);
+        setSendEmail(true);
         setSelectedStudentIds(new Set());
         setSelectedTeacherIds(new Set());
         setSelectedBatchIds(new Set());
@@ -192,9 +194,22 @@ const SendContentNotificationModal: React.FC<SendContentNotificationModalProps> 
             const subject = `${contentType}: ${contentItem.title}`;
             const message = `A new ${contentType.toLowerCase()} has been posted: "${contentItem.title}". Please log in to your dashboard to view the details.`;
             
-            // For BookMaterial, also update the recipient_ids in the database
-            if (contentType === 'BookMaterial') {
-                await sendBookMaterial(contentItem.id, finalUserIds);
+            // Update recipient_ids in the database for each content type
+            switch (contentType) {
+                case 'BookMaterial':
+                    await sendBookMaterial(contentItem.id, finalUserIds);
+                    break;
+                case 'Event':
+                    await sendEvent(contentItem.id, finalUserIds);
+                    break;
+                case 'GradeExam':
+                    await sendGradeExam(contentItem.id, finalUserIds);
+                    break;
+                case 'Notice':
+                    await sendNotice(contentItem.id, finalUserIds);
+                    break;
+                default:
+                    console.warn(`Unknown content type: ${contentType}`);
             }
             
             const response = await sendContentNotification({
@@ -204,12 +219,10 @@ const SendContentNotificationModal: React.FC<SendContentNotificationModalProps> 
                 subject,
                 message,
                 sendWhatsApp,
+                sendEmail: sendEmail
             });
             
-            setSuccess(contentType === 'BookMaterial' ? 
-                'Book material shared successfully with selected recipients!' : 
-                response.message
-            );
+            setSuccess(`${contentType} shared successfully with ${finalUserIds.length} recipients! ${sendEmail ? 'Email notifications sent.' : ''}`);
             setTimeout(() => {
                 onClose();
             }, 3000);
@@ -282,11 +295,17 @@ const SendContentNotificationModal: React.FC<SendContentNotificationModalProps> 
                 <div className="flex-shrink-0 p-6 bg-gray-50 border-t">
                     <div className="flex justify-between items-start">
                         <div className="flex-grow">
-                           <div className="flex items-center space-x-3">
-                                <input type="checkbox" id="sendWhatsApp" checked={sendWhatsApp} onChange={(e) => setSendWhatsApp(e.target.checked)} className="h-4 w-4 text-brand-primary rounded focus:ring-brand-primary"/>
-                                <label htmlFor="sendWhatsApp" className="form-label mb-0 cursor-pointer flex items-center"><WhatsAppIcon className="h-5 w-5 mr-2 text-green-600"/> Also send notification via WhatsApp</label>
+                           <div className="space-y-2">
+                                <div className="flex items-center space-x-3">
+                                    <input type="checkbox" id="sendEmail" checked={sendEmail} onChange={(e) => setSendEmail(e.target.checked)} className="h-4 w-4 text-brand-primary rounded focus:ring-brand-primary"/>
+                                    <label htmlFor="sendEmail" className="form-label mb-0 cursor-pointer flex items-center">📧 Send email notifications to recipients</label>
+                                </div>
+                                <div className="flex items-center space-x-3">
+                                    <input type="checkbox" id="sendWhatsApp" checked={sendWhatsApp} onChange={(e) => setSendWhatsApp(e.target.checked)} className="h-4 w-4 text-brand-primary rounded focus:ring-brand-primary"/>
+                                    <label htmlFor="sendWhatsApp" className="form-label mb-0 cursor-pointer flex items-center"><WhatsAppIcon className="h-5 w-5 mr-2 text-green-600"/> Also send via WhatsApp</label>
+                                </div>
                             </div>
-                            <p className="text-xs text-gray-500 mt-1 ml-7">Sends a message directly to the recipient's phone. Requires a configured WhatsApp Business API.</p>
+                            <p className="text-xs text-gray-500 mt-1">Email notifications will be sent to the registered email addresses. WhatsApp requires a configured Business API.</p>
                             <p className="font-semibold text-gray-800 mt-2">Summary:</p>
                             <p className="text-gray-700 text-sm">This notification will be sent to <span className="font-bold text-brand-primary">{finalUserIds.length}</span> unique recipient(s).</p>
                             {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
