@@ -25,6 +25,11 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
         message: string | null;
     }>({ isChecking: false, isValid: null, message: null });
     
+    const [timezoneValidation, setTimezoneValidation] = useState<{
+        isValid: boolean;
+        warning: string;
+    }>({ isValid: true, warning: '' });
+    
     // Guardian & Student Form State
     const [guardianData, setGuardianData] = useState({ 
         name: '', email: '', password: '', contactNumber: '',
@@ -63,6 +68,93 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
             }
         };
         fetchPrerequisites();
+    }, []);
+
+    // Helper function to get suggested country based on timezone
+    const getSuggestedCountry = (timezone: string): string => {
+        const timezoneCountryMap: { [key: string]: string } = {
+            'Asia/Kolkata': 'India',
+            'Asia/Singapore': 'Singapore',
+            'Europe/London': 'United Kingdom',
+            'Europe/Berlin': 'Germany',
+            'Asia/Dubai': 'United Arab Emirates',
+            'Australia/Sydney': 'Australia',
+            'America/New_York': 'United States of America',
+            'America/Chicago': 'United States of America',
+            'America/Denver': 'United States of America',
+            'America/Los_Angeles': 'United States of America',
+        };
+        return timezoneCountryMap[timezone] || '';
+    };
+
+    // Helper function to validate country/timezone consistency
+    const validateCountryTimezone = (country: string, timezone: string): { isValid: boolean; warning: string } => {
+        const expectedCountry = getSuggestedCountry(timezone);
+        
+        if (!expectedCountry || !country) {
+            return { isValid: true, warning: '' };
+        }
+        
+        if (country !== expectedCountry) {
+            return { 
+                isValid: false, 
+                warning: `You selected ${country} but ${timezone.split('/')[1]?.replace('_', ' ')} timezone. Are you currently in ${expectedCountry}?` 
+            };
+        }
+        
+        return { isValid: true, warning: '' };
+    };
+
+    // Auto-detect timezone based on browser
+    useEffect(() => {
+        const detectAndSetTimezone = () => {
+            try {
+                const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                
+                // Map detected timezone to our TIMEZONES options
+                const matchingTimezone = TIMEZONES.find(tz => tz.value === detectedTimezone);
+                
+                if (matchingTimezone) {
+                    const suggestedCountry = getSuggestedCountry(matchingTimezone.value);
+                    
+                    // Auto-populate timezone and suggest country for both guardian and teacher
+                    setGuardianData(prev => ({ 
+                        ...prev, 
+                        timezone: matchingTimezone.value,
+                        country: suggestedCountry || prev.country
+                    }));
+                    setTeacherData(prev => ({ 
+                        ...prev, 
+                        timezone: matchingTimezone.value,
+                        country: suggestedCountry || prev.country
+                    }));
+                } else {
+                    // Fallback to IST if exact match not found
+                    const fallbackTimezone = 'Asia/Kolkata';
+                    setGuardianData(prev => ({ 
+                        ...prev, 
+                        timezone: fallbackTimezone 
+                    }));
+                    setTeacherData(prev => ({ 
+                        ...prev, 
+                        timezone: fallbackTimezone 
+                    }));
+                }
+            } catch (error) {
+                // Fallback to IST if detection fails
+                const fallbackTimezone = 'Asia/Kolkata';
+                setGuardianData(prev => ({ 
+                    ...prev, 
+                    timezone: fallbackTimezone 
+                }));
+                setTeacherData(prev => ({ 
+                    ...prev, 
+                    timezone: fallbackTimezone 
+                }));
+            }
+        };
+
+        detectAndSetTimezone();
     }, []);
 
     // Cleanup timeout on unmount
@@ -110,7 +202,19 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
     // Form handlers (keeping existing logic but simplified)
     const handleGuardianChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
-        setGuardianData(prev => ({ ...prev, [name]: value }));
+        const newGuardianData = { ...guardianData, [name]: value };
+        setGuardianData(newGuardianData);
+        
+        // Validate country/timezone consistency
+        if (name === 'country' || name === 'timezone') {
+            const country = name === 'country' ? value : newGuardianData.country;
+            const timezone = name === 'timezone' ? value : newGuardianData.timezone;
+            
+            if (country && timezone) {
+                const validation = validateCountryTimezone(country, timezone);
+                setTimezoneValidation(validation);
+            }
+        }
         
         // Debounced email validation
         if (name === 'email') {
@@ -146,6 +250,18 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
         if (name === 'classPreference' && value !== ClassPreference.Offline) {
             delete newTeacherData.locationId;
         }
+        
+        // Validate country/timezone consistency for teachers too
+        if (name === 'country' || name === 'timezone') {
+            const country = name === 'country' ? value : newTeacherData.country;
+            const timezone = name === 'timezone' ? value : newTeacherData.timezone;
+            
+            if (country && timezone) {
+                const validation = validateCountryTimezone(country, timezone);
+                setTimezoneValidation(validation);
+            }
+        }
+        
         setTeacherData(newTeacherData);
         
         // Debounced email validation for teachers
@@ -550,6 +666,21 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                             <option value="">Select your timezone</option>
                                             {TIMEZONES.map(tz => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
                                         </select>
+                                        
+                                        {/* Timezone validation warning */}
+                                        {timezoneValidation.warning && (
+                                            <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                                                <div className="flex items-start">
+                                                    <svg className="h-5 w-5 text-amber-400 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                                    </svg>
+                                                    <div className="text-sm text-amber-700">
+                                                        <p className="font-medium">Timezone Mismatch Detected</p>
+                                                        <p className="mt-1">{timezoneValidation.warning}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )}
