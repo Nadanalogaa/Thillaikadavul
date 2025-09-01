@@ -59,12 +59,12 @@ const TimezoneDetector: React.FC<TimezoneDetectorProps> = ({
   };
 
   const getCurrentTimezoneInfo = () => {
-    const tz = currentTimezone || detectedTimezone;
+    const tz = currentTimezone || detectedTimezone || 'Asia/Kolkata';
     const tzInfo = allTimezones.find(t => t.value === tz);
     return tzInfo || { 
       value: tz, 
-      label: tz.replace('_', ' '), 
-      offset: getTimezoneAbbreviation(tz) 
+      label: (tz || 'Unknown').replace(/_/g, ' '), 
+      offset: getTimezoneAbbreviation(tz || 'Asia/Kolkata') 
     };
   };
 

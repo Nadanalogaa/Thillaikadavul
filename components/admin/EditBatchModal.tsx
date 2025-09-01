@@ -748,7 +748,7 @@ const EditBatchModal: React.FC<EditBatchModalProps> = ({ isOpen, onClose, batch,
                                                                             const dualDisplay = createDualTimezoneDisplay(
                                                                                 utcSlot.startUtc, 
                                                                                 utcSlot.endUtc, 
-                                                                                userTimezone
+                                                                                userTimezone || IST_TIMEZONE
                                                                             );
                                                                             
                                                                             return (

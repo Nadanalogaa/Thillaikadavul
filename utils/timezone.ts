@@ -46,8 +46,13 @@ export function getAllTimezones(): TimezoneInfo[] {
 }
 
 export function parseTimeSlot(timeSlot: string): { start: string; end: string } {
-  const [start, end] = timeSlot.split(' - ');
-  return { start: start.trim(), end: end.trim() };
+  if (!timeSlot || typeof timeSlot !== 'string') {
+    return { start: '09:00', end: '10:00' }; // Default fallback
+  }
+  const parts = timeSlot.split(' - ');
+  const start = parts[0]?.trim() || '09:00';
+  const end = parts[1]?.trim() || '10:00';
+  return { start, end };
 }
 
 export function createISTDateTime(dayName: string, timeStr: string): Date {
@@ -183,6 +188,15 @@ export interface UtcTimeSlot {
 }
 
 export function createUtcTimeSlot(dayName: string, timeSlot: string, sourceTimezone: string = IST_TIMEZONE): UtcTimeSlot {
+  if (!dayName || !timeSlot) {
+    // Return default UTC slot if inputs are invalid
+    return {
+      startUtc: new Date().toISOString(),
+      endUtc: new Date(Date.now() + 3600000).toISOString(), // +1 hour
+      dayOfWeek: 1 // Monday
+    };
+  }
+  
   const { start, end } = parseTimeSlot(timeSlot);
   
   // Create a date for next occurrence of this day
@@ -243,13 +257,22 @@ export function createDualTimezoneDisplay(
   endUtc: string,
   userTimezone: string = IST_TIMEZONE
 ): { localTime: string; istTime: string; isNextDay?: boolean } {
-  const localStart = formatTimeInTimezone(startUtc, userTimezone);
-  const localEnd = formatTimeInTimezone(endUtc, userTimezone);
+  if (!startUtc || !endUtc) {
+    return {
+      localTime: '09:00–10:00',
+      istTime: '09:00–10:00',
+      isNextDay: false
+    };
+  }
+
+  const safeUserTimezone = userTimezone || IST_TIMEZONE;
+  const localStart = formatTimeInTimezone(startUtc, safeUserTimezone);
+  const localEnd = formatTimeInTimezone(endUtc, safeUserTimezone);
   const istStart = formatTimeInTimezone(startUtc, IST_TIMEZONE);
   const istEnd = formatTimeInTimezone(endUtc, IST_TIMEZONE);
   
   // Check if local time crosses to next day
-  const userDate = new Date(startUtc).toLocaleDateString('en-US', { timeZone: userTimezone });
+  const userDate = new Date(startUtc).toLocaleDateString('en-US', { timeZone: safeUserTimezone });
   const istDate = new Date(startUtc).toLocaleDateString('en-US', { timeZone: IST_TIMEZONE });
   const isNextDay = userDate !== istDate;
   
