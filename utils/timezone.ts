@@ -187,18 +187,19 @@ export interface UtcTimeSlot {
   dayOfWeek: number; // 0-6, Sunday = 0
 }
 
-// Helper function to create UTC time from timezone-aware input
+// Helper function to create UTC time from timezone-aware input  
 function createUtcFromTimezone(year: number, month: number, day: number, hours: number, minutes: number, timezone: string): Date {
-  // If it's IST, we know the input time is in IST and need to convert to UTC
   if (timezone === IST_TIMEZONE) {
-    // Create UTC date by subtracting IST offset (UTC+5:30)
-    // We create the date as if it's UTC first, then adjust
-    const utcDate = new Date(Date.UTC(year, month, day, hours, minutes, 0));
-    // Subtract 5.5 hours to get actual UTC from IST
-    return new Date(utcDate.getTime() - (5.5 * 60 * 60 * 1000));
+    // Create a proper IST time by using the timezone offset
+    // IST is UTC+5:30, so we add 5:30 to get IST, then that becomes our "local" time
+    // But we want UTC, so we need to subtract the offset
+    
+    // Method: Create date string with IST offset and let JS parse it properly
+    const isoString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00+05:30`;
+    return new Date(isoString);
   }
   
-  // For other timezones, create as UTC (this can be enhanced later for other specific timezones)
+  // For other timezones, create as UTC
   return new Date(Date.UTC(year, month, day, hours, minutes, 0));
 }
 
