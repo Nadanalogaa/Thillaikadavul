@@ -498,8 +498,9 @@ const EditBatchModal: React.FC<EditBatchModalProps> = ({ isOpen, onClose, batch,
                 </div>
 
                 <form onSubmit={handleSubmit} className="flex-grow flex flex-col min-h-0">
-                    {/* Form Fields - Always visible */}
-                    <div className="flex-shrink-0 px-6 py-4 bg-gray-50 border-b">
+                    {/* Form Fields - Step 1 only */}
+                    {currentStep === 1 && (
+                        <div className="flex-shrink-0 px-6 py-4 bg-gray-50 border-b">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Course *</label>
@@ -583,143 +584,215 @@ const EditBatchModal: React.FC<EditBatchModalProps> = ({ isOpen, onClose, batch,
                                 />
                             </div>
                         </div>
-                    </div>
+                        </div>
+                    )}
+
+                    {/* Batch Summary for Step 2 */}
+                    {currentStep === 2 && (
+                        <div className="flex-shrink-0 px-6 py-3 bg-green-50 border-b border-green-200">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-6 text-sm">
+                                    <div>
+                                        <span className="text-green-700 font-medium">Course:</span>
+                                        <span className="text-green-900 ml-2">{formData.courseName}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-green-700 font-medium">Batch:</span>
+                                        <span className="text-green-900 ml-2">{formData.name}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-green-700 font-medium">Mode:</span>
+                                        <span className="text-green-900 ml-2">{formData.mode}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-green-700 font-medium">Teacher:</span>
+                                        <span className="text-green-900 ml-2">{availableTeachers.find(t => t.id === formData.teacherId)?.name || 'Not selected'}</span>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setCurrentStep(1)}
+                                    className="text-sm text-green-700 hover:text-green-900 underline"
+                                >
+                                    Edit Details
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Step Content */}
                     <div className="flex-grow p-6 overflow-y-auto">
                         {/* Step 1: Schedule */}
                         {currentStep === 1 && (
-                            <div className="max-w-4xl mx-auto">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-                                        📅 Weekly Schedule Setup
-                                        <span className="ml-3 text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
-                                            {selectedDays.size}/2 days selected
-                                        </span>
-                                    </h2>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowTimezoneSelector(!showTimezoneSelector)}
-                                        className="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded hover:bg-gray-200"
-                                    >
-                                        🌍 {userTimezone === IST_TIMEZONE ? 'IST' : getTimezoneAbbreviation(userTimezone)}
-                                    </button>
-                                </div>
-
-                                {showTimezoneSelector && (
-                                    <div className="mb-6 p-4 bg-blue-50 rounded-lg border">
-                                        <label className="block text-sm font-medium text-blue-700 mb-2">Select your timezone:</label>
-                                        <select
-                                            value={userTimezone}
-                                            onChange={(e) => setUserTimezone(e.target.value)}
-                                            className="border border-blue-300 rounded px-3 py-2 bg-white"
-                                        >
-                                            <option value="Asia/Kolkata">IST (India Standard Time)</option>
-                                            <option value="Europe/London">GMT/BST (London, Dublin)</option>
-                                            <option value="Europe/Berlin">CET/CEST (Berlin, Paris)</option>
-                                            <option value="Asia/Dubai">GST (Dubai)</option>
-                                            <option value="Asia/Singapore">SGT (Singapore)</option>
-                                            <option value="Australia/Sydney">AEST/AEDT (Sydney)</option>
-                                            <option value="America/New_York">ET (New York)</option>
-                                            <option value="America/Chicago">CT (Chicago)</option>
-                                            <option value="America/Denver">MT (Denver)</option>
-                                            <option value="America/Los_Angeles">PT (Los Angeles)</option>
-                                        </select>
-                                    </div>
-                                )}
-
-                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                                    <p className="text-sm text-blue-700">
-                                        <strong>Rules:</strong> Select exactly 2 days per week • Each class is 1 hour • Only one time slot per day
-                                    </p>
-                                </div>
-
-                                {/* Day Selection */}
-                                <div className="grid grid-cols-7 gap-3 mb-6">
-                                    {Object.keys(WEEKDAY_MAP).map((dayKey) => {
-                                        const isSelected = selectedDays.has(dayKey);
-                                        const isDisabled = !isSelected && selectedDays.size >= 2;
-                                        
-                                        return (
+                            <div className="max-w-6xl mx-auto">
+                                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                                    {/* Left: Day Selection and Time Slots */}
+                                    <div className="lg:col-span-3">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+                                                📅 Weekly Schedule Setup
+                                                <span className="ml-3 text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
+                                                    {selectedDays.size}/2 days selected
+                                                </span>
+                                            </h2>
                                             <button
                                                 type="button"
-                                                key={dayKey}
-                                                onClick={() => !isDisabled && handleDayToggle(dayKey)}
-                                                disabled={isDisabled}
-                                                className={`p-3 text-sm font-medium rounded-lg border-2 transition-colors ${
-                                                    isSelected 
-                                                        ? 'bg-brand-primary text-white border-brand-primary' 
-                                                        : isDisabled
-                                                        ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                                                        : 'bg-white text-gray-700 border-gray-200 hover:border-brand-primary'
-                                                }`}
+                                                onClick={() => setShowTimezoneSelector(!showTimezoneSelector)}
+                                                className="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded hover:bg-gray-200"
                                             >
-                                                <div className="text-center">
-                                                    <div className="font-semibold">{dayKey}</div>
-                                                    <div className="text-xs opacity-75 mt-1">{WEEKDAY_MAP[dayKey as keyof typeof WEEKDAY_MAP]}</div>
-                                                </div>
+                                                🌍 {userTimezone === IST_TIMEZONE ? 'IST' : getTimezoneAbbreviation(userTimezone)}
                                             </button>
-                                        )
-                                    })}
-                                </div>
+                                        </div>
 
-                                {/* Time Slots - Compact Grid */}
-                                <div className="space-y-6">
-                                   {sortedSelectedDays.length > 0 ? sortedSelectedDays.map(dayKey => {
-                                        const dayName = WEEKDAY_MAP[dayKey as keyof typeof WEEKDAY_MAP];
-                                        const existingSchedule = (formData.schedule || []).find(s => s.timing.startsWith(dayName));
-                                        
-                                        return (
-                                            <div key={dayKey} className="bg-gray-50 rounded-lg p-4 border">
-                                                <h4 className="font-semibold text-gray-800 mb-4 flex items-center">
-                                                    <div className="w-3 h-3 bg-brand-primary rounded-full mr-3"></div>
-                                                    {dayName}
-                                                    <span className="ml-3 text-sm font-normal text-gray-500">(Select one time slot)</span>
-                                                </h4>
-                                                <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-                                                    {TIME_SLOTS.map(timeSlot => {
-                                                        const fullTiming = `${dayName} ${timeSlot}`;
-                                                        const isSelected = existingSchedule?.timing === fullTiming;
-                                                        const isTeacherBusy = teacherSchedule.has(fullTiming);
-                                                        
-                                                        return (
-                                                            <label key={fullTiming} className={`flex flex-col items-center text-xs p-2 rounded border cursor-pointer transition-colors ${
-                                                                isSelected 
-                                                                    ? 'bg-brand-primary text-white border-brand-primary shadow' 
-                                                                    : isTeacherBusy
-                                                                    ? 'cursor-not-allowed opacity-50 bg-gray-100 border-gray-200'
-                                                                    : 'bg-white border-gray-200 hover:border-brand-primary hover:shadow-sm'
-                                                            }`}>
-                                                                <input
-                                                                    type="radio"
-                                                                    name={`timing-${dayKey}`}
-                                                                    disabled={isTeacherBusy}
-                                                                    checked={isSelected}
-                                                                    onChange={() => !isTeacherBusy && handleTimingChange(dayKey, fullTiming)}
-                                                                    className="mb-1 h-3 w-3"
-                                                                />
-                                                                <span className="text-center leading-tight">
-                                                                    {timeSlot}
-                                                                </span>
-                                                                <span className="text-xs opacity-75 mt-0.5">
-                                                                    {userTimezone === IST_TIMEZONE ? 'IST' : getTimezoneAbbreviation(userTimezone)}
-                                                                </span>
-                                                                {isTeacherBusy && <span className="text-xs text-red-500 mt-1">Busy</span>}
-                                                            </label>
-                                                        )
-                                                    })}
+                                        {showTimezoneSelector && (
+                                            <div className="mb-4 p-3 bg-blue-50 rounded-lg border">
+                                                <label className="block text-sm font-medium text-blue-700 mb-2">Select your timezone:</label>
+                                                <select
+                                                    value={userTimezone}
+                                                    onChange={(e) => setUserTimezone(e.target.value)}
+                                                    className="border border-blue-300 rounded px-3 py-2 bg-white"
+                                                >
+                                                    <option value="Asia/Kolkata">IST (India Standard Time)</option>
+                                                    <option value="Europe/London">GMT/BST (London, Dublin)</option>
+                                                    <option value="Europe/Berlin">CET/CEST (Berlin, Paris)</option>
+                                                    <option value="Asia/Dubai">GST (Dubai)</option>
+                                                    <option value="Asia/Singapore">SGT (Singapore)</option>
+                                                    <option value="Australia/Sydney">AEST/AEDT (Sydney)</option>
+                                                    <option value="America/New_York">ET (New York)</option>
+                                                    <option value="America/Chicago">CT (Chicago)</option>
+                                                    <option value="America/Denver">Mt (Denver)</option>
+                                                    <option value="America/Los_Angeles">PT (Los Angeles)</option>
+                                                </select>
+                                            </div>
+                                        )}
+
+                                        {/* Day Selection - Ultra Compact */}
+                                        <div className="grid grid-cols-7 gap-1 mb-4">
+                                            {Object.keys(WEEKDAY_MAP).map((dayKey) => {
+                                                const isSelected = selectedDays.has(dayKey);
+                                                const isDisabled = !isSelected && selectedDays.size >= 2;
+                                                
+                                                return (
+                                                    <button
+                                                        type="button"
+                                                        key={dayKey}
+                                                        onClick={() => !isDisabled && handleDayToggle(dayKey)}
+                                                        disabled={isDisabled}
+                                                        className={`py-1.5 text-sm font-medium rounded border transition-colors ${
+                                                            isSelected 
+                                                                ? 'bg-brand-primary text-white border-brand-primary' 
+                                                                : isDisabled
+                                                                ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                                                : 'bg-white text-gray-700 border-gray-200 hover:border-brand-primary'
+                                                        }`}
+                                                    >
+                                                        <div className="text-center text-xs font-semibold">
+                                                            {WEEKDAY_MAP[dayKey as keyof typeof WEEKDAY_MAP]}
+                                                        </div>
+                                                    </button>
+                                                )
+                                            })}
+                                        </div>
+
+                                        {/* Time Slots - Optimized Layout */}
+                                        <div className="space-y-3">
+                                           {sortedSelectedDays.length > 0 ? sortedSelectedDays.map(dayKey => {
+                                                const dayName = WEEKDAY_MAP[dayKey as keyof typeof WEEKDAY_MAP];
+                                                const existingSchedule = (formData.schedule || []).find(s => s.timing.startsWith(dayName));
+                                                
+                                                return (
+                                                    <div key={dayKey} className="bg-gray-50 rounded-lg p-3 border">
+                                                        <h4 className="font-medium text-gray-800 mb-2 flex items-center text-sm">
+                                                            <div className="w-2 h-2 bg-brand-primary rounded-full mr-2"></div>
+                                                            {dayName}
+                                                            <span className="ml-2 text-xs font-normal text-gray-500">(Select one)</span>
+                                                        </h4>
+                                                        <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-1">
+                                                            {TIME_SLOTS.map(timeSlot => {
+                                                                const fullTiming = `${dayName} ${timeSlot}`;
+                                                                const isSelected = existingSchedule?.timing === fullTiming;
+                                                                const isTeacherBusy = teacherSchedule.has(fullTiming);
+                                                                const [startTime, endTime] = timeSlot.split(' - ');
+                                                                
+                                                                return (
+                                                                    <label key={fullTiming} className={`flex flex-col items-center text-xs p-1.5 rounded border cursor-pointer transition-colors ${
+                                                                        isSelected 
+                                                                            ? 'bg-brand-primary text-white border-brand-primary shadow' 
+                                                                            : isTeacherBusy
+                                                                            ? 'cursor-not-allowed opacity-50 bg-gray-100 border-gray-200'
+                                                                            : 'bg-white border-gray-200 hover:border-brand-primary hover:shadow-sm'
+                                                                    }`}>
+                                                                        <input
+                                                                            type="radio"
+                                                                            name={`timing-${dayKey}`}
+                                                                            disabled={isTeacherBusy}
+                                                                            checked={isSelected}
+                                                                            onChange={() => !isTeacherBusy && handleTimingChange(dayKey, fullTiming)}
+                                                                            className="mb-0.5 h-2 w-2"
+                                                                        />
+                                                                        <div className="text-center leading-tight">
+                                                                            <div className="text-xs font-medium">{startTime}</div>
+                                                                            <div className="text-xs text-blue-600 font-medium">{endTime}</div>
+                                                                        </div>
+                                                                        <div className={`text-xs mt-0.5 ${
+                                                                            isSelected ? 'text-white' : 'text-gray-500'
+                                                                        }`}>
+                                                                            {userTimezone === IST_TIMEZONE ? 'IST' : getTimezoneAbbreviation(userTimezone)}
+                                                                        </div>
+                                                                        {isTeacherBusy && <span className="text-xs text-red-500 mt-0.5">Busy</span>}
+                                                                    </label>
+                                                                )
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                )
+                                           }) : (
+                                                <div className="text-center text-gray-500 py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                                                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                                        📅
+                                                    </div>
+                                                    <p className="font-medium">Select 2 days for classes</p>
+                                                    <p className="text-xs text-gray-400 mt-1">Choose weekdays from above</p>
+                                                </div>
+                                           )}
+                                        </div>
+                                    </div>
+
+                                    {/* Right: Rules and Information */}
+                                    <div className="lg:col-span-1">
+                                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 sticky top-6">
+                                            <h3 className="font-semibold text-blue-900 mb-3 flex items-center">
+                                                📋 Rules
+                                            </h3>
+                                            <div className="space-y-2 text-sm text-blue-700">
+                                                <div className="flex items-center">
+                                                    <div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>
+                                                    Select exactly 2 days per week
+                                                </div>
+                                                <div className="flex items-center">
+                                                    <div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>
+                                                    Each class is 1 hour
+                                                </div>
+                                                <div className="flex items-center">
+                                                    <div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>
+                                                    One time slot per day
                                                 </div>
                                             </div>
-                                        )
-                                   }) : (
-                                        <div className="text-center text-gray-500 py-12 border-2 border-dashed border-gray-300 rounded-lg">
-                                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                                📅
-                                            </div>
-                                            <p className="text-lg font-medium">Select 2 days for classes</p>
-                                            <p className="text-sm text-gray-400 mt-1">Choose weekdays from above to continue</p>
+                                            
+                                            {selectedDays.size > 0 && (
+                                                <div className="mt-4 pt-4 border-t border-blue-200">
+                                                    <h4 className="font-medium text-blue-900 mb-2">Selected Days:</h4>
+                                                    <div className="space-y-1">
+                                                        {Array.from(selectedDays).map(dayKey => (
+                                                            <div key={dayKey} className="text-sm text-blue-700">
+                                                                {WEEKDAY_MAP[dayKey as keyof typeof WEEKDAY_MAP]}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
-                                   )}
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -736,14 +809,6 @@ const EditBatchModal: React.FC<EditBatchModalProps> = ({ isOpen, onClose, batch,
                                     </h2>
                                 </div>
 
-                                {/* Course Info */}
-                                {formData.courseName && (
-                                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-                                        <p className="text-sm text-green-700">
-                                            <strong>Course:</strong> {formData.courseName} • <strong>{studentsForCourse.length}</strong> students available
-                                        </p>
-                                    </div>
-                                )}
 
                                 {/* Search and Filters */}
                                 <div className="flex flex-wrap items-center gap-4 mb-4">
