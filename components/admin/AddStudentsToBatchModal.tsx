@@ -185,7 +185,7 @@ const AddStudentsToBatchModal: React.FC<AddStudentsToBatchModalProps> = ({ isOpe
                                                     className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded mr-4 flex-shrink-0 self-start mt-2.5"
                                                 />
                                                 <img 
-                                                    src={student.photoUrl || `https://ui-avatars.com/api/?name=${student.name.replace(/\s/g, '+')}&background=e8eaf6&color=1a237e`}
+                                                    src={student.photoUrl || `https://ui-avatars.com/api/?name=${(student.name || 'User').replace(/\s/g, '+')}&background=e8eaf6&color=1a237e`}
                                                     alt={student.name}
                                                     className="h-10 w-10 rounded-full object-cover mr-3 flex-shrink-0 self-start"
                                                 />

@@ -112,7 +112,7 @@ const ViewBatchModal: React.FC<ViewBatchModalProps> = ({ isOpen, onClose, batch,
                                                         const studentsForTime = studentsByTime.get(time) || [];
                                                         return (
                                                             <div key={time} className="py-4">
-                                                                <h4 className="font-semibold text-gray-800 mb-3">{time.replace(day, '').trim()} ({studentsForTime.length} students)</h4>
+                                                                <h4 className="font-semibold text-gray-800 mb-3">{(time || '').replace(day || '', '').trim()} ({studentsForTime.length} students)</h4>
                                                                 {studentsForTime.length > 0 ? (
                                                                     <div className="flex flex-wrap gap-2">
                                                                         {studentsForTime.map(student => (

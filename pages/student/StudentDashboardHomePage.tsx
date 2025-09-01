@@ -60,7 +60,7 @@ const StudentDashboardHomePage: React.FC = () => {
                     <NotificationBell user={user} />
                     <div className="flex items-center space-x-3">
                         <span className="text-dark-text font-medium">{guardianName}</span>
-                        <img src={user.photoUrl || `https://ui-avatars.com/api/?name=${guardianName.replace(/\s/g, '+')}&background=7B61FF&color=fff`} alt={guardianName} className="w-12 h-12 rounded-full object-cover" />
+                        <img src={user.photoUrl || `https://ui-avatars.com/api/?name=${(guardianName || 'User').replace(/\s/g, '+')}&background=7B61FF&color=fff`} alt={guardianName || 'User'} className="w-12 h-12 rounded-full object-cover" />
                     </div>
                 </div>
             </div>

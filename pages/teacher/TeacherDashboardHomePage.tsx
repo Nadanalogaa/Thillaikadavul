@@ -77,7 +77,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                 </div>
                  <div className="flex items-center space-x-3">
                     <span className="text-dark-text font-medium">{user.name}</span>
-                    <img src={user.photoUrl || `https://ui-avatars.com/api/?name=${user.name.replace(/\s/g, '+')}&background=7B61FF&color=fff`} alt={user.name} className="w-12 h-12 rounded-full object-cover" />
+                    <img src={user.photoUrl || `https://ui-avatars.com/api/?name=${(user.name || 'User').replace(/\s/g, '+')}&background=7B61FF&color=fff`} alt={user.name || 'User'} className="w-12 h-12 rounded-full object-cover" />
                 </div>
             </div>
 

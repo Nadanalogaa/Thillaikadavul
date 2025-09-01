@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { WEEKDAYS, TIME_SLOTS, WEEKDAY_MAP } from '../../constants';
 import { 
   CourseTimingSlot, 
-  createDualTimezoneDisplay, 
+  formatTimeWithTimezone, 
   getUserTimezone, 
   doSlotsOverlap 
 } from '../../utils/timezone';
@@ -71,7 +71,7 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
         // Create new slot
         const newSlot: CourseTimingSlot = {
             id: slotId,
-            courseId: selectedCourse.toLowerCase().replace(/\s+/g, '-'),
+            courseId: (selectedCourse || '').toLowerCase().replace(/\s+/g, '-'),
             courseName: selectedCourse,
             day: fullDay,
             timeSlot,
@@ -171,7 +171,7 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
                                 <div className="flex flex-wrap gap-1 ml-5">
                                     {slots.map(slot => (
                                         <div key={slot.id} className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md ${colors.bg} ${colors.text} ${colors.border} border`}>
-                                            <span>{createDualTimezoneDisplay(slot.day, slot.timeSlot, detectedTimezone)}</span>
+                                            <span>{formatTimeWithTimezone(slot.day, slot.timeSlot, detectedTimezone)}</span>
                                             <button
                                                 type="button"
                                                 onClick={() => removeSlot(slot.id)}
@@ -261,7 +261,7 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
                                         <div>{timeSlot}</div>
                                         {isSelected && (
                                             <div className="text-xs opacity-75 mt-1">
-                                                {createDualTimezoneDisplay(WEEKDAY_MAP[activeDay as keyof typeof WEEKDAY_MAP], timeSlot, detectedTimezone).replace(/^\w+\s/, '')}
+                                                {formatTimeWithTimezone(WEEKDAY_MAP[activeDay as keyof typeof WEEKDAY_MAP], timeSlot, detectedTimezone).replace(/^\w+\s/, '')}
                                             </div>
                                         )}
                                     </button>
@@ -279,7 +279,7 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
             
             {/* Timezone Info */}
             <div className="mt-4 text-xs text-gray-500">
-                <p>Times shown in your timezone ({detectedTimezone.split('/')[1]?.replace('_', ' ')}) with IST reference</p>
+                <p>Times shown in your timezone ({(detectedTimezone || 'Asia/Kolkata').split('/')[1]?.replace('_', ' ') || 'IST'}) with IST reference</p>
             </div>
         </div>
     );

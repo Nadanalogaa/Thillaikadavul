@@ -359,7 +359,7 @@ const EditBatchModal: React.FC<EditBatchModalProps> = ({ isOpen, onClose, batch,
 
     const handleTimingChange = (dayKey: string, fullTiming: string) => {
         const dayName = WEEKDAY_MAP[dayKey as keyof typeof WEEKDAY_MAP];
-        const timeSlot = fullTiming.replace(`${dayName} `, '');
+        const timeSlot = (fullTiming || '').replace(`${dayName} `, '');
         
         // Create UTC time slot for storage
         const utcSlot = createUtcTimeSlot(dayName, timeSlot, IST_TIMEZONE);
