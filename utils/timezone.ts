@@ -1,181 +1,186 @@
-// Timezone utility functions for course timing management
+export const IST_TIMEZONE = 'Asia/Kolkata';
 
 export interface TimezoneInfo {
-  timezone: string;
+  value: string;
   label: string;
   offset: string;
 }
 
-export interface CourseTimingSlot {
-  id: string;
-  courseId: string;
-  courseName: string;
-  day: string;
-  timeSlot: string;
-  utcTime: string;
-  localTime: string;
-  istTime: string;
-  timezone: string;
-}
-
-// Common timezones with their labels
-export const COMMON_TIMEZONES: TimezoneInfo[] = [
-  { timezone: 'Asia/Kolkata', label: 'IST (India Standard Time)', offset: '+05:30' },
-  { timezone: 'America/New_York', label: 'EST/EDT (Eastern Time)', offset: '-05:00/-04:00' },
-  { timezone: 'America/Chicago', label: 'CST/CDT (Central Time)', offset: '-06:00/-05:00' },
-  { timezone: 'America/Denver', label: 'MST/MDT (Mountain Time)', offset: '-07:00/-06:00' },
-  { timezone: 'America/Los_Angeles', label: 'PST/PDT (Pacific Time)', offset: '-08:00/-07:00' },
-  { timezone: 'Europe/London', label: 'GMT/BST (Greenwich Mean Time)', offset: '+00:00/+01:00' },
-  { timezone: 'Europe/Berlin', label: 'CET/CEST (Central European Time)', offset: '+01:00/+02:00' },
-  { timezone: 'Asia/Dubai', label: 'GST (Gulf Standard Time)', offset: '+04:00' },
-  { timezone: 'Asia/Singapore', label: 'SGT (Singapore Time)', offset: '+08:00' },
-  { timezone: 'Australia/Sydney', label: 'AEST/AEDT (Australian Eastern Time)', offset: '+10:00/+11:00' }
+export const SUPPORTED_TIMEZONES: TimezoneInfo[] = [
+  { value: 'Asia/Kolkata', label: 'IST (India Standard Time)', offset: 'GMT+5:30' },
+  { value: 'Europe/London', label: 'GMT/BST (London, Dublin)', offset: 'GMT+0/1' },
+  { value: 'Europe/Berlin', label: 'CET/CEST (Berlin, Paris)', offset: 'GMT+1/2' },
+  { value: 'Asia/Dubai', label: 'GST (Dubai)', offset: 'GMT+4' },
+  { value: 'Asia/Singapore', label: 'SGT (Singapore)', offset: 'GMT+8' },
+  { value: 'Australia/Sydney', label: 'AEST/AEDT (Sydney)', offset: 'GMT+10/11' },
+  { value: 'America/New_York', label: 'ET (New York)', offset: 'GMT-5/4' },
+  { value: 'America/Chicago', label: 'CT (Chicago)', offset: 'GMT-6/5' },
+  { value: 'America/Denver', label: 'MT (Denver)', offset: 'GMT-7/6' },
+  { value: 'America/Los_Angeles', label: 'PT (Los Angeles)', offset: 'GMT-8/7' },
 ];
 
-/**
- * Convert time slot to UTC
- */
-export const convertToUTC = (day: string, timeSlot: string, timezone: string): Date => {
-  // Parse time slot (e.g., "09:00 - 10:00" -> "09:00")
-  const startTime = timeSlot.split(' - ')[0];
-  const [hours, minutes] = startTime.split(':').map(Number);
+export function parseTimeSlot(timeSlot: string): { start: string; end: string } {
+  const [start, end] = timeSlot.split(' - ');
+  return { start: start.trim(), end: end.trim() };
+}
+
+export function createISTDateTime(dayName: string, timeStr: string): Date {
+  const today = new Date();
+  const currentDay = today.getDay();
+  const targetDay = getDayNumber(dayName);
   
-  // Get next occurrence of the day
-  const now = new Date();
-  const dayIndex = getDayIndex(day);
-  const currentDayIndex = now.getDay();
+  let daysUntilTarget = (targetDay - currentDay + 7) % 7;
+  if (daysUntilTarget === 0) {
+    daysUntilTarget = 7; // Next occurrence of the same day
+  }
   
-  let daysToAdd = dayIndex - currentDayIndex;
-  if (daysToAdd <= 0) daysToAdd += 7; // Next week if day has passed
+  const targetDate = new Date(today);
+  targetDate.setDate(today.getDate() + daysUntilTarget);
   
-  const targetDate = new Date(now);
-  targetDate.setDate(now.getDate() + daysToAdd);
+  const [hours, minutes] = timeStr.split(':').map(Number);
   targetDate.setHours(hours, minutes, 0, 0);
   
-  // Convert to UTC using timezone
-  const utcTime = new Date(targetDate.toLocaleString('en-US', { timeZone: 'UTC' }));
-  return utcTime;
-};
+  return targetDate;
+}
 
-/**
- * Format time in specific timezone
- */
-export const formatTimeInTimezone = (utcTime: Date, timezone: string, includeDate: boolean = false): string => {
-  const options: Intl.DateTimeFormatOptions = {
-    timeZone: timezone,
+function getDayNumber(dayName: string): number {
+  const dayMap: { [key: string]: number } = {
+    Sunday: 0,
+    Monday: 1,
+    Tuesday: 2,
+    Wednesday: 3,
+    Thursday: 4,
+    Friday: 5,
+    Saturday: 6,
+  };
+  return dayMap[dayName] || 0;
+}
+
+export function convertISTToUserTimezone(
+  dayName: string,
+  timeSlot: string,
+  userTimezone: string = IST_TIMEZONE
+): {
+  localDay: string;
+  localTime: string;
+  localTimeSlot: string;
+  originalISTTime: string;
+} {
+  if (userTimezone === IST_TIMEZONE) {
+    return {
+      localDay: dayName,
+      localTime: timeSlot,
+      localTimeSlot: timeSlot,
+      originalISTTime: timeSlot,
+    };
+  }
+
+  const { start, end } = parseTimeSlot(timeSlot);
+  
+  const istStartDate = createISTDateTime(dayName, start);
+  const istEndDate = createISTDateTime(dayName, end);
+
+  const localStartTime = istStartDate.toLocaleString('en-US', {
+    timeZone: userTimezone,
     hour: '2-digit',
     minute: '2-digit',
-    hour12: false
-  };
-  
-  if (includeDate) {
-    options.weekday = 'short';
-  }
-  
-  return utcTime.toLocaleString('en-US', options);
-};
+    hour12: false,
+  });
 
-/**
- * Get timezone abbreviation
- */
-export const getTimezoneAbbr = (timezone: string): string => {
-  const abbMap: { [key: string]: string } = {
-    'Asia/Kolkata': 'IST',
-    'America/New_York': 'EST/EDT',
-    'America/Chicago': 'CST/CDT',
-    'America/Denver': 'MST/MDT',
-    'America/Los_Angeles': 'PST/PDT',
-    'Europe/London': 'GMT/BST',
-    'Europe/Berlin': 'CET/CEST',
-    'Asia/Dubai': 'GST',
-    'Asia/Singapore': 'SGT',
-    'Australia/Sydney': 'AEST/AEDT'
-  };
-  
-  return abbMap[timezone] || timezone;
-};
+  const localEndTime = istEndDate.toLocaleString('en-US', {
+    timeZone: userTimezone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
 
-/**
- * Get day index (0 = Sunday, 1 = Monday, etc.)
- */
-const getDayIndex = (day: string): number => {
-  const dayMap: { [key: string]: number } = {
-    'Sunday': 0,
-    'Monday': 1,
-    'Tuesday': 2,
-    'Wednesday': 3,
-    'Thursday': 4,
-    'Friday': 5,
-    'Saturday': 6
-  };
-  
-  return dayMap[day] || 0;
-};
+  const localDayName = istStartDate.toLocaleDateString('en-US', {
+    timeZone: userTimezone,
+    weekday: 'long',
+  });
 
-/**
- * Create a dual timezone display string
- */
-export const createDualTimezoneDisplay = (
-  day: string,
+  return {
+    localDay: localDayName,
+    localTime: localStartTime,
+    localTimeSlot: `${localStartTime} - ${localEndTime}`,
+    originalISTTime: timeSlot,
+  };
+}
+
+export function formatTimeWithTimezone(
+  dayName: string,
   timeSlot: string,
-  userTimezone: string,
-  isAdminView: boolean = false
-): string => {
-  try {
-    const utcTime = convertToUTC(day, timeSlot, userTimezone);
-    const userTime = formatTimeInTimezone(utcTime, userTimezone);
-    const istTime = formatTimeInTimezone(utcTime, 'Asia/Kolkata');
-    
-    const userTzAbbr = getTimezoneAbbr(userTimezone);
-    const istAbbr = getTimezoneAbbr('Asia/Kolkata');
-    
-    // Admin view: IST first, then user timezone
-    if (isAdminView) {
-      if (userTimezone === 'Asia/Kolkata') {
-        return `${day.substring(0, 3)} ${istTime} ${istAbbr}`;
-      }
-      return `${day.substring(0, 3)} ${istTime} ${istAbbr} (${userTime} ${userTzAbbr})`;
-    }
-    
-    // Student view: User timezone first, then IST
-    if (userTimezone === 'Asia/Kolkata') {
-      return `${day.substring(0, 3)} ${userTime} ${userTzAbbr}`;
-    }
-    return `${day.substring(0, 3)} ${userTime} ${userTzAbbr} (${istTime} ${istAbbr})`;
-  } catch (error) {
-    console.error('Error creating timezone display:', error);
-    return `${day.substring(0, 3)} ${timeSlot}`;
+  userTimezone: string = IST_TIMEZONE,
+  showOriginal: boolean = true
+): string {
+  const conversion = convertISTToUserTimezone(dayName, timeSlot, userTimezone);
+  
+  if (userTimezone === IST_TIMEZONE || !showOriginal) {
+    return `${conversion.localDay} ${conversion.localTimeSlot}`;
   }
-};
+  
+  return `${conversion.localDay} ${conversion.localTimeSlot} (${dayName} ${timeSlot} IST)`;
+}
 
-/**
- * Detect user's timezone
- */
-export const getUserTimezone = (): string => {
+export function getUserTimezone(): string {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone;
-  } catch (error) {
-    console.warn('Could not detect user timezone, defaulting to IST');
-    return 'Asia/Kolkata';
+  } catch {
+    return IST_TIMEZONE;
   }
-};
+}
 
-/**
- * Check if two time slots overlap
- */
-export const doSlotsOverlap = (slot1: CourseTimingSlot, slot2: CourseTimingSlot): boolean => {
-  if (slot1.day !== slot2.day) return false;
+export function getTimezoneAbbreviation(timezone: string): string {
+  try {
+    const date = new Date();
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      timeZoneName: 'short',
+    });
+    
+    const parts = formatter.formatToParts(date);
+    const tzPart = parts.find(part => part.type === 'timeZoneName');
+    return tzPart?.value || timezone;
+  } catch {
+    return timezone;
+  }
+}
+
+// Re-export CourseTimingSlot from types
+export type { CourseTimingSlot } from '../types';
+
+export function createDualTimezoneDisplay(
+  istTime: string,
+  userTimezone: string = IST_TIMEZONE
+): string {
+  if (userTimezone === IST_TIMEZONE) {
+    return `${istTime} IST`;
+  }
   
-  const parseTime = (timeSlot: string) => {
-    const startTime = timeSlot.split(' - ')[0];
-    const [hours, minutes] = startTime.split(':').map(Number);
-    return hours * 60 + minutes; // Convert to minutes
+  // For now, return basic format - this can be enhanced later
+  return `${istTime} IST (${getTimezoneAbbreviation(userTimezone)})`;
+}
+
+export function doSlotsOverlap(
+  slot1: { day: string; timeSlot: string },
+  slot2: { day: string; timeSlot: string }
+): boolean {
+  if (slot1.day !== slot2.day) {
+    return false;
+  }
+  
+  const parseTime = (timeStr: string) => {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + minutes;
   };
   
-  const slot1Start = parseTime(slot1.timeSlot);
-  const slot1End = slot1Start + 60; // 1-hour duration
-  const slot2Start = parseTime(slot2.timeSlot);
-  const slot2End = slot2Start + 60;
+  const { start: start1, end: end1 } = parseTimeSlot(slot1.timeSlot);
+  const { start: start2, end: end2 } = parseTimeSlot(slot2.timeSlot);
   
-  return (slot1Start < slot2End && slot2Start < slot1End);
-};
+  const start1Minutes = parseTime(start1);
+  const end1Minutes = parseTime(end1);
+  const start2Minutes = parseTime(start2);
+  const end2Minutes = parseTime(end2);
+  
+  return !(end1Minutes <= start2Minutes || end2Minutes <= start1Minutes);
+}
