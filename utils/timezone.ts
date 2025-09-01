@@ -187,6 +187,23 @@ export interface UtcTimeSlot {
   dayOfWeek: number; // 0-6, Sunday = 0
 }
 
+// Helper function to create UTC time from timezone-aware input
+function createUtcFromTimezone(year: number, month: number, day: number, hours: number, minutes: number, timezone: string): Date {
+  // Create a date string that will be interpreted in the specified timezone
+  const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+  
+  // If it's IST, we need to convert to UTC by subtracting IST offset
+  if (timezone === IST_TIMEZONE) {
+    // IST is UTC+5:30, so to get UTC we subtract 5:30
+    const date = new Date(dateStr);
+    const utcDate = new Date(date.getTime() - (5.5 * 60 * 60 * 1000)); // Subtract 5.5 hours
+    return utcDate;
+  }
+  
+  // For other timezones, return as-is for now (can be enhanced later)
+  return new Date(dateStr + 'Z'); // Treat as UTC
+}
+
 export function createUtcTimeSlot(dayName: string, timeSlot: string, sourceTimezone: string = IST_TIMEZONE): UtcTimeSlot {
   if (!dayName || !timeSlot) {
     // Return default UTC slot if inputs are invalid
@@ -212,28 +229,31 @@ export function createUtcTimeSlot(dayName: string, timeSlot: string, sourceTimez
   const targetDate = new Date(today);
   targetDate.setDate(today.getDate() + daysUntilTarget);
   
-  // Create start time
+  // Parse time components
   const [startHours, startMinutes] = start.split(':').map(Number);
-  const startDate = new Date(targetDate);
-  startDate.setHours(startHours, startMinutes, 0, 0);
-  
-  // Create end time
   const [endHours, endMinutes] = end.split(':').map(Number);
-  const endDate = new Date(targetDate);
-  endDate.setHours(endHours, endMinutes, 0, 0);
   
-  // Convert to UTC (assuming sourceTimezone is the input timezone)
-  // For IST, we need to subtract 5:30 hours to get UTC
-  if (sourceTimezone === IST_TIMEZONE) {
-    startDate.setHours(startDate.getHours() - 5);
-    startDate.setMinutes(startDate.getMinutes() - 30);
-    endDate.setHours(endDate.getHours() - 5);
-    endDate.setMinutes(endDate.getMinutes() - 30);
-  }
+  const startUtc = createUtcFromTimezone(
+    targetDate.getFullYear(),
+    targetDate.getMonth(),
+    targetDate.getDate(),
+    startHours,
+    startMinutes,
+    sourceTimezone
+  );
+  
+  const endUtc = createUtcFromTimezone(
+    targetDate.getFullYear(),
+    targetDate.getMonth(),
+    targetDate.getDate(),
+    endHours,
+    endMinutes,
+    sourceTimezone
+  );
   
   return {
-    startUtc: startDate.toISOString(),
-    endUtc: endDate.toISOString(),
+    startUtc: startUtc.toISOString(),
+    endUtc: endUtc.toISOString(),
     dayOfWeek: targetDay
   };
 }

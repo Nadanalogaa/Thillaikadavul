@@ -47,12 +47,14 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
 
     // Helper function to format dual timezone display
     const formatDualTimezoneDisplay = (day: string, timeSlot: string): string => {
+        // For IST users, show the time as-is (no conversion needed)
+        if (detectedTimezone === IST_TIMEZONE) {
+            return `${day} ${timeSlot}`;
+        }
+        
+        // For non-IST users, show their local time with IST reference
         const utcSlot = createUtcTimeSlot(day, timeSlot, IST_TIMEZONE);
         const dualDisplay = createDualTimezoneDisplay(utcSlot.startUtc, utcSlot.endUtc, detectedTimezone);
-        
-        if (detectedTimezone === IST_TIMEZONE) {
-            return `${day} ${dualDisplay.localTime}`;
-        }
         
         return `${day} ${dualDisplay.localTime} (${day} ${dualDisplay.istTime} IST)`;
     };
@@ -83,9 +85,26 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
             return;
         }
         
-        // Create new slot with proper UTC conversion
-        const utcSlot = createUtcTimeSlot(fullDay, timeSlot, IST_TIMEZONE);
-        const dualDisplay = createDualTimezoneDisplay(utcSlot.startUtc, utcSlot.endUtc, detectedTimezone);
+        // Create new slot with proper handling for IST vs non-IST users
+        let localTime: string;
+        let istTime: string;
+        let utcTime: string;
+        
+        if (detectedTimezone === IST_TIMEZONE) {
+            // For IST users, the timeSlot IS the IST time
+            localTime = timeSlot;
+            istTime = timeSlot;
+            // Create UTC time properly
+            const utcSlot = createUtcTimeSlot(fullDay, timeSlot, IST_TIMEZONE);
+            utcTime = utcSlot.startUtc;
+        } else {
+            // For non-IST users, convert properly
+            const utcSlot = createUtcTimeSlot(fullDay, timeSlot, IST_TIMEZONE);
+            const dualDisplay = createDualTimezoneDisplay(utcSlot.startUtc, utcSlot.endUtc, detectedTimezone);
+            localTime = dualDisplay.localTime;
+            istTime = dualDisplay.istTime;
+            utcTime = utcSlot.startUtc;
+        }
         
         const newSlot: CourseTimingSlot = {
             id: slotId,
@@ -93,9 +112,9 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
             courseName: selectedCourse,
             day: fullDay,
             timeSlot,
-            utcTime: utcSlot.startUtc,
-            localTime: dualDisplay.localTime,
-            istTime: dualDisplay.istTime,
+            utcTime: utcTime,
+            localTime: localTime,
+            istTime: istTime,
             timezone: detectedTimezone
         };
         
