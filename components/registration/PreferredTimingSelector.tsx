@@ -4,7 +4,10 @@ import {
   CourseTimingSlot, 
   formatTimeWithTimezone, 
   getUserTimezone, 
-  doSlotsOverlap 
+  doSlotsOverlap,
+  createUtcTimeSlot,
+  createDualTimezoneDisplay,
+  IST_TIMEZONE
 } from '../../utils/timezone';
 
 interface PreferredTimingSelectorProps {
@@ -42,6 +45,18 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
         }
     }, [userTimezone, selectedCourses, selectedCourse]);
 
+    // Helper function to format dual timezone display
+    const formatDualTimezoneDisplay = (day: string, timeSlot: string): string => {
+        const utcSlot = createUtcTimeSlot(day, timeSlot, IST_TIMEZONE);
+        const dualDisplay = createDualTimezoneDisplay(utcSlot.startUtc, utcSlot.endUtc, detectedTimezone);
+        
+        if (detectedTimezone === IST_TIMEZONE) {
+            return `${day} ${dualDisplay.localTime}`;
+        }
+        
+        return `${day} ${dualDisplay.localTime} (${day} ${dualDisplay.istTime} IST)`;
+    };
+
     const handleDayToggle = (dayKey: string) => {
         setActiveDay(prev => (prev === dayKey ? null : dayKey));
     };
@@ -68,16 +83,19 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
             return;
         }
         
-        // Create new slot
+        // Create new slot with proper UTC conversion
+        const utcSlot = createUtcTimeSlot(fullDay, timeSlot, IST_TIMEZONE);
+        const dualDisplay = createDualTimezoneDisplay(utcSlot.startUtc, utcSlot.endUtc, detectedTimezone);
+        
         const newSlot: CourseTimingSlot = {
             id: slotId,
             courseId: (selectedCourse || '').toLowerCase().replace(/\s+/g, '-'),
             courseName: selectedCourse,
             day: fullDay,
             timeSlot,
-            utcTime: new Date().toISOString(), // This would be properly calculated in real implementation
-            localTime: timeSlot,
-            istTime: timeSlot, // This would be properly converted
+            utcTime: utcSlot.startUtc,
+            localTime: dualDisplay.localTime,
+            istTime: dualDisplay.istTime,
             timezone: detectedTimezone
         };
         
@@ -171,7 +189,7 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
                                 <div className="flex flex-wrap gap-1 ml-5">
                                     {slots.map(slot => (
                                         <div key={slot.id} className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md ${colors.bg} ${colors.text} ${colors.border} border`}>
-                                            <span>{formatTimeWithTimezone(slot.day, slot.timeSlot, detectedTimezone)}</span>
+                                            <span>{formatDualTimezoneDisplay(slot.day, slot.timeSlot)}</span>
                                             <button
                                                 type="button"
                                                 onClick={() => removeSlot(slot.id)}
@@ -259,9 +277,13 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
                                         }`}
                                     >
                                         <div>{timeSlot}</div>
-                                        {isSelected && (
+                                        {isSelected && detectedTimezone !== IST_TIMEZONE && (
                                             <div className="text-xs opacity-75 mt-1">
-                                                {formatTimeWithTimezone(WEEKDAY_MAP[activeDay as keyof typeof WEEKDAY_MAP], timeSlot, detectedTimezone).replace(/^\w+\s/, '')}
+                                                {(() => {
+                                                    const utcSlot = createUtcTimeSlot(WEEKDAY_MAP[activeDay as keyof typeof WEEKDAY_MAP], timeSlot, IST_TIMEZONE);
+                                                    const dualDisplay = createDualTimezoneDisplay(utcSlot.startUtc, utcSlot.endUtc, detectedTimezone);
+                                                    return `IST ${dualDisplay.istTime}`;
+                                                })()}
                                             </div>
                                         )}
                                     </button>
