@@ -6,18 +6,44 @@ export interface TimezoneInfo {
   offset: string;
 }
 
-export const SUPPORTED_TIMEZONES: TimezoneInfo[] = [
-  { value: 'Asia/Kolkata', label: 'IST (India Standard Time)', offset: 'GMT+5:30' },
-  { value: 'Europe/London', label: 'GMT/BST (London, Dublin)', offset: 'GMT+0/1' },
-  { value: 'Europe/Berlin', label: 'CET/CEST (Berlin, Paris)', offset: 'GMT+1/2' },
-  { value: 'Asia/Dubai', label: 'GST (Dubai)', offset: 'GMT+4' },
-  { value: 'Asia/Singapore', label: 'SGT (Singapore)', offset: 'GMT+8' },
-  { value: 'Australia/Sydney', label: 'AEST/AEDT (Sydney)', offset: 'GMT+10/11' },
-  { value: 'America/New_York', label: 'ET (New York)', offset: 'GMT-5/4' },
-  { value: 'America/Chicago', label: 'CT (Chicago)', offset: 'GMT-6/5' },
-  { value: 'America/Denver', label: 'MT (Denver)', offset: 'GMT-7/6' },
-  { value: 'America/Los_Angeles', label: 'PT (Los Angeles)', offset: 'GMT-8/7' },
+// Common IANA timezones for quick selection (searchable picker will have all)
+export const COMMON_TIMEZONES: TimezoneInfo[] = [
+  { value: 'Asia/Kolkata', label: 'India Standard Time (IST)', offset: 'GMT+5:30' },
+  { value: 'Europe/London', label: 'British Time (GMT/BST)', offset: 'GMT+0/1' },
+  { value: 'Europe/Berlin', label: 'Central European Time (CET/CEST)', offset: 'GMT+1/2' },
+  { value: 'Asia/Dubai', label: 'Gulf Standard Time (GST)', offset: 'GMT+4' },
+  { value: 'Asia/Singapore', label: 'Singapore Standard Time (SGT)', offset: 'GMT+8' },
+  { value: 'Australia/Sydney', label: 'Australian Eastern Time (AEST/AEDT)', offset: 'GMT+10/11' },
+  { value: 'America/New_York', label: 'Eastern Time (ET)', offset: 'GMT-5/4' },
+  { value: 'America/Chicago', label: 'Central Time (CT)', offset: 'GMT-6/5' },
+  { value: 'America/Denver', label: 'Mountain Time (MT)', offset: 'GMT-7/6' },
+  { value: 'America/Los_Angeles', label: 'Pacific Time (PT)', offset: 'GMT-8/7' },
+  { value: 'America/Toronto', label: 'Eastern Time - Canada (ET)', offset: 'GMT-5/4' },
+  { value: 'America/Vancouver', label: 'Pacific Time - Canada (PT)', offset: 'GMT-8/7' },
+  { value: 'Asia/Tokyo', label: 'Japan Standard Time (JST)', offset: 'GMT+9' },
+  { value: 'Asia/Shanghai', label: 'China Standard Time (CST)', offset: 'GMT+8' },
+  { value: 'Europe/Paris', label: 'Central European Time - France (CET)', offset: 'GMT+1/2' },
 ];
+
+// Get all IANA timezones (this would be imported from a comprehensive list in a real app)
+export function getAllTimezones(): TimezoneInfo[] {
+  // This would ideally come from a comprehensive IANA timezone list
+  // For now, using common ones + some additional ones
+  const additionalTimezones = [
+    { value: 'Africa/Cairo', label: 'Egypt Standard Time', offset: 'GMT+2' },
+    { value: 'Asia/Bangkok', label: 'Indochina Time', offset: 'GMT+7' },
+    { value: 'Asia/Hong_Kong', label: 'Hong Kong Time', offset: 'GMT+8' },
+    { value: 'Asia/Seoul', label: 'Korea Standard Time', offset: 'GMT+9' },
+    { value: 'Europe/Amsterdam', label: 'Central European Time - Netherlands', offset: 'GMT+1/2' },
+    { value: 'Europe/Rome', label: 'Central European Time - Italy', offset: 'GMT+1/2' },
+    { value: 'Europe/Madrid', label: 'Central European Time - Spain', offset: 'GMT+1/2' },
+    { value: 'Pacific/Auckland', label: 'New Zealand Standard Time', offset: 'GMT+12/13' },
+    { value: 'America/Sao_Paulo', label: 'Brasilia Time', offset: 'GMT-3' },
+    { value: 'America/Mexico_City', label: 'Central Standard Time - Mexico', offset: 'GMT-6' },
+  ];
+  
+  return [...COMMON_TIMEZONES, ...additionalTimezones].sort((a, b) => a.label.localeCompare(b.label));
+}
 
 export function parseTimeSlot(timeSlot: string): { start: string; end: string } {
   const [start, end] = timeSlot.split(' - ');
@@ -149,16 +175,109 @@ export function getTimezoneAbbreviation(timezone: string): string {
 // Re-export CourseTimingSlot from types
 export type { CourseTimingSlot } from '../types';
 
-export function createDualTimezoneDisplay(
-  istTime: string,
-  userTimezone: string = IST_TIMEZONE
-): string {
-  if (userTimezone === IST_TIMEZONE) {
-    return `${istTime} IST`;
+// UTC conversion utilities for proper time storage
+export interface UtcTimeSlot {
+  startUtc: string; // ISO string
+  endUtc: string;   // ISO string
+  dayOfWeek: number; // 0-6, Sunday = 0
+}
+
+export function createUtcTimeSlot(dayName: string, timeSlot: string, sourceTimezone: string = IST_TIMEZONE): UtcTimeSlot {
+  const { start, end } = parseTimeSlot(timeSlot);
+  
+  // Create a date for next occurrence of this day
+  const today = new Date();
+  const currentDay = today.getDay();
+  const targetDay = getDayNumber(dayName);
+  
+  let daysUntilTarget = (targetDay - currentDay + 7) % 7;
+  if (daysUntilTarget === 0) {
+    daysUntilTarget = 7; // Next occurrence of the same day
   }
   
-  // For now, return basic format - this can be enhanced later
-  return `${istTime} IST (${getTimezoneAbbreviation(userTimezone)})`;
+  const targetDate = new Date(today);
+  targetDate.setDate(today.getDate() + daysUntilTarget);
+  
+  // Create start time
+  const [startHours, startMinutes] = start.split(':').map(Number);
+  const startDate = new Date(targetDate);
+  startDate.setHours(startHours, startMinutes, 0, 0);
+  
+  // Create end time
+  const [endHours, endMinutes] = end.split(':').map(Number);
+  const endDate = new Date(targetDate);
+  endDate.setHours(endHours, endMinutes, 0, 0);
+  
+  // Convert to UTC (assuming sourceTimezone is the input timezone)
+  // For IST, we need to subtract 5:30 hours to get UTC
+  if (sourceTimezone === IST_TIMEZONE) {
+    startDate.setHours(startDate.getHours() - 5);
+    startDate.setMinutes(startDate.getMinutes() - 30);
+    endDate.setHours(endDate.getHours() - 5);
+    endDate.setMinutes(endDate.getMinutes() - 30);
+  }
+  
+  return {
+    startUtc: startDate.toISOString(),
+    endUtc: endDate.toISOString(),
+    dayOfWeek: targetDay
+  };
+}
+
+export function formatTimeInTimezone(utcTimeString: string, timezone: string): string {
+  try {
+    const date = new Date(utcTimeString);
+    return date.toLocaleTimeString('en-US', {
+      timeZone: timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  } catch {
+    return 'Invalid time';
+  }
+}
+
+export function createDualTimezoneDisplay(
+  startUtc: string,
+  endUtc: string,
+  userTimezone: string = IST_TIMEZONE
+): { localTime: string; istTime: string; isNextDay?: boolean } {
+  const localStart = formatTimeInTimezone(startUtc, userTimezone);
+  const localEnd = formatTimeInTimezone(endUtc, userTimezone);
+  const istStart = formatTimeInTimezone(startUtc, IST_TIMEZONE);
+  const istEnd = formatTimeInTimezone(endUtc, IST_TIMEZONE);
+  
+  // Check if local time crosses to next day
+  const userDate = new Date(startUtc).toLocaleDateString('en-US', { timeZone: userTimezone });
+  const istDate = new Date(startUtc).toLocaleDateString('en-US', { timeZone: IST_TIMEZONE });
+  const isNextDay = userDate !== istDate;
+  
+  return {
+    localTime: `${localStart}–${localEnd}`,
+    istTime: `${istStart}–${istEnd}`,
+    isNextDay
+  };
+}
+
+// Enhanced timezone detection with confirmation
+export function detectUserTimezone(): { timezone: string; confidence: 'high' | 'low' } {
+  try {
+    const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    // Check if it's a valid IANA timezone
+    const isValid = getAllTimezones().some(tz => tz.value === detected) || 
+                   COMMON_TIMEZONES.some(tz => tz.value === detected);
+    
+    return {
+      timezone: detected,
+      confidence: isValid ? 'high' : 'low'
+    };
+  } catch {
+    return {
+      timezone: IST_TIMEZONE,
+      confidence: 'low'
+    };
+  }
 }
 
 export function doSlotsOverlap(

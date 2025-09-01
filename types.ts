@@ -159,8 +159,12 @@ export interface DashboardStats {
 }
 
 export interface BatchSchedule {
-  timing: string;
+  timing: string; // Legacy format for compatibility
   studentIds: string[];
+  // New UTC fields for proper timezone handling
+  startUtc?: string; // ISO string
+  endUtc?: string;   // ISO string
+  dayOfWeek?: number; // 0-6, Sunday = 0
 }
 
 export interface Batch {

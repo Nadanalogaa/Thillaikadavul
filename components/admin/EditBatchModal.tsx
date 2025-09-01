@@ -6,7 +6,18 @@ import { UserRole, ClassPreference } from '../../types';
 import { WEEKDAYS, TIME_SLOTS, WEEKDAY_MAP } from '../../constants';
 import { XCircleIcon } from '../icons';
 import { getLocations } from '../../api';
-import { getUserTimezone, formatTimeWithTimezone, IST_TIMEZONE, getTimezoneAbbreviation } from '../../utils/timezone';
+import { 
+    getUserTimezone, 
+    formatTimeWithTimezone, 
+    IST_TIMEZONE, 
+    getTimezoneAbbreviation,
+    detectUserTimezone,
+    createDualTimezoneDisplay,
+    createUtcTimeSlot,
+    formatTimeInTimezone,
+    UtcTimeSlot
+} from '../../utils/timezone';
+import TimezoneDetector from '../TimezoneDetector';
 
 interface EditBatchModalProps {
     isOpen: boolean;
@@ -110,8 +121,16 @@ const EditBatchModal: React.FC<EditBatchModalProps> = ({ isOpen, onClose, batch,
     const [selectedDays, setSelectedDays] = useState<Set<string>>(new Set());
     const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
     const [locations, setLocations] = useState<Location[]>([]);
-    const [userTimezone, setUserTimezone] = useState<string>(IST_TIMEZONE);
+    const [userTimezone, setUserTimezone] = useState<string>('');
     const [showTimezoneSelector, setShowTimezoneSelector] = useState(false);
+    
+    // Auto-detect timezone on component mount
+    useEffect(() => {
+        if (!userTimezone) {
+            const detection = detectUserTimezone();
+            setUserTimezone(detection.timezone);
+        }
+    }, []);
     
     // Step management
     const [currentStep, setCurrentStep] = useState<1 | 2>(1);
@@ -340,11 +359,26 @@ const EditBatchModal: React.FC<EditBatchModalProps> = ({ isOpen, onClose, batch,
 
     const handleTimingChange = (dayKey: string, fullTiming: string) => {
         const dayName = WEEKDAY_MAP[dayKey as keyof typeof WEEKDAY_MAP];
+        const timeSlot = fullTiming.replace(`${dayName} `, '');
+        
+        // Create UTC time slot for storage
+        const utcSlot = createUtcTimeSlot(dayName, timeSlot, IST_TIMEZONE);
         
         setFormData(prev => {
             let newSchedule = [...(prev.schedule || [])];
+            // Remove any existing schedule for this day
             newSchedule = newSchedule.filter(s => !s.timing.startsWith(dayName));
-            newSchedule.push({ timing: fullTiming, studentIds: [] });
+            
+            // Add new schedule with both legacy timing and UTC data
+            newSchedule.push({ 
+                timing: fullTiming, // Keep legacy format for compatibility
+                studentIds: [],
+                // Add UTC fields for proper storage
+                startUtc: utcSlot.startUtc,
+                endUtc: utcSlot.endUtc,
+                dayOfWeek: utcSlot.dayOfWeek
+            });
+            
             return { ...prev, schedule: newSchedule };
         });
     };
@@ -628,43 +662,21 @@ const EditBatchModal: React.FC<EditBatchModalProps> = ({ isOpen, onClose, batch,
                                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                                     {/* Left: Day Selection and Time Slots */}
                                     <div className="lg:col-span-3">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+                                        <div className="mb-4">
+                                            <h2 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
                                                 📅 Weekly Schedule Setup
                                                 <span className="ml-3 text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
                                                     {selectedDays.size}/2 days selected
                                                 </span>
                                             </h2>
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowTimezoneSelector(!showTimezoneSelector)}
-                                                className="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded hover:bg-gray-200"
-                                            >
-                                                🌍 {userTimezone === IST_TIMEZONE ? 'IST' : getTimezoneAbbreviation(userTimezone)}
-                                            </button>
+                                            
+                                            {/* Timezone Detector */}
+                                            <TimezoneDetector
+                                                currentTimezone={userTimezone}
+                                                onTimezoneChange={setUserTimezone}
+                                                onConfirm={() => setShowTimezoneSelector(false)}
+                                            />
                                         </div>
-
-                                        {showTimezoneSelector && (
-                                            <div className="mb-4 p-3 bg-blue-50 rounded-lg border">
-                                                <label className="block text-sm font-medium text-blue-700 mb-2">Select your timezone:</label>
-                                                <select
-                                                    value={userTimezone}
-                                                    onChange={(e) => setUserTimezone(e.target.value)}
-                                                    className="border border-blue-300 rounded px-3 py-2 bg-white"
-                                                >
-                                                    <option value="Asia/Kolkata">IST (India Standard Time)</option>
-                                                    <option value="Europe/London">GMT/BST (London, Dublin)</option>
-                                                    <option value="Europe/Berlin">CET/CEST (Berlin, Paris)</option>
-                                                    <option value="Asia/Dubai">GST (Dubai)</option>
-                                                    <option value="Asia/Singapore">SGT (Singapore)</option>
-                                                    <option value="Australia/Sydney">AEST/AEDT (Sydney)</option>
-                                                    <option value="America/New_York">ET (New York)</option>
-                                                    <option value="America/Chicago">CT (Chicago)</option>
-                                                    <option value="America/Denver">Mt (Denver)</option>
-                                                    <option value="America/Los_Angeles">PT (Los Angeles)</option>
-                                                </select>
-                                            </div>
-                                        )}
 
                                         {/* Day Selection - Ultra Compact */}
                                         <div className="grid grid-cols-7 gap-1 mb-4">
@@ -730,15 +742,37 @@ const EditBatchModal: React.FC<EditBatchModalProps> = ({ isOpen, onClose, batch,
                                                                             onChange={() => !isTeacherBusy && handleTimingChange(dayKey, fullTiming)}
                                                                             className="mb-0.5 h-2 w-2"
                                                                         />
-                                                                        <div className="text-center leading-tight">
-                                                                            <div className="text-xs font-medium">{startTime}</div>
-                                                                            <div className="text-xs text-blue-600 font-medium">{endTime}</div>
-                                                                        </div>
-                                                                        <div className={`text-xs mt-0.5 ${
-                                                                            isSelected ? 'text-white' : 'text-gray-500'
-                                                                        }`}>
-                                                                            {userTimezone === IST_TIMEZONE ? 'IST' : getTimezoneAbbreviation(userTimezone)}
-                                                                        </div>
+                                                                        {(() => {
+                                                                            // Create a mock UTC time slot for display purposes
+                                                                            const utcSlot = createUtcTimeSlot(dayName, timeSlot, IST_TIMEZONE);
+                                                                            const dualDisplay = createDualTimezoneDisplay(
+                                                                                utcSlot.startUtc, 
+                                                                                utcSlot.endUtc, 
+                                                                                userTimezone
+                                                                            );
+                                                                            
+                                                                            return (
+                                                                                <div className="text-center leading-tight">
+                                                                                    <div className={`text-xs font-medium ${
+                                                                                        isSelected ? 'text-white' : 'text-gray-900'
+                                                                                    }`}>
+                                                                                        {dualDisplay.localTime}
+                                                                                    </div>
+                                                                                    <div className={`text-xs ${
+                                                                                        isSelected ? 'text-blue-200' : 'text-blue-600'
+                                                                                    } font-medium`}>
+                                                                                        {userTimezone === IST_TIMEZONE ? 'IST' : 'Local'}
+                                                                                    </div>
+                                                                                    {userTimezone !== IST_TIMEZONE && (
+                                                                                        <div className={`text-xs mt-0.5 ${
+                                                                                            isSelected ? 'text-gray-300' : 'text-gray-500'
+                                                                                        }`}>
+                                                                                            IST {dualDisplay.istTime}
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            );
+                                                                        })()}
                                                                         {isTeacherBusy && <span className="text-xs text-red-500 mt-0.5">Busy</span>}
                                                                     </label>
                                                                 )
