@@ -189,19 +189,17 @@ export interface UtcTimeSlot {
 
 // Helper function to create UTC time from timezone-aware input
 function createUtcFromTimezone(year: number, month: number, day: number, hours: number, minutes: number, timezone: string): Date {
-  // Create a date string that will be interpreted in the specified timezone
-  const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
-  
-  // If it's IST, we need to convert to UTC by subtracting IST offset
+  // If it's IST, we know the input time is in IST and need to convert to UTC
   if (timezone === IST_TIMEZONE) {
-    // IST is UTC+5:30, so to get UTC we subtract 5:30
-    const date = new Date(dateStr);
-    const utcDate = new Date(date.getTime() - (5.5 * 60 * 60 * 1000)); // Subtract 5.5 hours
-    return utcDate;
+    // Create UTC date by subtracting IST offset (UTC+5:30)
+    // We create the date as if it's UTC first, then adjust
+    const utcDate = new Date(Date.UTC(year, month, day, hours, minutes, 0));
+    // Subtract 5.5 hours to get actual UTC from IST
+    return new Date(utcDate.getTime() - (5.5 * 60 * 60 * 1000));
   }
   
-  // For other timezones, return as-is for now (can be enhanced later)
-  return new Date(dateStr + 'Z'); // Treat as UTC
+  // For other timezones, create as UTC (this can be enhanced later for other specific timezones)
+  return new Date(Date.UTC(year, month, day, hours, minutes, 0));
 }
 
 export function createUtcTimeSlot(dayName: string, timeSlot: string, sourceTimezone: string = IST_TIMEZONE): UtcTimeSlot {

@@ -49,14 +49,15 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
     const formatDualTimezoneDisplay = (day: string, timeSlot: string): string => {
         // For IST users, show the time as-is (no conversion needed)
         if (detectedTimezone === IST_TIMEZONE) {
-            return `${day} ${timeSlot}`;
+            return `${day} ${timeSlot} IST`;
         }
         
         // For non-IST users, show their local time with IST reference
+        // timeSlot is in IST, so we convert from IST to user timezone
         const utcSlot = createUtcTimeSlot(day, timeSlot, IST_TIMEZONE);
         const dualDisplay = createDualTimezoneDisplay(utcSlot.startUtc, utcSlot.endUtc, detectedTimezone);
         
-        return `${day} ${dualDisplay.localTime} (${day} ${dualDisplay.istTime} IST)`;
+        return `${day} ${dualDisplay.localTime} (${timeSlot} IST)`;
     };
 
     const handleDayToggle = (dayKey: string) => {
@@ -295,13 +296,24 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
                                                     : 'bg-white text-gray-700 border-gray-300 hover:bg-brand-light/50 hover:border-brand-primary'
                                         }`}
                                     >
-                                        <div>{timeSlot}</div>
-                                        {isSelected && detectedTimezone !== IST_TIMEZONE && (
-                                            <div className="text-xs opacity-75 mt-1">
+                                        {detectedTimezone === IST_TIMEZONE ? (
+                                            // For IST users, show IST time only
+                                            <div>
+                                                <div>{timeSlot}</div>
+                                                <div className="text-xs text-purple-600 font-medium">IST</div>
+                                            </div>
+                                        ) : (
+                                            // For non-IST users, show local time with IST reference
+                                            <div>
                                                 {(() => {
                                                     const utcSlot = createUtcTimeSlot(WEEKDAY_MAP[activeDay as keyof typeof WEEKDAY_MAP], timeSlot, IST_TIMEZONE);
                                                     const dualDisplay = createDualTimezoneDisplay(utcSlot.startUtc, utcSlot.endUtc, detectedTimezone);
-                                                    return `IST ${dualDisplay.istTime}`;
+                                                    return (
+                                                        <>
+                                                            <div className="font-medium">{dualDisplay.localTime}</div>
+                                                            <div className="text-xs text-purple-600">{timeSlot} IST</div>
+                                                        </>
+                                                    );
                                                 })()}
                                             </div>
                                         )}
