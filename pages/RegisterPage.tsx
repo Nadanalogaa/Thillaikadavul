@@ -109,16 +109,12 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
         return { isValid: true, warning: '' };
     };
 
-    // Auto-select first course for timing when student changes or courses change
+    // Auto-select first available course tab when data loads
     useEffect(() => {
-        const currentStudent = students[activeStudentIndex];
-        if (currentStudent && currentStudent.courses && currentStudent.courses.length > 0) {
-            // Always auto-select first course to keep focus
-            setTimingSelectedCourse(currentStudent.courses[0]);
-        } else {
-            setTimingSelectedCourse(null);
+        if (!timingSelectedCourse && courses && courses.length > 0) {
+            setTimingSelectedCourse(courses[0].name);
         }
-    }, [activeStudentIndex, students]);
+    }, [courses, timingSelectedCourse]);
 
     // Auto-detect timezone based on browser
     useEffect(() => {
@@ -258,11 +254,13 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
         return newStudents;
     });
 
-    const handleStudentCourseChange = (index: number, courseName: string, isChecked: boolean) => {
+    // Ensure a course exists in student's list when they schedule for it
+    const ensureStudentHasCourse = (index: number, courseName: string) => {
         const student = students[index];
         const currentCourses = student.courses || [];
-        const updatedCourses = isChecked ? [...currentCourses, courseName] : currentCourses.filter(c => c !== courseName);
-        handleStudentDataChange(index, 'courses', updatedCourses);
+        if (!currentCourses.includes(courseName)) {
+            handleStudentDataChange(index, 'courses', [...currentCourses, courseName]);
+        }
     };
 
     const handleTeacherChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -835,21 +833,30 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                 )}
                                             </div>
 
+                                            {/* Course tabs (single-select) */}
                                             <div>
-                                                <label className="form-label">Course Selection</label>
                                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
-                                                    {courses.map(course => (
-                                                        <label key={course.id} className={`course-card ${students[activeStudentIndex].courses?.includes(course.name) ? 'selected' : ''}`}>
-                                                            <input 
-                                                                type="checkbox" 
-                                                                value={course.name} 
-                                                                checked={students[activeStudentIndex].courses?.includes(course.name) || false} 
-                                                                onChange={(e) => handleStudentCourseChange(activeStudentIndex, course.name, e.target.checked)} 
-                                                                className="sr-only"
-                                                            />
-                                                            <div className="text-sm font-semibold">{course.name}</div>
-                                                        </label>
-                                                    ))}
+                                                    {courses.map(course => {
+                                                        const courseName = course.name;
+                                                        const courseSlots = (Array.isArray(students[activeStudentIndex].preferredTimings)
+                                                            ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object' && t.courseName === courseName)
+                                                            : []);
+                                                        const isActive = timingSelectedCourse === courseName;
+                                                        return (
+                                                            <button
+                                                                key={course.id}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setTimingSelectedCourse(courseName);
+                                                                    ensureStudentHasCourse(activeStudentIndex, courseName);
+                                                                }}
+                                                                className={`course-card ${isActive ? 'scheduling ring-2 ring-offset-2 ring-blue-300' : ''}`}
+                                                                title={`${courseName} (${courseSlots.length}/2)`}
+                                                            >
+                                                                <div className="text-sm font-semibold">{courseName} ({courseSlots.length}/2)</div>
+                                                            </button>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
 
@@ -858,37 +865,13 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                 <h4 className="text-sm font-semibold text-gray-800 border-b pb-2">Preferred Class Times (Optional)</h4>
                                                 <p className="text-xs text-gray-600">Help us find the best schedule for you</p>
                                                 
-                                                {/* Course Selection for Scheduling - Always Visible */}
-                                                <div>
-                                                    <label className="form-label">Which course are you scheduling? (Single select)</label>
-                                                    <div className="flex flex-wrap gap-2 mb-4">
-                                                        {(students[activeStudentIndex].courses || []).map(course => {
-                                                            const courseSlots = (Array.isArray(students[activeStudentIndex].preferredTimings) 
-                                                                ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object' && t.courseName === course)
-                                                                : []);
-                                                            return (
-                                                                <button
-                                                                    key={course}
-                                                                    type="button"
-                                                                    onClick={() => setTimingSelectedCourse(course)}
-                                                                    className={`px-3 py-2 text-sm font-medium rounded-md border transition-all ${
-                                                                        timingSelectedCourse === course 
-                                                                            ? 'bg-blue-100 text-blue-800 border-blue-300 ring-2 ring-offset-1 ring-blue-300'
-                                                                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                                                                    }`}
-                                                                >
-                                                                    {course} ({courseSlots.length}/2)
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
+                                                {/* Removed duplicate single-select header; tabs above control active course */}
 
 
                                                     {/* Day Selection */}
-                                                    <div>
-                                                        <label className="form-label">Toggle a day to see available time slots:</label>
-                                                        <div className="flex rounded-md shadow-sm">
+                                                <div>
+                                                    <label className="form-label">Toggle a day to see available time slots:</label>
+                                                    <div className="flex rounded-md shadow-sm">
                                                             {Object.keys(WEEKDAY_MAP).map((dayKey) => (
                                                                 <button
                                                                     type="button"
@@ -905,23 +888,23 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                     </div>
 
                                                     {/* Timing Selection Component */}
-                                                    <div>
-                                                        <PreferredTimingSelector 
-                                                            selectedCourses={students[activeStudentIndex].courses || []}
-                                                            selectedTimings={
-                                                                Array.isArray(students[activeStudentIndex].preferredTimings) 
-                                                                    ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object')
-                                                                    : []
-                                                            } 
-                                                            onChange={(timings) => handleStudentDataChange(activeStudentIndex, 'preferredTimings', timings)}
-                                                            userTimezone={guardianData.timezone}
-                                                            showOnlySelections={false}
-                                                            activeDay={timingActiveDay}
-                                                            selectedCourse={timingSelectedCourse}
-                                                            onDayToggle={setTimingActiveDay}
-                                                            onCourseChange={setTimingSelectedCourse}
-                                                        />
-                                                    </div>
+                                                <div>
+                                                    <PreferredTimingSelector 
+                                                        selectedCourses={courses.map(c => c.name) || []}
+                                                        selectedTimings={
+                                                            Array.isArray(students[activeStudentIndex].preferredTimings) 
+                                                                ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object')
+                                                                : []
+                                                        } 
+                                                        onChange={(timings) => handleStudentDataChange(activeStudentIndex, 'preferredTimings', timings)}
+                                                        userTimezone={guardianData.timezone}
+                                                        showOnlySelections={false}
+                                                        activeDay={timingActiveDay}
+                                                        selectedCourse={timingSelectedCourse}
+                                                        onDayToggle={setTimingActiveDay}
+                                                        onCourseChange={setTimingSelectedCourse}
+                                                    />
+                                                </div>
                                                 </div>
                                             )
                                             </div>
@@ -1114,7 +1097,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                     </div>
                                     <div className="p-4">
                                         <PreferredTimingSelector 
-                                            selectedCourses={students[activeStudentIndex].courses || []}
+                                            selectedCourses={courses.map(c => c.name) || []}
                                             selectedTimings={
                                                 Array.isArray(students[activeStudentIndex].preferredTimings) 
                                                     ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object')

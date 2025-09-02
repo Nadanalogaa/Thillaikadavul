@@ -170,15 +170,7 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
             return;
         }
         
-        // Rule 3: Check daily hour limit (maximum 2 hours per day across all courses)
-        const sameDayAllCourses = (selectedTimings || []).filter(slot => 
-            slot && typeof slot === 'object' && slot.day === fullDay
-        );
-        if (sameDayAllCourses.length >= 2) {
-            const existingCourses = sameDayAllCourses.map(slot => slot.courseName).join(', ');
-            alert(`You already have 2 hours of classes on ${fullDay} (${existingCourses}). Maximum 2 hours per day allowed across all courses.`);
-            return;
-        }
+        // Across courses: no global daily cap; only prevent overlaps.
         
         onChange([...selectedTimings, newSlot]);
     };
@@ -236,17 +228,7 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
         
         if (conflictingSlot) return true;
         
-        // Rule 4: Check daily hour limit (maximum 2 hours per day across all courses)
-        const sameDayAllCourses = (selectedTimings || []).filter(slot => 
-            slot && typeof slot === 'object' && slot.day === fullDay
-        );
-        
-        // If student already has 2 hours on this day, disable all remaining slots for this day
-        if (sameDayAllCourses.length >= 2) {
-            return !sameDayAllCourses.some(slot => 
-                slot.day === fullDay && slot.timeSlot === timeSlot
-            );
-        }
+        // No daily cap across courses; availability governed by overlap and per-course rules only.
         
         return false;
     };
