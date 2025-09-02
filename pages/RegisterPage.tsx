@@ -726,7 +726,25 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
 
                             {currentStep === 2 && registrationType === 'student' && (
                                 <div className="space-y-6">
-                                    <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Student Details</h3>
+                                    <div className="flex items-center justify-between border-b pb-2">
+                                        <h3 className="text-lg font-semibold text-gray-900">Student Details</h3>
+                                        <div className="inline-flex border rounded-md overflow-hidden">
+                                            <button 
+                                                type="button"
+                                                onClick={() => handleStudentDataChange(activeStudentIndex, 'classPreference', ClassPreference.Online)}
+                                                className={`px-3 py-1.5 text-sm font-medium ${students[activeStudentIndex].classPreference === ClassPreference.Online ? 'bg-brand-primary text-white' : 'bg-white text-gray-700'} border-r`}
+                                            >
+                                                Online
+                                            </button>
+                                            <button 
+                                                type="button"
+                                                onClick={() => handleStudentDataChange(activeStudentIndex, 'classPreference', ClassPreference.Offline)}
+                                                className={`px-3 py-1.5 text-sm font-medium ${students[activeStudentIndex].classPreference === ClassPreference.Offline ? 'bg-brand-primary text-white' : 'bg-white text-gray-700'}`}
+                                            >
+                                                In Person
+                                            </button>
+                                        </div>
+                                    </div>
                                     
                                     {/* Student tabs */}
                                     <div className="flex border-b">
@@ -806,17 +824,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                         {Object.values(Sex).map(s => <option key={s} value={s}>{s}</option>)}
                                                     </select>
                                                 </div>
-                                                <div>
-                                                    <label className="form-label">Learning Preference</label>
-                                                    <select 
-                                                        value={students[activeStudentIndex].classPreference} 
-                                                        onChange={e => handleStudentDataChange(activeStudentIndex, 'classPreference', e.target.value)} 
-                                                        className="form-select"
-                                                    >
-                                                        <option value={ClassPreference.Online}>Online Classes</option>
-                                                        <option value={ClassPreference.Offline}>In-Person Classes</option>
-                                                    </select>
-                                                </div>
+                                                {/* Learning Preference moved to header (Online / In Person toggle) */}
                                                 {students[activeStudentIndex].classPreference === ClassPreference.Offline && (
                                                     <div>
                                                         <label className="form-label">Location</label>
@@ -905,8 +913,6 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                         onCourseChange={setTimingSelectedCourse}
                                                     />
                                                 </div>
-                                                </div>
-                                            )
                                             </div>
                                         )}
                                 </div>
