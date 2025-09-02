@@ -45,6 +45,10 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
     // Timing selector state
     const [timingActiveDay, setTimingActiveDay] = useState<string | null>(null);
     const [timingSelectedCourse, setTimingSelectedCourse] = useState<string | null>(null);
+    
+    // Modal state
+    const [isTimeModalOpen, setIsTimeModalOpen] = useState(false);
+    const [modalCourse, setModalCourse] = useState<string | null>(null);
 
     // Teacher Form State
     const [teacherData, setTeacherData] = useState<Partial<User>>({ 
@@ -962,8 +966,29 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                                     
                                                                     <div className="flex items-center justify-between text-xs text-gray-600">
                                                                         <span>Time Slots: {courseSlots.length}/2</span>
-                                                                        <span className="text-blue-600 font-medium">Select</span>
+                                                                        <span className="text-blue-600 font-medium">
+                                                                            {isSelected ? 'Selected' : 'Select'}
+                                                                        </span>
                                                                     </div>
+                                                                    
+                                                                    {/* Time Selection Button - Only show for selected courses */}
+                                                                    {isSelected && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setModalCourse(courseName);
+                                                                                setTimingSelectedCourse(courseName);
+                                                                                setIsTimeModalOpen(true);
+                                                                            }}
+                                                                            className="mt-3 w-full flex items-center justify-center gap-2 py-2 px-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs font-medium rounded-md hover:from-purple-600 hover:to-blue-600 transition-all duration-200 shadow-sm hover:shadow-md"
+                                                                        >
+                                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                                            </svg>
+                                                                            Choose Preferred Time
+                                                                        </button>
+                                                                    )}
                                                                 </div>
                                                                 
                                                                 {/* Gradient Overlay for selected state */}
@@ -976,52 +1001,6 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                 </div>
                                             </div>
 
-                                            {/* Preferred Class Times - Always Visible */}
-                                            <div className="space-y-4 mt-8">
-                                                <h4 className="text-sm font-semibold text-gray-800 border-b pb-2">Preferred Class Times (Optional)</h4>
-                                                <p className="text-xs text-gray-600">Help us find the best schedule for you</p>
-                                                
-                                                {/* Removed duplicate single-select header; tabs above control active course */}
-
-
-                                                    {/* Day Selection */}
-                                                <div>
-                                                    <label className="form-label">Toggle a day to see available time slots:</label>
-                                                    <div className="flex rounded-md shadow-sm">
-                                                            {Object.keys(WEEKDAY_MAP).map((dayKey) => (
-                                                                <button
-                                                                    type="button"
-                                                                    key={dayKey}
-                                                                    onClick={() => setTimingActiveDay(prev => prev === dayKey ? null : dayKey)}
-                                                                    className={`flex-1 px-3 py-2 text-sm font-medium border border-gray-300 -ml-px first:ml-0 first:rounded-l-md last:rounded-r-md focus:z-10 focus:outline-none focus:ring-1 focus:ring-brand-primary transition-colors ${
-                                                                        timingActiveDay === dayKey ? 'bg-brand-primary text-white border-brand-primary' : 'bg-white text-gray-700 hover:bg-gray-50'
-                                                                    }`}
-                                                                >
-                                                                    {dayKey}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Timing Selection Component */}
-                                                <div>
-                                                    <PreferredTimingSelector 
-                                                        selectedCourses={courses.map(c => c.name) || []}
-                                                        selectedTimings={
-                                                            Array.isArray(students[activeStudentIndex].preferredTimings) 
-                                                                ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object')
-                                                                : []
-                                                        } 
-                                                        onChange={(timings) => handleStudentDataChange(activeStudentIndex, 'preferredTimings', timings)}
-                                                        userTimezone={guardianData.timezone}
-                                                        showOnlySelections={false}
-                                                        activeDay={timingActiveDay}
-                                                        selectedCourse={timingSelectedCourse}
-                                                        onDayToggle={setTimingActiveDay}
-                                                        onCourseChange={setTimingSelectedCourse}
-                                                    />
-                                                </div>
-                                            </div>
                                 </div>
                                 </div>
                             )}
@@ -1167,6 +1146,136 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                         </form>
                         </div>
                         </div>
+
+                        {/* Time Selection Modal */}
+                        {isTimeModalOpen && modalCourse && (
+                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                                <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                                    {/* Modal Header */}
+                                    <div className="sticky top-0 bg-white border-b px-6 py-4 rounded-t-2xl">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+                                                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                    </svg>
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-xl font-bold text-gray-900">Choose Preferred Times</h3>
+                                                    <p className="text-sm text-gray-600">{modalCourse} - Select your preferred class schedule</p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setIsTimeModalOpen(false);
+                                                    setModalCourse(null);
+                                                }}
+                                                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+                                            >
+                                                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Modal Content */}
+                                    <div className="p-6 space-y-6">
+                                        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                </svg>
+                                                <span className="font-semibold text-gray-900">Class Schedule Information</span>
+                                            </div>
+                                            <p className="text-sm text-gray-700 mb-1">Each course requires 2 time slots (1 hour × 2 days per week)</p>
+                                            <p className="text-xs text-gray-600">Times shown in your timezone ({guardianData.timezone || 'Kolkata'}) with IST reference</p>
+                                        </div>
+
+                                        {/* Day Selection */}
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-900 mb-3">
+                                                Select a day to see available time slots:
+                                            </label>
+                                            <div className="grid grid-cols-7 gap-2">
+                                                {Object.keys(WEEKDAY_MAP).map((dayKey) => (
+                                                    <button
+                                                        type="button"
+                                                        key={dayKey}
+                                                        onClick={() => setTimingActiveDay(prev => prev === dayKey ? null : dayKey)}
+                                                        className={`px-3 py-3 text-sm font-medium rounded-lg border-2 transition-all duration-200 ${
+                                                            timingActiveDay === dayKey 
+                                                                ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white border-transparent shadow-lg' 
+                                                                : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:bg-blue-50'
+                                                        }`}
+                                                    >
+                                                        <div className="text-center">
+                                                            <div className="font-bold">{dayKey}</div>
+                                                            <div className="text-xs opacity-75 mt-1">{WEEKDAY_MAP[dayKey as keyof typeof WEEKDAY_MAP]}</div>
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Timing Selection Component */}
+                                        <div className="min-h-[300px]">
+                                            <PreferredTimingSelector 
+                                                selectedCourses={modalCourse ? [modalCourse] : []}
+                                                selectedTimings={
+                                                    Array.isArray(students[activeStudentIndex].preferredTimings) 
+                                                        ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object' && t.courseName === modalCourse)
+                                                        : []
+                                                } 
+                                                onChange={(timings) => {
+                                                    // Update only timings for the current modal course
+                                                    const currentTimings = Array.isArray(students[activeStudentIndex].preferredTimings) 
+                                                        ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object')
+                                                        : [];
+                                                    
+                                                    const otherCourseTimings = currentTimings.filter(t => t.courseName !== modalCourse);
+                                                    const updatedTimings = [...otherCourseTimings, ...timings];
+                                                    
+                                                    handleStudentDataChange(activeStudentIndex, 'preferredTimings', updatedTimings);
+                                                }}
+                                                userTimezone={guardianData.timezone}
+                                                showOnlySelections={false}
+                                                activeDay={timingActiveDay}
+                                                selectedCourse={modalCourse}
+                                                onDayToggle={setTimingActiveDay}
+                                                onCourseChange={() => {}} // Not needed in modal
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Modal Footer */}
+                                    <div className="sticky bottom-0 bg-gray-50 px-6 py-4 rounded-b-2xl border-t">
+                                        <div className="flex items-center justify-between">
+                                            <div className="text-sm text-gray-600">
+                                                Selected: {
+                                                    Array.isArray(students[activeStudentIndex].preferredTimings) 
+                                                        ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[])
+                                                            .filter(t => t && typeof t === 'object' && t.courseName === modalCourse).length
+                                                        : 0
+                                                }/2 time slots for {modalCourse}
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setIsTimeModalOpen(false);
+                                                    setModalCourse(null);
+                                                    setTimingActiveDay(null);
+                                                }}
+                                                className="px-6 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white font-medium rounded-lg hover:from-purple-600 hover:to-blue-600 transition-all duration-200 shadow-lg hover:shadow-xl"
+                                            >
+                                                Done
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Right Sidebar */}
                         <div className="w-96 space-y-6">
