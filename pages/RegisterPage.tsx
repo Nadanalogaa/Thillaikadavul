@@ -461,6 +461,12 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                     border-color: #60a5fa; 
                     box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.3);
                 }
+                .course-card {
+                    display: flex; align-items: center; gap: 12px; padding: 12px; border: 2px solid #e5e7eb;
+                    border-radius: 8px; cursor: pointer; transition: all 0.2s; background: white;
+                }
+                .course-card:hover { border-color: #d1d5db; background: #f9fafb; }
+                .course-card.selected { border-color: #60a5fa; background: #eff6ff; }
                 .student-tab { 
                     padding: 0.5rem 1rem; border-radius: 6px 6px 0 0; font-size: 0.75rem; font-weight: 600; 
                     cursor: pointer; transition: all 0.2s; margin-right: 0.25rem;
@@ -1217,34 +1223,97 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                         />
                                     </div>
 
-                                    <div>
-                                        <label className="form-label">Course Expertise</label>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
-                                            {courses.map(course => (
-                                                <label key={course.id} className={`course-card ${teacherData.courseExpertise?.includes(course.name) ? 'selected' : ''}`}>
-                                                    <input 
-                                                        type="checkbox" 
-                                                        value={course.name} 
-                                                        checked={teacherData.courseExpertise?.includes(course.name) || false} 
-                                                        onChange={(e) => handleTeacherExpertiseChange(course.name, e.target.checked)} 
-                                                        className="sr-only"
-                                                    />
-                                                    <div className="text-sm font-semibold">{course.name}</div>
-                                                </label>
-                                            ))}
+                                    <div className="space-y-4">
+                                        <div>
+                                            <h4 className="text-lg font-semibold text-gray-900 mb-1">Course Expertise</h4>
+                                            <p className="text-sm text-gray-600 mb-6">Select your areas of expertise (you can choose multiple courses)</p>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                            {courses.map(course => {
+                                                const courseName = course.name;
+                                                const courseSlots = (Array.isArray(teacherData.availableTimeSlots)
+                                                    ? (teacherData.availableTimeSlots as CourseTimingSlot[]).filter(t => t && typeof t === 'object' && t.courseName === courseName)
+                                                    : []);
+                                                const isSelected = (teacherData.courseExpertise || []).includes(courseName);
+                                                return (
+                                                    <div
+                                                        key={course.id}
+                                                        className={`relative overflow-hidden rounded-xl border transition-all duration-300 cursor-pointer transform hover:scale-105 ${
+                                                            isSelected ? 'border-blue-300 bg-blue-50 shadow-lg' : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md'
+                                                        }`}
+                                                        onClick={() => handleTeacherExpertiseChange(courseName, !isSelected)}
+                                                    >
+                                                        {/* Course Image */}
+                                                        <div className="aspect-w-16 aspect-h-12 bg-gradient-to-br from-orange-100 via-yellow-50 to-pink-100">
+                                                            {course.image ? (
+                                                                <img 
+                                                                    src={course.image} 
+                                                                    alt={courseName}
+                                                                    className="w-full h-32 object-contain p-4"
+                                                                />
+                                                            ) : (
+                                                                <div className="flex items-center justify-center h-32 p-4">
+                                                                    <div className="text-center text-gray-500">
+                                                                        <svg className="w-12 h-12 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                                                        </svg>
+                                                                        <p className="text-xs font-medium">{courseName}</p>
+                                                                        <p className="text-xs text-gray-400">No image uploaded</p>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        
+                                                        {/* Course Content */}
+                                                        <div className="p-4">
+                                                            <div className="flex items-center justify-between mb-2">
+                                                                <h3 className="text-sm font-bold text-gray-900 truncate">{courseName}</h3>
+                                                                {isSelected && (
+                                                                    <div className="flex-shrink-0 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                                                                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                                                                        </svg>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            
+                                                            <div className="flex items-center justify-between text-xs text-gray-600">
+                                                                <span>Time Slots: {courseSlots.length}</span>
+                                                                <span className="text-blue-600 font-medium">
+                                                                    {isSelected ? 'Selected' : 'Select'}
+                                                                </span>
+                                                            </div>
+                                                            
+                                                            {/* Time Selection Button - Only show for selected courses */}
+                                                            {isSelected && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setModalCourse(courseName);
+                                                                        setTimingSelectedCourse(courseName);
+                                                                        setIsTimeModalOpen(true);
+                                                                    }}
+                                                                    className="mt-3 w-full flex items-center justify-center gap-2 py-2 px-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs font-medium rounded-md hover:from-purple-600 hover:to-blue-600 transition-all duration-200 shadow-sm hover:shadow-md"
+                                                                >
+                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                                    </svg>
+                                                                    Set Available Hours
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                        
+                                                        {/* Gradient Overlay for selected state */}
+                                                        {isSelected && (
+                                                            <div className="absolute inset-0 bg-gradient-to-t from-blue-500/10 to-transparent pointer-events-none"></div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
 
-                                    {/* Available Time Slots for Teaching */}
-                                    <div>
-                                        <label className="form-label">Available Time Slots</label>
-                                        <p className="text-sm text-gray-600 mb-3">Select your available teaching hours (you can choose multiple slots)</p>
-                                        <PreferredTimingSelector 
-                                            selectedTimings={teacherData.availableTimeSlots || []} 
-                                            selectedCourses={teacherData.courseExpertise || []}
-                                            onChange={(timings) => setTeacherData({...teacherData, availableTimeSlots: timings})} 
-                                        />
-                                    </div>
                                 </div>
                             )}
 
@@ -1306,8 +1375,12 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                     </svg>
                                                 </div>
                                                 <div>
-                                                    <h3 className="text-xl font-bold text-gray-900">Choose Preferred Times</h3>
-                                                    <p className="text-sm text-gray-600">{modalCourse} - Select your preferred class schedule</p>
+                                                    <h3 className="text-xl font-bold text-gray-900">
+                                                        {registrationType === 'student' ? 'Choose Preferred Times' : 'Set Available Hours'}
+                                                    </h3>
+                                                    <p className="text-sm text-gray-600">
+                                                        {modalCourse} - {registrationType === 'student' ? 'Select your preferred class schedule' : 'Set your teaching availability'}
+                                                    </p>
                                                 </div>
                                             </div>
                                             <button
@@ -1332,16 +1405,28 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                 <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                                 </svg>
-                                                <span className="font-semibold text-gray-900">Class Schedule Information</span>
+                                                <span className="font-semibold text-gray-900">
+                                                    {registrationType === 'student' ? 'Class Schedule Information' : 'Instructor Availability'}
+                                                </span>
                                             </div>
-                                            <p className="text-sm text-gray-700 mb-1">Each course requires 2 time slots (1 hour × 2 days per week)</p>
-                                            <p className="text-xs text-gray-600">Times shown in your timezone ({guardianData.timezone || 'Kolkata'}) with IST reference</p>
+                                            <p className="text-sm text-gray-700 mb-1">
+                                                {registrationType === 'student' 
+                                                    ? 'Each course requires 2 time slots (1 hour × 2 days per week)'
+                                                    : 'Select your available teaching hours for this course'
+                                                }
+                                            </p>
+                                            <p className="text-xs text-gray-600">
+                                                Times shown in your timezone ({(registrationType === 'student' ? guardianData.timezone : teacherData.timezone) || 'Kolkata'}) with IST reference
+                                            </p>
                                         </div>
 
                                         {/* Day Selection */}
                                         <div>
                                             <label className="block text-sm font-semibold text-gray-900 mb-3">
-                                                Select a day to see available time slots:
+                                                {registrationType === 'student' 
+                                                    ? 'Select a day to see available time slots:'
+                                                    : 'Select days when you are available to teach:'
+                                                }
                                             </label>
                                             <div className="grid grid-cols-7 gap-2">
                                                 {Object.keys(WEEKDAY_MAP).map((dayKey) => (
@@ -1366,21 +1451,39 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
 
                                         {/* Timing Selection Component */}
                                         <div className="min-h-[300px]">
-                                            <PreferredTimingSelector 
-                                                selectedCourses={courses.map(c => c.name) || []}
-                                                selectedTimings={
-                                                    Array.isArray(students[activeStudentIndex].preferredTimings) 
-                                                        ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object')
-                                                        : []
-                                                } 
-                                                onChange={(timings) => handleStudentDataChange(activeStudentIndex, 'preferredTimings', timings)}
-                                                userTimezone={guardianData.timezone}
-                                                showOnlySelections={false}
-                                                activeDay={timingActiveDay}
-                                                selectedCourse={modalCourse}
-                                                onDayToggle={setTimingActiveDay}
-                                                onCourseChange={setTimingSelectedCourse}
-                                            />
+                                            {registrationType === 'student' ? (
+                                                <PreferredTimingSelector 
+                                                    selectedCourses={courses.map(c => c.name) || []}
+                                                    selectedTimings={
+                                                        Array.isArray(students[activeStudentIndex].preferredTimings) 
+                                                            ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object')
+                                                            : []
+                                                    } 
+                                                    onChange={(timings) => handleStudentDataChange(activeStudentIndex, 'preferredTimings', timings)}
+                                                    userTimezone={guardianData.timezone}
+                                                    showOnlySelections={false}
+                                                    activeDay={timingActiveDay}
+                                                    selectedCourse={modalCourse}
+                                                    onDayToggle={setTimingActiveDay}
+                                                    onCourseChange={setTimingSelectedCourse}
+                                                />
+                                            ) : (
+                                                <PreferredTimingSelector 
+                                                    selectedCourses={courses.map(c => c.name) || []}
+                                                    selectedTimings={
+                                                        Array.isArray(teacherData.availableTimeSlots) 
+                                                            ? (teacherData.availableTimeSlots as CourseTimingSlot[]).filter(t => t && typeof t === 'object')
+                                                            : []
+                                                    } 
+                                                    onChange={(timings) => setTeacherData({...teacherData, availableTimeSlots: timings})}
+                                                    userTimezone={teacherData.timezone || 'Asia/Kolkata'}
+                                                    showOnlySelections={false}
+                                                    activeDay={timingActiveDay}
+                                                    selectedCourse={modalCourse}
+                                                    onDayToggle={setTimingActiveDay}
+                                                    onCourseChange={setTimingSelectedCourse}
+                                                />
+                                            )}
                                         </div>
                                     </div>
 
@@ -1389,11 +1492,18 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                         <div className="flex items-center justify-between">
                                             <div className="text-sm text-gray-600">
                                                 Selected: {
-                                                    Array.isArray(students[activeStudentIndex].preferredTimings) 
-                                                        ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[])
-                                                            .filter(t => t && typeof t === 'object' && t.courseName === modalCourse).length
-                                                        : 0
-                                                }/2 time slots for {modalCourse}
+                                                    registrationType === 'student' ? (
+                                                        Array.isArray(students[activeStudentIndex].preferredTimings) 
+                                                            ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[])
+                                                                .filter(t => t && typeof t === 'object' && t.courseName === modalCourse).length
+                                                            : 0
+                                                    ) : (
+                                                        Array.isArray(teacherData.availableTimeSlots) 
+                                                            ? (teacherData.availableTimeSlots as CourseTimingSlot[])
+                                                                .filter(t => t && typeof t === 'object' && t.courseName === modalCourse).length
+                                                            : 0
+                                                    )
+                                                }{registrationType === 'student' ? '/2' : ''} time slots for {modalCourse}
                                             </div>
                                             <button
                                                 type="button"
@@ -1414,32 +1524,35 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
 
                         {/* Right Sidebar */}
                         <div className="w-96 space-y-6">
-                            {registrationType === 'student' && (
-                                <div className="form-card">
-                                    <div className="p-4 bg-gradient-to-r from-green-50 to-teal-50 border-b">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
-                                                <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                                </svg>
-                                            </div>
-                                            <h3 className="font-semibold text-gray-800 text-sm">Registration Progress</h3>
+                            <div className="form-card">
+                                <div className="p-4 bg-gradient-to-r from-green-50 to-teal-50 border-b">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                                            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
                                         </div>
-                                    </div>
-                                    <div className="p-4 space-y-3">
-                                        <div className="flex items-center gap-2 text-xs">
-                                            <div className={`w-2 h-2 rounded-full ${currentStep >= 1 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                                            <span className={currentStep >= 1 ? 'text-green-700 font-medium' : 'text-gray-500'}>Guardian Details</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-xs">
-                                            <div className={`w-2 h-2 rounded-full ${currentStep >= 2 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                                            <span className={currentStep >= 2 ? 'text-green-700 font-medium' : 'text-gray-500'}>Student Information</span>
-                                        </div>
+                                        <h3 className="font-semibold text-gray-800 text-sm">Registration Progress</h3>
                                     </div>
                                 </div>
-                            )}
+                                <div className="p-4 space-y-3">
+                                    <div className="flex items-center gap-2 text-xs">
+                                        <div className={`w-2 h-2 rounded-full ${currentStep >= 1 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                                        <span className={currentStep >= 1 ? 'text-green-700 font-medium' : 'text-gray-500'}>
+                                            {registrationType === 'student' ? 'Guardian Details' : 'Your Account Details'}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs">
+                                        <div className={`w-2 h-2 rounded-full ${currentStep >= 2 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                                        <span className={currentStep >= 2 ? 'text-green-700 font-medium' : 'text-gray-500'}>
+                                            {registrationType === 'student' ? 'Student Information' : 'Professional Details'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
 
-                            {registrationType === 'student' && currentStep === 2 && students[activeStudentIndex] && (students[activeStudentIndex].courses?.length || 0) > 0 && (
+                            {((registrationType === 'student' && currentStep === 2 && students[activeStudentIndex] && (students[activeStudentIndex].courses?.length || 0) > 0) || 
+                              (registrationType === 'teacher' && currentStep === 2 && (teacherData.courseExpertise?.length || 0) > 0)) && (
                                 <div className="form-card">
                                     <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 border-b">
                                         <div className="flex items-center gap-2">
@@ -1448,22 +1561,40 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                                 </svg>
                                             </div>
-                                            <h3 className="font-semibold text-gray-800 text-sm">Schedule Selection</h3>
+                                            <h3 className="font-semibold text-gray-800 text-sm">
+                                                {registrationType === 'student' ? 'Schedule Selection' : 'Availability Schedule'}
+                                            </h3>
                                         </div>
-                                        <p className="text-xs text-gray-600 mt-1">Choose your preferred class times</p>
+                                        <p className="text-xs text-gray-600 mt-1">
+                                            {registrationType === 'student' ? 'Choose your preferred class times' : 'Set your teaching availability'}
+                                        </p>
                                     </div>
                                     <div className="p-4">
-                                        <PreferredTimingSelector 
-                                            selectedCourses={courses.map(c => c.name) || []}
-                                            selectedTimings={
-                                                Array.isArray(students[activeStudentIndex].preferredTimings) 
-                                                    ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object')
-                                                    : []
-                                            } 
-                                            onChange={(timings) => handleStudentDataChange(activeStudentIndex, 'preferredTimings', timings)}
-                                            userTimezone={guardianData.timezone}
-                                            showOnlySelections={true}
-                                        />
+                                        {registrationType === 'student' ? (
+                                            <PreferredTimingSelector 
+                                                selectedCourses={courses.map(c => c.name) || []}
+                                                selectedTimings={
+                                                    Array.isArray(students[activeStudentIndex].preferredTimings) 
+                                                        ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object')
+                                                        : []
+                                                } 
+                                                onChange={(timings) => handleStudentDataChange(activeStudentIndex, 'preferredTimings', timings)}
+                                                userTimezone={guardianData.timezone}
+                                                showOnlySelections={true}
+                                            />
+                                        ) : (
+                                            <PreferredTimingSelector 
+                                                selectedCourses={teacherData.courseExpertise || []}
+                                                selectedTimings={
+                                                    Array.isArray(teacherData.availableTimeSlots) 
+                                                        ? (teacherData.availableTimeSlots as CourseTimingSlot[]).filter(t => t && typeof t === 'object')
+                                                        : []
+                                                } 
+                                                onChange={(timings) => setTeacherData({...teacherData, availableTimeSlots: timings})}
+                                                userTimezone={teacherData.timezone || 'Asia/Kolkata'}
+                                                showOnlySelections={true}
+                                            />
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -1480,7 +1611,12 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                     </div>
                                 </div>
                                 <div className="p-4 space-y-2">
-                                    <p className="text-xs text-gray-600">Having trouble with registration?</p>
+                                    <p className="text-xs text-gray-600">
+                                        {registrationType === 'student' 
+                                            ? 'Having trouble with student registration?' 
+                                            : 'Having trouble with instructor application?'
+                                        }
+                                    </p>
                                     <button type="button" className="text-xs text-blue-600 hover:text-blue-800 font-medium">Contact Support</button>
                                 </div>
                             </div>
