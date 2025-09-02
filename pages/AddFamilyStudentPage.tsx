@@ -45,6 +45,13 @@ const AddFamilyStudentPage: React.FC = () => {
         };
         fetchPrerequisites();
     }, []);
+    
+    // Auto-select first available course tab when data loads
+    useEffect(() => {
+        if (!timingSelectedCourse && courses && courses.length > 0) {
+            setTimingSelectedCourse(courses[0].name);
+        }
+    }, [courses, timingSelectedCourse]);
 
     const handleChange = (field: keyof User, value: any) => {
         setStudentData(prev => {
