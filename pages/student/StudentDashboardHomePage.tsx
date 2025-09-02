@@ -120,9 +120,9 @@ const StudentDashboardHomePage: React.FC = () => {
                 <div />
                 <Link to="add" className="text-brand-purple font-semibold hover:underline">Add Students</Link>
             </div>
-            <div className="relative pt-6">
+            <div className="relative pt-0 -mt-2">
                 {/* timeline bar */}
-                <div className="absolute left-0 right-0 top-8 h-2 bg-gray-300 rounded-full" />
+                <div className="absolute left-0 right-0 top-6 h-2 bg-gray-300 rounded-full" />
                 <div className={`relative z-10 flex ${family.length > 1 ? 'justify-center' : 'justify-start'} gap-10`}>
                     {family.map((stu, idx) => {
                         const active = idx === activeIdx;
