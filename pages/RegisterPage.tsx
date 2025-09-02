@@ -490,10 +490,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                     <p className="text-gray-600 text-sm">Enroll in our arts programs and begin your creative journey</p>
                                 </button>
                                 <button 
-                                    onClick={() => {
-                                        setRegistrationType('teacher');
-                                        setLearningMode('inperson'); // Teachers default to in-person but can change later
-                                    }} 
+                                    onClick={() => setRegistrationType('teacher')} 
                                     className="registration-type-card"
                                 >
                                     <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -507,20 +504,24 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                             </div>
                         </div>
                     </div>
-                ) : registrationType && !learningMode && registrationType === 'student' ? (
+                ) : registrationType && !learningMode ? (
                     <div className="form-card">
                         <div className="form-header">
-                            <h1 className="text-2xl font-bold mb-2">Choose Your Learning Experience</h1>
-                            <p className="opacity-90">How would you prefer to attend your arts classes?</p>
+                            <h1 className="text-2xl font-bold mb-2">Choose Your {registrationType === 'student' ? 'Learning' : 'Teaching'} Experience</h1>
+                            <p className="opacity-90">{registrationType === 'student' ? 'How would you prefer to attend your arts classes?' : 'How would you prefer to conduct your arts classes?'}</p>
                         </div>
                         <div className="p-8">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <button 
                                     onClick={() => {
                                         setLearningMode('online');
-                                        setStudents([
-                                            { role: UserRole.Student, classPreference: ClassPreference.Online, sex: Sex.Male, courses: [], preferredTimings: [] as CourseTimingSlot[], photoUrl: '' }
-                                        ]);
+                                        if (registrationType === 'student') {
+                                            setStudents([
+                                                { role: UserRole.Student, classPreference: ClassPreference.Online, sex: Sex.Male, courses: [], preferredTimings: [] as CourseTimingSlot[], photoUrl: '' }
+                                            ]);
+                                        } else {
+                                            setTeacherData(prev => ({ ...prev, classPreference: ClassPreference.Online }));
+                                        }
                                     }} 
                                     className="registration-type-card"
                                 >
@@ -530,14 +531,18 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                         </svg>
                                     </div>
                                     <h2 className="text-xl font-bold text-gray-900 mb-2">Online Classes</h2>
-                                    <p className="text-gray-600 text-sm">Learn from anywhere with live virtual sessions and interactive lessons</p>
+                                    <p className="text-gray-600 text-sm">{registrationType === 'student' ? 'Learn from anywhere with live virtual sessions and interactive lessons' : 'Teach from anywhere with live virtual sessions and interactive lessons'}</p>
                                 </button>
                                 <button 
                                     onClick={() => {
                                         setLearningMode('inperson');
-                                        setStudents([
-                                            { role: UserRole.Student, classPreference: ClassPreference.Offline, sex: Sex.Male, courses: [], preferredTimings: [] as CourseTimingSlot[], photoUrl: '' }
-                                        ]);
+                                        if (registrationType === 'student') {
+                                            setStudents([
+                                                { role: UserRole.Student, classPreference: ClassPreference.Offline, sex: Sex.Male, courses: [], preferredTimings: [] as CourseTimingSlot[], photoUrl: '' }
+                                            ]);
+                                        } else {
+                                            setTeacherData(prev => ({ ...prev, classPreference: ClassPreference.Offline }));
+                                        }
                                     }} 
                                     className="registration-type-card"
                                 >
@@ -547,7 +552,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                         </svg>
                                     </div>
                                     <h2 className="text-xl font-bold text-gray-900 mb-2">In-Person Classes</h2>
-                                    <p className="text-gray-600 text-sm">Experience hands-on learning in our beautiful studio spaces with direct guidance</p>
+                                    <p className="text-gray-600 text-sm">{registrationType === 'student' ? 'Experience hands-on learning in our beautiful studio spaces with direct guidance' : 'Provide hands-on instruction in our beautiful studio spaces with direct student interaction'}</p>
                                 </button>
                             </div>
                             <div className="mt-6 text-center">
@@ -968,7 +973,17 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
 
                             {currentStep === 2 && registrationType === 'teacher' && (
                                 <div className="space-y-6">
-                                    <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Professional Details</h3>
+                                    <div className="flex items-center justify-between border-b pb-2">
+                                        <h3 className="text-lg font-semibold text-gray-900">Professional Details</h3>
+                                        <div className="inline-flex items-center gap-2">
+                                            <span className="text-sm text-gray-500">Teaching Mode:</span>
+                                            <span className={`px-3 py-1.5 text-sm font-medium rounded-md ${
+                                                learningMode === 'online' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                                            }`}>
+                                                {learningMode === 'online' ? 'Online Classes' : 'In-Person Classes'}
+                                            </span>
+                                        </div>
+                                    </div>
                                     
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
@@ -1004,20 +1019,9 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                 {Object.values(EmploymentType).map(s => <option key={s} value={s}>{s}</option>)}
                                             </select>
                                         </div>
-                                        <div>
-                                            <label className="form-label">Teaching Preference</label>
-                                            <select 
-                                                name="classPreference" 
-                                                value={teacherData.classPreference} 
-                                                onChange={handleTeacherChange} 
-                                                className="form-select"
-                                            >
-                                                {Object.values(ClassPreference).map(s => <option key={s} value={s}>{s}</option>)}
-                                            </select>
-                                        </div>
                                     </div>
 
-                                    {teacherData.classPreference === ClassPreference.Offline && (
+                                    {learningMode === 'inperson' && (
                                         <div>
                                             <label className="form-label">Preferred Location</label>
                                             <select 
