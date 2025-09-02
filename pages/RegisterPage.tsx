@@ -400,7 +400,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
             {/* Modern CSS-in-JS styles */}
             <style>{`
                 .form-card { background: white; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
-                .form-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 16px 16px 0 0; text-align: center; }
+                .form-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1rem 1.5rem; border-radius: 16px 16px 0 0; text-align: center; }
                 .form-input, .form-select, .form-textarea { 
                     width: 100%; padding: 0.65rem 0.75rem; border: 2px solid #e5e7eb; border-radius: 8px; 
                     font-size: 0.875rem; font-weight: 500; transition: all 0.2s; background: #fafafa;
@@ -409,8 +409,8 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                     border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); outline: none; background: white;
                 }
                 .form-label { display: block; font-size: 0.75rem; font-weight: 600; color: #374151; margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px; }
-                .step-indicator { display: flex; justify-content: center; align-items: center; margin: 1.5rem 0; }
-                .step-dot { width: 2rem; height: 2rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.75rem; margin: 0 0.5rem; transition: all 0.3s; }
+                .step-indicator { display: flex; justify-content: center; align-items: center; margin: 0.5rem 0; }
+                .step-dot { width: 1.5rem; height: 1.5rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.625rem; margin: 0 0.5rem; transition: all 0.3s; }
                 .step-dot.active { background: linear-gradient(135deg, #667eea, #764ba2); color: white; transform: scale(1.1); }
                 .step-dot.completed { background: #10b981; color: white; }
                 .step-dot.inactive { background: #e5e7eb; color: #9ca3af; }
@@ -455,7 +455,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                 }
             `}</style>
 
-            <div className="container mx-auto px-4 max-w-4xl">
+            <div className="container mx-auto px-4 max-w-7xl">
                 {!registrationType ? (
                     <div className="form-card">
                         <div className="form-header">
@@ -492,21 +492,31 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                         </div>
                     </div>
                 ) : (
-                    <div className="form-card">
-                        <div className="form-header">
-                            <h1 className="text-xl font-bold">
-                                {registrationType === 'student' ? 'Student Registration' : 'Instructor Application'}
-                            </h1>
-                            <div className="step-indicator mt-4">
-                                <div className={`step-dot ${currentStep >= 1 ? 'active' : 'inactive'}`}>1</div>
-                                <div className={`step-line ${currentStep > 1 ? 'completed' : ''}`}></div>
-                                <div className={`step-dot ${currentStep === 2 ? 'active' : currentStep > 2 ? 'completed' : 'inactive'}`}>2</div>
-                            </div>
-                        </div>
+                    <div className="flex gap-8">
+                        {/* Main Form */}
+                        <div className="flex-1">
+                            <div className="form-card">
+                                <div className="form-header">
+                                    <div className="flex items-center justify-center gap-3 mb-2">
+                                        <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M10 2L13 7l5 1-4 4 1 5-5-3-5 3 1-5-4-4 5-1z"/>
+                                            </svg>
+                                        </div>
+                                        <h1 className="text-lg font-bold">
+                                            {registrationType === 'student' ? 'Student Registration' : 'Instructor Application'}
+                                        </h1>
+                                    </div>
+                                    <div className="step-indicator mt-2">
+                                        <div className={`step-dot ${currentStep >= 1 ? 'active' : 'inactive'}`}>1</div>
+                                        <div className={`step-line ${currentStep > 1 ? 'completed' : ''}`}></div>
+                                        <div className={`step-dot ${currentStep === 2 ? 'active' : currentStep > 2 ? 'completed' : 'inactive'}`}>2</div>
+                                    </div>
+                                </div>
 
-                        {error && <div className="error-alert mx-6 mt-6">{error}</div>}
+                                {error && <div className="error-alert mx-6 mt-6">{error}</div>}
 
-                        <form onSubmit={handleSubmit} className="p-6">
+                                <form onSubmit={handleSubmit} className="p-6">
                             {currentStep === 1 && (
                                 <div className="space-y-6">
                                     <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">
@@ -812,22 +822,6 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                 </div>
                                             </div>
 
-                                            {(students[activeStudentIndex].courses?.length || 0) > 0 && (
-                                                <div>
-                                                    <label className="form-label">Preferred Class Times (Optional)</label>
-                                                    <p className="text-xs text-gray-600 mb-3">Help us find the best schedule for you</p>
-                                                    <PreferredTimingSelector 
-                                                        selectedCourses={students[activeStudentIndex].courses || []}
-                                                        selectedTimings={
-                                                            Array.isArray(students[activeStudentIndex].preferredTimings) 
-                                                                ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object')
-                                                                : []
-                                                        } 
-                                                        onChange={(timings) => handleStudentDataChange(activeStudentIndex, 'preferredTimings', timings)}
-                                                        userTimezone={guardianData.timezone}
-                                                    />
-                                                </div>
-                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -973,6 +967,81 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                 )}
                             </div>
                         </form>
+                        </div>
+                        </div>
+
+                        {/* Right Sidebar */}
+                        <div className="w-96 space-y-6">
+                            {registrationType === 'student' && currentStep === 2 && students[activeStudentIndex] && (students[activeStudentIndex].courses?.length || 0) > 0 && (
+                                <div className="form-card">
+                                    <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 border-b">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center">
+                                                <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                </svg>
+                                            </div>
+                                            <h3 className="font-semibold text-gray-800 text-sm">Schedule Selection</h3>
+                                        </div>
+                                        <p className="text-xs text-gray-600 mt-1">Choose your preferred class times</p>
+                                    </div>
+                                    <div className="p-4">
+                                        <PreferredTimingSelector 
+                                            selectedCourses={students[activeStudentIndex].courses || []}
+                                            selectedTimings={
+                                                Array.isArray(students[activeStudentIndex].preferredTimings) 
+                                                    ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object')
+                                                    : []
+                                            } 
+                                            onChange={(timings) => handleStudentDataChange(activeStudentIndex, 'preferredTimings', timings)}
+                                            userTimezone={guardianData.timezone}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {registrationType === 'student' && (
+                                <div className="form-card">
+                                    <div className="p-4 bg-gradient-to-r from-green-50 to-teal-50 border-b">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                                                <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                </svg>
+                                            </div>
+                                            <h3 className="font-semibold text-gray-800 text-sm">Registration Progress</h3>
+                                        </div>
+                                    </div>
+                                    <div className="p-4 space-y-3">
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <div className={`w-2 h-2 rounded-full ${currentStep >= 1 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                                            <span className={currentStep >= 1 ? 'text-green-700 font-medium' : 'text-gray-500'}>Guardian Details</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <div className={`w-2 h-2 rounded-full ${currentStep >= 2 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                                            <span className={currentStep >= 2 ? 'text-green-700 font-medium' : 'text-gray-500'}>Student Information</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="form-card">
+                                <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                                            <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                        </div>
+                                        <h3 className="font-semibold text-gray-800 text-sm">Need Help?</h3>
+                                    </div>
+                                </div>
+                                <div className="p-4 space-y-2">
+                                    <p className="text-xs text-gray-600">Having trouble with registration?</p>
+                                    <button type="button" className="text-xs text-blue-600 hover:text-blue-800 font-medium">Contact Support</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
 

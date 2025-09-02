@@ -288,7 +288,7 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
                                         key={timeSlot}
                                         onClick={() => handleTimingClick(timeSlot)}
                                         disabled={isDisabled}
-                                        className={`p-2 text-sm rounded-md border text-center transition-colors ${
+                                        className={`p-1.5 text-sm rounded-md border text-center transition-colors ${
                                             isSelected 
                                                 ? `${colors.bg} ${colors.text} ${colors.border} font-semibold` 
                                                 : isDisabled 
@@ -298,21 +298,17 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
                                     >
                                         {detectedTimezone === IST_TIMEZONE ? (
                                             // For IST users, show IST time only
-                                            <div>
-                                                <div>{timeSlot}</div>
-                                                <div className="text-xs text-purple-600 font-medium">IST</div>
+                                            <div className="text-center">
+                                                <div className="font-medium">{timeSlot} IST</div>
                                             </div>
                                         ) : (
                                             // For non-IST users, show local time with IST reference
-                                            <div>
+                                            <div className="text-center">
                                                 {(() => {
                                                     const utcSlot = createUtcTimeSlot(WEEKDAY_MAP[activeDay as keyof typeof WEEKDAY_MAP], timeSlot, IST_TIMEZONE);
                                                     const dualDisplay = createDualTimezoneDisplay(utcSlot.startUtc, utcSlot.endUtc, detectedTimezone);
                                                     return (
-                                                        <>
-                                                            <div className="font-medium">{dualDisplay.localTime}</div>
-                                                            <div className="text-xs text-purple-600">{timeSlot} IST</div>
-                                                        </>
+                                                        <div className="font-medium">{dualDisplay.localTime} ({timeSlot} IST)</div>
                                                     );
                                                 })()}
                                             </div>
