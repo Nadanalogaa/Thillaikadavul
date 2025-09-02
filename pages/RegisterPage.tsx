@@ -835,6 +835,23 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                 )}
                                             </div>
 
+                                            <div>
+                                                <label className="form-label">Course Selection</label>
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+                                                    {courses.map(course => (
+                                                        <label key={course.id} className={`course-card ${students[activeStudentIndex].courses?.includes(course.name) ? 'selected' : ''}`}>
+                                                            <input 
+                                                                type="checkbox" 
+                                                                value={course.name} 
+                                                                checked={students[activeStudentIndex].courses?.includes(course.name) || false} 
+                                                                onChange={(e) => handleStudentCourseChange(activeStudentIndex, course.name, e.target.checked)} 
+                                                                className="sr-only"
+                                                            />
+                                                            <div className="text-sm font-semibold">{course.name}</div>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </div>
 
                                             {/* Day Selection and Course Selection for Timing moved to main form */}
                                             {(students[activeStudentIndex].courses?.length || 0) > 0 && (
