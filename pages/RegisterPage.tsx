@@ -870,6 +870,32 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                     <p className="text-xs text-gray-600">Help us find the best schedule for you</p>
                                                     
 
+                                                    {/* Course Selection for Scheduling */}
+                                                    <div>
+                                                        <label className="form-label">Which course are you scheduling? (Single select)</label>
+                                                        <div className="flex flex-wrap gap-2 mb-4">
+                                                            {(students[activeStudentIndex].courses || []).map(course => {
+                                                                const courseSlots = (Array.isArray(students[activeStudentIndex].preferredTimings) 
+                                                                    ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object' && t.courseName === course)
+                                                                    : []);
+                                                                return (
+                                                                    <button
+                                                                        key={course}
+                                                                        type="button"
+                                                                        onClick={() => setTimingSelectedCourse(course)}
+                                                                        className={`px-3 py-2 text-sm font-medium rounded-md border transition-all ${
+                                                                            timingSelectedCourse === course 
+                                                                                ? 'bg-blue-100 text-blue-800 border-blue-300 ring-2 ring-offset-1 ring-blue-300'
+                                                                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                                                        }`}
+                                                                    >
+                                                                        {course} ({courseSlots.length}/2)
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+
                                                     {/* Day Selection */}
                                                     <div>
                                                         <label className="form-label">Toggle a day to see available time slots:</label>

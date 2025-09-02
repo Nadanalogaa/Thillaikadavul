@@ -152,12 +152,21 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
             return;
         }
         
-        // Check if course already has 2 slots (1 hour × 2 days per week)
-        const courseSlots = (selectedTimings || []).filter(slot => 
+        // Get current course slots for validation
+        const currentCourseSlots = (selectedTimings || []).filter(slot => 
             slot && typeof slot === 'object' && slot.courseName === currentSelectedCourse
         );
-        if (courseSlots.length >= 2) {
-            alert(`${currentSelectedCourse} already has 2 time slots selected. Please remove one to add another.`);
+        
+        // Rule 1: Check if course already has 2 slots
+        if (currentCourseSlots.length >= 2) {
+            alert(`${currentSelectedCourse} already has 2 time slots selected (maximum allowed). Please remove one to add another.`);
+            return;
+        }
+        
+        // Rule 2: Check if same day already has a slot for this course
+        const sameDaySlot = currentCourseSlots.find(slot => slot.day === fullDay);
+        if (sameDaySlot) {
+            alert(`${currentSelectedCourse} already has a class on ${fullDay} at ${sameDaySlot.timeSlot}. Only one class per day per course is allowed.`);
             return;
         }
         
@@ -181,16 +190,41 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
     };
     
     const isSlotDisabled = (timeSlot: string): boolean => {
-        if (!currentActiveDay) return true;
+        if (!currentActiveDay || !currentSelectedCourse) return true;
         const fullDay = WEEKDAY_MAP[currentActiveDay as keyof typeof WEEKDAY_MAP];
         
-        // Check if any other course has this slot
-        return (selectedTimings || []).some(slot => 
+        // Get current course slots
+        const currentCourseSlots = (selectedTimings || []).filter(slot => 
+            slot && typeof slot === 'object' && slot.courseName === currentSelectedCourse
+        );
+        
+        // Rule 1: If course already has 2 slots, disable all other slots for this course
+        if (currentCourseSlots.length >= 2) {
+            return !currentCourseSlots.some(slot => 
+                slot.day === fullDay && slot.timeSlot === timeSlot
+            );
+        }
+        
+        // Rule 2: Can't pick multiple hours on same day for same course
+        const sameDayCurrentCourse = currentCourseSlots.some(slot => 
+            slot.day === fullDay
+        );
+        if (sameDayCurrentCourse) {
+            // Allow only if this exact slot is already selected
+            return !currentCourseSlots.some(slot => 
+                slot.day === fullDay && slot.timeSlot === timeSlot
+            );
+        }
+        
+        // Rule 3: Check if any other course has this exact slot (cross-course conflicts)
+        const conflictingSlot = (selectedTimings || []).find(slot => 
             slot && typeof slot === 'object' &&
             slot.day === fullDay && 
             slot.timeSlot === timeSlot && 
             slot.courseName !== currentSelectedCourse
         );
+        
+        return !!conflictingSlot;
     };
 
     // Group selected timings by course (with safety check)
@@ -272,12 +306,45 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
                                 const isDisabled = isSlotDisabled(timeSlot);
                                 const colors = COURSE_COLORS[currentSelectedCourse] || COURSE_COLORS['Bharatanatyam'];
                                 
+                                // Get disabled reason for tooltip
+                                const getDisabledReason = (): string => {
+                                    if (!currentActiveDay || !currentSelectedCourse) return '';
+                                    const fullDay = WEEKDAY_MAP[currentActiveDay as keyof typeof WEEKDAY_MAP];
+                                    
+                                    const currentCourseSlots = (selectedTimings || []).filter(slot => 
+                                        slot && typeof slot === 'object' && slot.courseName === currentSelectedCourse
+                                    );
+                                    
+                                    if (currentCourseSlots.length >= 2) {
+                                        return `${currentSelectedCourse} already has 2 slots selected (maximum)`;
+                                    }
+                                    
+                                    const sameDaySlot = currentCourseSlots.find(slot => slot.day === fullDay);
+                                    if (sameDaySlot) {
+                                        return `${currentSelectedCourse} already has a class on ${fullDay} at ${sameDaySlot.timeSlot}`;
+                                    }
+                                    
+                                    const conflictingSlot = (selectedTimings || []).find(slot => 
+                                        slot && typeof slot === 'object' &&
+                                        slot.day === fullDay && 
+                                        slot.timeSlot === timeSlot && 
+                                        slot.courseName !== currentSelectedCourse
+                                    );
+                                    
+                                    if (conflictingSlot) {
+                                        return `Conflicts with ${conflictingSlot.courseName} ${fullDay} ${timeSlot}`;
+                                    }
+                                    
+                                    return '';
+                                };
+                                
                                 return (
                                     <button
                                         type="button"
                                         key={timeSlot}
                                         onClick={() => handleTimingClick(timeSlot)}
                                         disabled={isDisabled}
+                                        title={isDisabled ? getDisabledReason() : `Select ${timeSlot} for ${currentSelectedCourse} on ${WEEKDAY_MAP[currentActiveDay as keyof typeof WEEKDAY_MAP]}`}
                                         className={`p-1.5 text-sm rounded-md border text-center transition-colors ${
                                             isSelected 
                                                 ? `${colors.bg} ${colors.text} ${colors.border} font-semibold` 
