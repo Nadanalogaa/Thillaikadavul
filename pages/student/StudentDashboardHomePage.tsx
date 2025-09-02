@@ -117,27 +117,34 @@ const StudentDashboardHomePage: React.FC = () => {
 
             {/* Student Tabs Timeline */}
             <div className="flex items-center justify-between">
-                <div className="flex-1 h-2 bg-gray-300 rounded-full mx-6" />
+                <div />
                 <Link to="add" className="text-brand-purple font-semibold hover:underline">Add Students</Link>
             </div>
-            <div className={`flex ${family.length > 1 ? 'justify-center' : 'justify-start'} gap-6`}>
-                {family.map((stu, idx) => {
-                    const active = idx === activeIdx;
-                    return (
-                        <div key={stu.id} className="flex flex-col items-center">
-                            <button
-                                className={`rounded-2xl p-1 shadow ${active ? 'bg-gray-400' : 'bg-gray-200'}`}
-                                onClick={() => setActiveIdx(idx)}
-                            >
-                                <img
-                                    src={stu.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(stu.name || 'Student')}&background=E5E7EB&color=111827`}
-                                    className="w-16 h-16 rounded-full object-cover border-4 border-white"
-                                />
-                            </button>
-                            <div className={`mt-2 text-sm font-semibold ${active ? 'text-dark-text' : 'text-gray-500'}`}>{stu.name || `Student ${idx + 1}`}</div>
-                        </div>
-                    );
-                })}
+            <div className="relative pt-6">
+                {/* timeline bar */}
+                <div className="absolute left-0 right-0 top-8 h-2 bg-gray-300 rounded-full" />
+                <div className={`relative z-10 flex ${family.length > 1 ? 'justify-center' : 'justify-start'} gap-10`}>
+                    {family.map((stu, idx) => {
+                        const active = idx === activeIdx;
+                        const name = stu.name || `Student ${idx + 1}`;
+                        return (
+                            <div key={stu.id} className="flex flex-col items-center">
+                                <button
+                                    className={`rounded-2xl p-1 shadow-md transition-colors ${active ? 'bg-gray-400' : 'bg-gray-200'}`}
+                                    onClick={() => setActiveIdx(idx)}
+                                    title={name}
+                                >
+                                    <img
+                                        src={stu.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(stu.name || 'Student')}&background=E5E7EB&color=111827`}
+                                        className="w-16 h-16 rounded-full object-cover border-4 border-white"
+                                        alt={name}
+                                    />
+                                </button>
+                                <div className={`mt-2 text-sm font-semibold ${active ? 'text-dark-text' : 'text-gray-500'}`}>{name}</div>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
 
             {/* Main content grid */}
