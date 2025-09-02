@@ -1222,29 +1222,19 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                         {/* Timing Selection Component */}
                                         <div className="min-h-[300px]">
                                             <PreferredTimingSelector 
-                                                selectedCourses={modalCourse ? [modalCourse] : []}
+                                                selectedCourses={courses.map(c => c.name) || []}
                                                 selectedTimings={
                                                     Array.isArray(students[activeStudentIndex].preferredTimings) 
-                                                        ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object' && t.courseName === modalCourse)
+                                                        ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object')
                                                         : []
                                                 } 
-                                                onChange={(timings) => {
-                                                    // Update only timings for the current modal course
-                                                    const currentTimings = Array.isArray(students[activeStudentIndex].preferredTimings) 
-                                                        ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object')
-                                                        : [];
-                                                    
-                                                    const otherCourseTimings = currentTimings.filter(t => t.courseName !== modalCourse);
-                                                    const updatedTimings = [...otherCourseTimings, ...timings];
-                                                    
-                                                    handleStudentDataChange(activeStudentIndex, 'preferredTimings', updatedTimings);
-                                                }}
+                                                onChange={(timings) => handleStudentDataChange(activeStudentIndex, 'preferredTimings', timings)}
                                                 userTimezone={guardianData.timezone}
                                                 showOnlySelections={false}
                                                 activeDay={timingActiveDay}
                                                 selectedCourse={modalCourse}
                                                 onDayToggle={setTimingActiveDay}
-                                                onCourseChange={() => {}} // Not needed in modal
+                                                onCourseChange={setTimingSelectedCourse}
                                             />
                                         </div>
                                     </div>
