@@ -724,7 +724,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                 </div>
                             )}
 
-                            {currentStep === 2 && registrationType === 'student' && (
+                            {currentStep === 2 && registrationType === 'student' && students[activeStudentIndex] && (
                                 <div className="space-y-6">
                                     <div className="flex items-center justify-between border-b pb-2">
                                         <h3 className="text-lg font-semibold text-gray-900">Student Details</h3>
@@ -790,7 +790,6 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                     </div>
 
                                     {/* Current student form */}
-                                    {students[activeStudentIndex] && (
                                         <div className="space-y-4">
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                                 <div>
@@ -914,7 +913,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                     />
                                                 </div>
                                             </div>
-                                        )}
+                                </div>
                                 </div>
                             )}
 
