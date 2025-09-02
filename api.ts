@@ -688,6 +688,8 @@ export const addCourseByAdmin = async (courseData: Omit<Course, 'id'>): Promise<
         name: courseData.name,
         description: courseData.description,
         icon: courseData.icon,
+        image: courseData.image,
+        icon_url: courseData.icon_url,
         created_at: new Date().toISOString()
       }])
       .select()
@@ -702,7 +704,9 @@ export const addCourseByAdmin = async (courseData: Omit<Course, 'id'>): Promise<
       id: data.id,
       name: data.name,
       description: data.description,
-      icon: data.icon
+      icon: data.icon,
+      image: data.image,
+      icon_url: data.icon_url
     };
   } catch (error) {
     console.error('Error in addCourseByAdmin:', error);
@@ -715,6 +719,8 @@ export const updateCourseByAdmin = async (courseId: string, courseData: Partial<
     if (courseData.name !== undefined) updateData.name = courseData.name;
     if (courseData.description !== undefined) updateData.description = courseData.description;
     if (courseData.icon !== undefined) updateData.icon = courseData.icon;
+    if (courseData.image !== undefined) updateData.image = courseData.image;
+    if (courseData.icon_url !== undefined) updateData.icon_url = courseData.icon_url;
     updateData.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase
@@ -733,7 +739,9 @@ export const updateCourseByAdmin = async (courseId: string, courseData: Partial<
       id: data.id,
       name: data.name,
       description: data.description,
-      icon: data.icon
+      icon: data.icon,
+      image: data.image,
+      icon_url: data.icon_url
     };
   } catch (error) {
     console.error('Error in updateCourseByAdmin:', error);
