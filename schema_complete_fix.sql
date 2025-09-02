@@ -68,12 +68,12 @@
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
 
-    -- Insert default courses with new columns
+    -- Insert default courses with new columns (no hardcoded images)
     INSERT INTO courses (name, description, icon, image, icon_url) VALUES
-    ('Bharatanatyam', 'Explore the divine art of classical Indian dance with graceful movements and expressive storytelling', 'Bharatanatyam', '/images/Barathanatyam.png', NULL),
-    ('Vocal', 'Develop your voice with traditional Carnatic vocal music techniques and classical compositions', 'Vocal', '/images/Barathanatyam.png', NULL),
-    ('Drawing', 'Learn to express creativity through various drawing techniques and artistic mediums', 'Drawing', '/images/Barathanatyam.png', NULL),
-    ('Abacus', 'Master mental arithmetic and boost mathematical skills with traditional abacus methods', 'Abacus', '/images/Barathanatyam.png', NULL);
+    ('Bharatanatyam', 'Explore the divine art of classical Indian dance with graceful movements and expressive storytelling', 'Bharatanatyam', NULL, NULL),
+    ('Vocal', 'Develop your voice with traditional Carnatic vocal music techniques and classical compositions', 'Vocal', NULL, NULL),
+    ('Drawing', 'Learn to express creativity through various drawing techniques and artistic mediums', 'Drawing', NULL, NULL),
+    ('Abacus', 'Master mental arithmetic and boost mathematical skills with traditional abacus methods', 'Abacus', NULL, NULL);
 
     INSERT INTO locations (name, address, is_active)
     SELECT 'Main Center', 'Enter your main location address', true

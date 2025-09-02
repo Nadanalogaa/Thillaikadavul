@@ -944,11 +944,23 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                             >
                                                                 {/* Course Image */}
                                                                 <div className="aspect-w-16 aspect-h-12 bg-gradient-to-br from-orange-100 via-yellow-50 to-pink-100">
-                                                                    <img 
-                                                                        src={course.image || "/images/Barathanatyam.png"} 
-                                                                        alt={courseName}
-                                                                        className="w-full h-32 object-contain p-4"
-                                                                    />
+                                                                    {course.image ? (
+                                                                        <img 
+                                                                            src={course.image} 
+                                                                            alt={courseName}
+                                                                            className="w-full h-32 object-contain p-4"
+                                                                        />
+                                                                    ) : (
+                                                                        <div className="flex items-center justify-center h-32 p-4">
+                                                                            <div className="text-center text-gray-500">
+                                                                                <svg className="w-12 h-12 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                                                                </svg>
+                                                                                <p className="text-xs font-medium">{courseName}</p>
+                                                                                <p className="text-xs text-gray-400">No image uploaded</p>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                                 
                                                                 {/* Course Content */}
