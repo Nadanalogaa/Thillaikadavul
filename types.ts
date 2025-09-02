@@ -148,6 +148,8 @@ export interface Course {
   name:string;
   description: string;
   icon: string;
+  image?: string; // URL/path for registration screen display
+  iconUrl?: string; // URL/path for custom icon upload
 }
 
 export interface DashboardStats {
