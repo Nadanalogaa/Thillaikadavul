@@ -838,18 +838,28 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                             <div>
                                                 <label className="form-label">Course Selection</label>
                                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
-                                                    {courses.map(course => (
-                                                        <label key={course.id} className={`course-card ${students[activeStudentIndex].courses?.includes(course.name) ? 'selected' : ''}`}>
-                                                            <input 
-                                                                type="checkbox" 
-                                                                value={course.name} 
-                                                                checked={students[activeStudentIndex].courses?.includes(course.name) || false} 
-                                                                onChange={(e) => handleStudentCourseChange(activeStudentIndex, course.name, e.target.checked)} 
-                                                                className="sr-only"
-                                                            />
-                                                            <div className="text-sm font-semibold">{course.name}</div>
-                                                        </label>
-                                                    ))}
+                                                    {courses.map(course => {
+                                                        const courseSlots = (Array.isArray(students[activeStudentIndex].preferredTimings) 
+                                                            ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object' && t.courseName === course.name)
+                                                            : []);
+                                                        return (
+                                                            <label key={course.id} className={`course-card ${students[activeStudentIndex].courses?.includes(course.name) ? 'selected' : ''}`}>
+                                                                <input 
+                                                                    type="checkbox" 
+                                                                    value={course.name} 
+                                                                    checked={students[activeStudentIndex].courses?.includes(course.name) || false} 
+                                                                    onChange={(e) => handleStudentCourseChange(activeStudentIndex, course.name, e.target.checked)} 
+                                                                    className="sr-only"
+                                                                />
+                                                                <div className="text-sm font-semibold">
+                                                                    {course.name}
+                                                                    {students[activeStudentIndex].courses?.includes(course.name) && (
+                                                                        <span className="ml-1 text-xs opacity-75">({courseSlots.length}/2)</span>
+                                                                    )}
+                                                                </div>
+                                                            </label>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
 
@@ -859,31 +869,6 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                     <h4 className="text-sm font-semibold text-gray-800 border-b pb-2">Preferred Class Times (Optional)</h4>
                                                     <p className="text-xs text-gray-600">Help us find the best schedule for you</p>
                                                     
-                                                    {/* Course Selection for Timing */}
-                                                    <div>
-                                                        <label className="form-label">Select course to schedule:</label>
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {(students[activeStudentIndex].courses || []).map(course => {
-                                                                const courseSlots = (Array.isArray(students[activeStudentIndex].preferredTimings) 
-                                                                    ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object' && t.courseName === course)
-                                                                    : []);
-                                                                return (
-                                                                    <button
-                                                                        key={course}
-                                                                        type="button"
-                                                                        onClick={() => setTimingSelectedCourse(course)}
-                                                                        className={`px-3 py-2 text-sm font-medium rounded-md border transition-all ${
-                                                                            timingSelectedCourse === course 
-                                                                                ? 'bg-purple-100 text-purple-800 border-purple-300 ring-2 ring-offset-1 ring-purple-300'
-                                                                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                                                                        }`}
-                                                                    >
-                                                                        {course} ({courseSlots.length}/2)
-                                                                    </button>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    </div>
 
                                                     {/* Day Selection */}
                                                     <div>
@@ -1074,6 +1059,31 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
 
                         {/* Right Sidebar */}
                         <div className="w-96 space-y-6">
+                            {registrationType === 'student' && (
+                                <div className="form-card">
+                                    <div className="p-4 bg-gradient-to-r from-green-50 to-teal-50 border-b">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                                                <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                </svg>
+                                            </div>
+                                            <h3 className="font-semibold text-gray-800 text-sm">Registration Progress</h3>
+                                        </div>
+                                    </div>
+                                    <div className="p-4 space-y-3">
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <div className={`w-2 h-2 rounded-full ${currentStep >= 1 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                                            <span className={currentStep >= 1 ? 'text-green-700 font-medium' : 'text-gray-500'}>Guardian Details</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <div className={`w-2 h-2 rounded-full ${currentStep >= 2 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                                            <span className={currentStep >= 2 ? 'text-green-700 font-medium' : 'text-gray-500'}>Student Information</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {registrationType === 'student' && currentStep === 2 && students[activeStudentIndex] && (students[activeStudentIndex].courses?.length || 0) > 0 && (
                                 <div className="form-card">
                                     <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 border-b">
@@ -1099,31 +1109,6 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                             userTimezone={guardianData.timezone}
                                             showOnlySelections={true}
                                         />
-                                    </div>
-                                </div>
-                            )}
-
-                            {registrationType === 'student' && (
-                                <div className="form-card">
-                                    <div className="p-4 bg-gradient-to-r from-green-50 to-teal-50 border-b">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
-                                                <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                                </svg>
-                                            </div>
-                                            <h3 className="font-semibold text-gray-800 text-sm">Registration Progress</h3>
-                                        </div>
-                                    </div>
-                                    <div className="p-4 space-y-3">
-                                        <div className="flex items-center gap-2 text-xs">
-                                            <div className={`w-2 h-2 rounded-full ${currentStep >= 1 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                                            <span className={currentStep >= 1 ? 'text-green-700 font-medium' : 'text-gray-500'}>Guardian Details</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-xs">
-                                            <div className={`w-2 h-2 rounded-full ${currentStep >= 2 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                                            <span className={currentStep >= 2 ? 'text-green-700 font-medium' : 'text-gray-500'}>Student Information</span>
-                                        </div>
                                     </div>
                                 </div>
                             )}
