@@ -145,11 +145,13 @@ export interface ContactFormData {
 
 export interface Course {
   id: string;
-  name:string;
+  name: string;
   description: string;
   icon: string;
   image?: string; // URL/path for registration screen display
-  iconUrl?: string; // URL/path for custom icon upload
+  icon_url?: string; // URL/path for custom icon upload (matches DB column name)
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface DashboardStats {

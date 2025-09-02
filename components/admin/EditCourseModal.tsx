@@ -26,10 +26,10 @@ const EditCourseModal: React.FC<EditCourseModalProps> = ({ isOpen, onClose, cour
                 description: course.description || '',
                 icon: course.icon || ICON_NAMES[0],
                 image: course.image || '',
-                iconUrl: course.iconUrl || '',
+                icon_url: course.icon_url || '',
             });
             setImagePreview(course.image || null);
-            setIconPreview(course.iconUrl || null);
+            setIconPreview(course.icon_url || null);
         }
     }, [course]);
 
@@ -59,7 +59,7 @@ const EditCourseModal: React.FC<EditCourseModalProps> = ({ isOpen, onClose, cour
             reader.onload = (e) => {
                 const result = e.target?.result as string;
                 setIconPreview(result);
-                setFormData({ ...formData, iconUrl: result });
+                setFormData({ ...formData, icon_url: result });
             };
             reader.readAsDataURL(file);
         }
