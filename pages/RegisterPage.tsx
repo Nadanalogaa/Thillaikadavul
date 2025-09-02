@@ -440,13 +440,23 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                     border-radius: 8px; font-weight: 600; font-size: 0.875rem; cursor: pointer; transition: all 0.3s;
                 }
                 .btn-secondary:hover { border-color: #d1d5db; background: #f9fafb; }
-                .course-card { 
-                    border: 2px solid #e5e7eb; border-radius: 8px; padding: 0.75rem; text-align: center; 
-                    transition: all 0.3s; cursor: pointer; background: #fafafa;
+                .course-tile { 
+                    border: 2px solid #e5e7eb; border-radius: 12px; overflow: hidden;
+                    transition: all 0.3s ease; cursor: pointer; background: white;
+                    box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
                 }
-                .course-card:hover { border-color: #667eea; background: white; }
-                .course-card.selected { border-color: #667eea; background: linear-gradient(135deg, #667eea15, #764ba215); }
-                .course-card.scheduling { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
+                .course-tile:hover { 
+                    border-color: #3b82f6; transform: translateY(-2px); 
+                    box-shadow: 0 8px 25px -5px rgba(59, 130, 246, 0.2);
+                }
+                .course-tile.selected { 
+                    border-color: #3b82f6; background: #eff6ff;
+                    box-shadow: 0 4px 14px -3px rgba(59, 130, 246, 0.3);
+                }
+                .course-tile.active { 
+                    border-color: #1d4ed8; 
+                    box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.2);
+                }
                 .student-tab { 
                     padding: 0.5rem 1rem; border-radius: 6px 6px 0 0; font-size: 0.75rem; font-weight: 600; 
                     cursor: pointer; transition: all 0.2s; margin-right: 0.25rem;
@@ -894,35 +904,80 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                 )}
                                             </div>
 
-                                            {/* Course tabs (single-select) */}
-                                            <div>
-                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+                                            {/* Course Selection */}
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <h4 className="text-lg font-semibold text-gray-900 mb-1">Select your Course</h4>
+                                                    <p className="text-sm text-gray-600 mb-6">You can select multiple courses</p>
+                                                </div>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                                     {courses.map(course => {
                                                         const courseName = course.name;
                                                         const courseSlots = (Array.isArray(students[activeStudentIndex].preferredTimings)
                                                             ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object' && t.courseName === courseName)
                                                             : []);
                                                         const isActive = timingSelectedCourse === courseName;
+                                                        const isSelected = (students[activeStudentIndex].courses || []).includes(courseName);
                                                         return (
-                                                            <button
+                                                            <div
                                                                 key={course.id}
-                                                                type="button"
+                                                                className={`relative overflow-hidden rounded-xl border-2 transition-all duration-300 cursor-pointer transform hover:scale-105 ${
+                                                                    isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:border-blue-300'
+                                                                } ${isActive ? 'ring-2 ring-blue-300 ring-offset-2' : ''}`}
                                                                 onClick={() => {
-                                                                    setTimingSelectedCourse(courseName);
-                                                                    ensureStudentHasCourse(activeStudentIndex, courseName);
+                                                                    // Toggle course selection
+                                                                    const currentCourses = students[activeStudentIndex].courses || [];
+                                                                    const newCourses = currentCourses.includes(courseName) 
+                                                                        ? currentCourses.filter(c => c !== courseName)
+                                                                        : [...currentCourses, courseName];
+                                                                    handleStudentDataChange(activeStudentIndex, 'courses', newCourses);
+                                                                    
+                                                                    // Set for timing selection if selected
+                                                                    if (!currentCourses.includes(courseName)) {
+                                                                        setTimingSelectedCourse(courseName);
+                                                                    }
                                                                 }}
-                                                                className={`course-card ${isActive ? 'scheduling ring-2 ring-offset-2 ring-blue-300' : ''}`}
-                                                                title={`${courseName} (${courseSlots.length}/2)`}
                                                             >
-                                                                <div className="text-sm font-semibold">{courseName} ({courseSlots.length}/2)</div>
-                                                            </button>
+                                                                {/* Course Image */}
+                                                                <div className="aspect-w-16 aspect-h-12 bg-gradient-to-br from-orange-100 via-yellow-50 to-pink-100">
+                                                                    <img 
+                                                                        src="/assets/images/Barathanatyam.png" 
+                                                                        alt={courseName}
+                                                                        className="w-full h-32 object-contain p-4"
+                                                                    />
+                                                                </div>
+                                                                
+                                                                {/* Course Content */}
+                                                                <div className="p-4">
+                                                                    <div className="flex items-center justify-between mb-2">
+                                                                        <h3 className="text-sm font-bold text-gray-900 truncate">{courseName}</h3>
+                                                                        {isSelected && (
+                                                                            <div className="flex-shrink-0 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                                                                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                                                                                </svg>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    
+                                                                    <div className="flex items-center justify-between text-xs text-gray-600">
+                                                                        <span>Time Slots: {courseSlots.length}/2</span>
+                                                                        <span className="text-blue-600 font-medium">Select</span>
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                {/* Gradient Overlay for selected state */}
+                                                                {isSelected && (
+                                                                    <div className="absolute inset-0 bg-gradient-to-t from-blue-500/10 to-transparent pointer-events-none"></div>
+                                                                )}
+                                                            </div>
                                                         );
                                                     })}
                                                 </div>
                                             </div>
 
                                             {/* Preferred Class Times - Always Visible */}
-                                            <div className="space-y-4 mt-6">
+                                            <div className="space-y-4 mt-8">
                                                 <h4 className="text-sm font-semibold text-gray-800 border-b pb-2">Preferred Class Times (Optional)</h4>
                                                 <p className="text-xs text-gray-600">Help us find the best schedule for you</p>
                                                 
