@@ -259,38 +259,6 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
 
     return (
         <div>
-            {/* Selected Timings Display */}
-            {selectedTimings.length > 0 && (
-                <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                    <h4 className="text-sm font-semibold text-gray-800 mb-3">Selected Timings:</h4>
-                    {Object.entries(timingsByCourse).map(([courseName, slots]) => {
-                        const colors = COURSE_COLORS[courseName] || COURSE_COLORS['Bharatanatyam'];
-                        return (
-                            <div key={courseName} className="mb-2">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <span className={`inline-block w-3 h-3 rounded-full ${colors.bg.replace('bg-', 'bg-').replace('100', '400')}`}></span>
-                                    <span className="font-medium text-sm">{courseName}:</span>
-                                </div>
-                                <div className="flex flex-wrap gap-1 ml-5">
-                                    {slots.map(slot => (
-                                        <div key={slot.id} className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md ${colors.bg} ${colors.text} ${colors.border} border`}>
-                                            <span>{formatDualTimezoneDisplay(slot.day, slot.timeSlot)}</span>
-                                            <button
-                                                type="button"
-                                                onClick={() => removeSlot(slot.id)}
-                                                className="ml-1 text-red-500 hover:text-red-700"
-                                                title="Remove this slot"
-                                            >
-                                                ×
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
 
 
             {/* Time Slot Selection */}
