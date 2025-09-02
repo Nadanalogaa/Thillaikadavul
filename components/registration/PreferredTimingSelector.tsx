@@ -87,8 +87,8 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
     };
 
     // Use external state if provided, otherwise use internal state
-    const currentActiveDay = showOnlySelections ? externalActiveDay : activeDay;
-    const currentSelectedCourse = showOnlySelections ? externalSelectedCourse : selectedCourse;
+    const currentActiveDay = externalActiveDay !== undefined ? externalActiveDay : activeDay;
+    const currentSelectedCourse = externalSelectedCourse !== undefined ? externalSelectedCourse : selectedCourse;
 
     const handleTimingClick = (timeSlot: string) => {
         if (!currentActiveDay || !currentSelectedCourse) return;
