@@ -892,21 +892,70 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                         {Object.values(Sex).map(s => <option key={s} value={s}>{s}</option>)}
                                                     </select>
                                                 </div>
-                                                {learningMode === 'inperson' && (
-                                                    <div>
-                                                        <label className="form-label">Location</label>
-                                                        <select 
-                                                            value={students[activeStudentIndex].locationId || ''} 
-                                                            onChange={e => handleStudentDataChange(activeStudentIndex, 'locationId', e.target.value)} 
-                                                            required 
-                                                            className="form-select"
-                                                        >
-                                                            <option value="">Choose location</option>
-                                                            {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
-                                                        </select>
-                                                    </div>
-                                                )}
                                             </div>
+
+                                            {/* Student Photo Upload */}
+                                            <div>
+                                                <label className="form-label">Student Photo (Optional)</label>
+                                                <div className="space-y-3">
+                                                    <div className="flex items-center justify-center w-full">
+                                                        <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                                                            {students[activeStudentIndex].photoUrl ? (
+                                                                <div className="relative w-full h-full">
+                                                                    <img 
+                                                                        src={students[activeStudentIndex].photoUrl} 
+                                                                        alt="Student photo preview" 
+                                                                        className="w-full h-full object-cover rounded-lg"
+                                                                    />
+                                                                    <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-all duration-200 rounded-lg flex items-center justify-center">
+                                                                        <span className="text-white text-sm font-medium opacity-0 hover:opacity-100 transition-opacity">Click to change</span>
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                                                    <svg className="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                                                                        <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                                                                    </svg>
+                                                                    <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click to upload</span> student photo</p>
+                                                                    <p className="text-xs text-gray-500">PNG, JPG or JPEG (MAX. 5MB)</p>
+                                                                </div>
+                                                            )}
+                                                            <input 
+                                                                type="file" 
+                                                                className="hidden" 
+                                                                accept="image/*"
+                                                                onChange={(e) => {
+                                                                    const file = e.target.files?.[0];
+                                                                    if (file) {
+                                                                        const reader = new FileReader();
+                                                                        reader.onload = (e) => {
+                                                                            const result = e.target?.result as string;
+                                                                            handleStudentDataChange(activeStudentIndex, 'photoUrl', result);
+                                                                        };
+                                                                        reader.readAsDataURL(file);
+                                                                    }
+                                                                }}
+                                                            />
+                                                        </label>
+                                                    </div>
+                                                    <p className="text-xs text-gray-500">Upload a photo for the student profile</p>
+                                                </div>
+                                            </div>
+
+                                            {learningMode === 'inperson' && (
+                                                <div>
+                                                    <label className="form-label">Location</label>
+                                                    <select 
+                                                        value={students[activeStudentIndex].locationId || ''} 
+                                                        onChange={e => handleStudentDataChange(activeStudentIndex, 'locationId', e.target.value)} 
+                                                        required 
+                                                        className="form-select"
+                                                    >
+                                                        <option value="">Choose location</option>
+                                                        {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
+                                                    </select>
+                                                </div>
+                                            )}
 
                                             {/* Course Selection */}
                                             <div className="space-y-4">
@@ -1093,15 +1142,50 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                             />
                                         </div>
                                         <div>
-                                            <label className="form-label">Profile Photo URL (Optional)</label>
-                                            <input 
-                                                name="photoUrl" 
-                                                type="url" 
-                                                value={teacherData.photoUrl || ''} 
-                                                onChange={handleTeacherChange} 
-                                                className="form-input"
-                                                placeholder="https://example.com/photo.jpg"
-                                            />
+                                            <label className="form-label">Profile Photo (Optional)</label>
+                                            <div className="space-y-3">
+                                                <div className="flex items-center justify-center w-full">
+                                                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                                                        {teacherData.photoUrl ? (
+                                                            <div className="relative w-full h-full">
+                                                                <img 
+                                                                    src={teacherData.photoUrl} 
+                                                                    alt="Profile preview" 
+                                                                    className="w-full h-full object-cover rounded-lg"
+                                                                />
+                                                                <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-all duration-200 rounded-lg flex items-center justify-center">
+                                                                    <span className="text-white text-sm font-medium opacity-0 hover:opacity-100 transition-opacity">Click to change</span>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                                                <svg className="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                                                                    <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                                                                </svg>
+                                                                <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click to upload</span> profile photo</p>
+                                                                <p className="text-xs text-gray-500">PNG, JPG or JPEG (MAX. 5MB)</p>
+                                                            </div>
+                                                        )}
+                                                        <input 
+                                                            type="file" 
+                                                            className="hidden" 
+                                                            accept="image/*"
+                                                            onChange={(e) => {
+                                                                const file = e.target.files?.[0];
+                                                                if (file) {
+                                                                    const reader = new FileReader();
+                                                                    reader.onload = (e) => {
+                                                                        const result = e.target?.result as string;
+                                                                        setTeacherData({...teacherData, photoUrl: result});
+                                                                    };
+                                                                    reader.readAsDataURL(file);
+                                                                }
+                                                            }}
+                                                        />
+                                                    </label>
+                                                </div>
+                                                <p className="text-xs text-gray-500">Upload a professional photo for your instructor profile</p>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -1149,6 +1233,17 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                 </label>
                                             ))}
                                         </div>
+                                    </div>
+
+                                    {/* Available Time Slots for Teaching */}
+                                    <div>
+                                        <label className="form-label">Available Time Slots</label>
+                                        <p className="text-sm text-gray-600 mb-3">Select your available teaching hours (you can choose multiple slots)</p>
+                                        <PreferredTimingSelector 
+                                            selectedTimings={teacherData.availableTimeSlots || []} 
+                                            selectedCourses={teacherData.courseExpertise || []}
+                                            onChange={(timings) => setTeacherData({...teacherData, availableTimeSlots: timings})} 
+                                        />
                                     </div>
                                 </div>
                             )}
