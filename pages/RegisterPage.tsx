@@ -5,7 +5,7 @@ import type { User, Course, Location, CourseTimingSlot } from '../types';
 import { registerUser, getCourses, checkEmailExists, getPublicLocations } from '../api';
 import PreferredTimingSelector from '../components/registration/PreferredTimingSelector';
 import { XCircleIcon } from '../components/icons';
-import { COUNTRIES, TIMEZONES } from '../constants';
+import { COUNTRIES, TIMEZONES, WEEKDAY_MAP } from '../constants';
 
 interface RegisterPageProps {
   onLoginNeeded: (email: string) => void;
@@ -40,6 +40,10 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
         { role: UserRole.Student, classPreference: ClassPreference.Online, sex: Sex.Male, courses: [], preferredTimings: [] as CourseTimingSlot[], photoUrl: '' }
     ]);
     const [activeStudentIndex, setActiveStudentIndex] = useState(0);
+    
+    // Timing selector state
+    const [timingActiveDay, setTimingActiveDay] = useState<string | null>(null);
+    const [timingSelectedCourse, setTimingSelectedCourse] = useState<string | null>(null);
 
     // Teacher Form State
     const [teacherData, setTeacherData] = useState<Partial<User>>({ 
@@ -400,7 +404,6 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
             {/* Modern CSS-in-JS styles */}
             <style>{`
                 .form-card { background: white; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
-                .form-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1rem 1.5rem; border-radius: 16px 16px 0 0; text-align: center; }
                 .form-input, .form-select, .form-textarea { 
                     width: 100%; padding: 0.65rem 0.75rem; border: 2px solid #e5e7eb; border-radius: 8px; 
                     font-size: 0.875rem; font-weight: 500; transition: all 0.2s; background: #fafafa;
@@ -409,13 +412,6 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                     border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); outline: none; background: white;
                 }
                 .form-label { display: block; font-size: 0.75rem; font-weight: 600; color: #374151; margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px; }
-                .step-indicator { display: flex; justify-content: center; align-items: center; margin: 0.5rem 0; }
-                .step-dot { width: 1.5rem; height: 1.5rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.625rem; margin: 0 0.5rem; transition: all 0.3s; }
-                .step-dot.active { background: linear-gradient(135deg, #667eea, #764ba2); color: white; transform: scale(1.1); }
-                .step-dot.completed { background: #10b981; color: white; }
-                .step-dot.inactive { background: #e5e7eb; color: #9ca3af; }
-                .step-line { flex: 1; height: 2px; background: #e5e7eb; margin: 0 0.5rem; }
-                .step-line.completed { background: #10b981; }
                 .btn-primary { 
                     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                     color: white; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; font-size: 0.875rem;
@@ -492,29 +488,46 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                         </div>
                     </div>
                 ) : (
-                    <div className="flex gap-8">
-                        {/* Main Form */}
-                        <div className="flex-1">
-                            <div className="form-card">
-                                <div className="form-header">
-                                    <div className="flex items-center justify-center gap-3 mb-2">
-                                        <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                                <path d="M10 2L13 7l5 1-4 4 1 5-5-3-5 3 1-5-4-4 5-1z"/>
-                                            </svg>
-                                        </div>
-                                        <h1 className="text-lg font-bold">
-                                            {registrationType === 'student' ? 'Student Registration' : 'Instructor Application'}
-                                        </h1>
+                    <div>
+                        {/* Compact Header */}
+                        <div className="bg-white rounded-lg shadow-sm mb-6 p-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+                                        <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M10 2L13 7l5 1-4 4 1 5-5-3-5 3 1-5-4-4 5-1z"/>
+                                        </svg>
                                     </div>
-                                    <div className="step-indicator mt-2">
-                                        <div className={`step-dot ${currentStep >= 1 ? 'active' : 'inactive'}`}>1</div>
-                                        <div className={`step-line ${currentStep > 1 ? 'completed' : ''}`}></div>
-                                        <div className={`step-dot ${currentStep === 2 ? 'active' : currentStep > 2 ? 'completed' : 'inactive'}`}>2</div>
-                                    </div>
+                                    <h1 className="text-lg font-bold text-gray-900">
+                                        {registrationType === 'student' ? 'Student Registration' : 'Instructor Application'}
+                                    </h1>
                                 </div>
+                                
+                                {/* Cute compact steps in center */}
+                                <div className="flex items-center gap-2">
+                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${
+                                        currentStep >= 1 ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white' : 'bg-gray-200 text-gray-500'
+                                    }`}>1</div>
+                                    <div className={`w-8 h-0.5 ${currentStep > 1 ? 'bg-gradient-to-r from-purple-500 to-blue-500' : 'bg-gray-200'}`}></div>
+                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${
+                                        currentStep >= 2 ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white' : 'bg-gray-200 text-gray-500'
+                                    }`}>2</div>
+                                </div>
+                                
+                                <div className="text-right">
+                                    <div className="text-sm font-medium text-gray-700">
+                                        {currentStep === 1 ? (registrationType === 'student' ? 'Guardian Account Details' : 'Your Account Details') : 'Additional Information'}
+                                    </div>
+                                    <div className="text-xs text-gray-500">Step {currentStep} of 2</div>
+                                </div>
+                            </div>
+                        </div>
 
-                                {error && <div className="error-alert mx-6 mt-6">{error}</div>}
+                        <div className="flex gap-8">
+                            {/* Main Form */}
+                            <div className="flex-1">
+                                <div className="form-card">
+                                    {error && <div className="error-alert mx-6 mt-6">{error}</div>}
 
                                 <form onSubmit={handleSubmit} className="p-6">
                             {currentStep === 1 && (
@@ -822,6 +835,77 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                 </div>
                                             </div>
 
+                                            {/* Day Selection and Course Selection for Timing moved to main form */}
+                                            {(students[activeStudentIndex].courses?.length || 0) > 0 && (
+                                                <div className="space-y-4 mt-6">
+                                                    <h4 className="text-sm font-semibold text-gray-800 border-b pb-2">Preferred Class Times (Optional)</h4>
+                                                    <p className="text-xs text-gray-600">Help us find the best schedule for you</p>
+                                                    
+                                                    {/* Course Selection for Timing */}
+                                                    <div>
+                                                        <label className="form-label">Select course to schedule:</label>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {(students[activeStudentIndex].courses || []).map(course => {
+                                                                const courseSlots = (Array.isArray(students[activeStudentIndex].preferredTimings) 
+                                                                    ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object' && t.courseName === course)
+                                                                    : []);
+                                                                return (
+                                                                    <button
+                                                                        key={course}
+                                                                        type="button"
+                                                                        onClick={() => setTimingSelectedCourse(course)}
+                                                                        className={`px-3 py-2 text-sm font-medium rounded-md border transition-all ${
+                                                                            timingSelectedCourse === course 
+                                                                                ? 'bg-purple-100 text-purple-800 border-purple-300 ring-2 ring-offset-1 ring-purple-300'
+                                                                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                                                        }`}
+                                                                    >
+                                                                        {course} ({courseSlots.length}/2)
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Day Selection */}
+                                                    <div>
+                                                        <label className="form-label">Toggle a day to see available time slots:</label>
+                                                        <div className="flex rounded-md shadow-sm">
+                                                            {Object.keys(WEEKDAY_MAP).map((dayKey) => (
+                                                                <button
+                                                                    type="button"
+                                                                    key={dayKey}
+                                                                    onClick={() => setTimingActiveDay(prev => prev === dayKey ? null : dayKey)}
+                                                                    className={`flex-1 px-3 py-2 text-sm font-medium border border-gray-300 -ml-px first:ml-0 first:rounded-l-md last:rounded-r-md focus:z-10 focus:outline-none focus:ring-1 focus:ring-brand-primary transition-colors ${
+                                                                        timingActiveDay === dayKey ? 'bg-brand-primary text-white border-brand-primary' : 'bg-white text-gray-700 hover:bg-gray-50'
+                                                                    }`}
+                                                                >
+                                                                    {dayKey}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Timing Selection Component */}
+                                                    <div>
+                                                        <PreferredTimingSelector 
+                                                            selectedCourses={students[activeStudentIndex].courses || []}
+                                                            selectedTimings={
+                                                                Array.isArray(students[activeStudentIndex].preferredTimings) 
+                                                                    ? (students[activeStudentIndex].preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object')
+                                                                    : []
+                                                            } 
+                                                            onChange={(timings) => handleStudentDataChange(activeStudentIndex, 'preferredTimings', timings)}
+                                                            userTimezone={guardianData.timezone}
+                                                            showOnlySelections={false}
+                                                            activeDay={timingActiveDay}
+                                                            selectedCourse={timingSelectedCourse}
+                                                            onDayToggle={setTimingActiveDay}
+                                                            onCourseChange={setTimingSelectedCourse}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -995,6 +1079,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                             } 
                                             onChange={(timings) => handleStudentDataChange(activeStudentIndex, 'preferredTimings', timings)}
                                             userTimezone={guardianData.timezone}
+                                            showOnlySelections={true}
                                         />
                                     </div>
                                 </div>
@@ -1041,6 +1126,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                     <button type="button" className="text-xs text-blue-600 hover:text-blue-800 font-medium">Contact Support</button>
                                 </div>
                             </div>
+                        </div>
                         </div>
                     </div>
                 )}

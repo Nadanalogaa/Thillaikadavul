@@ -15,6 +15,11 @@ interface PreferredTimingSelectorProps {
     selectedTimings: CourseTimingSlot[];
     onChange: (timings: CourseTimingSlot[]) => void;
     userTimezone?: string;
+    showOnlySelections?: boolean;
+    activeDay?: string | null;
+    selectedCourse?: string | null;
+    onDayToggle?: (day: string) => void;
+    onCourseChange?: (course: string) => void;
 }
 
 // Course colors for visual distinction
@@ -29,7 +34,12 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
   selectedCourses, 
   selectedTimings, 
   onChange, 
-  userTimezone 
+  userTimezone,
+  showOnlySelections = false,
+  activeDay: externalActiveDay,
+  selectedCourse: externalSelectedCourse,
+  onDayToggle,
+  onCourseChange: externalOnCourseChange
 }) => {
     const [activeDay, setActiveDay] = useState<string | null>(null);
     const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
@@ -61,18 +71,30 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
     };
 
     const handleDayToggle = (dayKey: string) => {
-        setActiveDay(prev => (prev === dayKey ? null : dayKey));
+        if (onDayToggle) {
+            onDayToggle(dayKey);
+        } else {
+            setActiveDay(prev => (prev === dayKey ? null : dayKey));
+        }
     };
 
     const handleCourseChange = (courseName: string) => {
-        setSelectedCourse(courseName);
+        if (externalOnCourseChange) {
+            externalOnCourseChange(courseName);
+        } else {
+            setSelectedCourse(courseName);
+        }
     };
 
+    // Use external state if provided, otherwise use internal state
+    const currentActiveDay = showOnlySelections ? externalActiveDay : activeDay;
+    const currentSelectedCourse = showOnlySelections ? externalSelectedCourse : selectedCourse;
+
     const handleTimingClick = (timeSlot: string) => {
-        if (!activeDay || !selectedCourse) return;
+        if (!currentActiveDay || !currentSelectedCourse) return;
         
-        const fullDay = WEEKDAY_MAP[activeDay as keyof typeof WEEKDAY_MAP];
-        const slotId = `${selectedCourse}-${fullDay}-${timeSlot}`;
+        const fullDay = WEEKDAY_MAP[currentActiveDay as keyof typeof WEEKDAY_MAP];
+        const slotId = `${currentSelectedCourse}-${fullDay}-${timeSlot}`;
         
         // Check if this slot is already selected for this course
         const existingSlotIndex = (selectedTimings || []).findIndex(
@@ -109,8 +131,8 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
         
         const newSlot: CourseTimingSlot = {
             id: slotId,
-            courseId: (selectedCourse || '').toLowerCase().replace(/\s+/g, '-'),
-            courseName: selectedCourse,
+            courseId: (currentSelectedCourse || '').toLowerCase().replace(/\s+/g, '-'),
+            courseName: currentSelectedCourse,
             day: fullDay,
             timeSlot,
             utcTime: utcTime,
@@ -132,10 +154,10 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
         
         // Check if course already has 2 slots (1 hour × 2 days per week)
         const courseSlots = (selectedTimings || []).filter(slot => 
-            slot && typeof slot === 'object' && slot.courseName === selectedCourse
+            slot && typeof slot === 'object' && slot.courseName === currentSelectedCourse
         );
         if (courseSlots.length >= 2) {
-            alert(`${selectedCourse} already has 2 time slots selected. Please remove one to add another.`);
+            alert(`${currentSelectedCourse} already has 2 time slots selected. Please remove one to add another.`);
             return;
         }
         
@@ -150,24 +172,24 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
     };
     
     const isSlotSelected = (timeSlot: string): boolean => {
-        if (!activeDay || !selectedCourse) return false;
-        const fullDay = WEEKDAY_MAP[activeDay as keyof typeof WEEKDAY_MAP];
-        const slotId = `${selectedCourse}-${fullDay}-${timeSlot}`;
+        if (!currentActiveDay || !currentSelectedCourse) return false;
+        const fullDay = WEEKDAY_MAP[currentActiveDay as keyof typeof WEEKDAY_MAP];
+        const slotId = `${currentSelectedCourse}-${fullDay}-${timeSlot}`;
         return (selectedTimings || []).some(slot => 
             slot && typeof slot === 'object' && slot.id === slotId
         );
     };
     
     const isSlotDisabled = (timeSlot: string): boolean => {
-        if (!activeDay) return true;
-        const fullDay = WEEKDAY_MAP[activeDay as keyof typeof WEEKDAY_MAP];
+        if (!currentActiveDay) return true;
+        const fullDay = WEEKDAY_MAP[currentActiveDay as keyof typeof WEEKDAY_MAP];
         
         // Check if any other course has this slot
         return (selectedTimings || []).some(slot => 
             slot && typeof slot === 'object' &&
             slot.day === fullDay && 
             slot.timeSlot === timeSlot && 
-            slot.courseName !== selectedCourse
+            slot.courseName !== currentSelectedCourse
         );
     };
 
@@ -188,6 +210,49 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
         return (
             <div className="text-center text-sm text-gray-500 py-6 border-2 border-dashed rounded-lg">
                 <p>Please select courses first to choose preferred timings.</p>
+            </div>
+        );
+    }
+
+    // If showOnlySelections is true, only show the selections
+    if (showOnlySelections) {
+        return (
+            <div>
+                {selectedTimings.length > 0 ? (
+                    <div>
+                        {Object.entries(timingsByCourse).map(([courseName, slots]) => {
+                            const colors = COURSE_COLORS[courseName] || COURSE_COLORS['Bharatanatyam'];
+                            return (
+                                <div key={courseName} className="mb-4">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <span className={`inline-block w-3 h-3 rounded-full ${colors.bg.replace('bg-', 'bg-').replace('100', '400')}`}></span>
+                                        <span className="font-medium text-sm">{courseName}:</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {slots.map(slot => (
+                                            <div key={slot.id} className={`inline-flex items-center gap-2 px-3 py-1.5 text-xs rounded-md ${colors.bg} ${colors.text} ${colors.border} border`}>
+                                                <span>{formatDualTimezoneDisplay(slot.day, slot.timeSlot)}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeSlot(slot.id)}
+                                                    className="text-red-500 hover:text-red-700 font-bold"
+                                                    title="Remove this slot"
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <div className="text-center text-sm text-gray-500 py-4">
+                        <p>No timings selected yet.</p>
+                        <p className="text-xs mt-1">Select courses and choose times from the main form.</p>
+                    </div>
+                )}
             </div>
         );
     }
@@ -272,15 +337,15 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
             </div>
 
             {/* Time Slot Selection */}
-            {activeDay && selectedCourse ? (
+            {currentActiveDay && currentSelectedCourse ? (
                 <div className="space-y-4 pr-2 max-h-60 overflow-y-auto">
                     <div>
-                        <h4 className="font-semibold text-gray-800 mb-2">{WEEKDAY_MAP[activeDay as keyof typeof WEEKDAY_MAP]} - {selectedCourse}</h4>
+                        <h4 className="font-semibold text-gray-800 mb-2">{WEEKDAY_MAP[currentActiveDay as keyof typeof WEEKDAY_MAP]} - {currentSelectedCourse}</h4>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                             {TIME_SLOTS.map(timeSlot => {
                                 const isSelected = isSlotSelected(timeSlot);
                                 const isDisabled = isSlotDisabled(timeSlot);
-                                const colors = COURSE_COLORS[selectedCourse] || COURSE_COLORS['Bharatanatyam'];
+                                const colors = COURSE_COLORS[currentSelectedCourse] || COURSE_COLORS['Bharatanatyam'];
                                 
                                 return (
                                     <button
@@ -305,7 +370,7 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
                                             // For non-IST users, show local time with IST reference
                                             <div className="text-center">
                                                 {(() => {
-                                                    const utcSlot = createUtcTimeSlot(WEEKDAY_MAP[activeDay as keyof typeof WEEKDAY_MAP], timeSlot, IST_TIMEZONE);
+                                                    const utcSlot = createUtcTimeSlot(WEEKDAY_MAP[currentActiveDay as keyof typeof WEEKDAY_MAP], timeSlot, IST_TIMEZONE);
                                                     const dualDisplay = createDualTimezoneDisplay(utcSlot.startUtc, utcSlot.endUtc, detectedTimezone);
                                                     return (
                                                         <div className="font-medium">{dualDisplay.localTime} ({timeSlot} IST)</div>
