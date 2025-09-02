@@ -292,49 +292,6 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
                 </div>
             )}
 
-            {/* Course Selection */}
-            <div className="mb-4">
-                <p className="form-label mb-2">Select course to schedule:</p>
-                <div className="flex flex-wrap gap-2">
-                    {selectedCourses.map(course => {
-                        const colors = COURSE_COLORS[course] || COURSE_COLORS['Bharatanatyam'];
-                        const courseSlots = timingsByCourse[course] || [];
-                        return (
-                            <button
-                                key={course}
-                                type="button"
-                                onClick={() => handleCourseChange(course)}
-                                className={`px-3 py-2 text-sm font-medium rounded-md border transition-all ${
-                                    selectedCourse === course 
-                                        ? `${colors.bg} ${colors.text} ${colors.border} ring-2 ring-offset-1 ring-${course === 'Bharatanatyam' ? 'purple' : course === 'Vocal' ? 'blue' : course === 'Drawing' ? 'green' : 'orange'}-300`
-                                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                                }`}
-                            >
-                                {course} ({courseSlots.length}/2)
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
-
-            {/* Day Selection */}
-            <div className="mb-4">
-                <p className="form-label">Toggle a day to see available time slots:</p>
-                <div className="flex rounded-md shadow-sm">
-                    {Object.keys(WEEKDAY_MAP).map((dayKey) => (
-                        <button
-                            type="button"
-                            key={dayKey}
-                            onClick={() => handleDayToggle(dayKey)}
-                            className={`flex-1 px-3 py-2 text-sm font-medium border border-gray-300 -ml-px first:ml-0 first:rounded-l-md last:rounded-r-md focus:z-10 focus:outline-none focus:ring-1 focus:ring-brand-primary transition-colors ${
-                                activeDay === dayKey ? 'bg-brand-primary text-white border-brand-primary' : 'bg-white text-gray-700 hover:bg-gray-50'
-                            }`}
-                        >
-                            {dayKey}
-                        </button>
-                    ))}
-                </div>
-            </div>
 
             {/* Time Slot Selection */}
             {currentActiveDay && currentSelectedCourse ? (
