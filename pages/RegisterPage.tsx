@@ -1065,6 +1065,44 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                 {Object.values(EmploymentType).map(s => <option key={s} value={s}>{s}</option>)}
                                             </select>
                                         </div>
+                                        <div>
+                                            <label className="form-label">Years of Experience</label>
+                                            <input 
+                                                name="yearsOfExperience" 
+                                                type="number" 
+                                                min="0"
+                                                max="50"
+                                                value={teacherData.yearsOfExperience || ''} 
+                                                onChange={handleTeacherChange} 
+                                                className="form-input"
+                                                placeholder="e.g., 5"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="form-label">Alternate Contact Number</label>
+                                            <input 
+                                                name="alternateContactNumber" 
+                                                type="tel" 
+                                                value={teacherData.alternateContactNumber || ''} 
+                                                onChange={handleTeacherChange} 
+                                                className="form-input"
+                                                placeholder="+1 234 567 8901 (Optional)"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="form-label">Profile Photo URL (Optional)</label>
+                                            <input 
+                                                name="photoUrl" 
+                                                type="url" 
+                                                value={teacherData.photoUrl || ''} 
+                                                onChange={handleTeacherChange} 
+                                                className="form-input"
+                                                placeholder="https://example.com/photo.jpg"
+                                            />
+                                        </div>
                                     </div>
 
                                     {learningMode === 'inperson' && (
