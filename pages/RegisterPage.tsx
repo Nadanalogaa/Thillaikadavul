@@ -445,21 +445,21 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                 }
                 .btn-secondary:hover { border-color: #d1d5db; background: #f9fafb; }
                 .course-tile { 
-                    border: 2px solid #e5e7eb; border-radius: 12px; overflow: hidden;
+                    border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;
                     transition: all 0.3s ease; cursor: pointer; background: white;
                     box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
                 }
                 .course-tile:hover { 
-                    border-color: #3b82f6; transform: translateY(-2px); 
-                    box-shadow: 0 8px 25px -5px rgba(59, 130, 246, 0.2);
+                    border-color: #d1d5db; transform: translateY(-2px); 
+                    box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.15);
                 }
                 .course-tile.selected { 
-                    border-color: #3b82f6; background: #eff6ff;
-                    box-shadow: 0 4px 14px -3px rgba(59, 130, 246, 0.3);
+                    border-color: #93c5fd; background: #eff6ff;
+                    box-shadow: 0 4px 14px -3px rgba(59, 130, 246, 0.2);
                 }
                 .course-tile.active { 
-                    border-color: #1d4ed8; 
-                    box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.2);
+                    border-color: #60a5fa; 
+                    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.3);
                 }
                 .student-tab { 
                     padding: 0.5rem 1rem; border-radius: 6px 6px 0 0; font-size: 0.75rem; font-weight: 600; 
@@ -925,8 +925,8 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                         return (
                                                             <div
                                                                 key={course.id}
-                                                                className={`relative overflow-hidden rounded-xl border-2 transition-all duration-300 cursor-pointer transform hover:scale-105 ${
-                                                                    isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:border-blue-300'
+                                                                className={`relative overflow-hidden rounded-xl border transition-all duration-300 cursor-pointer transform hover:scale-105 ${
+                                                                    isSelected ? 'border-blue-300 bg-blue-50 shadow-lg' : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md'
                                                                 } ${isActive ? 'ring-2 ring-blue-300 ring-offset-2' : ''}`}
                                                                 onClick={() => {
                                                                     // Toggle course selection
