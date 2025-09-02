@@ -4,6 +4,7 @@ import type { Course } from '../../types';
 import Modal from '../Modal';
 import { ICON_NAMES } from '../icons';
 import ModalHeader from '../ModalHeader';
+import { uploadCourseImage, uploadCourseIcon, validateImageFile, validateIconFile } from '../../utils/fileUpload';
 
 interface EditCourseModalProps {
     isOpen: boolean;
@@ -17,6 +18,15 @@ const EditCourseModal: React.FC<EditCourseModalProps> = ({ isOpen, onClose, cour
     const [isLoading, setIsLoading] = useState(false);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [iconPreview, setIconPreview] = useState<string | null>(null);
+    const [uploadStatus, setUploadStatus] = useState<{
+        image: 'idle' | 'uploading' | 'success' | 'error';
+        icon: 'idle' | 'uploading' | 'success' | 'error';
+        imageMessage?: string;
+        iconMessage?: string;
+    }>({
+        image: 'idle',
+        icon: 'idle'
+    });
 
     useEffect(() => {
         if (course) {
@@ -37,31 +47,107 @@ const EditCourseModal: React.FC<EditCourseModalProps> = ({ isOpen, onClose, cour
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
-            // Create preview
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const result = e.target?.result as string;
-                setImagePreview(result);
-                setFormData({ ...formData, image: result });
-            };
-            reader.readAsDataURL(file);
+        if (!file) return;
+
+        // Validate file
+        const validation = validateImageFile(file);
+        if (!validation.valid) {
+            setUploadStatus({
+                ...uploadStatus,
+                image: 'error',
+                imageMessage: validation.error
+            });
+            return;
+        }
+
+        setUploadStatus({ ...uploadStatus, image: 'uploading', imageMessage: 'Uploading image...' });
+
+        // Create preview
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            setImagePreview(e.target?.result as string);
+        };
+        reader.readAsDataURL(file);
+
+        try {
+            // Upload file
+            const courseId = formData.id || 'new';
+            const result = await uploadCourseImage(file, courseId);
+            
+            if (result.success && result.filePath) {
+                setFormData({ ...formData, image: result.filePath });
+                setUploadStatus({
+                    ...uploadStatus,
+                    image: 'success',
+                    imageMessage: 'Image uploaded successfully!'
+                });
+            } else {
+                setUploadStatus({
+                    ...uploadStatus,
+                    image: 'error',
+                    imageMessage: result.error || 'Failed to upload image'
+                });
+            }
+        } catch (error) {
+            setUploadStatus({
+                ...uploadStatus,
+                image: 'error',
+                imageMessage: 'Failed to upload image'
+            });
         }
     };
 
-    const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
-            // Create preview
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const result = e.target?.result as string;
-                setIconPreview(result);
-                setFormData({ ...formData, icon_url: result });
-            };
-            reader.readAsDataURL(file);
+        if (!file) return;
+
+        // Validate file
+        const validation = validateIconFile(file);
+        if (!validation.valid) {
+            setUploadStatus({
+                ...uploadStatus,
+                icon: 'error',
+                iconMessage: validation.error
+            });
+            return;
+        }
+
+        setUploadStatus({ ...uploadStatus, icon: 'uploading', iconMessage: 'Uploading icon...' });
+
+        // Create preview
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            setIconPreview(e.target?.result as string);
+        };
+        reader.readAsDataURL(file);
+
+        try {
+            // Upload file
+            const courseId = formData.id || 'new';
+            const result = await uploadCourseIcon(file, courseId);
+            
+            if (result.success && result.filePath) {
+                setFormData({ ...formData, icon_url: result.filePath });
+                setUploadStatus({
+                    ...uploadStatus,
+                    icon: 'success',
+                    iconMessage: 'Icon uploaded successfully!'
+                });
+            } else {
+                setUploadStatus({
+                    ...uploadStatus,
+                    icon: 'error',
+                    iconMessage: result.error || 'Failed to upload icon'
+                });
+            }
+        } catch (error) {
+            setUploadStatus({
+                ...uploadStatus,
+                icon: 'error',
+                iconMessage: 'Failed to upload icon'
+            });
         }
     };
 
@@ -134,6 +220,33 @@ const EditCourseModal: React.FC<EditCourseModalProps> = ({ isOpen, onClose, cour
                                 </label>
                             </div>
                             <p className="text-xs text-gray-500">This image will be displayed on the registration screen course tiles</p>
+                            
+                            {/* Upload Status for Image */}
+                            {uploadStatus.image !== 'idle' && (
+                                <div className={`flex items-center space-x-2 mt-2 p-2 rounded-md ${
+                                    uploadStatus.image === 'uploading' ? 'bg-blue-50 text-blue-700' :
+                                    uploadStatus.image === 'success' ? 'bg-green-50 text-green-700' :
+                                    'bg-red-50 text-red-700'
+                                }`}>
+                                    {uploadStatus.image === 'uploading' && (
+                                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                    )}
+                                    {uploadStatus.image === 'success' && (
+                                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                    )}
+                                    {uploadStatus.image === 'error' && (
+                                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    )}
+                                    <span className="text-sm font-medium">{uploadStatus.imageMessage}</span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -174,6 +287,33 @@ const EditCourseModal: React.FC<EditCourseModalProps> = ({ isOpen, onClose, cour
                                 </label>
                             </div>
                             <p className="text-xs text-gray-500">This icon will be used on listing pages and menus</p>
+                            
+                            {/* Upload Status for Icon */}
+                            {uploadStatus.icon !== 'idle' && (
+                                <div className={`flex items-center space-x-2 mt-2 p-2 rounded-md ${
+                                    uploadStatus.icon === 'uploading' ? 'bg-blue-50 text-blue-700' :
+                                    uploadStatus.icon === 'success' ? 'bg-green-50 text-green-700' :
+                                    'bg-red-50 text-red-700'
+                                }`}>
+                                    {uploadStatus.icon === 'uploading' && (
+                                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                    )}
+                                    {uploadStatus.icon === 'success' && (
+                                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                    )}
+                                    {uploadStatus.icon === 'error' && (
+                                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    )}
+                                    <span className="text-sm font-medium">{uploadStatus.iconMessage}</span>
+                                </div>
+                            )}
                         </div>
                     </div>
                     <div>
