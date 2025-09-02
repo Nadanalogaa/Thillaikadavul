@@ -175,7 +175,8 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
             slot && typeof slot === 'object' && slot.day === fullDay
         );
         if (sameDayAllCourses.length >= 2) {
-            alert(`You already have 2 hours of classes on ${fullDay}. Maximum 2 hours per day allowed across all courses.`);
+            const existingCourses = sameDayAllCourses.map(slot => slot.courseName).join(', ');
+            alert(`You already have 2 hours of classes on ${fullDay} (${existingCourses}). Maximum 2 hours per day allowed across all courses.`);
             return;
         }
         
@@ -362,7 +363,8 @@ const PreferredTimingSelector: React.FC<PreferredTimingSelectorProps> = ({
                                         slot && typeof slot === 'object' && slot.day === fullDay
                                     );
                                     if (sameDayAllCourses.length >= 2) {
-                                        return `Daily limit reached: 2 hours max per day (already have ${sameDayAllCourses.map(s => s.courseName).join(', ')})`;
+                                        const courses = sameDayAllCourses.map(s => `${s.courseName} ${s.timeSlot}`).join(', ');
+                                        return `Daily limit reached: 2 hours max per day (already have ${courses})`;
                                     }
                                     
                                     return '';
