@@ -160,7 +160,9 @@ export const getCourses = async (): Promise<Course[]> => {
       id: course.id,
       name: course.name,
       description: course.description,
-      icon: course.icon || course.name
+      icon: course.icon || course.name,
+      image: course.image,
+      icon_url: course.icon_url
     }));
 
   } catch (error) {
