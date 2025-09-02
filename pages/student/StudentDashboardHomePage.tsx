@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext, Link } from 'react-router-dom';
 import type { User, Event, Notice, CourseTimingSlot } from '../../types';
-import { getFamilyStudents, getEvents, getNotices } from '../../api';
+import { getFamilyStudents, getEvents, getNotices, getCourses } from '../../api';
+import type { Course } from '../../types';
 import NotificationBell from '../../components/NotificationBell';
 
 const StatCard: React.FC<{ title: string; value: string | number; linkTo: string; bgColor: string; textColor: string }> = ({ title, value, linkTo, bgColor, textColor }) => (
@@ -16,6 +17,7 @@ const StudentDashboardHomePage: React.FC = () => {
     const [family, setFamily] = useState<User[]>([]);
     const [recentEvents, setRecentEvents] = useState<Event[]>([]);
     const [recentNotices, setRecentNotices] = useState<Notice[]>([]);
+    const [courses, setCourses] = useState<Course[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeIdx, setActiveIdx] = useState(0);
     const [mediaIndex, setMediaIndex] = useState(0);
@@ -24,14 +26,16 @@ const StudentDashboardHomePage: React.FC = () => {
         const fetchData = async () => {
             try {
                 setIsLoading(true);
-                const [familyData, eventsData, noticesData] = await Promise.all([
+                const [familyData, eventsData, noticesData, coursesData] = await Promise.all([
                     getFamilyStudents(),
                     getEvents(),
                     getNotices(),
+                    getCourses(),
                 ]);
                 setFamily(familyData);
                 setRecentEvents(eventsData.slice(0, 3));
                 setRecentNotices(noticesData.slice(0, 3));
+                setCourses(coursesData);
             } catch (error) {
                 console.error("Failed to fetch dashboard data:", error);
             } finally {
@@ -163,6 +167,11 @@ const StudentDashboardHomePage: React.FC = () => {
                             const preferredByCourse = (groupPreferredByCourse(stu)[courseName] || []).map(s => `${s.day}:  ${s.timeSlot}`);
                             const times = allocatedByCourse.length > 0 ? allocatedByCourse : preferredByCourse;
                             const themed = i % 2 === 0;
+                            
+                            // Find course data from database for uploaded image
+                            const courseData = courses.find(c => c.name === courseName);
+                            const courseImage = courseData?.image;
+                            
                             return (
                                 <div key={courseName} className={`relative rounded-2xl p-4 border-2 ${themed ? 'border-brand-purple bg-light-purple/40' : 'border-green-400 bg-green-50'}`}>
                                     <div className={`text-lg font-semibold ${themed ? 'text-brand-purple' : 'text-green-800'}`}>{courseName}</div>
@@ -170,7 +179,15 @@ const StudentDashboardHomePage: React.FC = () => {
                                     <div className="mt-1 space-y-1 text-sm text-dark-text">
                                         {times.length > 0 ? times.slice(0, 3).map((t, idx2) => <div key={idx2}>{t}</div>) : <div className="text-gray-400">No times yet</div>}
                                     </div>
-                                    <img src={`/images/${courseName.toString().toLowerCase().replace(/\s+/g,'_')}.png`} alt="" className="absolute right-3 bottom-2 w-20 h-20 object-contain pointer-events-none select-none" />
+                                    {courseImage ? (
+                                        <img src={courseImage} alt={courseName} className="absolute right-3 bottom-2 w-20 h-20 object-contain pointer-events-none select-none rounded-lg" />
+                                    ) : (
+                                        <div className="absolute right-3 bottom-2 w-20 h-20 flex items-center justify-center bg-gray-100 rounded-lg">
+                                            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                            </svg>
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}
