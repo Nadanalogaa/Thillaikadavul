@@ -60,9 +60,10 @@ const StudentDashboardHomePage: React.FC = () => {
         }
     };
 
-    const formatPreferredTimes = (student: User): string[] => {
-        const slots = Array.isArray(student.preferredTimings) ? student.preferredTimings as CourseTimingSlot[] : [];
-        return slots.slice(0, 4).map(s => `${s.day} ${s.timeSlot}`);
+    const formatPreferredTimes = (student: User): CourseTimingSlot[] => {
+        const slots = Array.isArray(student.preferredTimings) ? (student.preferredTimings as CourseTimingSlot[]) : [];
+        // Limit to first few for compact view
+        return slots.slice(0, 6);
     };
 
     const formatAllocated = (student: User): string[] => {
@@ -119,8 +120,11 @@ const StudentDashboardHomePage: React.FC = () => {
                                     <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Preferred Times</div>
                                     {pref.length > 0 ? (
                                         <div className="mt-1 flex flex-wrap gap-1">
-                                            {pref.map((t, i) => (
-                                                <span key={i} className="px-2 py-0.5 rounded bg-gray-100 text-xs text-gray-700 border">{t}</span>
+                                            {pref.map((slot, i) => (
+                                                <span key={i} className="px-2 py-0.5 rounded bg-gray-100 text-[11px] text-gray-700 border">
+                                                    <span className="font-semibold mr-1">{slot.courseName}:</span>
+                                                    {slot.day} {slot.timeSlot}
+                                                </span>
                                             ))}
                                         </div>
                                     ) : (
