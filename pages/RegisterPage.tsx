@@ -945,7 +945,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                                 {/* Course Image */}
                                                                 <div className="aspect-w-16 aspect-h-12 bg-gradient-to-br from-orange-100 via-yellow-50 to-pink-100">
                                                                     <img 
-                                                                        src="/assets/images/Barathanatyam.png" 
+                                                                        src="/images/Barathanatyam.png" 
                                                                         alt={courseName}
                                                                         className="w-full h-32 object-contain p-4"
                                                                     />
