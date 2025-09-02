@@ -113,13 +113,12 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
     useEffect(() => {
         const currentStudent = students[activeStudentIndex];
         if (currentStudent && currentStudent.courses && currentStudent.courses.length > 0) {
-            if (!timingSelectedCourse || !currentStudent.courses.includes(timingSelectedCourse)) {
-                setTimingSelectedCourse(currentStudent.courses[0]);
-            }
+            // Always auto-select first course to keep focus
+            setTimingSelectedCourse(currentStudent.courses[0]);
         } else {
             setTimingSelectedCourse(null);
         }
-    }, [activeStudentIndex, students, timingSelectedCourse]);
+    }, [activeStudentIndex, students]);
 
     // Auto-detect timezone based on browser
     useEffect(() => {
