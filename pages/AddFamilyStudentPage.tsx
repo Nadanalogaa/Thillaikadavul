@@ -6,6 +6,7 @@ import { registerUser, getCourses, getFamilyStudents, getPublicLocations } from 
 import PreferredTimingSelector from '../components/registration/PreferredTimingSelector';
 import { XCircleIcon } from '../components/icons';
 import AdminPageHeader from '../components/admin/AdminPageHeader';
+import { WEEKDAY_MAP } from '../constants';
 
 const AddFamilyStudentPage: React.FC = () => {
     const { user } = useOutletContext<{ user: User }>(); // The guardian
@@ -26,6 +27,12 @@ const AddFamilyStudentPage: React.FC = () => {
     const [success, setSuccess] = useState(false);
     const photoInputRef = useRef<HTMLInputElement>(null);
     const navigate = useNavigate();
+    
+    // Modal state for timing selection
+    const [isTimeModalOpen, setIsTimeModalOpen] = useState(false);
+    const [modalCourse, setModalCourse] = useState<string | null>(null);
+    const [timingActiveDay, setTimingActiveDay] = useState<string | null>(null);
+    const [timingSelectedCourse, setTimingSelectedCourse] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchPrerequisites = async () => {
@@ -69,6 +76,11 @@ const AddFamilyStudentPage: React.FC = () => {
             ? [...currentCourses, courseName]
             : currentCourses.filter(c => c !== courseName);
         handleChange('courses', updatedCourses);
+        
+        // Auto-select first course for timing when courses are selected
+        if (isChecked && !timingSelectedCourse) {
+            setTimingSelectedCourse(courseName);
+        }
     };
 
     const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -153,7 +165,34 @@ const AddFamilyStudentPage: React.FC = () => {
 
     return (
         <div className="bg-gray-50 py-12">
-            <style>{`.form-legend { font-size: 1.125rem; font-weight: 600; color: #1a237e; margin-bottom: 1.25rem; padding-bottom: 0.5rem; border-bottom: 1px solid #e0e0e0; }`}</style>
+            <style>{`
+                .form-legend { font-size: 1.125rem; font-weight: 600; color: #1a237e; margin-bottom: 1.25rem; padding-bottom: 0.5rem; border-bottom: 1px solid #e0e0e0; }
+                .form-input, .form-select { 
+                    width: 100%; padding: 0.65rem 0.75rem; border: 2px solid #e5e7eb; border-radius: 8px; 
+                    font-size: 0.875rem; font-weight: 500; transition: all 0.2s; background: #fafafa;
+                }
+                .form-input:focus, .form-select:focus { 
+                    border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); outline: none; background: white;
+                }
+                .form-label { display: block; font-size: 0.75rem; font-weight: 600; color: #374151; margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px; }
+                .course-tile { 
+                    border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;
+                    transition: all 0.3s ease; cursor: pointer; background: white;
+                    box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+                }
+                .course-tile:hover { 
+                    border-color: #d1d5db; transform: translateY(-2px); 
+                    box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.15);
+                }
+                .course-tile.selected { 
+                    border-color: #93c5fd; background: #eff6ff;
+                    box-shadow: 0 4px 14px -3px rgba(59, 130, 246, 0.2);
+                }
+                .course-tile.active { 
+                    border-color: #60a5fa; 
+                    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.3);
+                }
+            `}</style>
             <div className="container mx-auto px-6">
                 <div className="max-w-5xl mx-auto">
                     <AdminPageHeader
@@ -211,26 +250,109 @@ const AddFamilyStudentPage: React.FC = () => {
                                         </select>
                                     </div>
                                 )}
-                                <div className="lg:col-span-3">
-                                    <label className="form-label">Course Selection</label>
-                                    <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2">{courses.map(c => <label key={c.id} className="flex items-center space-x-2 p-2 border rounded-lg hover:bg-gray-50 text-sm"><input type="checkbox" value={c.name} checked={studentData.courses?.includes(c.name)} onChange={(e) => handleCourseChange(c.name, e.target.checked)} className="h-4 w-4 border-gray-300 rounded text-brand-primary focus:ring-brand-primary"/><span>{c.name}</span></label>)}</div>
-                                </div>
-                                {(studentData.courses?.length || 0) > 0 && 
-                                    <div className="lg:col-span-3 pt-6 border-t">
-                                        <label className="form-label">Preferred Timings (Optional)</label>
-                                        <p className="text-sm text-gray-500 mb-4">Help us find the best batch for this student.</p>
-                                        <PreferredTimingSelector 
-                                            selectedCourses={studentData.courses || []}
-                                            selectedTimings={
-                                                Array.isArray(studentData.preferredTimings) 
-                                                    ? (studentData.preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object')
-                                                    : []
-                                            }
-                                            onChange={(timings) => handleChange('preferredTimings', timings)}
-                                            userTimezone={user.timezone}
-                                        />
+                                <div className="lg:col-span-3 space-y-4">
+                                    <div>
+                                        <h4 className="text-lg font-semibold text-gray-900 mb-1">Select your Course</h4>
+                                        <p className="text-sm text-gray-600 mb-6">You can select multiple courses</p>
                                     </div>
-                                }
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                        {courses.map(course => {
+                                            const courseName = course.name;
+                                            const courseSlots = (Array.isArray(studentData.preferredTimings)
+                                                ? (studentData.preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object' && t.courseName === courseName)
+                                                : []);
+                                            const isActive = timingSelectedCourse === courseName;
+                                            const isSelected = (studentData.courses || []).includes(courseName);
+                                            return (
+                                                <div
+                                                    key={course.id}
+                                                    className={`relative overflow-hidden rounded-xl border transition-all duration-300 cursor-pointer transform hover:scale-105 ${
+                                                        isSelected ? 'border-blue-300 bg-blue-50 shadow-lg' : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md'
+                                                    } ${isActive ? 'ring-2 ring-blue-300 ring-offset-2' : ''}`}
+                                                    onClick={() => {
+                                                        // Toggle course selection
+                                                        const currentCourses = studentData.courses || [];
+                                                        const newCourses = currentCourses.includes(courseName) 
+                                                            ? currentCourses.filter(c => c !== courseName)
+                                                            : [...currentCourses, courseName];
+                                                        handleChange('courses', newCourses);
+                                                        
+                                                        // Set for timing selection if selected
+                                                        if (!currentCourses.includes(courseName)) {
+                                                            setTimingSelectedCourse(courseName);
+                                                        }
+                                                    }}
+                                                >
+                                                    {/* Course Image */}
+                                                    <div className="aspect-w-16 aspect-h-12 bg-gradient-to-br from-orange-100 via-yellow-50 to-pink-100">
+                                                        {course.image ? (
+                                                            <img 
+                                                                src={course.image} 
+                                                                alt={courseName}
+                                                                className="w-full h-32 object-contain p-4"
+                                                            />
+                                                        ) : (
+                                                            <div className="flex items-center justify-center h-32 p-4">
+                                                                <div className="text-center text-gray-500">
+                                                                    <svg className="w-12 h-12 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                                                    </svg>
+                                                                    <p className="text-xs font-medium">{courseName}</p>
+                                                                    <p className="text-xs text-gray-400">No image uploaded</p>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    
+                                                    {/* Course Content */}
+                                                    <div className="p-4">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <h3 className="text-sm font-bold text-gray-900 truncate">{courseName}</h3>
+                                                            {isSelected && (
+                                                                <div className="flex-shrink-0 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                                                                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                                                                    </svg>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        
+                                                        <div className="flex items-center justify-between text-xs text-gray-600">
+                                                            <span>Time Slots: {courseSlots.length}/2</span>
+                                                            <span className="text-blue-600 font-medium">
+                                                                {isSelected ? 'Selected' : 'Select'}
+                                                            </span>
+                                                        </div>
+                                                        
+                                                        {/* Time Selection Button - Only show for selected courses */}
+                                                        {isSelected && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setModalCourse(courseName);
+                                                                    setTimingSelectedCourse(courseName);
+                                                                    setIsTimeModalOpen(true);
+                                                                }}
+                                                                className="mt-3 w-full flex items-center justify-center gap-2 py-2 px-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs font-medium rounded-md hover:from-purple-600 hover:to-blue-600 transition-all duration-200 shadow-sm hover:shadow-md"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                                </svg>
+                                                                Choose Preferred Time
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    
+                                                    {/* Gradient Overlay for selected state */}
+                                                    {isSelected && (
+                                                        <div className="absolute inset-0 bg-gradient-to-t from-blue-500/10 to-transparent pointer-events-none"></div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
                             </div>
                         </fieldset>
 
@@ -251,6 +373,126 @@ const AddFamilyStudentPage: React.FC = () => {
                                 {isLoading ? 'Adding Student...' : 'Add Student'}
                             </button>
                         </div>
+                        
+                        {/* Time Selection Modal */}
+                        {isTimeModalOpen && modalCourse && (
+                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                                <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                                    {/* Modal Header */}
+                                    <div className="sticky top-0 bg-white border-b px-6 py-4 rounded-t-2xl">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+                                                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                    </svg>
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-xl font-bold text-gray-900">Choose Preferred Times</h3>
+                                                    <p className="text-sm text-gray-600">{modalCourse} - Select your preferred class schedule</p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setIsTimeModalOpen(false);
+                                                    setModalCourse(null);
+                                                }}
+                                                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+                                            >
+                                                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Modal Content */}
+                                    <div className="p-6 space-y-6">
+                                        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                </svg>
+                                                <span className="font-semibold text-gray-900">Class Schedule Information</span>
+                                            </div>
+                                            <p className="text-sm text-gray-700 mb-1">Each course requires 2 time slots (1 hour × 2 days per week)</p>
+                                            <p className="text-xs text-gray-600">Times shown in your timezone ({user.timezone || 'Kolkata'}) with IST reference</p>
+                                        </div>
+
+                                        {/* Day Selection */}
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-900 mb-3">
+                                                Select a day to see available time slots:
+                                            </label>
+                                            <div className="grid grid-cols-7 gap-2">
+                                                {Object.keys(WEEKDAY_MAP).map((dayKey) => (
+                                                    <button
+                                                        type="button"
+                                                        key={dayKey}
+                                                        onClick={() => setTimingActiveDay(prev => prev === dayKey ? null : dayKey)}
+                                                        className={`px-3 py-3 text-sm font-medium rounded-lg border-2 transition-all duration-200 ${
+                                                            timingActiveDay === dayKey 
+                                                                ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white border-transparent shadow-lg' 
+                                                                : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:bg-blue-50'
+                                                        }`}
+                                                    >
+                                                        <div className="text-center">
+                                                            <div className="font-bold">{dayKey}</div>
+                                                            <div className="text-xs opacity-75 mt-1">{WEEKDAY_MAP[dayKey as keyof typeof WEEKDAY_MAP]}</div>
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Timing Selection Component */}
+                                        <div className="min-h-[300px]">
+                                            <PreferredTimingSelector 
+                                                selectedCourses={courses.map(c => c.name) || []}
+                                                selectedTimings={
+                                                    Array.isArray(studentData.preferredTimings) 
+                                                        ? (studentData.preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object')
+                                                        : []
+                                                } 
+                                                onChange={(timings) => handleChange('preferredTimings', timings)}
+                                                userTimezone={user.timezone}
+                                                showOnlySelections={false}
+                                                activeDay={timingActiveDay}
+                                                selectedCourse={modalCourse}
+                                                onDayToggle={setTimingActiveDay}
+                                                onCourseChange={setTimingSelectedCourse}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Modal Footer */}
+                                    <div className="sticky bottom-0 bg-gray-50 px-6 py-4 rounded-b-2xl border-t">
+                                        <div className="flex items-center justify-between">
+                                            <div className="text-sm text-gray-600">
+                                                Selected: {
+                                                    Array.isArray(studentData.preferredTimings) 
+                                                        ? (studentData.preferredTimings as CourseTimingSlot[])
+                                                            .filter(t => t && typeof t === 'object' && t.courseName === modalCourse).length
+                                                        : 0
+                                                }/2 time slots for {modalCourse}
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setIsTimeModalOpen(false);
+                                                    setModalCourse(null);
+                                                    setTimingActiveDay(null);
+                                                }}
+                                                className="px-6 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white font-medium rounded-lg hover:from-purple-600 hover:to-blue-600 transition-all duration-200 shadow-lg hover:shadow-xl"
+                                            >
+                                                Done
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </form>
                 </div>
             </div>
