@@ -13,6 +13,7 @@ interface RegisterPageProps {
 
 const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
     const [registrationType, setRegistrationType] = useState<'student' | 'teacher' | null>(null);
+    const [learningMode, setLearningMode] = useState<'online' | 'inperson' | null>(null);
     const [currentStep, setCurrentStep] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -489,7 +490,10 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                     <p className="text-gray-600 text-sm">Enroll in our arts programs and begin your creative journey</p>
                                 </button>
                                 <button 
-                                    onClick={() => setRegistrationType('teacher')} 
+                                    onClick={() => {
+                                        setRegistrationType('teacher');
+                                        setLearningMode('inperson'); // Teachers default to in-person but can change later
+                                    }} 
                                     className="registration-type-card"
                                 >
                                     <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -499,6 +503,59 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                     </div>
                                     <h2 className="text-xl font-bold text-gray-900 mb-2">Instructor</h2>
                                     <p className="text-gray-600 text-sm">Join our team of passionate arts educators</p>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ) : registrationType && !learningMode && registrationType === 'student' ? (
+                    <div className="form-card">
+                        <div className="form-header">
+                            <h1 className="text-2xl font-bold mb-2">Choose Your Learning Experience</h1>
+                            <p className="opacity-90">How would you prefer to attend your arts classes?</p>
+                        </div>
+                        <div className="p-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <button 
+                                    onClick={() => {
+                                        setLearningMode('online');
+                                        setStudents([
+                                            { role: UserRole.Student, classPreference: ClassPreference.Online, sex: Sex.Male, courses: [], preferredTimings: [] as CourseTimingSlot[], photoUrl: '' }
+                                        ]);
+                                    }} 
+                                    className="registration-type-card"
+                                >
+                                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                        </svg>
+                                    </div>
+                                    <h2 className="text-xl font-bold text-gray-900 mb-2">Online Classes</h2>
+                                    <p className="text-gray-600 text-sm">Learn from anywhere with live virtual sessions and interactive lessons</p>
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        setLearningMode('inperson');
+                                        setStudents([
+                                            { role: UserRole.Student, classPreference: ClassPreference.Offline, sex: Sex.Male, courses: [], preferredTimings: [] as CourseTimingSlot[], photoUrl: '' }
+                                        ]);
+                                    }} 
+                                    className="registration-type-card"
+                                >
+                                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                        </svg>
+                                    </div>
+                                    <h2 className="text-xl font-bold text-gray-900 mb-2">In-Person Classes</h2>
+                                    <p className="text-gray-600 text-sm">Experience hands-on learning in our beautiful studio spaces with direct guidance</p>
+                                </button>
+                            </div>
+                            <div className="mt-6 text-center">
+                                <button 
+                                    onClick={() => setRegistrationType(null)} 
+                                    className="btn-secondary"
+                                >
+                                    ← Back to Role Selection
                                 </button>
                             </div>
                         </div>
@@ -728,21 +785,13 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                 <div className="space-y-6">
                                     <div className="flex items-center justify-between border-b pb-2">
                                         <h3 className="text-lg font-semibold text-gray-900">Student Details</h3>
-                                        <div className="inline-flex border rounded-md overflow-hidden">
-                                            <button 
-                                                type="button"
-                                                onClick={() => handleStudentDataChange(activeStudentIndex, 'classPreference', ClassPreference.Online)}
-                                                className={`px-3 py-1.5 text-sm font-medium ${students[activeStudentIndex].classPreference === ClassPreference.Online ? 'bg-brand-primary text-white' : 'bg-white text-gray-700'} border-r`}
-                                            >
-                                                Online
-                                            </button>
-                                            <button 
-                                                type="button"
-                                                onClick={() => handleStudentDataChange(activeStudentIndex, 'classPreference', ClassPreference.Offline)}
-                                                className={`px-3 py-1.5 text-sm font-medium ${students[activeStudentIndex].classPreference === ClassPreference.Offline ? 'bg-brand-primary text-white' : 'bg-white text-gray-700'}`}
-                                            >
-                                                In Person
-                                            </button>
+                                        <div className="inline-flex items-center gap-2">
+                                            <span className="text-sm text-gray-500">Learning Mode:</span>
+                                            <span className={`px-3 py-1.5 text-sm font-medium rounded-md ${
+                                                learningMode === 'online' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                                            }`}>
+                                                {learningMode === 'online' ? 'Online Classes' : 'In-Person Classes'}
+                                            </span>
                                         </div>
                                     </div>
                                     
@@ -777,7 +826,8 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                             type="button"
                                             onClick={() => {
                                                 const newStudents = [...students, { 
-                                                    role: UserRole.Student, classPreference: ClassPreference.Online, 
+                                                    role: UserRole.Student, 
+                                                    classPreference: learningMode === 'online' ? ClassPreference.Online : ClassPreference.Offline, 
                                                     sex: Sex.Male, courses: [], preferredTimings: [], photoUrl: '' 
                                                 }];
                                                 setStudents(newStudents);
@@ -823,8 +873,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                         {Object.values(Sex).map(s => <option key={s} value={s}>{s}</option>)}
                                                     </select>
                                                 </div>
-                                                {/* Learning Preference moved to header (Online / In Person toggle) */}
-                                                {students[activeStudentIndex].classPreference === ClassPreference.Offline && (
+                                                {learningMode === 'inperson' && (
                                                     <div>
                                                         <label className="form-label">Location</label>
                                                         <select 
