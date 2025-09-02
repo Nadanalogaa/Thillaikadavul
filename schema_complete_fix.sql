@@ -45,19 +45,31 @@
         deleted_at TIMESTAMP WITH TIME ZONE
     );
 
-    -- Courses table
-    DROP TABLE IF EXISTS courses CASCADE;
-    
-    CREATE TABLE courses (
+    -- Courses table - SAFE MIGRATION: Add missing columns without losing data
+    CREATE TABLE IF NOT EXISTS courses (
         id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
         name TEXT NOT NULL,
         description TEXT,
         icon TEXT,
-        image TEXT, -- Course image for registration screen display
-        icon_url TEXT, -- Custom icon upload for listing pages and menus
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
+
+    -- Add new columns if they don't exist (safe migration)
+    DO $$ 
+    BEGIN
+        -- Add image column if it doesn't exist
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='courses' AND column_name='image') THEN
+            ALTER TABLE courses ADD COLUMN image TEXT;
+            RAISE NOTICE '✅ Added image column to courses table';
+        END IF;
+        
+        -- Add icon_url column if it doesn't exist
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='courses' AND column_name='icon_url') THEN
+            ALTER TABLE courses ADD COLUMN icon_url TEXT;
+            RAISE NOTICE '✅ Added icon_url column to courses table';
+        END IF;
+    END $$;
 
     CREATE TABLE IF NOT EXISTS locations (
         id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -68,12 +80,22 @@
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
 
-    -- Insert default courses with new columns (no hardcoded images)
-    INSERT INTO courses (name, description, icon, image, icon_url) VALUES
-    ('Bharatanatyam', 'Explore the divine art of classical Indian dance with graceful movements and expressive storytelling', 'Bharatanatyam', NULL, NULL),
-    ('Vocal', 'Develop your voice with traditional Carnatic vocal music techniques and classical compositions', 'Vocal', NULL, NULL),
-    ('Drawing', 'Learn to express creativity through various drawing techniques and artistic mediums', 'Drawing', NULL, NULL),
-    ('Abacus', 'Master mental arithmetic and boost mathematical skills with traditional abacus methods', 'Abacus', NULL, NULL);
+    -- Insert default courses only if they don't exist (preserve existing data)
+    INSERT INTO courses (name, description, icon, image, icon_url) 
+    SELECT 'Bharatanatyam', 'Explore the divine art of classical Indian dance with graceful movements and expressive storytelling', 'Bharatanatyam', NULL, NULL
+    WHERE NOT EXISTS (SELECT 1 FROM courses WHERE name = 'Bharatanatyam');
+
+    INSERT INTO courses (name, description, icon, image, icon_url) 
+    SELECT 'Vocal', 'Develop your voice with traditional Carnatic vocal music techniques and classical compositions', 'Vocal', NULL, NULL
+    WHERE NOT EXISTS (SELECT 1 FROM courses WHERE name = 'Vocal');
+
+    INSERT INTO courses (name, description, icon, image, icon_url) 
+    SELECT 'Drawing', 'Learn to express creativity through various drawing techniques and artistic mediums', 'Drawing', NULL, NULL
+    WHERE NOT EXISTS (SELECT 1 FROM courses WHERE name = 'Drawing');
+
+    INSERT INTO courses (name, description, icon, image, icon_url) 
+    SELECT 'Abacus', 'Master mental arithmetic and boost mathematical skills with traditional abacus methods', 'Abacus', NULL, NULL
+    WHERE NOT EXISTS (SELECT 1 FROM courses WHERE name = 'Abacus');
 
     INSERT INTO locations (name, address, is_active)
     SELECT 'Main Center', 'Enter your main location address', true
