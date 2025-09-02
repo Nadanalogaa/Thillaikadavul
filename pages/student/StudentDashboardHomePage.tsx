@@ -17,6 +17,8 @@ const StudentDashboardHomePage: React.FC = () => {
     const [recentEvents, setRecentEvents] = useState<Event[]>([]);
     const [recentNotices, setRecentNotices] = useState<Notice[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [activeIdx, setActiveIdx] = useState(0);
+    const [mediaIndex, setMediaIndex] = useState(0);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -71,6 +73,26 @@ const StudentDashboardHomePage: React.FC = () => {
         return sch.slice(0, 4).map(s => `${s.course}: ${s.timing}`);
     };
 
+    // Helpers to group timings by course
+    const groupPreferredByCourse = (student: User): Record<string, CourseTimingSlot[]> => {
+        const map: Record<string, CourseTimingSlot[]> = {};
+        (Array.isArray(student.preferredTimings) ? (student.preferredTimings as CourseTimingSlot[]) : []).forEach(s => {
+            if (!s || typeof s !== 'object') return;
+            map[s.courseName] = map[s.courseName] || [];
+            map[s.courseName].push(s);
+        });
+        return map;
+    };
+
+    const groupAllocatedByCourse = (student: User): Record<string, string[]> => {
+        const map: Record<string, string[]> = {};
+        (Array.isArray(student.schedules) ? student.schedules : []).forEach(s => {
+            map[s.course] = map[s.course] || [];
+            map[s.course].push(s.timing);
+        });
+        return map;
+    };
+
 
     if (isLoading) {
         return <div className="p-8 text-center">Loading dashboard...</div>;
@@ -93,105 +115,119 @@ const StudentDashboardHomePage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Students Panel Row */}
-            <div className={`${family.length <= 1 ? 'justify-start' : 'justify-center'} flex flex-wrap gap-4`}>
-                {family.map(stu => {
-                    const displayName = stu.name || 'Student';
-                    const avatar = stu.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=E5E7EB&color=111827`;
-                    const courseList = (stu.courses || []).join(', ');
-                    const pref = formatPreferredTimes(stu);
-                    const allocated = formatAllocated(stu);
+            {/* Student Tabs Timeline */}
+            <div className="flex items-center justify-between">
+                <div className="flex-1 h-2 bg-gray-300 rounded-full mx-6" />
+                <Link to="add" className="text-brand-purple font-semibold hover:underline">Add Students</Link>
+            </div>
+            <div className={`flex ${family.length > 1 ? 'justify-center' : 'justify-start'} gap-6`}>
+                {family.map((stu, idx) => {
+                    const active = idx === activeIdx;
                     return (
-                        <div key={stu.id} className="bg-white rounded-xl shadow-md p-4 w-full sm:w-[320px]">
-                            <div className="flex items-center gap-3">
-                                <img src={avatar} alt={displayName} className="w-14 h-14 rounded-full object-cover border" />
-                                <div className="flex-1">
-                                    <div className="text-base font-semibold text-dark-text">{displayName}</div>
-                                    <div className="text-xs text-light-text truncate">{courseList || 'No courses selected yet'}</div>
-                                </div>
-                                <div>
-                                    <button type="button" onClick={() => onChangePhotoClick(stu.id)} className="text-xs px-2 py-1 rounded-md border bg-white hover:bg-gray-50">Change Photo</button>
-                                    <input ref={el => (fileInputsRef.current[stu.id] = el)} onChange={(e) => onPhotoSelected(stu.id, e)} type="file" accept="image/*" className="hidden" />
-                                </div>
-                            </div>
-                            {/* Timings */}
-                            <div className="mt-3 space-y-2">
-                                <div>
-                                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Preferred Times</div>
-                                    {pref.length > 0 ? (
-                                        <div className="mt-1 flex flex-wrap gap-1">
-                                            {pref.map((slot, i) => (
-                                                <span key={i} className="px-2 py-0.5 rounded bg-gray-100 text-[11px] text-gray-700 border">
-                                                    <span className="font-semibold mr-1">{slot.courseName}:</span>
-                                                    {slot.day} {slot.timeSlot}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="text-xs text-gray-400 mt-1">None selected</div>
-                                    )}
-                                </div>
-                                <div>
-                                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Allocated</div>
-                                    {allocated.length > 0 ? (
-                                        <div className="mt-1 flex flex-wrap gap-1">
-                                            {allocated.map((t, i) => (
-                                                <span key={i} className="px-2 py-0.5 rounded bg-green-50 text-xs text-green-800 border border-green-200">{t}</span>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="text-xs text-gray-400 mt-1">No allocations yet</div>
-                                    )}
-                                </div>
-                            </div>
+                        <div key={stu.id} className="flex flex-col items-center">
+                            <button
+                                className={`rounded-2xl p-1 shadow ${active ? 'bg-gray-400' : 'bg-gray-200'}`}
+                                onClick={() => setActiveIdx(idx)}
+                            >
+                                <img
+                                    src={stu.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(stu.name || 'Student')}&background=E5E7EB&color=111827`}
+                                    className="w-16 h-16 rounded-full object-cover border-4 border-white"
+                                />
+                            </button>
+                            <div className={`mt-2 text-sm font-semibold ${active ? 'text-dark-text' : 'text-gray-500'}`}>{stu.name || `Student ${idx + 1}`}</div>
                         </div>
                     );
                 })}
             </div>
 
-            {/* Stat Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="Enrolled Students" value={family.length} linkTo="family-profile" bgColor="bg-light-purple" textColor="text-brand-purple" />
-                <StatCard title="Upcoming Events" value={recentEvents.length} linkTo="events" bgColor="bg-yellow-100" textColor="text-yellow-800" />
-                <StatCard title="Recent Notices" value={recentNotices.length} linkTo="notices" bgColor="bg-blue-100" textColor="text-blue-800" />
-                <StatCard title="Payment History" value={"View"} linkTo="payment-history" bgColor="bg-green-100" textColor="text-green-800" />
-            </div>
+            {/* Main content grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                {/* Left content */}
+                <div className="lg:col-span-8 space-y-8">
+                    {/* Enrolled Courses */}
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-xl font-semibold text-dark-text">Enrolled Courses</h2>
+                        <Link to="courses" className="text-brand-purple font-semibold hover:underline">See all</Link>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        {(family[activeIdx]?.courses || []).map((courseName, i) => {
+                            const stu = family[activeIdx];
+                            const allocatedByCourse = groupAllocatedByCourse(stu)[courseName] || [];
+                            const preferredByCourse = (groupPreferredByCourse(stu)[courseName] || []).map(s => `${s.day}:  ${s.timeSlot}`);
+                            const times = allocatedByCourse.length > 0 ? allocatedByCourse : preferredByCourse;
+                            const themed = i % 2 === 0;
+                            return (
+                                <div key={courseName} className={`relative rounded-2xl p-4 border-2 ${themed ? 'border-brand-purple bg-light-purple/40' : 'border-green-400 bg-green-50'}`}>
+                                    <div className={`text-lg font-semibold ${themed ? 'text-brand-purple' : 'text-green-800'}`}>{courseName}</div>
+                                    <div className="mt-2 text-sm font-semibold text-dark-text">{allocatedByCourse.length > 0 ? 'Allocated Times' : 'Preferred Times'}</div>
+                                    <div className="mt-1 space-y-1 text-sm text-dark-text">
+                                        {times.length > 0 ? times.slice(0, 3).map((t, idx2) => <div key={idx2}>{t}</div>) : <div className="text-gray-400">No times yet</div>}
+                                    </div>
+                                    <img src={`/images/${courseName.toString().toLowerCase().replace(/\s+/g,'_')}.png`} alt="" className="absolute right-3 bottom-2 w-20 h-20 object-contain pointer-events-none select-none" />
+                                </div>
+                            );
+                        })}
+                        {((family[activeIdx]?.courses || []).length === 0) && (
+                            <div className="text-sm text-gray-500">No courses selected yet.</div>
+                        )}
+                    </div>
 
-            {/* Recent Activity */}
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Recent Notices */}
-                <div className="bg-white p-6 rounded-xl shadow-md">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xl font-semibold text-dark-text">Recent Notices</h3>
-                        <Link to="notices" className="text-sm font-medium text-brand-purple hover:underline">View All</Link>
+                    {/* Course instructors (placeholder using allocated teacher if present) */}
+                    <div>
+                        <h3 className="text-lg font-semibold text-dark-text mb-3">Course instructors</h3>
+                        <div className="flex gap-6">
+                            {(Array.isArray(family[activeIdx]?.schedules) ? family[activeIdx]?.schedules : []).slice(0,3).map((s, i) => (
+                                <div key={i} className="flex flex-col items-center">
+                                    <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent((s as any).teacherName || 'T')}&background=7B61FF&color=fff`} className="w-14 h-14 rounded-full border-4 border-purple-300" />
+                                    <div className="mt-2 text-sm font-semibold text-dark-text">{(s as any).teacherName || 'Unassigned'}</div>
+                                    <div className="text-xs text-light-text">{s.course}</div>
+                                </div>
+                            ))}
+                            {(!family[activeIdx]?.schedules || family[activeIdx]?.schedules?.length === 0) && (
+                                <div className="text-sm text-gray-500">No teachers assigned yet</div>
+                            )}
+                        </div>
                     </div>
-                    <ul className="space-y-3">
-                        {recentNotices.map(notice => (
-                            <li key={notice.id} className="p-3 bg-light-purple/50 rounded-lg">
-                                <p className="font-semibold text-dark-text">{notice.title}</p>
-                                <p className="text-xs text-light-text mt-1">{new Date(notice.issuedAt).toLocaleDateString()}</p>
-                            </li>
-                        ))}
-                         {recentNotices.length === 0 && <p className="text-sm text-light-text">No recent notices.</p>}
-                    </ul>
+
+                    {/* Recent Media carousel (simple) */}
+                    <div>
+                        <h3 className="text-lg font-semibold text-dark-text mb-3">Recent Media</h3>
+                        <div className="flex items-center gap-3">
+                            <button onClick={() => setMediaIndex(i => Math.max(0, i - 1))} className="px-2 py-1 rounded border bg-white">◀</button>
+                            <div className="flex-1 overflow-hidden">
+                                <div className="flex gap-4 transition-transform" style={{ transform: `translateX(-${mediaIndex * 200}px)` }}>
+                                    {["drawing.png","semi_classical.png","vocal.png"].map((img, i) => (
+                                        <img key={i} src={`/images/${img}`} className="h-28 w-auto object-contain" />
+                                    ))}
+                                </div>
+                            </div>
+                            <button onClick={() => setMediaIndex(i => Math.min(2, i + 1))} className="px-2 py-1 rounded border bg-white">▶</button>
+                        </div>
+                    </div>
                 </div>
-                {/* Upcoming Events */}
-                <div className="bg-white p-6 rounded-xl shadow-md">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xl font-semibold text-dark-text">Upcoming Events</h3>
-                        <Link to="events" className="text-sm font-medium text-brand-purple hover:underline">View All</Link>
+
+                {/* Right sidebar */}
+                <div className="lg:col-span-4">
+                    <div className="bg-white rounded-xl shadow-md p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-semibold text-dark-text">Recent Events</h3>
+                            <Link to="events" className="text-sm font-medium text-brand-purple hover:underline">See more</Link>
+                        </div>
+                        <ul className="space-y-3">
+                            {recentEvents.slice(0,4).map(ev => (
+                                <li key={ev.id} className="p-3 rounded-lg bg-gray-50">
+                                    <div className="font-semibold text-dark-text">{ev.title}</div>
+                                    <div className="text-xs text-light-text mt-1">{new Date(ev.date).toLocaleDateString()}</div>
+                                </li>
+                            ))}
+                            {recentEvents.length === 0 && (
+                                <div className="text-sm text-gray-500">No upcoming events.</div>
+                            )}
+                        </ul>
                     </div>
-                     <ul className="space-y-3">
-                        {recentEvents.map(event => (
-                            <li key={event.id} className="p-3 bg-light-purple/50 rounded-lg">
-                                <p className="font-semibold text-dark-text">{event.title}</p>
-                                <p className="text-xs text-light-text mt-1">{new Date(event.date).toLocaleString()}</p>
-                            </li>
-                        ))}
-                        {recentEvents.length === 0 && <p className="text-sm text-light-text">No upcoming events.</p>}
-                    </ul>
                 </div>
             </div>
+            {/* Notices & summary can be added back below if needed */}
         </div>
     );
 };
