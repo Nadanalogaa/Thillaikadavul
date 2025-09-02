@@ -109,6 +109,18 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
         return { isValid: true, warning: '' };
     };
 
+    // Auto-select first course for timing when student changes or courses change
+    useEffect(() => {
+        const currentStudent = students[activeStudentIndex];
+        if (currentStudent && currentStudent.courses && currentStudent.courses.length > 0) {
+            if (!timingSelectedCourse || !currentStudent.courses.includes(timingSelectedCourse)) {
+                setTimingSelectedCourse(currentStudent.courses[0]);
+            }
+        } else {
+            setTimingSelectedCourse(null);
+        }
+    }, [activeStudentIndex, students, timingSelectedCourse]);
+
     // Auto-detect timezone based on browser
     useEffect(() => {
         const detectAndSetTimezone = () => {
@@ -238,6 +250,12 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
             delete student.locationId;
         }
         newStudents[index] = student;
+        
+        // Auto-select first course for timing when courses are selected
+        if (field === 'courses' && Array.isArray(value) && value.length > 0 && !timingSelectedCourse) {
+            setTimingSelectedCourse(value[0]);
+        }
+        
         return newStudents;
     });
 
