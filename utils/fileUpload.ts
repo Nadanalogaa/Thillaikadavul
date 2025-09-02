@@ -19,22 +19,15 @@ export const uploadCourseImage = async (file: File, courseId: string): Promise<U
     return new Promise((resolve) => {
       reader.onload = async () => {
         try {
-          // In a real application, you would send this to your API endpoint
-          // For local development, we'll save the file path and simulate success
+          // Convert to base64 for immediate display (works everywhere)
+          const base64Data = reader.result as string;
           
           // Simulate upload delay
           await new Promise(delay => setTimeout(delay, 1000));
           
-          // Create a blob URL for local preview (temporary solution)
-          const blob = new Blob([file], { type: file.type });
-          const localUrl = URL.createObjectURL(blob);
-          
-          // In production, this would be the actual server path
-          const filePath = `/assets/images/courses/${fileName}`;
-          
           resolve({
             success: true,
-            filePath: filePath
+            filePath: base64Data // Return base64 data URL for immediate display
           });
         } catch (error) {
           console.error('Error processing image:', error);
@@ -52,7 +45,7 @@ export const uploadCourseImage = async (file: File, courseId: string): Promise<U
         });
       };
       
-      reader.readAsArrayBuffer(file);
+      reader.readAsDataURL(file);
     });
   } catch (error) {
     console.error('Error uploading course image:', error);
@@ -76,15 +69,15 @@ export const uploadCourseIcon = async (file: File, courseId: string): Promise<Up
     return new Promise((resolve) => {
       reader.onload = async () => {
         try {
+          // Convert to base64 for immediate display (works everywhere)
+          const base64Data = reader.result as string;
+          
           // Simulate upload delay
           await new Promise(delay => setTimeout(delay, 500));
           
-          // In production, this would be the actual server path
-          const filePath = `/assets/images/icons/${fileName}`;
-          
           resolve({
             success: true,
-            filePath: filePath
+            filePath: base64Data // Return base64 data URL for immediate display
           });
         } catch (error) {
           console.error('Error processing icon:', error);
@@ -102,7 +95,7 @@ export const uploadCourseIcon = async (file: File, courseId: string): Promise<Up
         });
       };
       
-      reader.readAsArrayBuffer(file);
+      reader.readAsDataURL(file);
     });
   } catch (error) {
     console.error('Error uploading course icon:', error);
