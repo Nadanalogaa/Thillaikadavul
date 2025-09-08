@@ -202,14 +202,79 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onSa
                                     <legend className="font-semibold text-lg mb-4 text-gray-800">Academic Details</legend>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
                                          <div className="sm:col-span-2">
-                                            <label className="block text-sm font-medium text-gray-700">Courses</label>
-                                             <div className="mt-2 grid grid-cols-2 gap-2">
-                                                {courses.map(course => (
-                                                    <label key={course.id} className="flex items-center space-x-2">
-                                                        <input type="checkbox" value={course.name} checked={formData.courses?.includes(course.name)} onChange={handleCourseChange} className="focus:ring-brand-primary h-4 w-4 text-brand-primary border-gray-300 rounded"/>
-                                                        <span>{course.name}</span>
-                                                    </label>
-                                                ))}
+                                            <div>
+                                                <h4 className="text-lg font-semibold text-gray-900 mb-1">Select your Course</h4>
+                                                <p className="text-sm text-gray-600 mb-6">You can select multiple courses</p>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                                {courses.map(course => {
+                                                    const courseName = course.name;
+                                                    const isSelected = (formData.courses || []).includes(courseName);
+                                                    return (
+                                                        <div
+                                                            key={course.id}
+                                                            className={`relative overflow-hidden rounded-xl border transition-all duration-300 cursor-pointer transform hover:scale-105 ${
+                                                                isSelected ? 'border-blue-300 bg-blue-50 shadow-lg' : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md'
+                                                            }`}
+                                                            onClick={() => {
+                                                                const event = {
+                                                                    target: {
+                                                                        value: courseName,
+                                                                        checked: !isSelected
+                                                                    }
+                                                                } as React.ChangeEvent<HTMLInputElement>;
+                                                                handleCourseChange(event);
+                                                            }}
+                                                        >
+                                                            {/* Course Image */}
+                                                            <div className="aspect-w-16 aspect-h-12 bg-gradient-to-br from-orange-100 via-yellow-50 to-pink-100">
+                                                                {course.image ? (
+                                                                    <img 
+                                                                        src={course.image} 
+                                                                        alt={courseName}
+                                                                        className="w-full h-32 object-contain p-4"
+                                                                    />
+                                                                ) : (
+                                                                    <div className="flex items-center justify-center h-32 p-4">
+                                                                        <div className="text-center text-gray-500">
+                                                                            <svg className="w-12 h-12 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                                                            </svg>
+                                                                            <p className="text-xs font-medium">{courseName}</p>
+                                                                            <p className="text-xs text-gray-400">No image uploaded</p>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            
+                                                            {/* Course Content */}
+                                                            <div className="p-4">
+                                                                <div className="flex items-center justify-between mb-2">
+                                                                    <h3 className="text-sm font-bold text-gray-900 truncate">{courseName}</h3>
+                                                                    {isSelected && (
+                                                                        <div className="flex-shrink-0 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                                                                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                                                                            </svg>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                                
+                                                                <div className="flex items-center justify-between text-xs text-gray-600">
+                                                                    <span>Time Slots: 0/2</span>
+                                                                    <span className="text-blue-600 font-medium">
+                                                                        {isSelected ? 'Selected' : 'Select'}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            {/* Gradient Overlay for selected state */}
+                                                            {isSelected && (
+                                                                <div className="absolute inset-0 bg-gradient-to-t from-blue-500/10 to-transparent pointer-events-none"></div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                         <div>
