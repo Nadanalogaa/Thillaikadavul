@@ -1,6 +1,4 @@
-const nodemailer = require('nodemailer');
-
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
@@ -10,7 +8,7 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ success: false, error: 'Missing required fields: to, subject, message' });
   }
 
-  // Optional proxy to backend SMTP server
+  // Proxy to backend SMTP server (recommended approach)
   const proxyBase = process.env.EMAIL_SERVER_URL;
   if (proxyBase) {
     try {
@@ -30,48 +28,43 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // Direct SMTP configuration for Vercel
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM_EMAIL } = process.env;
+  // Use Gmail API with service account (alternative to SMTP)
+  const { GMAIL_API_KEY, SMTP_USER } = process.env;
   
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
-    return res.status(501).json({
-      success: false,
-      error: 'SMTP not configured. Set SMTP_HOST, SMTP_USER, SMTP_PASS environment variables on Vercel, or set EMAIL_SERVER_URL to proxy to your backend.'
-    });
+  if (GMAIL_API_KEY && SMTP_USER) {
+    try {
+      // Simple Gmail send using REST API
+      const emailContent = `To: ${to}\r\nSubject: ${subject}\r\nContent-Type: text/html; charset=utf-8\r\n\r\n${message}`;
+      const encodedEmail = Buffer.from(emailContent).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      
+      const response = await fetch(`https://www.googleapis.com/gmail/v1/users/me/messages/send`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${GMAIL_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ raw: encodedEmail })
+      });
+
+      if (response.ok) {
+        return res.status(200).json({ 
+          success: true, 
+          method: 'gmail-api',
+          message: 'Email sent successfully via Gmail API' 
+        });
+      } else {
+        throw new Error(`Gmail API error: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Gmail API error:', error);
+      // Fall through to error response
+    }
   }
 
-  try {
-    const transporter = nodemailer.createTransporter({
-      host: SMTP_HOST,
-      port: parseInt(SMTP_PORT) || 587,
-      secure: false,
-      auth: {
-        user: SMTP_USER,
-        pass: SMTP_PASS,
-      },
-    });
-
-    const mailOptions = {
-      from: SMTP_FROM_EMAIL || SMTP_USER,
-      to,
-      subject,
-      html: message,
-    };
-
-    await transporter.sendMail(mailOptions);
-    
-    return res.status(200).json({ 
-      success: true, 
-      method: 'smtp',
-      message: 'Email sent successfully via SMTP' 
-    });
-    
-  } catch (error) {
-    console.error('SMTP error:', error);
-    return res.status(500).json({ 
-      success: false, 
-      error: 'Failed to send email via SMTP: ' + error.message 
-    });
-  }
+  // Not configured - return helpful error
+  return res.status(501).json({
+    success: false,
+    error: 'Email not configured on Vercel. Set EMAIL_SERVER_URL to proxy to your backend, or set GMAIL_API_KEY for Gmail API.'
+  });
 }
 
