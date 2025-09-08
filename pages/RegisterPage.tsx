@@ -68,7 +68,13 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                     getCourses(),
                     getPublicLocations(),
                 ]);
-                setCourses(fetchedCourses);
+                console.log('RegisterPage - Fetched courses:', fetchedCourses);
+                // Remove duplicate courses based on course name to prevent UI duplication
+                const uniqueCourses = fetchedCourses.filter((course, index, array) => 
+                    array.findIndex(c => c.name === course.name) === index
+                );
+                console.log('RegisterPage - Unique courses after deduplication:', uniqueCourses);
+                setCourses(uniqueCourses);
                 setLocations(fetchedLocations);
             } catch (err) {
                 setError("Could not load registration data. Please try again later.");
