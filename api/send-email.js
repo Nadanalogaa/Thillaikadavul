@@ -17,43 +17,51 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Method 1: FormSubmit (works from server-side)
-    const formSubmitResponse = await fetch('https://formsubmit.co/nadanalogaa@gmail.com', {
+    // Method 1: FormSubmit to admin with user email in body (reliable approach)
+    const adminNotificationResponse = await fetch('https://formsubmit.co/nadanalogaa@gmail.com', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
       body: JSON.stringify({
-        name: 'New Registration Notification',
-        email: 'nadanalogaa@gmail.com', 
-        subject: `New User Registration: ${name || 'User'} (${to})`,
-        message: `A new user has registered and needs a welcome email.
+        name: 'Nadanaloga Registration System',
+        email: 'nadanalogaa@gmail.com',
+        subject: `🎉 New Student Registered: ${name || 'User'}`,
+        message: `New student registration completed!
 
-User Details:
-- Name: ${name || 'User'}
-- Email: ${to}
-- Registration Time: ${new Date().toLocaleString()}
+STUDENT DETAILS:
+👤 Name: ${name || 'User'}
+📧 Email: ${to}
+📅 Registration: ${new Date().toLocaleString()}
 
-Please send them this welcome email:
+WELCOME EMAIL TO SEND:
+Please copy this and send to ${to}:
 
 Subject: ${subject}
 
-Message:
+Dear ${name || 'Student'},
+
 ${message}
 
-This is an automated notification from Nadanaloga registration system.`,
+Best regards,
+The Nadanaloga Team
+
+---
+This is an automated notification from Nadanaloga registration system.
+Please send the welcome email above to the new student.`,
         _captcha: 'false',
         _template: 'basic'
       })
     });
 
-    if (formSubmitResponse.ok) {
-      console.log(`✅ Admin notification sent for new user: ${to}`);
+    if (adminNotificationResponse.ok) {
+      console.log(`✅ Admin notification sent for new student: ${to}`);
       return res.json({ 
         success: true, 
-        message: 'Registration notification sent to admin. Welcome email will be sent manually.',
-        method: 'FormSubmit Admin Notification'
+        message: `Admin notification sent. Please check nadanalogaa@gmail.com and send welcome email to ${to}`,
+        method: 'FormSubmit Admin Notification',
+        nextAction: `Manual: Send welcome email to ${to}`
       });
     }
 
