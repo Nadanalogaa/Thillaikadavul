@@ -17,7 +17,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Method 1: Use Formspree (proven working service)
+    // Method 1: Use a working Formspree endpoint (sends email to admin who can forward)
     const formspreeResponse = await fetch('https://formspree.io/f/xpznwbog', {
       method: 'POST',
       headers: {
@@ -25,33 +25,41 @@ export default async function handler(req, res) {
         'Accept': 'application/json'
       },
       body: JSON.stringify({
-        email: to,
-        name: name || 'Student',
-        subject: subject,
-        message: `Dear ${name || 'Student'},
+        email: 'nadanalogaa@gmail.com', // Send to admin
+        name: 'Nadanaloga Registration System',
+        subject: `🎉 New Registration: Please send welcome email to ${to}`,
+        message: `NEW STUDENT REGISTRATION ALERT!
 
-${message}
+Student Details:
+👤 Name: ${name || 'Student'}
+📧 Email: ${to}
+⏰ Registration Time: ${new Date().toLocaleString()}
 
-Best regards,
-The Nadanaloga Team
+WELCOME EMAIL TO SEND TO STUDENT:
+Please copy and send this email to ${to}:
 
 ---
-This is a welcome email from Nadanaloga Registration System.
-Student Email: ${to}
-Registration Time: ${new Date().toLocaleString()}`,
-        _replyto: to,
-        _subject: subject
+Subject: ${subject}
+
+${message}
+---
+
+Action Required: Send the above welcome email to ${to} manually.
+
+This is an automated notification from Nadanaloga registration system.`,
+        _replyto: 'nadanalogaa@gmail.com'
       })
     });
 
     if (formspreeResponse.ok) {
       const result = await formspreeResponse.json();
-      console.log(`✅ Email sent via Formspree to: ${to}`);
+      console.log(`✅ Admin notification sent via Formspree for student: ${to}`);
       return res.json({ 
         success: true, 
-        message: `Welcome email sent successfully to ${to}`,
-        method: 'Formspree Direct',
+        message: `Admin notified to send welcome email to ${to}. Check nadanalogaa@gmail.com inbox.`,
+        method: 'Formspree Admin Notification',
         recipient: to,
+        nextAction: `Check nadanalogaa@gmail.com and manually send welcome email to ${to}`,
         formspreeResponse: result
       });
     }

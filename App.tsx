@@ -33,6 +33,7 @@ import BookMaterialsManagementPage from './pages/admin/BookMaterialsManagementPa
 import NoticesManagementPage from './pages/admin/NoticesManagementPage';
 import LocationsManagementPage from './pages/admin/LocationsManagementPage';
 import MediaManagementPage from './pages/admin/MediaManagementPage';
+import EmailTestPage from './pages/EmailTestPage';
 
 // New Student Pages
 import StudentDashboardHomePage from './pages/student/StudentDashboardHomePage';
@@ -188,6 +189,7 @@ function App() {
           <Route path="/faq" element={<FAQPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/register" element={<RegisterPage onLoginNeeded={openLoginModal} />} />
+          <Route path="/email-test" element={<EmailTestPage />} />
           <Route 
             path="/admin/login" 
             element={<AdminLoginPage onLoginSuccess={handleLoginSuccess} />} 
