@@ -215,48 +215,146 @@ async function startServer() {
         `;
     };
 
-    // --- Nodemailer Transport ---
+    // --- Universal SMTP Configuration ---
+    const createUniversalSMTPConfig = (host, user, pass, port) => {
+        const smtpPort = parseInt(port || '587', 10);
+        const isSecure = smtpPort === 465;
+        
+        return {
+            host: host,
+            port: smtpPort,
+            secure: isSecure, // true for 465 (SSL), false for 587/25 (TLS)
+            auth: { user: user, pass: pass },
+            // Universal compatibility options
+            tls: {
+                rejectUnauthorized: false, // Accept self-signed certificates (for VPS)
+                ciphers: 'SSLv3' // Compatibility with older servers
+            },
+            connectionTimeout: 60000, // 60 seconds timeout
+            greetingTimeout: 30000,    // 30 seconds greeting timeout  
+            socketTimeout: 60000,      // 60 seconds socket timeout
+            // Connection pooling for better performance
+            pool: true,
+            maxConnections: 5,
+            maxMessages: 100,
+            rateDelta: 1000,           // 1 second between emails
+            rateLimit: 5               // Max 5 emails per rateDelta
+        };
+    };
+
+    // Email provider configurations for auto-detection
+    const getProviderConfig = (email) => {
+        const domain = email.split('@')[1]?.toLowerCase();
+        
+        const providers = {
+            'gmail.com': { host: 'smtp.gmail.com', port: 587, name: 'Gmail' },
+            'outlook.com': { host: 'smtp-mail.outlook.com', port: 587, name: 'Outlook' },
+            'hotmail.com': { host: 'smtp-mail.outlook.com', port: 587, name: 'Hotmail' },
+            'yahoo.com': { host: 'smtp.mail.yahoo.com', port: 587, name: 'Yahoo' },
+            'icloud.com': { host: 'smtp.mail.me.com', port: 587, name: 'iCloud' },
+            // Business email providers
+            'zoho.com': { host: 'smtp.zoho.com', port: 587, name: 'Zoho' },
+            // Custom domain support  
+            'default': { host: process.env.SMTP_HOST, port: process.env.SMTP_PORT || 587, name: 'Custom' }
+        };
+        
+        return providers[domain] || providers['default'];
+    };
+
     let mailTransporter;
     let isEtherealMode = false;
+    let emailProvider = 'Unknown';
+
     try {
-        // Default to Ethereal if any of the required SMTP vars are missing
-        if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+            // Test mode with Ethereal
             isEtherealMode = true;
             console.log('\n--- ❗ EMAIL IS IN TEST MODE ❗ ---');
-            console.log('[Email] WARNING: SMTP environment variables (SMTP_HOST, SMTP_USER, SMTP_PASS) are missing in server/.env');
-            console.log('[Email] The server is using Ethereal, a *fake* email service for developers.');
-            console.log('[Email] >>> NO REAL EMAILS WILL BE SENT. <<<');
-            console.log('[Email] Instead, emails will be trapped and a "Preview URL" will be printed in this console.');
-            console.log('[Email] To send real emails, you MUST configure your SMTP settings in server/.env');
+            console.log('[Email] Missing SMTP credentials. Using test mode.');
+            console.log('[Email] Set SMTP_USER and SMTP_PASS for production emails.');
             console.log('-------------------------------------\n');
 
             const testAccount = await nodemailer.createTestAccount();
-            mailTransporter = nodemailer.createTransport({
-                host: testAccount.smtp.host,
-                port: testAccount.smtp.port,
-                secure: testAccount.smtp.secure,
-                auth: { user: testAccount.user, pass: testAccount.pass },
+            mailTransporter = nodemailer.createTransporter({
+                ...createUniversalSMTPConfig(
+                    testAccount.smtp.host, 
+                    testAccount.user, 
+                    testAccount.pass, 
+                    testAccount.smtp.port
+                ),
+                secure: testAccount.smtp.secure
             });
+            emailProvider = 'Ethereal (Test)';
         } else {
-            console.log('\n--- 📧 EMAIL CONFIGURATION ---');
-            console.log(`[Email] Live SMTP config found. Attempting to connect to ${process.env.SMTP_HOST}...`);
-            mailTransporter = nodemailer.createTransport({
-                host: process.env.SMTP_HOST,
-                port: parseInt(process.env.SMTP_PORT || '587', 10),
-                secure: parseInt(process.env.SMTP_PORT || '587', 10) === 465,
-                auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-            });
+            // Production mode with auto-detection
+            console.log('\n--- 📧 UNIVERSAL SMTP CONFIGURATION ---');
+            
+            const detectedProvider = getProviderConfig(process.env.SMTP_USER);
+            emailProvider = detectedProvider.name;
+            
+            const smtpHost = process.env.SMTP_HOST || detectedProvider.host;
+            const smtpPort = process.env.SMTP_PORT || detectedProvider.port;
+            
+            console.log(`[Email] Provider: ${emailProvider}`);
+            console.log(`[Email] Host: ${smtpHost}:${smtpPort}`);
+            console.log(`[Email] User: ${process.env.SMTP_USER}`);
+            console.log(`[Email] Testing connection...`);
 
-            await mailTransporter.verify();
-            console.log('[Email] ✅ SMTP connection verified. Server is ready to send real emails.');
-            console.log('-----------------------------\n');
+            const smtpConfig = createUniversalSMTPConfig(
+                smtpHost,
+                process.env.SMTP_USER, 
+                process.env.SMTP_PASS,
+                smtpPort
+            );
+
+            mailTransporter = nodemailer.createTransporter(smtpConfig);
+
+            // Test connection with retry logic
+            let connectionAttempts = 0;
+            const maxAttempts = 3;
+            
+            while (connectionAttempts < maxAttempts) {
+                try {
+                    await mailTransporter.verify();
+                    console.log(`[Email] ✅ Connection verified with ${emailProvider}`);
+                    console.log(`[Email] Server ready to send emails from ${process.env.SMTP_USER}`);
+                    console.log('--------------------------------------------\n');
+                    break;
+                } catch (retryError) {
+                    connectionAttempts++;
+                    console.log(`[Email] ⚠️ Connection attempt ${connectionAttempts}/${maxAttempts} failed: ${retryError.message}`);
+                    
+                    if (connectionAttempts >= maxAttempts) {
+                        throw retryError;
+                    }
+                    
+                    // Wait before retry
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+            }
         }
     } catch (error) {
         console.error('\n--- 🚨 EMAIL CONFIGURATION FAILED ---');
-        console.error('[Email] Could not connect to SMTP server. Please check your .env settings.');
+        console.error(`[Email] Provider: ${emailProvider}`);
         console.error(`[Email] Error: ${error.message}`);
-        console.error('[Email] The app will run, but email sending will FAIL.');
-        console.error('--------------------------------------\n');
+        
+        // Provide helpful error messages
+        if (error.code === 'EAUTH') {
+            console.error('[Email] ❌ Authentication failed. Check email and app-password.');
+        } else if (error.code === 'ECONNECTION' || error.code === 'ETIMEDOUT') {
+            console.error('[Email] ❌ Connection failed. Check internet and SMTP host.');
+        } else if (error.code === 'ESOCKET') {
+            console.error('[Email] ❌ Socket error. Server may block SMTP ports.');
+        }
+        
+        console.error('[Email] 💡 Troubleshooting:');
+        console.error('[Email]    • Gmail: Use app-password, not regular password'); 
+        console.error('[Email]    • VPS: Ensure ports 587/465 are open');
+        console.error('[Email]    • Firewall: Allow outbound SMTP connections');
+        console.error('[Email] Server continues, but emails will fail.');
+        console.error('-----------------------------------------------\n');
+        
+        mailTransporter = null;
     }
 
     const app = express();
@@ -270,6 +368,7 @@ async function startServer() {
       'http://127.0.0.1:5173',
       'http://localhost:5500', 
       'http://127.0.0.1:5500',
+      'https://thillaikadavul.vercel.app',
     ];
     if (process.env.CLIENT_URL) {
       whitelist.push(process.env.CLIENT_URL);

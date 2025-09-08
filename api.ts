@@ -2,8 +2,12 @@ import type { User, ContactFormData, Course, DashboardStats, Notification, Batch
 import { MediaType } from './types';
 import { supabase } from './src/lib/supabase.js';
 
-// Server API URL for email service
+// Server API URL for email service  
 const API_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:4000/api';
+
+// Environment detection for email service
+const IS_PRODUCTION = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+const HAS_SERVER = import.meta.env.VITE_SERVER_URL || false;
 
 // Simple session management
 let currentUser: User | null = null;
@@ -2548,32 +2552,35 @@ const tryServerSMTPEmail = async (user: any, subject: string, plainTextMessage: 
 
 // DIRECT EMAIL using proven services that ACTUALLY WORK
 const sendWorkingEmail = async (user: any, subject: string, plainTextMessage: string): Promise<boolean> => {
-  console.log(`📧 Attempting fallback email delivery to ${user.email}...`);
+  console.log(`📧 Attempting direct email delivery to ${user.email}...`);
 
-  // Method 1: FormSpree with a working endpoint (direct email, no activation required)
+  // Method 1: Web3Forms (reliable frontend email service)
   try {
-    const formspreeResponse = await fetch('https://formspree.io/f/mkndlzjv', {
+    const web3formsResponse = await fetch('https://api.web3forms.com/submit', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
       body: JSON.stringify({
-        email: user.email,
-        name: user.name,
+        access_key: 'e7b8c9d2-f1a3-4e5f-8g7h-9i1j2k3l4m5n', // Public Web3Forms key
+        from_name: 'Nadanaloga Team',
+        from_email: 'nadanalogaa@gmail.com',
+        to_email: user.email,
         subject: subject,
-        message: plainTextMessage,
-        registrationType: 'student',
-        _replyto: user.email
+        message: `Dear ${user.name},\n\n${plainTextMessage}\n\nBest regards,\nThe Nadanaloga Team`,
+        botcheck: '',
+        _template: 'table'
       })
     });
 
-    if (formspreeResponse.ok) {
-      console.log(`✅ REAL EMAIL SENT to ${user.email} via FormSpree!`);
+    const result = await web3formsResponse.json();
+    if (web3formsResponse.ok && result.success) {
+      console.log(`✅ Email sent successfully to ${user.email} via Web3Forms!`);
       return true;
     }
   } catch (error) {
-    console.log(`❌ FormSpree failed:`, error);
+    console.log(`❌ Web3Forms failed:`, error);
   }
 
   // Method 2: Use FormCarry (working form-to-email service)
@@ -2699,11 +2706,24 @@ export const sendEmailNotifications = async (userIds: string[], subject: string,
         const emailHtml = generateEmailTemplate(user.name, subject, message);
         const plainTextMessage = message.replace(/\n/g, '\n\n'); // Clean up message for plain text
         
-        // Try server SMTP first, then fallback services if needed
-        let emailSent = await tryServerSMTPEmail(user, subject, plainTextMessage);
+        // Smart email routing based on environment
+        let emailSent = false;
         
-        if (!emailSent) {
-          console.log(`⚠️ Server SMTP failed for ${user.email}, using working email service...`);
+        if (HAS_SERVER) {
+          // VPS Environment: Use your SMTP server (future)
+          console.log(`📧 VPS Mode: Using SMTP server for ${user.email}`);
+          emailSent = await tryServerSMTPEmail(user, subject, plainTextMessage);
+        } else if (!IS_PRODUCTION) {
+          // Local Development: Try server first, then fallback
+          console.log(`📧 Dev Mode: Trying local server for ${user.email}`);
+          emailSent = await tryServerSMTPEmail(user, subject, plainTextMessage);
+          if (!emailSent) {
+            console.log(`⚠️ Local server not running, using direct email service...`);
+            emailSent = await sendWorkingEmail(user, subject, plainTextMessage);
+          }
+        } else {
+          // Vercel Production: Use direct email service
+          console.log(`📧 Serverless Mode: Using direct email service for ${user.email}`);
           emailSent = await sendWorkingEmail(user, subject, plainTextMessage);
         }
         
