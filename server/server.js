@@ -755,6 +755,11 @@ async function startServer() {
         }
     });
 
+    // Health check endpoint for Railway deployment
+    app.get('/api/health', (req, res) => {
+        res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
+    });
+
     // --- Start Server ---
     app.listen(PORT, () => {
       console.log(`[Server] Running on http://localhost:${PORT}`);
