@@ -316,3 +316,22 @@ export interface Notice {
   issuedAt: string; // ISO string
   recipientIds?: string[];
 }
+
+// --- Media Types ---
+
+export enum MediaType {
+  Image = 'image',
+  Video = 'video',
+  YouTube = 'youtube',
+}
+
+export interface MediaItem {
+  id: string;
+  type: MediaType; // image | video | youtube
+  url: string; // base64 data URL for uploads or external URL
+  title: string;
+  description?: string;
+  uploadDate: string; // ISO date string (when uploaded)
+  createdAt?: string; // ISO timestamp
+  updatedAt?: string; // ISO timestamp
+}

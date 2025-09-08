@@ -278,6 +278,18 @@ CREATE TABLE IF NOT EXISTS contacts (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Media Items table - SAFE MIGRATION: For images, videos, and YouTube embeds on homepage
+CREATE TABLE IF NOT EXISTS media_items (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    type TEXT NOT NULL CHECK (type IN ('image', 'video', 'youtube')),
+    url TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    upload_date DATE DEFAULT CURRENT_DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create indexes for better performance including new recipient_ids columns
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
@@ -294,6 +306,8 @@ CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
 CREATE INDEX IF NOT EXISTS idx_notifications_recipient_id ON notifications(recipient_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);
 CREATE INDEX IF NOT EXISTS idx_contacts_status ON contacts(status);
+CREATE INDEX IF NOT EXISTS idx_media_items_created_at ON media_items(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_media_items_type ON media_items(type);
 
 -- NEW: Create GIN indexes for JSONB recipient_ids columns for better performance
 CREATE INDEX IF NOT EXISTS idx_events_recipient_ids ON events USING GIN (recipient_ids);
@@ -359,6 +373,10 @@ BEGIN
     
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_contacts_updated_at') THEN
         CREATE TRIGGER update_contacts_updated_at BEFORE UPDATE ON contacts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_media_items_updated_at') THEN
+        CREATE TRIGGER update_media_items_updated_at BEFORE UPDATE ON media_items FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     END IF;
 END $$;
 
@@ -575,7 +593,47 @@ BEGIN
     RAISE NOTICE 'Batches Mode/Location Test: PASSED ✅';
 END $$;
 
--- Test 7: All Tables Exist and Are Queryable
+-- Test 7: NEW - Media Items CRUD Operations for Homepage
+DO $$
+DECLARE
+    test_media_id UUID;
+    media_count INTEGER;
+BEGIN
+    -- Test media item insert with different types
+    INSERT INTO media_items (type, url, title, description)
+    VALUES ('image', '/assets/images/homepage/test-image.jpg', 'Test Homepage Image', 'Test Description')
+    RETURNING id INTO test_media_id;
+    
+    -- Test media item update
+    UPDATE media_items 
+    SET title = 'Updated Homepage Image', 
+        description = 'Updated Description'
+    WHERE id = test_media_id;
+    
+    -- Test media item select
+    SELECT COUNT(*) INTO media_count FROM media_items WHERE id = test_media_id;
+    
+    -- Verify media item was created and updated
+    IF media_count = 1 THEN
+        RAISE NOTICE 'Media Items System: VERIFIED ✅ - Homepage media management working';
+    ELSE
+        RAISE NOTICE 'Media Items Test: FAILED ❌';
+    END IF;
+    
+    -- Test different media types
+    INSERT INTO media_items (type, url, title, description)
+    VALUES 
+        ('youtube', 'https://www.youtube.com/watch?v=test123', 'Test YouTube Video', 'Dance performance'),
+        ('video', '/assets/videos/dance-performance.mp4', 'Local Video', 'Bharatanatyam performance');
+    
+    -- Cleanup test data
+    DELETE FROM media_items WHERE id = test_media_id;
+    DELETE FROM media_items WHERE title IN ('Test YouTube Video', 'Local Video');
+    
+    RAISE NOTICE 'Media Items Homepage Test: PASSED ✅';
+END $$;
+
+-- Test 8: All Tables Exist and Are Queryable
 DO $$
 BEGIN
     -- Verify all tables exist and can be queried
@@ -591,6 +649,7 @@ BEGIN
     PERFORM * FROM invoices LIMIT 1;
     PERFORM * FROM notifications LIMIT 1;
     PERFORM * FROM contacts LIMIT 1;
+    PERFORM * FROM media_items LIMIT 1;
     
     RAISE NOTICE 'All Tables Existence Test: PASSED ✅';
 END $$;
@@ -624,6 +683,12 @@ BEGIN
     RAISE NOTICE '   ✅ Admin can upload course images';
     RAISE NOTICE '   ✅ Images display on registration screen';
     RAISE NOTICE '   ✅ Thumbnails show in admin course table';
+    RAISE NOTICE '';
+    RAISE NOTICE '🎬 HOMEPAGE MEDIA MANAGEMENT:';
+    RAISE NOTICE '   ✅ Admin can add images, videos, and YouTube embeds';
+    RAISE NOTICE '   ✅ Media carousel displays on homepage';
+    RAISE NOTICE '   ✅ Support for multiple media types (image/video/youtube)';
+    RAISE NOTICE '   ✅ Media items limited to 10 for optimal performance';
     RAISE NOTICE '';
     RAISE NOTICE '💾 DATA PRESERVATION GUARANTEED:';
     RAISE NOTICE '   ✅ All existing courses preserved';

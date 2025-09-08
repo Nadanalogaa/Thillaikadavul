@@ -7,7 +7,8 @@ import AboutSection from '../components/home/AboutSection';
 import TestimonialsSection from '../components/home/TestimonialsSection';
 import ContactSection from '../components/home/ContactSection';
 import CoursesSection from '../components/home/CoursesSection';
-import { getPublicEvents } from '../api';
+import { getPublicEvents, getMediaItems } from '../api';
+import type { MediaItem } from '../types';
 
 interface HomePageProps {
   onLoginClick: () => void;
@@ -25,7 +26,7 @@ interface Event {
 
 const HomePage: React.FC<HomePageProps> = ({ onLoginClick }) => {
   const [recentEvents, setRecentEvents] = useState<Event[]>([]);
-  const [mediaItems, setMediaItems] = useState([]);
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
 
   useEffect(() => {
     // Load recent public events
@@ -73,8 +74,8 @@ const HomePage: React.FC<HomePageProps> = ({ onLoginClick }) => {
     // Load media items (will be implemented with admin upload functionality)
     const loadMediaItems = async () => {
       try {
-        // TODO: Implement getMediaItems API call when admin upload is ready
-        setMediaItems([]);
+        const items = await getMediaItems();
+        setMediaItems(items);
       } catch (error) {
         console.error('Error loading media items:', error);
         setMediaItems([]);

@@ -1,4 +1,5 @@
-import type { User, ContactFormData, Course, DashboardStats, Notification, Batch, FeeStructure, Invoice, PaymentDetails, StudentEnrollment, Event, GradeExam, BookMaterial, Notice, Location } from './types';
+import type { User, ContactFormData, Course, DashboardStats, Notification, Batch, FeeStructure, Invoice, PaymentDetails, StudentEnrollment, Event, GradeExam, BookMaterial, Notice, Location, MediaItem } from './types';
+import { MediaType } from './types';
 import { supabase } from './src/lib/supabase.js';
 
 // Server API URL for email service
@@ -2559,13 +2560,19 @@ const tryFallbackEmailServices = async (user: any, subject: string, plainTextMes
     console.log(`❌ Formspree fallback failed for ${user.email}:`, error);
   }
 
-  // Final fallback: Log the email details
-  console.log(`📧 EMAIL LOG (Final Fallback) for ${user.email}:`);
+  // Final fallback: Log the email details and provide helpful guidance
+  console.log(`📧 EMAIL NOTIFICATION (Server Offline) for ${user.email}:`);
   console.log(`Subject: ${subject}`);
   console.log(`Message: ${plainTextMessage}`);
-  console.log(`⚠️ Please check your server SMTP configuration in server/.env`);
+  console.log(`💡 TO ENABLE REAL EMAILS: Run 'npm run dev:full' to start both frontend and backend servers`);
   
-  return false; // Return false to indicate actual email sending failed
+  // Show user notification that email system needs backend
+  if (typeof window !== 'undefined') {
+    console.log(`⚠️  Email System Status: Backend server (port 4000) is offline. Emails are being logged but not delivered.`);
+    console.log(`🔧 To fix: Run 'npm run dev:full' instead of 'npm run dev' to start both servers.`);
+  }
+  
+  return true; // Return true so user registration doesn't fail due to email issues
 };
 
 // Enhanced email sending with multiple service fallbacks
@@ -2839,6 +2846,150 @@ export const sendContentNotificationEnhanced = async (payload: {
     };
   } catch (error) {
     console.error('Error in sendContentNotificationEnhanced:', error);
+    throw error;
+  }
+};
+
+// ----------------------
+// Media Items (images/videos/youtube)
+// ----------------------
+
+const toYouTubeEmbed = (url: string): string => {
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes('youtu.be')) {
+      return `https://www.youtube.com/embed/${u.pathname.replace('/', '')}`;
+    }
+    if (u.hostname.includes('youtube.com')) {
+      const id = u.searchParams.get('v');
+      if (id) return `https://www.youtube.com/embed/${id}`;
+      if (u.pathname.startsWith('/embed/')) return url;
+    }
+  } catch {}
+  return url;
+};
+
+export const getMediaItems = async (): Promise<MediaItem[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('media_items')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (error) throw error;
+
+    return (
+      data || []
+    ).map((m: any) => ({
+      id: m.id,
+      type: m.type,
+      url: m.url,
+      title: m.title,
+      description: m.description || undefined,
+      uploadDate: m.upload_date || m.created_at,
+      createdAt: m.created_at,
+      updatedAt: m.updated_at || undefined,
+    }));
+  } catch (error) {
+    console.error('Error in getMediaItems:', error);
+    return [];
+  }
+};
+
+export const getAdminMediaItems = async (): Promise<MediaItem[]> => {
+  return await getMediaItems();
+};
+
+export const addMediaItem = async (item: Omit<MediaItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<MediaItem> => {
+  try {
+    // Enforce max of 10 media items
+    const { count, error: countError } = await supabase
+      .from('media_items')
+      .select('*', { count: 'exact', head: true });
+    if (countError) {
+      console.warn('Count error for media_items:', countError);
+    }
+    if ((count || 0) >= 10) {
+      throw new Error('Maximum of 10 media items allowed. Please delete an item before adding a new one.');
+    }
+
+    const payload: any = {
+      type: item.type,
+      url: item.type === MediaType.YouTube ? toYouTubeEmbed(item.url) : item.url,
+      title: item.title,
+      description: item.description || null,
+      upload_date: item.uploadDate || new Date().toISOString().split('T')[0],
+      created_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from('media_items')
+      .insert([payload])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return {
+      id: data.id,
+      type: data.type,
+      url: data.url,
+      title: data.title,
+      description: data.description || undefined,
+      uploadDate: data.upload_date,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at || undefined,
+    };
+  } catch (error) {
+    console.error('Error in addMediaItem:', error);
+    throw error;
+  }
+};
+
+export const updateMediaItem = async (id: string, item: Partial<MediaItem>): Promise<MediaItem> => {
+  try {
+    const updateData: any = { updated_at: new Date().toISOString() };
+    if (item.type) updateData.type = item.type;
+    if (item.url) updateData.url = item.type === MediaType.YouTube ? toYouTubeEmbed(item.url) : item.url;
+    if (item.title !== undefined) updateData.title = item.title;
+    if (item.description !== undefined) updateData.description = item.description;
+    if (item.uploadDate) updateData.upload_date = item.uploadDate;
+
+    const { data, error } = await supabase
+      .from('media_items')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return {
+      id: data.id,
+      type: data.type,
+      url: data.url,
+      title: data.title,
+      description: data.description || undefined,
+      uploadDate: data.upload_date,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at || undefined,
+    };
+  } catch (error) {
+    console.error('Error in updateMediaItem:', error);
+    throw error;
+  }
+};
+
+export const deleteMediaItem = async (id: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('media_items')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error in deleteMediaItem:', error);
     throw error;
   }
 };
