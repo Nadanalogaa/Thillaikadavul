@@ -130,6 +130,15 @@ SMTP_PASS = your-gmail-app-password
 SMTP_FROM_EMAIL = "Nadanaloga <your-gmail@gmail.com>"
 JWT_SECRET = your-super-secret-jwt-key-here
 NODE_ENV = production
+VITE_SUPABASE_URL = your-supabase-project-url
+VITE_SUPABASE_ANON_KEY = your-supabase-anon-key
+VITE_SERVER_URL = https://your-server-domain-or-render-url/api
+```
+
+Optional (only if you want Vercel to proxy email calls to your server):
+
+```
+EMAIL_SERVER_URL = https://your-server-domain-or-render-url/api
 ```
 
 **To get Gmail App Password:**
