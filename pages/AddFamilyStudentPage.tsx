@@ -42,7 +42,13 @@ const AddFamilyStudentPage: React.FC = () => {
                     getCourses(),
                     getPublicLocations(),
                 ]);
-                setCourses(fetchedCourses);
+                console.log('AddFamilyStudentPage - Fetched courses:', fetchedCourses);
+                // Remove duplicates based on course name
+                const uniqueCourses = fetchedCourses.filter((course, index, array) => 
+                    array.findIndex(c => c.name === course.name) === index
+                );
+                console.log('AddFamilyStudentPage - Unique courses after deduplication:', uniqueCourses);
+                setCourses(uniqueCourses);
                 setLocations(fetchedLocations);
             } catch (err) {
                 setError("Could not load course data. Please try again later.");
@@ -256,7 +262,9 @@ const AddFamilyStudentPage: React.FC = () => {
                                         <p className="text-sm text-gray-600 mb-6">You can select multiple courses</p>
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                        {courses.map(course => {
+                                        {(() => {
+                                            console.log('AddFamilyStudentPage - Rendering courses:', courses.length, courses.map(c => c.name));
+                                            return courses.map(course => {
                                             const courseName = course.name;
                                             const courseSlots = (Array.isArray(studentData.preferredTimings)
                                                 ? (studentData.preferredTimings as CourseTimingSlot[]).filter(t => t && typeof t === 'object' && t.courseName === courseName)
@@ -350,7 +358,8 @@ const AddFamilyStudentPage: React.FC = () => {
                                                     )}
                                                 </div>
                                             );
-                                        })}
+                                        });
+                                        })()}
                                     </div>
                                 </div>
                             </div>
