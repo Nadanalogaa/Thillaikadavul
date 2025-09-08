@@ -17,63 +17,42 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Method 1: Use Resend API (reliable email service)
-    const resendResponse = await fetch('https://api.resend.com/emails', {
+    // Method 1: Use Formspree (proven working service)
+    const formspreeResponse = await fetch('https://formspree.io/f/xpznwbog', {
       method: 'POST',
       headers: {
-        'Authorization': 'Bearer re_123456789_abcdefghijk', // Demo key
         'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
       body: JSON.stringify({
-        from: 'Nadanaloga Team <nadanalogaa@gmail.com>',
-        to: [to],
+        email: to,
+        name: name || 'Student',
         subject: subject,
-        html: `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background: #1a237e; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-              .content { padding: 30px; background: #f9f9f9; }
-              .footer { padding: 20px; text-align: center; color: #666; background: #f0f0f0; border-radius: 0 0 8px 8px; }
-              .message { background: white; padding: 20px; border-left: 4px solid #1a237e; margin: 20px 0; }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h1>🎉 Welcome to Nadanaloga!</h1>
-              </div>
-              <div class="content">
-                <p><strong>Dear ${name || 'Student'},</strong></p>
-                <div class="message">
-                  <div style="white-space: pre-line; line-height: 1.8;">${message}</div>
-                </div>
-                <p><strong>Best regards,<br>The Nadanaloga Team</strong></p>
-              </div>
-              <div class="footer">
-                <p>This email was sent from Nadanaloga Registration System</p>
-                <p>📧 nadanalogaa@gmail.com</p>
-              </div>
-            </div>
-          </body>
-          </html>
-        `,
-        text: `Dear ${name || 'Student'},\n\n${message}\n\nBest regards,\nThe Nadanaloga Team`
+        message: `Dear ${name || 'Student'},
+
+${message}
+
+Best regards,
+The Nadanaloga Team
+
+---
+This is a welcome email from Nadanaloga Registration System.
+Student Email: ${to}
+Registration Time: ${new Date().toLocaleString()}`,
+        _replyto: to,
+        _subject: subject
       })
     });
 
-    if (resendResponse.ok) {
-      const result = await resendResponse.json();
-      console.log(`✅ Email sent via Resend to: ${to}, ID: ${result.id}`);
+    if (formspreeResponse.ok) {
+      const result = await formspreeResponse.json();
+      console.log(`✅ Email sent via Formspree to: ${to}`);
       return res.json({ 
         success: true, 
         message: `Welcome email sent successfully to ${to}`,
-        method: 'Resend API',
-        emailId: result.id,
-        recipient: to
+        method: 'Formspree Direct',
+        recipient: to,
+        formspreeResponse: result
       });
     }
 

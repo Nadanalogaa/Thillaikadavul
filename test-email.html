@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Email Function</title>
+</head>
+<body>
+    <h2>Test Vercel Email Function</h2>
+    <button onclick="testEmail()">Send Test Email</button>
+    <div id="result"></div>
+
+    <script>
+    async function testEmail() {
+        const result = document.getElementById('result');
+        result.innerHTML = 'Testing email function...';
+        
+        try {
+            // Test the actual Vercel serverless function
+            const response = await fetch('/api/send-email', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    to: 'mathan.pv@gmail.com',
+                    name: 'Test User',
+                    subject: 'Test Email from Nadanaloga',
+                    message: 'This is a test email to verify the email system is working correctly.\n\nIf you receive this email, the system is functioning properly!'
+                })
+            });
+
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                result.innerHTML = `
+                    <div style="color: green;">
+                        ✅ SUCCESS!<br>
+                        Method: ${data.method}<br>
+                        Message: ${data.message}<br>
+                        Recipient: ${data.recipient}
+                    </div>
+                `;
+            } else {
+                result.innerHTML = `
+                    <div style="color: red;">
+                        ❌ FAILED!<br>
+                        Error: ${data.error || 'Unknown error'}
+                    </div>
+                `;
+            }
+        } catch (error) {
+            result.innerHTML = `
+                <div style="color: red;">
+                    ❌ ERROR: ${error.message}
+                </div>
+            `;
+        }
+    }
+    </script>
+</body>
+</html>
