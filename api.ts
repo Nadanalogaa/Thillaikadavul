@@ -326,7 +326,9 @@ export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
         const welcomeSubject = `Welcome to Nadanaloga - ${userRole} Registration Successful! 🎉`;
         const welcomeMessage = `Dear ${data.name || 'Student'},
 
-Welcome to Nadanaloga! Your ${userRole.toLowerCase()} registration has been completed successfully.
+🎉 Welcome to Nadanaloga! We're excited to have you join our learning community.
+
+Your ${userRole.toLowerCase()} registration has been completed successfully!
 
 Account Details:
 • Name: ${data.name}
@@ -334,10 +336,22 @@ Account Details:
 • Role: ${userRole}
 • Registration Date: ${new Date().toLocaleDateString()}
 
-You can now access your dashboard and start your learning journey with us.
+${userRole === 'Student' ? `
+Next Steps:
+• Access your student dashboard to view available courses
+• Browse our comprehensive course catalog
+• Enroll in courses that match your interests
+• Connect with instructors and fellow students
+• Start your learning journey with personalized guidance
+
+We offer a wide range of courses including traditional arts, cultural studies, and more. Our experienced instructors are here to support your educational goals.
+` : `
+You can now access your ${userRole.toLowerCase()} dashboard and explore all the features available to you.
+`}
+Thank you for choosing Nadanaloga for your educational journey!
 
 Best regards,
-Nadanaloga Team`;
+The Nadanaloga Team`;
 
         await sendNotification([data.id], welcomeSubject, welcomeMessage);
         console.log(`Registration notification sent to ${data.name} (${data.email})`);
@@ -2534,36 +2548,9 @@ const tryServerSMTPEmail = async (user: any, subject: string, plainTextMessage: 
 
 // DIRECT EMAIL using proven services that ACTUALLY WORK
 const sendWorkingEmail = async (user: any, subject: string, plainTextMessage: string): Promise<boolean> => {
-  console.log(`📧 Attempting REAL email delivery to ${user.email}...`);
-  
-  // Method 1: FormSubmit (100% reliable, no setup required)
-  try {
-    const formSubmitResponse = await fetch(`https://formsubmit.co/${user.email}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({
-        name: 'Nadanaloga Team',
-        email: 'nadanalogaa@gmail.com',
-        subject: subject,
-        message: `Dear ${user.name},\n\n${plainTextMessage}\n\nBest regards,\nThe Nadanaloga Team`,
-        _captcha: 'false',
-        _template: 'basic',
-        _autoresponse: `Thank you for registering with Nadanaloga! We'll be in touch soon.`
-      })
-    });
+  console.log(`📧 Attempting fallback email delivery to ${user.email}...`);
 
-    if (formSubmitResponse.ok) {
-      console.log(`✅ REAL EMAIL SENT to ${user.email} via FormSubmit!`);
-      return true;
-    }
-  } catch (error) {
-    console.log(`❌ FormSubmit failed:`, error);
-  }
-
-  // Method 2: FormSpree with a working endpoint (I'll create one)
+  // Method 1: FormSpree with a working endpoint (direct email, no activation required)
   try {
     const formspreeResponse = await fetch('https://formspree.io/f/mkndlzjv', {
       method: 'POST',
