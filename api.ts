@@ -2516,6 +2516,38 @@ export const sendContentNotification = async (payload: {
   }
 };
 
+// Use Vercel serverless function (works from production without CORS issues)
+const useVercelEmailFunction = async (user: any, subject: string, plainTextMessage: string): Promise<boolean> => {
+  try {
+    const response = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        to: user.email,
+        name: user.name,
+        subject: subject,
+        message: plainTextMessage
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (response.ok && result.success) {
+      console.log(`✅ Vercel email function succeeded for ${user.email} (${result.method})`);
+      console.log(`📧 ${result.message}`);
+      return true;
+    } else {
+      console.log(`❌ Vercel email function failed: ${result.error}`);
+      return false;
+    }
+  } catch (error) {
+    console.log(`❌ Vercel email function error:`, error);
+    return false;
+  }
+};
+
 // Use your server's SMTP email service (primary method)
 const tryServerSMTPEmail = async (user: any, subject: string, plainTextMessage: string): Promise<boolean> => {
   try {
@@ -2718,13 +2750,13 @@ export const sendEmailNotifications = async (userIds: string[], subject: string,
           console.log(`📧 Dev Mode: Trying local server for ${user.email}`);
           emailSent = await tryServerSMTPEmail(user, subject, plainTextMessage);
           if (!emailSent) {
-            console.log(`⚠️ Local server not running, using direct email service...`);
-            emailSent = await sendWorkingEmail(user, subject, plainTextMessage);
+            console.log(`⚠️ Local server not running, using Vercel serverless function...`);
+            emailSent = await useVercelEmailFunction(user, subject, plainTextMessage);
           }
         } else {
-          // Vercel Production: Use direct email service
-          console.log(`📧 Serverless Mode: Using direct email service for ${user.email}`);
-          emailSent = await sendWorkingEmail(user, subject, plainTextMessage);
+          // Vercel Production: Use Vercel serverless function (no CORS issues!)
+          console.log(`📧 Serverless Mode: Using Vercel email function for ${user.email}`);
+          emailSent = await useVercelEmailFunction(user, subject, plainTextMessage);
         }
         
         if (emailSent) {
