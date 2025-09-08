@@ -1,8 +1,4 @@
-// Vercel serverless email endpoint.
-// Default behavior: do NOT send email from Vercel.
-// Use your backend SMTP server instead:
-//  - Frontend: set VITE_SERVER_URL so the app calls your server /api/send-email
-//  - Or set EMAIL_SERVER_URL here to proxy requests to your backend.
+import nodemailer from 'nodemailer';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -15,7 +11,7 @@ export default async function handler(req, res) {
   }
 
   // Optional proxy to backend SMTP server
-  const proxyBase = process.env.EMAIL_SERVER_URL; // e.g., https://your-server.onrender.com/api
+  const proxyBase = process.env.EMAIL_SERVER_URL;
   if (proxyBase) {
     try {
       const response = await fetch(`${proxyBase.replace(/\/$/, '')}/send-email`, {
@@ -34,10 +30,48 @@ export default async function handler(req, res) {
     }
   }
 
-  // Honest default: not configured to send
-  return res.status(501).json({
-    success: false,
-    error: 'Email not configured on Vercel. Set VITE_SERVER_URL in the frontend to use your SMTP server, or set EMAIL_SERVER_URL here to proxy.'
-  });
+  // Direct SMTP configuration for Vercel
+  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM_EMAIL } = process.env;
+  
+  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
+    return res.status(501).json({
+      success: false,
+      error: 'SMTP not configured. Set SMTP_HOST, SMTP_USER, SMTP_PASS environment variables on Vercel, or set EMAIL_SERVER_URL to proxy to your backend.'
+    });
+  }
+
+  try {
+    const transporter = nodemailer.createTransporter({
+      host: SMTP_HOST,
+      port: parseInt(SMTP_PORT) || 587,
+      secure: false,
+      auth: {
+        user: SMTP_USER,
+        pass: SMTP_PASS,
+      },
+    });
+
+    const mailOptions = {
+      from: SMTP_FROM_EMAIL || SMTP_USER,
+      to,
+      subject,
+      html: message,
+    };
+
+    await transporter.sendMail(mailOptions);
+    
+    return res.status(200).json({ 
+      success: true, 
+      method: 'smtp',
+      message: 'Email sent successfully via SMTP' 
+    });
+    
+  } catch (error) {
+    console.error('SMTP error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Failed to send email via SMTP: ' + error.message 
+    });
+  }
 }
 
