@@ -37,7 +37,13 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onSa
             const fetchCourses = async () => {
                 try {
                     const fetchedCourses = await getCourses();
-                    setCourses(fetchedCourses);
+                    console.log('Fetched courses:', fetchedCourses);
+                    // Remove duplicates based on course name
+                    const uniqueCourses = fetchedCourses.filter((course, index, array) => 
+                        array.findIndex(c => c.name === course.name) === index
+                    );
+                    console.log('Unique courses after deduplication:', uniqueCourses);
+                    setCourses(uniqueCourses);
                 } catch (error) {
                     console.error("Failed to fetch courses for add student modal", error);
                 }
@@ -207,7 +213,9 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onSa
                                                 <p className="text-sm text-gray-600 mb-6">You can select multiple courses</p>
                                             </div>
                                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                                {courses.map(course => {
+                                                {(() => {
+                                                    console.log('Rendering courses in modal:', courses.length, courses.map(c => c.name));
+                                                    return courses.map(course => {
                                                     const courseName = course.name;
                                                     const isSelected = (formData.courses || []).includes(courseName);
                                                     return (
@@ -274,7 +282,8 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onSa
                                                             )}
                                                         </div>
                                                     );
-                                                })}
+                                                });
+                                                })()}
                                             </div>
                                         </div>
                                         <div>
