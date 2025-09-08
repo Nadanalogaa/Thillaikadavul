@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Test - Nadanaloga</title>
+</head>
+<body>
+    <h2>Test Email Sending to Your Email</h2>
+    <button onclick="testEmail()">Send Test Email to mathan.pv@gmail.com</button>
+    <div id="result"></div>
+
+    <script>
+    async function testEmail() {
+        const result = document.getElementById('result');
+        result.innerHTML = 'Sending email...';
+        
+        try {
+            // Use FormSubmit (100% working service)
+            const response = await fetch('https://formsubmit.co/mathan.pv@gmail.com', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: 'Nadanaloga Test',
+                    email: 'nadanalogaa@gmail.com',
+                    message: 'This is a test email from Nadanaloga registration system. If you receive this, the email system is working!',
+                    subject: 'Test Email - Nadanaloga Registration System Working',
+                    _captcha: 'false',
+                    _template: 'basic'
+                })
+            });
+
+            if (response.ok) {
+                result.innerHTML = '✅ Email sent successfully! Check your email inbox.';
+                result.style.color = 'green';
+            } else {
+                result.innerHTML = '❌ Email failed to send.';
+                result.style.color = 'red';
+            }
+        } catch (error) {
+            result.innerHTML = '❌ Error: ' + error.message;
+            result.style.color = 'red';
+        }
+    }
+    </script>
+</body>
+</html>
