@@ -718,11 +718,10 @@ export const sendNotification = async (userIds: string[], subject: string, messa
     const notificationRecords = userIds.map(userId => ({
       recipient_id: userId,
       user_id: userId, // For compatibility with existing queries
-      subject: subject,
+      title: subject, // Correct column name is 'title' not 'subject'
       message: message,
       type: 'Info',
-      is_read: false,
-      read: false, // For compatibility
+      is_read: false, // Only use is_read as per actual schema
       created_at: new Date().toISOString()
     }));
 
@@ -1037,9 +1036,9 @@ export const getNotifications = async (): Promise<Notification[]> => {
     return (data || []).map(notification => ({
       id: notification.id,
       userId: notification.user_id,
-      subject: notification.subject,
+      subject: notification.title, // Use title column
       message: notification.message,
-      read: notification.read,
+      read: notification.is_read, // Use is_read column
       createdAt: notification.created_at,
       link: notification.link
     }));
@@ -1052,7 +1051,7 @@ export const markNotificationAsRead = async (notificationId: string): Promise<No
   try {
     const { data, error } = await supabase
       .from('notifications')
-      .update({ read: true })
+      .update({ is_read: true }) // Use is_read column
       .eq('id', notificationId)
       .select()
       .single();
@@ -1065,9 +1064,9 @@ export const markNotificationAsRead = async (notificationId: string): Promise<No
     return {
       id: data.id,
       userId: data.user_id,
-      subject: data.subject,
+      subject: data.title, // Use title column
       message: data.message,
-      read: data.read,
+      read: data.is_read, // Use is_read column
       createdAt: data.created_at,
       link: data.link
     };
@@ -2611,10 +2610,10 @@ export const getUserNotifications = async (userId: string): Promise<any[]> => {
 
     return (data || []).map(notification => ({
       id: notification.id,
-      subject: notification.title || notification.subject,
+      subject: notification.title, // Only use title column
       message: notification.message,
       type: notification.type || 'Info',
-      read: notification.is_read || notification.read || false,
+      read: notification.is_read, // Only use is_read column
       createdAt: new Date(notification.created_at),
       updatedAt: notification.updated_at ? new Date(notification.updated_at) : undefined
     }));
@@ -2631,7 +2630,7 @@ export const getUnreadNotificationCount = async (userId: string): Promise<number
       .from('notifications')
       .select('*', { count: 'exact', head: true })
       .or(`user_id.eq.${userId},recipient_id.eq.${userId}`)
-      .or('is_read.eq.false,read.eq.false');
+      .eq('is_read', false); // Only use is_read column
 
     if (error) {
       console.error('Error fetching unread notification count:', error);
@@ -2738,11 +2737,10 @@ export const sendContentNotificationEnhanced = async (payload: {
     const notificationRecords = payload.userIds.map(userId => ({
       recipient_id: userId,
       user_id: userId,
-      subject: payload.subject,
+      title: payload.subject, // Use title column
       message: payload.message,
       type: payload.contentType,
-      is_read: false,
-      read: false,
+      is_read: false, // Only use is_read
       created_at: new Date().toISOString()
     }));
 
