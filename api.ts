@@ -1,6 +1,9 @@
 import type { User, ContactFormData, Course, DashboardStats, Notification, Batch, FeeStructure, Invoice, PaymentDetails, StudentEnrollment, Event, GradeExam, BookMaterial, Notice, Location } from './types';
 import { supabase } from './src/lib/supabase.js';
 
+// Server API URL for email service
+const API_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:4000/api';
+
 // Simple session management
 let currentUser: User | null = null;
 
@@ -2494,112 +2497,75 @@ export const sendContentNotification = async (payload: {
   }
 };
 
-// Try multiple email services with fallbacks
-const tryMultipleEmailServices = async (user: any, subject: string, emailHtml: string, plainTextMessage: string): Promise<boolean> => {
-  // Service 1: Try Formspree (reliable email service)
+// Use your server's SMTP email service (primary method)
+const tryServerSMTPEmail = async (user: any, subject: string, plainTextMessage: string): Promise<boolean> => {
   try {
-    const formspreeResponse = await fetch('https://formspree.io/f/xanwgpzk', {
+    const response = await fetch(`${API_URL}/send-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        to: user.email,
+        name: user.name,
+        subject: subject,
+        message: plainTextMessage
+      })
+    });
+
+    const result = await response.json();
+    
+    if (response.ok && result.success) {
+      console.log(`📧 Server SMTP: Email sent successfully to ${user.email} (${result.mode} mode)`);
+      if (result.previewUrl) {
+        console.log(`📧 Preview URL: ${result.previewUrl}`);
+      }
+      return true;
+    } else {
+      console.log(`❌ Server SMTP failed for ${user.email}:`, result.error);
+      return false;
+    }
+  } catch (error) {
+    console.log(`❌ Server SMTP connection failed for ${user.email}:`, error);
+    return false;
+  }
+};
+
+// Fallback email services (only used if server SMTP fails)
+const tryFallbackEmailServices = async (user: any, subject: string, plainTextMessage: string): Promise<boolean> => {
+  // Fallback 1: Try Formspree (with correct endpoint)
+  try {
+    const formspreeResponse = await fetch('https://formspree.io/f/mjkbzqko', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
       body: JSON.stringify({
-        email: 'nadanalogaa@gmail.com', // From email (your verified sender)
-        name: 'Nadanaloga Team',
+        email: user.email,
+        name: user.name,
         subject: `${subject} - Nadanaloga`,
-        message: `
-To: ${user.email}
-Name: ${user.name}
-
-${plainTextMessage}
-
----
-This email was sent from Nadanaloga notification system.
-`,
-        _replyto: 'nadanalogaa@gmail.com',
-        _subject: `${subject} - Nadanaloga`,
-        _format: 'plain'
+        message: plainTextMessage,
+        _replyto: 'nadanalogaa@gmail.com'
       })
     });
 
     const responseData = await formspreeResponse.json();
-    if (formspreeResponse.ok && !responseData.error) {
-      console.log(`📧 Formspree: Email sent to ${user.email}`);
-      return true;
-    } else {
-      console.log(`❌ Formspree response error:`, responseData);
-    }
-  } catch (error) {
-    console.log(`❌ Formspree failed for ${user.email}:`, error);
-  }
-
-  // Service 2: Try EmailJS (fallback)
-  try {
-    const emailJSResponse = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        service_id: 'default_service',
-        template_id: 'template_nadanaloga',
-        user_id: 'nadanaloga_public_key',
-        template_params: {
-          to_name: user.name,
-          to_email: user.email,
-          subject: subject,
-          message: plainTextMessage,
-          from_name: 'Nadanaloga Team'
-        }
-      })
-    });
-
-    if (emailJSResponse.ok) {
-      console.log(`📧 EmailJS: Email sent to ${user.email}`);
+    if (formspreeResponse.ok && !responseData.errors) {
+      console.log(`📧 Formspree Fallback: Email sent to ${user.email}`);
       return true;
     }
   } catch (error) {
-    console.log(`❌ EmailJS failed for ${user.email}:`, error);
+    console.log(`❌ Formspree fallback failed for ${user.email}:`, error);
   }
 
-  // Service 3: Try Web3Forms (alternative service)
-  try {
-    const web3Response = await fetch('https://api.web3forms.com/submit', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({
-        access_key: 'c4f8d4e2-8a3b-4c9d-9e2f-1a2b3c4d5e6f', // Public demo key - replace with actual key
-        subject: `${subject} - Nadanaloga`,
-        from_name: 'Nadanaloga Team',
-        from_email: 'nadanalogaa@gmail.com',
-        to: user.email,
-        message: `Dear ${user.name},\n\n${plainTextMessage}\n\n---\nBest regards,\nNadanaloga Team`
-      })
-    });
-
-    const web3Data = await web3Response.json();
-    if (web3Response.ok && web3Data.success) {
-      console.log(`📧 Web3Forms: Email sent to ${user.email}`);
-      return true;
-    } else {
-      console.log(`❌ Web3Forms response error:`, web3Data);
-    }
-  } catch (error) {
-    console.log(`❌ Web3Forms failed for ${user.email}:`, error);
-  }
-
-  // Service 4: Simple SMTP fallback (logs for now, can be implemented with actual SMTP)
-  console.log(`📧 FALLBACK: Email would be sent to ${user.email}:`);
+  // Final fallback: Log the email details
+  console.log(`📧 EMAIL LOG (Final Fallback) for ${user.email}:`);
   console.log(`Subject: ${subject}`);
   console.log(`Message: ${plainTextMessage}`);
+  console.log(`⚠️ Please check your server SMTP configuration in server/.env`);
   
-  // For now, return true to indicate the email was "sent" (logged)
-  // In production, you would implement actual SMTP sending here
-  return true;
+  return false; // Return false to indicate actual email sending failed
 };
 
 // Enhanced email sending with multiple service fallbacks
@@ -2625,8 +2591,13 @@ export const sendEmailNotifications = async (userIds: string[], subject: string,
         const emailHtml = generateEmailTemplate(user.name, subject, message);
         const plainTextMessage = message.replace(/\n/g, '\n\n'); // Clean up message for plain text
         
-        // Try multiple email services in order of preference
-        const emailSent = await tryMultipleEmailServices(user, subject, emailHtml, plainTextMessage);
+        // Try server SMTP first, then fallback services if needed
+        let emailSent = await tryServerSMTPEmail(user, subject, plainTextMessage);
+        
+        if (!emailSent) {
+          console.log(`⚠️ Server SMTP failed for ${user.email}, trying fallback services...`);
+          emailSent = await tryFallbackEmailServices(user, subject, plainTextMessage);
+        }
         
         if (emailSent) {
           console.log(`✅ Email sent successfully to ${user.email}`);

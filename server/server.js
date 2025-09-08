@@ -579,6 +579,59 @@ async function startServer() {
         }
     });
 
+    // --- Email API Route for Frontend ---
+    app.post('/api/send-email', async (req, res) => {
+        try {
+            const { to, name, subject, message } = req.body;
+            
+            if (!to || !subject || !message) {
+                return res.status(400).json({ 
+                    success: false, 
+                    error: 'Missing required fields: to, subject, message' 
+                });
+            }
+
+            if (!mailTransporter) {
+                return res.status(500).json({ 
+                    success: false, 
+                    error: 'Mail transporter not configured' 
+                });
+            }
+
+            const mailDetails = {
+                from: process.env.SMTP_FROM_EMAIL || '"Nadanaloga Team" <nadanalogaa@gmail.com>',
+                to: to,
+                subject: subject,
+                html: createEmailTemplate(name || 'User', subject, message),
+            };
+
+            const info = await mailTransporter.sendMail(mailDetails);
+            
+            if (isEtherealMode) {
+                console.log(`[Email] ❗ TEST MODE: Email for ${to} was INTERCEPTED. View it here: ${nodemailer.getTestMessageUrl(info)}`);
+                return res.json({ 
+                    success: true, 
+                    messageId: info.messageId,
+                    previewUrl: nodemailer.getTestMessageUrl(info),
+                    mode: 'test'
+                });
+            } else {
+                console.log(`[Email] Email sent successfully to ${to}. Message ID: ${info.messageId}`);
+                return res.json({ 
+                    success: true, 
+                    messageId: info.messageId,
+                    mode: 'live'
+                });
+            }
+        } catch (error) {
+            console.error('[Email] Error sending email:', error);
+            return res.status(500).json({ 
+                success: false, 
+                error: error.message 
+            });
+        }
+    });
+
     // --- User Notification Routes ---
     app.get('/api/notifications', ensureAuthenticated, async (req, res) => {
         try {
