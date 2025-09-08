@@ -315,6 +315,36 @@ export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
 
       console.log('User registered successfully:', data);
       finalUsersData.push(data);
+
+      // Send registration notification to the new user
+      try {
+        const userRole = data.role || 'Student';
+        const welcomeSubject = `Welcome to Nadanaloga - ${userRole} Registration Successful! 🎉`;
+        const welcomeMessage = `Dear ${data.name || 'Student'},
+
+Welcome to Nadanaloga! Your ${userRole.toLowerCase()} registration has been completed successfully.
+
+Account Details:
+• Name: ${data.name}
+• Email: ${data.email}
+• Role: ${userRole}
+• Registration Date: ${new Date().toLocaleDateString()}
+
+You can now access your dashboard and start your learning journey with us.
+
+Best regards,
+Nadanaloga Team`;
+
+        await sendNotification([data.id], welcomeSubject, welcomeMessage);
+        console.log(`Registration notification sent to ${data.name} (${data.email})`);
+
+        // Also send welcome email
+        await sendEmailNotifications([data.id], welcomeSubject, welcomeMessage);
+        console.log(`Registration email sent to ${data.name} (${data.email})`);
+      } catch (notificationError) {
+        console.error('Failed to send registration notification:', notificationError);
+        // Don't fail the registration if notification fails
+      }
     }
 
     return { message: 'Registration successful', users: finalUsersData };
@@ -680,7 +710,39 @@ export const deleteUserByAdmin = async (userId: string): Promise<void> => {
     throw error;
   }
 };
-export const sendNotification = async (userIds: string[], subject: string, message: string): Promise<{success: boolean}> => ({ success: true });
+export const sendNotification = async (userIds: string[], subject: string, message: string): Promise<{success: boolean}> => {
+  try {
+    console.log('Creating notifications for users:', userIds, 'Subject:', subject);
+    
+    // Create notification records in database for each user
+    const notificationRecords = userIds.map(userId => ({
+      recipient_id: userId,
+      user_id: userId, // For compatibility with existing queries
+      subject: subject,
+      message: message,
+      type: 'Info',
+      is_read: false,
+      read: false, // For compatibility
+      created_at: new Date().toISOString()
+    }));
+
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert(notificationRecords)
+      .select();
+
+    if (error) {
+      console.error('Error creating notifications:', error);
+      throw new Error(`Failed to create notifications: ${error.message}`);
+    }
+
+    console.log(`Successfully created ${data?.length || 0} notifications`);
+    return { success: true };
+  } catch (error) {
+    console.error('Error in sendNotification:', error);
+    throw error;
+  }
+};
 export const getAdminCourses = async (): Promise<Course[]> => getCourses();
 export const addCourseByAdmin = async (courseData: Omit<Course, 'id'>): Promise<Course> => {
   try {
@@ -1675,7 +1737,7 @@ export const addEvent = async (event: Omit<Event, 'id'>): Promise<Event> => {
       throw new Error(`Failed to add event: ${error.message}`);
     }
 
-    return {
+    const result = {
       id: data.id,
       title: data.title,
       description: data.description,
@@ -1685,6 +1747,50 @@ export const addEvent = async (event: Omit<Event, 'id'>): Promise<Event> => {
       isPublic: data.is_public,
       createdAt: new Date(data.created_at)
     };
+
+    // Send notifications for new events (to all users if public)
+    if (data.is_public) {
+      try {
+        // Get all active users for public events
+        const { data: users, error: usersError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('is_deleted', false);
+
+        if (!usersError && users && users.length > 0) {
+          const userIds = users.map(u => u.id);
+          const eventSubject = `New Event: ${event.title} 📅`;
+          const eventMessage = `A new event has been scheduled!
+
+Title: ${event.title}
+Date: ${new Date(event.date).toLocaleDateString()}
+Time: ${event.time || 'TBA'}
+Location: ${event.location || 'TBA'}
+
+${event.description || ''}
+
+Don't miss out on this exciting event!
+
+Best regards,
+Nadanaloga Team`;
+
+          await sendContentNotification({
+            contentId: data.id,
+            contentType: 'Event',
+            userIds: userIds,
+            subject: eventSubject,
+            message: eventMessage,
+            sendEmail: true
+          });
+
+          console.log(`Event notifications sent for: ${event.title}`);
+        }
+      } catch (notificationError) {
+        console.error('Failed to send event notifications:', notificationError);
+      }
+    }
+
+    return result;
   } catch (error) {
     console.error('Error in addEvent:', error);
     throw error;
@@ -1979,7 +2085,7 @@ export const addBookMaterial = async (material: Omit<BookMaterial, 'id'>): Promi
       throw new Error(`Failed to add book material: ${error.message}`);
     }
 
-    return {
+    const result = {
       id: data.id,
       title: data.title,
       description: data.description,
@@ -1990,6 +2096,39 @@ export const addBookMaterial = async (material: Omit<BookMaterial, 'id'>): Promi
       data: data.data,
       recipientIds: data.recipient_ids || []
     };
+
+    // Send notifications to recipients if specified
+    if (material.recipientIds && material.recipientIds.length > 0) {
+      try {
+        const notificationSubject = `New ${material.type} Available: ${material.title} 📚`;
+        const notificationMessage = `A new ${material.type.toLowerCase()} has been shared with you.
+
+Title: ${material.title}
+${material.courseName ? `Course: ${material.courseName}` : ''}
+${material.description ? `Description: ${material.description}` : ''}
+
+You can access this material from your dashboard.
+
+Happy learning!
+Nadanaloga Team`;
+
+        await sendContentNotification({
+          contentId: data.id,
+          contentType: material.type || 'Material',
+          userIds: material.recipientIds,
+          subject: notificationSubject,
+          message: notificationMessage,
+          sendEmail: true
+        });
+
+        console.log(`Notifications sent for new ${material.type}: ${material.title}`);
+      } catch (notificationError) {
+        console.error('Failed to send material notifications:', notificationError);
+        // Don't fail the material creation if notification fails
+      }
+    }
+
+    return result;
   } catch (error) {
     console.error('Error in addBookMaterial:', error);
     throw error;
@@ -2206,13 +2345,52 @@ export const addNotice = async (notice: Omit<Notice, 'id'>): Promise<Notice> => 
       throw new Error(`Failed to add notice: ${error.message}`);
     }
 
-    return {
+    const result = {
       id: data.id,
       title: data.title,
       content: data.content,
       issuedAt: data.issued_at,
       recipientIds: []
     };
+
+    // Send notifications for new notices to all users
+    try {
+      // Get all active users for notice notifications
+      const { data: users, error: usersError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('is_deleted', false);
+
+      if (!usersError && users && users.length > 0) {
+        const userIds = users.map(u => u.id);
+        const noticeSubject = `New Notice: ${notice.title} 📢`;
+        const noticeMessage = `A new notice has been published.
+
+Title: ${notice.title}
+
+${notice.content}
+
+Please check your dashboard for more details.
+
+Best regards,
+Nadanaloga Team`;
+
+        await sendContentNotification({
+          contentId: data.id,
+          contentType: 'Notice',
+          userIds: userIds,
+          subject: noticeSubject,
+          message: noticeMessage,
+          sendEmail: true
+        });
+
+        console.log(`Notice notifications sent for: ${notice.title}`);
+      }
+    } catch (notificationError) {
+      console.error('Failed to send notice notifications:', notificationError);
+    }
+
+    return result;
   } catch (error) {
     console.error('Error in addNotice:', error);
     throw error;
@@ -2317,7 +2495,7 @@ export const sendContentNotification = async (payload: {
   }
 };
 
-// Send email notifications to recipients
+// Enhanced email sending with Web3Forms integration
 const sendEmailNotifications = async (userIds: string[], subject: string, message: string): Promise<void> => {
   try {
     // Get user emails
@@ -2331,31 +2509,89 @@ const sendEmailNotifications = async (userIds: string[], subject: string, messag
       return;
     }
 
-    // In a real implementation, you would integrate with an email service like:
-    // - SendGrid, Mailgun, AWS SES, etc.
-    // For now, we'll log the emails that would be sent
-    console.log('Email notifications would be sent to:');
-    users?.forEach(user => {
-      console.log(`📧 To: ${user.email} (${user.name})`);
-      console.log(`   Subject: ${subject}`);
-      console.log(`   Message: ${message}`);
+    console.log(`Sending email notifications to ${users?.length || 0} recipients`);
+
+    // Send emails using Web3Forms (free email service)
+    const emailPromises = users?.map(async (user) => {
+      try {
+        // Generate HTML email template
+        const emailHtml = generateEmailTemplate(user.name, subject, message);
+        
+        // Use Web3Forms API for sending emails
+        const formData = new FormData();
+        formData.append('access_key', '8bc1fbf4-4c67-4a23-9b6a-2ec1de6c2e14'); // Free access key
+        formData.append('subject', `${subject} - Nadanaloga`);
+        formData.append('from_name', 'Nadanaloga Team');
+        formData.append('to', user.email);
+        formData.append('message', emailHtml);
+        formData.append('email_template', 'table'); // Use professional template
+        
+        const response = await fetch('https://api.web3forms.com/submit', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (response.ok) {
+          console.log(`✅ Email sent successfully to ${user.email}`);
+        } else {
+          console.error(`❌ Failed to send email to ${user.email}:`, await response.text());
+        }
+      } catch (emailError) {
+        console.error(`❌ Error sending email to ${user.email}:`, emailError);
+      }
     });
 
-    // TODO: Implement actual email sending service integration
-    // Example with a hypothetical email service:
-    /*
-    const emailPromises = users?.map(user => 
-      emailService.send({
-        to: user.email,
-        subject: subject,
-        html: generateEmailTemplate(user.name, subject, message)
-      })
-    );
-    await Promise.all(emailPromises || []);
-    */
+    if (emailPromises) {
+      await Promise.allSettled(emailPromises); // Use allSettled to not fail on individual email errors
+    }
+
   } catch (error) {
-    console.error('Error sending email notifications:', error);
+    console.error('Error in sendEmailNotifications:', error);
   }
+};
+
+// Generate professional email template
+const generateEmailTemplate = (recipientName: string, subject: string, message: string): string => {
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${subject}</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">Nadanaloga</h1>
+            <p style="color: rgba(255,255,255,0.9); margin: 5px 0 0 0; font-size: 16px;">Traditional Arts & Education</p>
+        </div>
+        
+        <div style="background: #f8f9ff; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #e1e5e9;">
+            <h2 style="color: #4a5568; margin-top: 0;">${subject}</h2>
+            
+            <p style="margin-bottom: 20px;">Dear ${recipientName},</p>
+            
+            <div style="background: white; padding: 25px; border-radius: 8px; border-left: 4px solid #667eea; margin: 20px 0;">
+                ${message.split('\n').map(line => line.trim() ? `<p style="margin: 8px 0;">${line}</p>` : '<br>').join('')}
+            </div>
+            
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 14px; color: #718096;">
+                <p><strong>Need Help?</strong></p>
+                <p>📧 Email: nadanalogaa@gmail.com</p>
+                <p>📱 Phone: +91 90929 08888</p>
+                <p>🌐 Website: <a href="https://nadanaloga.com" style="color: #667eea;">nadanaloga.com</a></p>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+                <p style="color: #a0aec0; font-size: 12px;">
+                    © ${new Date().getFullYear()} Nadanaloga. All rights reserved.<br>
+                    This is an automated message from our notification system.
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+  `;
 };
 
 // Get notifications for a specific user (compatible with existing schema)
@@ -2406,5 +2642,136 @@ export const getUnreadNotificationCount = async (userId: string): Promise<number
   } catch (error) {
     console.error('Error in getUnreadNotificationCount:', error);
     return 0;
+  }
+};
+
+// WhatsApp Integration Functions
+export const sendWhatsAppNotification = async (userIds: string[], subject: string, message: string): Promise<void> => {
+  try {
+    // Get user phone numbers
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('contact_number, name')
+      .in('id', userIds);
+
+    if (error) {
+      console.error('Error fetching user phone numbers:', error);
+      return;
+    }
+
+    console.log(`Preparing WhatsApp notifications for ${users?.length || 0} recipients`);
+
+    // Send WhatsApp messages using a hypothetical WhatsApp Business API
+    const whatsAppPromises = users?.map(async (user) => {
+      if (user.contact_number) {
+        try {
+          // Format phone number for WhatsApp (remove spaces, add country code if needed)
+          let phoneNumber = user.contact_number.replace(/\s/g, '');
+          if (!phoneNumber.startsWith('+')) {
+            phoneNumber = `+91${phoneNumber}`; // Add India country code
+          }
+
+          const whatsAppMessage = `*${subject}*
+
+Hello ${user.name},
+
+${message}
+
+_This is an automated message from Nadanaloga_
+Reply STOP to unsubscribe`;
+
+          // For now, we'll use WhatsApp Web URL approach
+          // In production, you would use WhatsApp Business API or Twilio
+          const whatsAppUrl = `https://wa.me/${phoneNumber.replace('+', '')}?text=${encodeURIComponent(whatsAppMessage)}`;
+          
+          console.log(`📱 WhatsApp URL generated for ${user.name} (${phoneNumber}): ${whatsAppUrl}`);
+          
+          // TODO: Implement actual WhatsApp API sending
+          // Example with Twilio WhatsApp API:
+          /*
+          const response = await fetch('https://api.twilio.com/2010-04-01/Accounts/{AccountSid}/Messages.json', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Basic ${btoa(TWILIO_ACCOUNT_SID + ':' + TWILIO_AUTH_TOKEN)}`,
+              'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({
+              'From': 'whatsapp:+14155238886',
+              'To': `whatsapp:${phoneNumber}`,
+              'Body': whatsAppMessage
+            })
+          });
+          */
+          
+          console.log(`✅ WhatsApp notification prepared for ${user.name}`);
+        } catch (whatsAppError) {
+          console.error(`❌ Error preparing WhatsApp for ${user.name}:`, whatsAppError);
+        }
+      } else {
+        console.log(`⚠️ No phone number for ${user.name}, skipping WhatsApp`);
+      }
+    });
+
+    if (whatsAppPromises) {
+      await Promise.allSettled(whatsAppPromises);
+    }
+
+  } catch (error) {
+    console.error('Error in sendWhatsAppNotification:', error);
+  }
+};
+
+// Enhanced sendContentNotification with WhatsApp support
+export const sendContentNotificationEnhanced = async (payload: {
+  contentId: string;
+  contentType: string;
+  userIds: string[];
+  subject: string;
+  message: string;
+  sendWhatsApp?: boolean;
+  sendEmail?: boolean;
+}): Promise<{ success: boolean; message: string }> => {
+  try {
+    console.log('Sending enhanced content notifications:', payload);
+    
+    // Create notifications in database for each recipient
+    const notificationRecords = payload.userIds.map(userId => ({
+      recipient_id: userId,
+      user_id: userId,
+      subject: payload.subject,
+      message: payload.message,
+      type: payload.contentType,
+      is_read: false,
+      read: false,
+      created_at: new Date().toISOString()
+    }));
+
+    const { error: notificationError } = await supabase
+      .from('notifications')
+      .insert(notificationRecords);
+
+    if (notificationError) {
+      console.error('Error creating notifications:', notificationError);
+      throw new Error(`Failed to create notifications: ${notificationError.message}`);
+    }
+
+    // Send email notifications if requested
+    if (payload.sendEmail) {
+      await sendEmailNotifications(payload.userIds, payload.subject, payload.message);
+    }
+
+    // Send WhatsApp notifications if requested
+    if (payload.sendWhatsApp) {
+      await sendWhatsAppNotification(payload.userIds, payload.subject, payload.message);
+    }
+
+    console.log(`Successfully sent ${payload.contentType} notifications to ${payload.userIds.length} recipients`);
+    return { 
+      success: true, 
+      message: `${payload.contentType} shared with ${payload.userIds.length} recipients` 
+    };
+  } catch (error) {
+    console.error('Error in sendContentNotificationEnhanced:', error);
+    throw error;
   }
 };
