@@ -35,6 +35,22 @@
     <link rel="stylesheet" type="text/css" href="css/main.min.css">
     <!-- Template Styles End -->
 
+    <!-- Inline CTA styles for Nadanaloga hero (scoped) -->
+    <style>
+      .tkd-cta-row{position:absolute;left:0;right:0;top:56%;transform:translateY(-50%);display:flex;justify-content:space-between;gap:24px;padding:0 24px;pointer-events:none}
+      .tkd-cta{pointer-events:auto;flex:0 1 420px;max-width:44%;border-radius:20px;padding:20px 24px;color:#fff;box-shadow:0 12px 30px rgba(16,24,40,.25);backdrop-filter:blur(8px)}
+      .tkd-cta h3{margin:0 0 8px 0;font-size:22px;line-height:1.25}
+      .tkd-cta p{margin:0 0 16px 0;opacity:.9}
+      .tkd-cta .btns{display:flex;gap:12px;flex-wrap:wrap}
+      .tkd-cta .btn{display:inline-flex;align-items:center;justify-content:center;height:42px;padding:0 18px;border-radius:12px;font-weight:600;text-decoration:none;border:1px solid rgba(255,255,255,.35);transition:all .2s ease}
+      .tkd-cta .btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(16,24,40,.2)}
+      .tkd-cta.demo{background:linear-gradient(135deg,#4F46E5 0%,#7C3AED 100%)}
+      .tkd-cta.auth{background:linear-gradient(135deg,#7C3AED 0%,#4338CA 100%)}
+      .tkd-cta .btn.light{background:#fff;color:#4338CA;border-color:#fff}
+      .tkd-cta .btn.ghost{background:transparent;color:#fff}
+      @media (max-width: 1024px){.tkd-cta-row{top:auto;transform:none;position:static;margin:24px 0 0;flex-direction:column;align-items:stretch}.tkd-cta{max-width:100%;flex-basis:auto}}
+    </style>
+
     <!-- Custom Browser Color Start -->
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FAF7F6">
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#161616">
@@ -211,6 +227,24 @@
                     </li>
                   </ul>
                 </nav>
+              </div>
+              <!-- Nadanaloga CTA row: Book a Demo (left) and Register/Login (right) -->
+              <div class="tkd-cta-row">
+                <section class="tkd-cta demo">
+                  <h3>Book a Demo Class</h3>
+                  <p>Experience our teaching style online or at your nearest branch.</p>
+                  <div class="btns">
+                    <a class="btn light" href="contact.html">Book a Demo</a>
+                  </div>
+                </section>
+                <section class="tkd-cta auth">
+                  <h3>Register or Login</h3>
+                  <p>Create your account to enroll, or sign in to continue learning.</p>
+                  <div class="btns">
+                    <a class="btn light" href="/register">Register</a>
+                    <a class="btn ghost" href="/admin/login">Login</a>
+                  </div>
+                </section>
               </div>
             </div>
             <!-- right side -->
