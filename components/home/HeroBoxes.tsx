@@ -32,6 +32,16 @@ const HeroBoxes: React.FC<HeroBoxesProps> = ({ onLoginClick, recentEvents }) => 
     filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.25))'
   };
 
+  const handleBookDemoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    const el = document.getElementById('contact');
+    if (!el) return;
+    const headerOffset = 72; // approximate sticky header height
+    const rect = el.getBoundingClientRect();
+    const offsetTop = window.pageYOffset + rect.top - headerOffset;
+    window.scrollTo({ top: offsetTop, behavior: 'smooth' });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
       {/* Background decoration */}
@@ -62,7 +72,7 @@ const HeroBoxes: React.FC<HeroBoxesProps> = ({ onLoginClick, recentEvents }) => 
                 <p className="text-base md:text-lg opacity-90 mb-6 leading-relaxed">
                   Experience our teaching style with a free demo. Choose your nearest branch or join online.
                 </p>
-                <a href="#contact" className="inline-block bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 border border-white/30">
+                <a href="#contact" onClick={handleBookDemoClick} className="inline-block bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 border border-white/30">
                   Book a Demo
                 </a>
               </div>
