@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="800" height="500">
+  <defs>
+    <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#c08a44"/>
+      <stop offset="100%" stop-color="#8a5a2b"/>
+    </linearGradient>
+    <linearGradient id="beadRed" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff7a7a"/>
+      <stop offset="100%" stop-color="#d03a3a"/>
+    </linearGradient>
+    <linearGradient id="beadBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#77b4ff"/>
+      <stop offset="100%" stop-color="#2a6bd0"/>
+    </linearGradient>
+    <linearGradient id="beadGreen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#9ae6b4"/>
+      <stop offset="100%" stop-color="#2f855a"/>
+    </linearGradient>
+    <linearGradient id="beadYellow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffe08a"/>
+      <stop offset="100%" stop-color="#d69e2e"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Frame -->
+  <rect x="10" y="10" width="300" height="180" rx="12" fill="url(#wood)"/>
+  <rect x="26" y="26" width="268" height="148" rx="6" fill="#fff6e9" opacity="0.6"/>
+
+  <!-- Rods -->
+  <g stroke="#6b4f2a" stroke-width="6" stroke-linecap="round">
+    <line x1="40" y1="50" x2="280" y2="50"/>
+    <line x1="40" y1="86" x2="280" y2="86"/>
+    <line x1="40" y1="122" x2="280" y2="122"/>
+    <line x1="40" y1="158" x2="280" y2="158"/>
+  </g>
+
+  <!-- Beads -->
+  <g>
+    <!-- Row 1 Red -->
+    <g fill="url(#beadRed)">
+      <circle cx="70" cy="50" r="12"/>
+      <circle cx="100" cy="50" r="12"/>
+      <circle cx="130" cy="50" r="12"/>
+      <circle cx="160" cy="50" r="12"/>
+      <circle cx="190" cy="50" r="12"/>
+    </g>
+    <!-- Row 2 Blue -->
+    <g fill="url(#beadBlue)">
+      <circle cx="90" cy="86" r="12"/>
+      <circle cx="120" cy="86" r="12"/>
+      <circle cx="150" cy="86" r="12"/>
+      <circle cx="180" cy="86" r="12"/>
+      <circle cx="210" cy="86" r="12"/>
+    </g>
+    <!-- Row 3 Green -->
+    <g fill="url(#beadGreen)">
+      <circle cx="70" cy="122" r="12"/>
+      <circle cx="100" cy="122" r="12"/>
+      <circle cx="130" cy="122" r="12"/>
+      <circle cx="160" cy="122" r="12"/>
+      <circle cx="190" cy="122" r="12"/>
+      <circle cx="220" cy="122" r="12"/>
+    </g>
+    <!-- Row 4 Yellow -->
+    <g fill="url(#beadYellow)">
+      <circle cx="80" cy="158" r="12"/>
+      <circle cx="110" cy="158" r="12"/>
+      <circle cx="140" cy="158" r="12"/>
+      <circle cx="170" cy="158" r="12"/>
+      <circle cx="200" cy="158" r="12"/>
+      <circle cx="230" cy="158" r="12"/>
+    </g>
+  </g>
+
+  <!-- Label -->
+  <text x="160" y="205" text-anchor="middle" fill="#6b4f2a" font-family="Poppins, Arial, sans-serif" font-size="14">Abacus</text>
+</svg>
+
