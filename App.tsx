@@ -175,7 +175,7 @@ function App() {
 
   return (
     <div className="flex flex-col min-h-screen bg-brand-light/20">
-      {!isDashboard && !isHome && (
+      {!isDashboard && (
         <Header
           currentUser={currentUser}
           onLogout={handleLogout}
@@ -248,8 +248,8 @@ function App() {
 
         </Routes>
       </main>
-      {!isDashboard && !isHome && <Footer />}
-      {!isHome && <WhatsAppButton />}
+      {!isDashboard && <Footer />}
+      <WhatsAppButton />
 
       <Modal isOpen={isLoginModalOpen} onClose={closeLoginModal}>
         <LoginForm 

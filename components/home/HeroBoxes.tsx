@@ -51,15 +51,6 @@ const HeroBoxes: React.FC<HeroBoxesProps> = ({ onLoginClick, recentEvents }) => 
       </div>
 
       <div className="relative container mx-auto px-6 py-12">
-        {/* Header */}
-        <div className="text-center mb-16">
-          <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">
-            Thillaikadavul
-          </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Nurturing artistic talent through dedicated training in classical and contemporary arts
-          </p>
-        </div>
 
         {/* Hero Boxes Grid: focus on Demo + Register/Login; events below */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
