@@ -175,7 +175,7 @@ function App() {
 
   return (
     <div className="flex flex-col min-h-screen bg-brand-light/20">
-      {!isDashboard && (
+      {!isDashboard && !isHome && (
         <Header
           currentUser={currentUser}
           onLogout={handleLogout}

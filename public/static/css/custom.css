@@ -10,13 +10,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 clamp(16px, 4vw, 40px);
+  padding: 12px clamp(16px, 4vw, 40px);
   background: rgba(var(--base-rgb), 0.95);
   backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(var(--st-muted-rgb), 0.3);
   transition: transform var(--_animspeed-medium) var(--_animbezier),
               background-color var(--_animspeed-medium) var(--_animbezier),
               box-shadow var(--_animspeed-medium) var(--_animbezier);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .mxd-header--modern.is-hidden {
@@ -69,11 +71,40 @@
   width: 100%;
 }
 
+/* Logo Section */
+.mxd-header__logo {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.mxd-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.mxd-logo__image {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.mxd-logo__text {
+  font-size: 18px;
+  font-weight: var(--fw-bold, 700);
+  line-height: 1.2;
+  color: var(--t-bright);
+}
+
 /* Header Controls - Updated for Login + Enroll */
 .mxd-header__controls {
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-left: auto;
 }
 
 /* Button styling updates */
@@ -81,12 +112,43 @@
   background: transparent;
   border: 1px solid var(--st-muted);
   color: var(--t-bright);
+  padding: 8px 16px;
+  border-radius: var(--_radius-m);
+  font-size: 14px;
+  font-weight: var(--fw-medium, 500);
 }
 
 .btn-ghost:hover {
   background: rgba(var(--accent-rgb), 0.1);
   border-color: var(--accent);
   color: var(--accent);
+}
+
+/* Theme switcher button */
+.mxd-color-switcher {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--st-muted);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--_animspeed-medium) var(--_animbezier);
+}
+
+.mxd-color-switcher:hover {
+  background: rgba(var(--accent-rgb), 0.1);
+  border-color: var(--accent);
+}
+
+/* Improve button sizing and spacing */
+.mxd-header--modern .btn {
+  padding: 8px 16px;
+  font-size: 14px;
+  border-radius: var(--_radius-m);
+  white-space: nowrap;
 }
 
 /* Mobile Menu Button */
@@ -115,6 +177,40 @@
 }
 
 /* Responsive Header Layout */
+@media (max-width: 767px) {
+  .mxd-header__nav {
+    display: none;
+  }
+  
+  .mxd-header__mobile-toggle {
+    display: flex;
+  }
+  
+  /* Simplify controls on mobile */
+  .mxd-header__controls {
+    gap: 8px;
+  }
+  
+  .mxd-header--modern .btn {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  
+  .mxd-color-switcher {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .mxd-logo__text {
+    font-size: 16px;
+  }
+  
+  .mxd-logo__image {
+    width: 36px;
+    height: 36px;
+  }
+}
+
 @media (min-width: 768px) {
   .mxd-header__nav {
     display: block;
@@ -122,6 +218,18 @@
   
   .mxd-header__mobile-toggle {
     display: none;
+  }
+}
+
+/* Tablet and larger responsive adjustments */
+@media (min-width: 1024px) {
+  .mxd-header__controls {
+    gap: 16px;
+  }
+  
+  .mxd-header--modern .btn {
+    padding: 10px 20px;
+    font-size: 15px;
   }
 }
 
