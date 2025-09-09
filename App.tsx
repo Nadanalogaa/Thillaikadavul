@@ -171,10 +171,11 @@ function App() {
   };
 
   const isDashboard = location.pathname.startsWith('/dashboard/') || location.pathname.startsWith('/admin/');
+  const isHome = location.pathname === '/';
 
   return (
     <div className="flex flex-col min-h-screen bg-brand-light/20">
-      {!isDashboard && (
+      {!isDashboard && !isHome && (
         <Header
           currentUser={currentUser}
           onLogout={handleLogout}
@@ -247,8 +248,8 @@ function App() {
 
         </Routes>
       </main>
-      {!isDashboard && <Footer />}
-      <WhatsAppButton />
+      {!isDashboard && !isHome && <Footer />}
+      {!isHome && <WhatsAppButton />}
 
       <Modal isOpen={isLoginModalOpen} onClose={closeLoginModal}>
         <LoginForm 
