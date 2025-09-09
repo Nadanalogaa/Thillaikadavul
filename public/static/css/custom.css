@@ -18,9 +18,8 @@
   box-sizing: border-box;
   min-height: 72px;
   
-  /* Prevent jerking and ensure stable positioning */
-  transform: translateY(0) !important;
-  opacity: 1;
+  /* Stable positioning - but allow loading system to control opacity */
+  transform: translateY(0);
   visibility: visible;
   will-change: transform;
   contain: layout;
@@ -28,7 +27,39 @@
   /* Smooth transitions */
   transition: transform 0.3s ease-in-out, 
               background-color 0.3s ease-in-out,
-              box-shadow 0.3s ease-in-out;
+              box-shadow 0.3s ease-in-out,
+              opacity 0.8s ease;
+}
+
+/* Hide header during loading - let GSAP loading system control this */
+.mxd-header--modern .loading__fade {
+  opacity: 0;
+}
+
+/* After loader completes, header should be visible and fixed */
+#loader.loaded ~ .mxd-header--modern,
+.mxd-header--modern.loaded {
+  transform: translateY(0) !important;
+}
+
+/* Ensure header is positioned correctly after loading */
+body.loaded .mxd-header--modern,
+#loader.loaded ~ * .mxd-header--modern {
+  position: fixed !important;
+  top: 0;
+  z-index: 1000;
+}
+
+/* Prevent any layout shifts during and after loading */
+.mxd-header--modern {
+  pointer-events: auto;
+}
+
+/* Make sure header stays at top even during loading transitions */
+.mxd-header--modern,
+.mxd-header--modern * {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 .mxd-header--modern.is-hidden {

@@ -2175,24 +2175,41 @@
       statsCounter4.start();
     </script>
     
-    <!-- Modern Header Scroll Behavior - Simplified like original static -->
+    <!-- Modern Header Integration with Loading System -->
     <script>
-      // Simple header scroll behavior matching the original static implementation
-      $(window).on("scroll", function() {
-        const header = $('.mxd-header--modern');
-        if (header.length) {
-          if ($(window).scrollTop() > 10) {
-            header.addClass('is-hidden');
-          } else {
-            header.removeClass('is-hidden');
-          }
-        }
-      });
-      
-      // Mobile menu toggle
+      // Wait for loading system to complete, then activate header
       $(document).ready(function() {
+        // Header scroll behavior - only activate after loading completes
+        function initHeaderScroll() {
+          $(window).on("scroll", function() {
+            const header = $('.mxd-header--modern');
+            if (header.length && $('#loader').hasClass('loaded')) {
+              if ($(window).scrollTop() > 10) {
+                header.addClass('is-hidden');
+              } else {
+                header.removeClass('is-hidden');
+              }
+            }
+          });
+        }
+        
+        // Check if loader exists and wait for it to complete
+        if ($('#loader').length) {
+          // Wait for the loading system to add 'loaded' class (happens at 3.2s)
+          const checkLoaded = setInterval(() => {
+            if ($('#loader').hasClass('loaded')) {
+              clearInterval(checkLoaded);
+              // Header is now visible via GSAP, activate scroll behavior
+              initHeaderScroll();
+            }
+          }, 100);
+        } else {
+          // No loader, activate immediately
+          initHeaderScroll();
+        }
+        
+        // Mobile menu toggle
         $('.mxd-header__mobile-toggle').on('click', function() {
-          // Simple click feedback
           $(this).css('transform', 'scale(0.95)');
           setTimeout(() => {
             $(this).css('transform', 'scale(1)');
