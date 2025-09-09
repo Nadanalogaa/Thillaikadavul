@@ -12,23 +12,24 @@ interface HeroBoxesProps {
 }
 
 const HeroBoxes: React.FC<HeroBoxesProps> = ({ onLoginClick, recentEvents }) => {
+  // Align with the current indigo/purple theme
   const demoClassStyle = {
-    background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)',
-    boxShadow: '0 20px 40px rgba(255, 107, 53, 0.3)'
+    background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+    boxShadow: '0 20px 40px rgba(79, 70, 229, 0.28)'
   };
 
   const registerStyle = {
-    background: 'linear-gradient(135deg, #E91E63 0%, #AD1457 100%)',
-    boxShadow: '0 20px 40px rgba(233, 30, 99, 0.3)'
+    background: 'linear-gradient(135deg, #7C3AED 0%, #4338CA 100%)',
+    boxShadow: '0 20px 40px rgba(67, 56, 202, 0.28)'
   };
 
   const eventsStyle = {
-    background: 'linear-gradient(135deg, #424242 0%, #212121 100%)',
-    boxShadow: '0 20px 40px rgba(66, 66, 66, 0.3)'
+    background: 'linear-gradient(135deg, #111827 0%, #1F2937 100%)',
+    boxShadow: '0 20px 40px rgba(17, 24, 39, 0.35)'
   };
 
   const dancerImageStyle = {
-    filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.3))'
+    filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.25))'
   };
 
   return (
@@ -50,63 +51,65 @@ const HeroBoxes: React.FC<HeroBoxesProps> = ({ onLoginClick, recentEvents }) => 
           </p>
         </div>
 
-        {/* Hero Boxes Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
+        {/* Hero Boxes Grid: focus on Demo + Register/Login; events below */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
           {/* Demo Class Box */}
-          <div style={demoClassStyle} className="rounded-3xl p-8 text-white relative overflow-hidden min-h-[400px] flex flex-col justify-between">
-            <div>
-              <h2 className="text-3xl font-bold mb-4">It's time to Book a Demo Class</h2>
-              <p className="text-lg opacity-90 mb-8 leading-relaxed">
-                Discover our teaching style in a free demo. Attend at your nearest branch or online—dual time display for international students.
-              </p>
-            </div>
-            
-            {/* Dancer Image */}
-            <div className="absolute right-4 top-16 w-32 h-56">
-              <div style={dancerImageStyle} className="w-full h-full bg-gradient-to-b from-yellow-400 to-red-500 rounded-lg flex items-center justify-center">
-                <div className="text-4xl">🕺</div>
+          <div style={demoClassStyle} className="rounded-3xl p-8 text-white overflow-hidden min-h-[320px]">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-center">
+              {/* Text/CTA - first on mobile */}
+              <div className="sm:col-span-2 order-1">
+                <h2 className="text-3xl font-bold mb-3">Book a Demo Class</h2>
+                <p className="text-base md:text-lg opacity-90 mb-6 leading-relaxed">
+                  Experience our teaching style with a free demo. Choose your nearest branch or join online.
+                </p>
+                <a href="#contact" className="inline-block bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 border border-white/30">
+                  Book a Demo
+                </a>
+              </div>
+              {/* Animated visual - right on desktop, below on mobile */}
+              <div className="order-2 sm:order-none justify-self-end">
+                <div style={dancerImageStyle} className="w-28 h-44 sm:w-32 sm:h-52 bg-gradient-to-b from-indigo-200 to-purple-300 rounded-xl flex items-center justify-center">
+                  <div className="text-4xl">🕺</div>
+                </div>
               </div>
             </div>
-
-            <button className="bg-white bg-opacity-20 backdrop-blur-sm text-white font-bold py-4 px-8 rounded-2xl hover:bg-opacity-30 transition-all duration-300 hover:scale-105 border border-white border-opacity-30">
-              Book a Demo Class
-            </button>
           </div>
 
           {/* Register/Login Box */}
-          <div style={registerStyle} className="rounded-3xl p-8 text-white relative overflow-hidden min-h-[400px] flex flex-col justify-between">
-            <div>
-              <h2 className="text-3xl font-bold mb-4">Register now and</h2>
-              <p className="text-lg opacity-90 mb-8 leading-relaxed">
-                Providing cheap car rental services and safe and comfortable facilities.
-              </p>
-            </div>
-
-            {/* Dancer Image */}
-            <div className="absolute right-4 top-16 w-32 h-56">
-              <div style={dancerImageStyle} className="w-full h-full bg-gradient-to-b from-pink-400 to-purple-500 rounded-lg flex items-center justify-center">
-                <div className="text-4xl">💃</div>
+          <div style={registerStyle} className="rounded-3xl p-8 text-white overflow-hidden min-h-[320px]">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-center">
+              {/* Text/CTA - first on mobile */}
+              <div className="sm:col-span-2 order-1">
+                <h2 className="text-3xl font-bold mb-3">Register or Login</h2>
+                <p className="text-base md:text-lg opacity-90 mb-6 leading-relaxed">
+                  Create your account to register for courses or sign in to continue your journey.
+                </p>
+                <div className="flex gap-4">
+                  <Link 
+                    to="/register" 
+                    className="bg-white text-indigo-700 font-semibold py-3 px-6 rounded-xl hover:bg-white/90 transition-all duration-300 text-center"
+                  >
+                    Register
+                  </Link>
+                  <button 
+                    onClick={onLoginClick}
+                    className="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 border border-white/30"
+                  >
+                    Login
+                  </button>
+                </div>
               </div>
-            </div>
-
-            <div className="flex gap-4">
-              <Link 
-                to="/register" 
-                className="bg-white text-pink-600 font-bold py-3 px-6 rounded-xl hover:bg-opacity-90 transition-all duration-300 hover:scale-105 flex-1 text-center"
-              >
-                Register
-              </Link>
-              <button 
-                onClick={onLoginClick}
-                className="bg-black bg-opacity-30 backdrop-blur-sm text-white font-bold py-3 px-6 rounded-xl hover:bg-opacity-50 transition-all duration-300 hover:scale-105 flex-1"
-              >
-                Login
-              </button>
+              {/* Animated visual - right on desktop, below on mobile */}
+              <div className="order-2 sm:order-none justify-self-end">
+                <div style={dancerImageStyle} className="w-28 h-44 sm:w-32 sm:h-52 bg-gradient-to-b from-purple-200 to-indigo-300 rounded-xl flex items-center justify-center">
+                  <div className="text-4xl">💃</div>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Recent Events Box */}
-          <div style={eventsStyle} className="rounded-3xl p-6 text-white relative overflow-hidden min-h-[400px] flex flex-col">
+          {/* Recent Events Box (placed below for a cleaner above-the-fold) */}
+          <div style={eventsStyle} className="rounded-3xl p-6 text-white overflow-hidden min-h-[320px] flex flex-col lg:col-span-2">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold">Recent Events</h2>
               <div className="text-right">
