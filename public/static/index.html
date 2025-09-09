@@ -2175,70 +2175,29 @@
       statsCounter4.start();
     </script>
     
-    <!-- Modern Header Scroll Behavior -->
+    <!-- Modern Header Scroll Behavior - Simplified like original static -->
     <script>
-      document.addEventListener('DOMContentLoaded', function() {
-        const header = document.querySelector('.mxd-header--modern');
-        if (!header) return;
-        
-        let lastScrollY = window.scrollY;
-        let scrollTimeout;
-        
-        function updateHeader() {
-          const currentScrollY = window.scrollY;
-          
-          // Add scrolled class for enhanced styling
-          if (currentScrollY > 50) {
-            header.classList.add('is-scrolled');
+      // Simple header scroll behavior matching the original static implementation
+      $(window).on("scroll", function() {
+        const header = $('.mxd-header--modern');
+        if (header.length) {
+          if ($(window).scrollTop() > 10) {
+            header.addClass('is-hidden');
           } else {
-            header.classList.remove('is-scrolled');
+            header.removeClass('is-hidden');
           }
-          
-          // Hide/show header based on scroll direction
-          if (currentScrollY > 100) {
-            if (currentScrollY > lastScrollY && currentScrollY > 200) {
-              // Scrolling down - hide header
-              header.classList.add('is-hidden');
-            } else {
-              // Scrolling up - show header
-              header.classList.remove('is-hidden');
-            }
-          } else {
-            // Always show header near top
-            header.classList.remove('is-hidden');
-          }
-          
-          lastScrollY = currentScrollY;
         }
-        
-        // Throttled scroll handler
-        function onScroll() {
-          if (scrollTimeout) {
-            clearTimeout(scrollTimeout);
-          }
-          scrollTimeout = setTimeout(updateHeader, 10);
-        }
-        
-        // Initial call
-        updateHeader();
-        
-        // Add scroll listener
-        window.addEventListener('scroll', onScroll, { passive: true });
-        
-        // Mobile menu toggle (simple implementation)
-        const mobileToggle = document.querySelector('.mxd-header__mobile-toggle');
-        if (mobileToggle) {
-          mobileToggle.addEventListener('click', function() {
-            // For now, just add a simple animation feedback
-            this.style.transform = 'scale(0.95)';
-            setTimeout(() => {
-              this.style.transform = 'scale(1)';
-            }, 150);
-            
-            // TODO: Add mobile menu functionality if needed
-            console.log('Mobile menu clicked - implement menu if needed');
-          });
-        }
+      });
+      
+      // Mobile menu toggle
+      $(document).ready(function() {
+        $('.mxd-header__mobile-toggle').on('click', function() {
+          // Simple click feedback
+          $(this).css('transform', 'scale(0.95)');
+          setTimeout(() => {
+            $(this).css('transform', 'scale(1)');
+          }, 150);
+        });
       });
     </script>
 
