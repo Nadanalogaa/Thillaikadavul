@@ -1,16 +1,20 @@
 
-
-import React, { useState } from 'react';
-import DynamicHomepage from '../components/DynamicHomepage';
+import React from 'react';
 
 interface HomePageProps {
   onLoginClick: () => void;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ onLoginClick }) => {
+// Render the static landing template (with loader & parallax) in an isolated iframe.
+const HomePage: React.FC<HomePageProps> = () => {
   return (
-    <div className="w-full min-h-screen">
-      <DynamicHomepage onLoginClick={onLoginClick} />
+    <div className="w-full h-screen">
+      <iframe
+        title="Landing"
+        src="/static/index.html"
+        className="w-full h-full block"
+        style={{ border: '0' }}
+      />
     </div>
   );
 };
