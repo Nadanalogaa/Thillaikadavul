@@ -224,23 +224,18 @@ const DynamicHomepage: React.FC<DynamicHomepageProps> = ({ onLoginClick }) => {
                         >
                             Retry Loading
                         </button>
-                        <button 
-                            onClick={() => {
-                                // Switch to static version by redirecting to iframe
-                                window.location.href = '/static/index.html';
-                            }}
-                            className="bg-gray-600 text-white px-6 py-2 rounded-md hover:bg-gray-700 w-full"
-                        >
-                            Load Static Version
-                        </button>
-                        {error?.includes('Server is not responding') && (
-                            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                                <p className="text-sm text-yellow-800">
-                                    <strong>Note:</strong> The backend server needs to be running on port 4000. 
-                                    Start it with <code className="bg-yellow-100 px-1 rounded">npm start</code> in the server directory.
-                                </p>
-                            </div>
-                        )}
+                        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                            <p className="text-sm text-blue-800">
+                                <strong>Troubleshooting:</strong> Make sure both servers are running:
+                            </p>
+                            <ul className="text-sm text-blue-700 mt-2 space-y-1">
+                                <li>• Backend: <code className="bg-blue-100 px-1 rounded">cd server && npm start</code></li>
+                                <li>• Frontend: <code className="bg-blue-100 px-1 rounded">npm run dev</code></li>
+                            </ul>
+                            <p className="text-xs text-blue-600 mt-2">
+                                The frontend needs to proxy API calls to the backend server.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
