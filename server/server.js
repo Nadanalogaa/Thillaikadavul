@@ -7,6 +7,9 @@ const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 // Load environment variables
 dotenv.config();
@@ -95,12 +98,139 @@ batchSchema.virtual('id').get(function(){ return this._id.toHexString(); });
 batchSchema.set('toJSON', { virtuals: true, transform: (doc, ret) => { delete ret._id; delete ret.__v; } });
 const Batch = mongoose.model('Batch', batchSchema);
 
+// CMS Models for Homepage Content Management
+const mediaSchema = new mongoose.Schema({
+    type: { type: String, required: true, enum: ['image', 'video', 'youtube'] },
+    url: { type: String, required: true },
+    altText: { type: String },
+    caption: { type: String },
+    fileName: { type: String },
+    mimeType: { type: String },
+    size: { type: Number },
+    youtubeId: { type: String }
+}, { _id: false });
+
+const seoSchema = new mongoose.Schema({
+    title: { type: String },
+    description: { type: String },
+    keywords: [{ type: String }],
+    ogImage: { type: String },
+    ogTitle: { type: String },
+    ogDescription: { type: String }
+}, { _id: false });
+
+const contentBlockSchema = new mongoose.Schema({
+    sectionId: { type: String, required: true, unique: true },
+    sectionType: { type: String, required: true, enum: [
+        'header', 'cta', 'hero', 'about', 'statistics', 'programs-marquee', 
+        'programs', 'services', 'approach', 'gallery', 'awards', 
+        'testimonials', 'partners', 'blog', 'final-cta', 'footer'
+    ]},
+    title: { type: String },
+    subtitle: { type: String },
+    description: { type: String },
+    content: { type: mongoose.Schema.Types.Mixed }, // Flexible content structure
+    media: [mediaSchema],
+    links: [{
+        label: { type: String },
+        url: { type: String },
+        type: { type: String, enum: ['internal', 'external', 'phone', 'email'] },
+        target: { type: String, enum: ['_self', '_blank', '_parent'], default: '_self' }
+    }],
+    settings: {
+        visible: { type: Boolean, default: true },
+        order: { type: Number, default: 0 },
+        className: { type: String },
+        customStyles: { type: String }
+    },
+    seo: seoSchema,
+    status: { type: String, enum: ['draft', 'published', 'archived'], default: 'draft' },
+    version: { type: Number, default: 1 },
+    publishedAt: { type: Date },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+});
+
+contentBlockSchema.virtual('id').get(function(){ return this._id.toHexString(); });
+contentBlockSchema.set('toJSON', { virtuals: true, transform: (doc, ret) => { delete ret._id; delete ret.__v; } });
+const ContentBlock = mongoose.model('ContentBlock', contentBlockSchema);
+
+const siteSettingsSchema = new mongoose.Schema({
+    key: { type: String, required: true, unique: true },
+    value: { type: mongoose.Schema.Types.Mixed, required: true },
+    type: { type: String, enum: ['text', 'number', 'boolean', 'json', 'media'], default: 'text' },
+    description: { type: String },
+    category: { type: String },
+    updatedAt: { type: Date, default: Date.now },
+    updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+});
+
+siteSettingsSchema.virtual('id').get(function(){ return this._id.toHexString(); });
+siteSettingsSchema.set('toJSON', { virtuals: true, transform: (doc, ret) => { delete ret._id; delete ret.__v; } });
+const SiteSettings = mongoose.model('SiteSettings', siteSettingsSchema);
+
+const templateSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    description: { type: String },
+    sectionType: { type: String, required: true },
+    template: { type: mongoose.Schema.Types.Mixed, required: true },
+    thumbnail: { type: String },
+    isDefault: { type: Boolean, default: false },
+    createdAt: { type: Date, default: Date.now },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+});
+
+templateSchema.virtual('id').get(function(){ return this._id.toHexString(); });
+templateSchema.set('toJSON', { virtuals: true, transform: (doc, ret) => { delete ret._id; delete ret.__v; } });
+const Template = mongoose.model('Template', templateSchema);
+
+// Multer configuration for media uploads
+const createUploadDir = (dir) => {
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
+};
+
+// Create uploads directory if it doesn't exist
+createUploadDir('./uploads');
+createUploadDir('./uploads/images');
+createUploadDir('./uploads/videos');
+
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const uploadPath = file.mimetype.startsWith('image/') ? './uploads/images' : './uploads/videos';
+        cb(null, uploadPath);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const fileFilter = (req, file, cb) => {
+    // Accept images and videos
+    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
+        cb(null, true);
+    } else {
+        cb(new Error('Only image and video files are allowed!'), false);
+    }
+};
+
+const upload = multer({ 
+    storage: storage,
+    limits: {
+        fileSize: 50 * 1024 * 1024 // 50MB limit
+    },
+    fileFilter: fileFilter
+});
 
 // --- Main application startup ---
 async function startServer() {
     console.log(`[Server] Node environment (NODE_ENV): ${process.env.NODE_ENV || 'not set (defaults to development)'}`);
 
-    // --- Database Seeding Function ---
+    // --- Database Seeding Functions ---
     const seedCourses = async () => {
         try {
             const courseCount = await Course.countDocuments();
@@ -120,11 +250,101 @@ async function startServer() {
         }
     };
 
+    const seedCMSContent = async () => {
+        try {
+            const contentCount = await ContentBlock.countDocuments();
+            if (contentCount === 0) {
+                console.log('[DB] No CMS content found. Seeding initial homepage content...');
+                
+                const initialContentBlocks = [
+                    {
+                        sectionId: 'header-main',
+                        sectionType: 'header',
+                        title: 'Nadanaloga Academy',
+                        links: [
+                            { label: 'Home', url: '/', type: 'internal', target: '_parent' },
+                            { label: 'About Us', url: '/about', type: 'internal', target: '_parent' },
+                            { label: 'Gallery', url: '/gallery', type: 'internal', target: '_parent' },
+                            { label: 'FAQ', url: '/faq', type: 'internal', target: '_parent' },
+                            { label: 'Contact', url: '/contact', type: 'internal', target: '_parent' }
+                        ],
+                        settings: { visible: true, order: 0 },
+                        status: 'published',
+                        publishedAt: new Date()
+                    },
+                    {
+                        sectionId: 'hero-main',
+                        sectionType: 'hero',
+                        title: 'Dance, Music and Fine Arts',
+                        description: 'Discover the rich heritage of Indian classical arts through expert guidance, personalized attention, and a supportive learning environment that nurtures both technique and creativity.',
+                        content: {
+                            marqueeItems: ['Bharatanatyam', 'Vocal', 'Drawing', 'Abacus', 'Culture', 'Performance']
+                        },
+                        media: [
+                            { type: 'image', url: '/images/Barathanatyam.png', altText: 'Bharatanatyam' },
+                            { type: 'image', url: '/images/vocal.png', altText: 'Vocal Music' },
+                            { type: 'image', url: '/images/drawing.png', altText: 'Drawing & Painting' }
+                        ],
+                        links: [
+                            { label: 'View Programs', url: '/gallery', type: 'internal', target: '_parent' }
+                        ],
+                        settings: { visible: true, order: 3 },
+                        seo: {
+                            title: 'Learn Bharatanatyam, Vocal, Drawing & Abacus - Nadanaloga Academy',
+                            description: 'Premier fine arts academy offering Bharatanatyam dance, vocal music, drawing, and abacus classes.',
+                            keywords: ['bharatanatyam classes', 'vocal music training', 'drawing classes', 'abacus classes']
+                        },
+                        status: 'published',
+                        publishedAt: new Date()
+                    }
+                ];
+
+                await ContentBlock.insertMany(initialContentBlocks);
+                console.log('[DB] CMS content seeded successfully.');
+            }
+        } catch (error) {
+            console.error('[DB] Error seeding CMS content:', error);
+        }
+    };
+
+    const seedSiteSettings = async () => {
+        try {
+            const settingsCount = await SiteSettings.countDocuments();
+            if (settingsCount === 0) {
+                console.log('[DB] No site settings found. Seeding initial settings...');
+                
+                const initialSettings = [
+                    {
+                        key: 'siteTitle',
+                        value: 'Nadanaloga Fine Arts Academy — Bharatanatyam, Vocal, Drawing, Abacus',
+                        type: 'text',
+                        description: 'Main site title for SEO',
+                        category: 'SEO'
+                    },
+                    {
+                        key: 'siteDescription',
+                        value: 'Nadanaloga Fine Arts Academy nurtures creativity and culture through Bharatanatyam, Vocal music, Drawing and Abacus training.',
+                        type: 'text',
+                        description: 'Main site description for SEO',
+                        category: 'SEO'
+                    }
+                ];
+
+                await SiteSettings.insertMany(initialSettings);
+                console.log('[DB] Site settings seeded successfully.');
+            }
+        } catch (error) {
+            console.error('[DB] Error seeding site settings:', error);
+        }
+    };
+
     // --- MongoDB Connection ---
     try {
         await mongoose.connect(process.env.MONGO_URI);
         console.log('[DB] MongoDB connected successfully.');
         await seedCourses();
+        await seedCMSContent();
+        await seedSiteSettings();
     } catch (err) {
         console.error('[DB] MongoDB connection error:', err);
         process.exit(1);
@@ -362,6 +582,9 @@ async function startServer() {
     // --- Middleware ---
     app.use(express.json({ limit: '50mb' }));
     app.use(express.urlencoded({ limit: '50mb', extended: true }));
+    
+    // Serve uploaded files statically
+    app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
     const whitelist = [
       'http://localhost:5173', 
@@ -752,6 +975,335 @@ async function startServer() {
             res.json(notification);
         } catch (error) {
             res.status(500).json({ message: 'Server error updating notification.' });
+        }
+    });
+
+    // CMS API Endpoints
+    // Get all content blocks
+    app.get('/api/cms/content', async (req, res) => {
+        try {
+            const { status, sectionType } = req.query;
+            let query = {};
+            
+            if (status) query.status = status;
+            if (sectionType) query.sectionType = sectionType;
+            
+            const contentBlocks = await ContentBlock.find(query)
+                .populate('createdBy', 'name email')
+                .populate('updatedBy', 'name email')
+                .sort({ 'settings.order': 1, createdAt: -1 });
+            
+            res.json(contentBlocks);
+        } catch (error) {
+            console.error('[CMS] Error fetching content blocks:', error);
+            res.status(500).json({ error: 'Failed to fetch content blocks' });
+        }
+    });
+
+    // Get single content block
+    app.get('/api/cms/content/:id', async (req, res) => {
+        try {
+            const contentBlock = await ContentBlock.findById(req.params.id)
+                .populate('createdBy', 'name email')
+                .populate('updatedBy', 'name email');
+            
+            if (!contentBlock) {
+                return res.status(404).json({ error: 'Content block not found' });
+            }
+            
+            res.json(contentBlock);
+        } catch (error) {
+            console.error('[CMS] Error fetching content block:', error);
+            res.status(500).json({ error: 'Failed to fetch content block' });
+        }
+    });
+
+    // Create content block
+    app.post('/api/cms/content', ensureAdmin, async (req, res) => {
+        try {
+            const contentBlock = new ContentBlock({
+                ...req.body,
+                createdBy: req.session.user.id,
+                updatedBy: req.session.user.id
+            });
+            
+            await contentBlock.save();
+            await contentBlock.populate('createdBy', 'name email');
+            await contentBlock.populate('updatedBy', 'name email');
+            
+            res.status(201).json(contentBlock);
+        } catch (error) {
+            console.error('[CMS] Error creating content block:', error);
+            if (error.code === 11000) {
+                res.status(400).json({ error: 'Section ID already exists' });
+            } else {
+                res.status(500).json({ error: 'Failed to create content block' });
+            }
+        }
+    });
+
+    // Update content block
+    app.put('/api/cms/content/:id', ensureAdmin, async (req, res) => {
+        try {
+            const contentBlock = await ContentBlock.findByIdAndUpdate(
+                req.params.id,
+                { 
+                    ...req.body, 
+                    updatedBy: req.session.user.id,
+                    updatedAt: new Date()
+                },
+                { new: true, runValidators: true }
+            )
+            .populate('createdBy', 'name email')
+            .populate('updatedBy', 'name email');
+            
+            if (!contentBlock) {
+                return res.status(404).json({ error: 'Content block not found' });
+            }
+            
+            res.json(contentBlock);
+        } catch (error) {
+            console.error('[CMS] Error updating content block:', error);
+            res.status(500).json({ error: 'Failed to update content block' });
+        }
+    });
+
+    // Delete content block
+    app.delete('/api/cms/content/:id', ensureAdmin, async (req, res) => {
+        try {
+            const contentBlock = await ContentBlock.findByIdAndDelete(req.params.id);
+            
+            if (!contentBlock) {
+                return res.status(404).json({ error: 'Content block not found' });
+            }
+            
+            res.json({ message: 'Content block deleted successfully' });
+        } catch (error) {
+            console.error('[CMS] Error deleting content block:', error);
+            res.status(500).json({ error: 'Failed to delete content block' });
+        }
+    });
+
+    // Bulk update content blocks order
+    app.put('/api/cms/content/reorder', ensureAdmin, async (req, res) => {
+        try {
+            const { updates } = req.body; // [{ id, order }]
+            
+            const bulkOps = updates.map(update => ({
+                updateOne: {
+                    filter: { _id: update.id },
+                    update: { 
+                        'settings.order': update.order,
+                        updatedBy: req.session.user.id,
+                        updatedAt: new Date()
+                    }
+                }
+            }));
+            
+            await ContentBlock.bulkWrite(bulkOps);
+            res.json({ message: 'Content blocks reordered successfully' });
+        } catch (error) {
+            console.error('[CMS] Error reordering content blocks:', error);
+            res.status(500).json({ error: 'Failed to reorder content blocks' });
+        }
+    });
+
+    // Publish/unpublish content block
+    app.put('/api/cms/content/:id/publish', ensureAdmin, async (req, res) => {
+        try {
+            const { status } = req.body; // 'published' or 'draft'
+            const updateData = {
+                status,
+                updatedBy: req.session.user.id,
+                updatedAt: new Date()
+            };
+            
+            if (status === 'published') {
+                updateData.publishedAt = new Date();
+            }
+            
+            const contentBlock = await ContentBlock.findByIdAndUpdate(
+                req.params.id,
+                updateData,
+                { new: true }
+            );
+            
+            if (!contentBlock) {
+                return res.status(404).json({ error: 'Content block not found' });
+            }
+            
+            res.json(contentBlock);
+        } catch (error) {
+            console.error('[CMS] Error updating publish status:', error);
+            res.status(500).json({ error: 'Failed to update publish status' });
+        }
+    });
+
+    // Get site settings
+    app.get('/api/cms/settings', async (req, res) => {
+        try {
+            const settings = await SiteSettings.find({})
+                .populate('updatedBy', 'name email')
+                .sort({ category: 1, key: 1 });
+            
+            res.json(settings);
+        } catch (error) {
+            console.error('[CMS] Error fetching site settings:', error);
+            res.status(500).json({ error: 'Failed to fetch site settings' });
+        }
+    });
+
+    // Update site settings
+    app.put('/api/cms/settings/:key', ensureAdmin, async (req, res) => {
+        try {
+            const setting = await SiteSettings.findOneAndUpdate(
+                { key: req.params.key },
+                {
+                    ...req.body,
+                    updatedBy: req.session.user.id,
+                    updatedAt: new Date()
+                },
+                { new: true, upsert: true, runValidators: true }
+            ).populate('updatedBy', 'name email');
+            
+            res.json(setting);
+        } catch (error) {
+            console.error('[CMS] Error updating site setting:', error);
+            res.status(500).json({ error: 'Failed to update site setting' });
+        }
+    });
+
+    // Media upload endpoints
+    app.post('/api/cms/media/upload', ensureAdmin, upload.single('file'), async (req, res) => {
+        try {
+            if (!req.file) {
+                return res.status(400).json({ error: 'No file uploaded' });
+            }
+            
+            const media = {
+                type: req.file.mimetype.startsWith('image/') ? 'image' : 'video',
+                url: `/uploads/${req.file.mimetype.startsWith('image/') ? 'images' : 'videos'}/${req.file.filename}`,
+                altText: req.body.altText || '',
+                fileName: req.file.originalname,
+                mimeType: req.file.mimetype,
+                size: req.file.size,
+                uploadedAt: new Date()
+            };
+            
+            res.json(media);
+        } catch (error) {
+            console.error('[CMS] Error uploading media:', error);
+            res.status(500).json({ error: 'Failed to upload media' });
+        }
+    });
+
+    // Multiple media upload
+    app.post('/api/cms/media/upload-multiple', ensureAdmin, upload.array('files', 10), async (req, res) => {
+        try {
+            if (!req.files || req.files.length === 0) {
+                return res.status(400).json({ error: 'No files uploaded' });
+            }
+            
+            const mediaFiles = req.files.map(file => ({
+                type: file.mimetype.startsWith('image/') ? 'image' : 'video',
+                url: `/uploads/${file.mimetype.startsWith('image/') ? 'images' : 'videos'}/${file.filename}`,
+                altText: '',
+                fileName: file.originalname,
+                mimeType: file.mimetype,
+                size: file.size,
+                uploadedAt: new Date()
+            }));
+            
+            res.json({ files: mediaFiles });
+        } catch (error) {
+            console.error('[CMS] Error uploading media:', error);
+            res.status(500).json({ error: 'Failed to upload media files' });
+        }
+    });
+
+    // YouTube URL processing
+    app.post('/api/cms/media/youtube', ensureAdmin, async (req, res) => {
+        try {
+            const { url, altText, caption } = req.body;
+            
+            // Extract YouTube video ID from URL
+            const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+            const match = url.match(youtubeRegex);
+            
+            if (!match) {
+                return res.status(400).json({ error: 'Invalid YouTube URL' });
+            }
+            
+            const youtubeId = match[1];
+            const media = {
+                type: 'youtube',
+                url: url,
+                altText: altText || '',
+                caption: caption || '',
+                youtubeId: youtubeId,
+                thumbnail: `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`,
+                uploadedAt: new Date()
+            };
+            
+            res.json(media);
+        } catch (error) {
+            console.error('[CMS] Error processing YouTube URL:', error);
+            res.status(500).json({ error: 'Failed to process YouTube URL' });
+        }
+    });
+
+    // Delete media file
+    app.delete('/api/cms/media/:filename', ensureAdmin, async (req, res) => {
+        try {
+            const filename = req.params.filename;
+            const imagePath = path.join(__dirname, 'uploads', 'images', filename);
+            const videoPath = path.join(__dirname, 'uploads', 'videos', filename);
+            
+            let filePath = null;
+            if (fs.existsSync(imagePath)) {
+                filePath = imagePath;
+            } else if (fs.existsSync(videoPath)) {
+                filePath = videoPath;
+            }
+            
+            if (filePath) {
+                fs.unlinkSync(filePath);
+                res.json({ message: 'Media file deleted successfully' });
+            } else {
+                res.status(404).json({ error: 'Media file not found' });
+            }
+        } catch (error) {
+            console.error('[CMS] Error deleting media:', error);
+            res.status(500).json({ error: 'Failed to delete media file' });
+        }
+    });
+
+    // Get published homepage content (public endpoint)
+    app.get('/api/homepage', async (req, res) => {
+        try {
+            const contentBlocks = await ContentBlock.find({ 
+                status: 'published',
+                'settings.visible': true 
+            })
+            .sort({ 'settings.order': 1 })
+            .select('-createdBy -updatedBy -version -__v');
+            
+            // Get global site settings
+            const siteSettings = await SiteSettings.find({})
+                .select('key value type category -_id');
+            
+            const settingsMap = {};
+            siteSettings.forEach(setting => {
+                settingsMap[setting.key] = setting.value;
+            });
+            
+            res.json({
+                content: contentBlocks,
+                settings: settingsMap
+            });
+        } catch (error) {
+            console.error('[CMS] Error fetching homepage content:', error);
+            res.status(500).json({ error: 'Failed to fetch homepage content' });
         }
     });
 
