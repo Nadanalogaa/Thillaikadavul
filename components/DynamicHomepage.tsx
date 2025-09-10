@@ -55,10 +55,20 @@ const DynamicHomepage: React.FC<DynamicHomepageProps> = ({ onLoginClick }) => {
         const fetchHomepageData = async () => {
             try {
                 const response = await fetch('/api/homepage');
-                if (!response.ok) {
-                    throw new Error('Failed to fetch homepage data');
+                
+                // Check if response is HTML (server might be returning error page)
+                const contentType = response.headers.get('content-type');
+                if (!response.ok || !contentType?.includes('application/json')) {
+                    throw new Error(`Server returned ${response.status}: ${response.statusText || 'Invalid response format'}`);
                 }
+                
                 const data = await response.json();
+                
+                // Validate that we have the expected data structure
+                if (!data || !data.content || !Array.isArray(data.content)) {
+                    throw new Error('Invalid homepage data structure');
+                }
+                
                 setHomepageData(data);
                 
                 // Load external scripts after data is loaded
@@ -66,7 +76,20 @@ const DynamicHomepage: React.FC<DynamicHomepageProps> = ({ onLoginClick }) => {
                 
             } catch (err) {
                 console.error('Error fetching homepage data:', err);
-                setError(err instanceof Error ? err.message : 'Unknown error');
+                
+                // More specific error messages
+                let errorMessage = 'Unable to load homepage content';
+                if (err instanceof Error) {
+                    if (err.message.includes('fetch')) {
+                        errorMessage = 'Server is not responding. Please check if the backend is running.';
+                    } else if (err.message.includes('JSON')) {
+                        errorMessage = 'Server returned invalid data format.';
+                    } else {
+                        errorMessage = err.message;
+                    }
+                }
+                
+                setError(errorMessage);
             } finally {
                 setLoading(false);
             }
@@ -140,35 +163,85 @@ const DynamicHomepage: React.FC<DynamicHomepageProps> = ({ onLoginClick }) => {
 
     if (loading) {
         return (
-            <div id="loader" className="loader">
-                <div className="loader__wrapper">
-                    <div className="loader__content">
-                        <div className="loader__count">
-                            <span className="count__text">Loading</span>
-                            <span className="count__percent">...</span>
+            <>
+                <link rel="stylesheet" type="text/css" href="/static/css/loader.min.css" />
+                <link rel="stylesheet" type="text/css" href="/static/css/plugins.min.css" />
+                <link rel="stylesheet" type="text/css" href="/static/css/main.min.css" />
+                <link rel="stylesheet" type="text/css" href="/static/css/custom.css" />
+                
+                <div id="loader" className="loader">
+                    <div className="loader__wrapper">
+                        <div className="loader__content">
+                            <div className="loader__count">
+                                <span className="count__text">0</span>
+                                <span className="count__percent">%</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+                
+                <script dangerouslySetInnerHTML={{
+                    __html: `
+                        // Simple loader animation
+                        let count = 0;
+                        const countElement = document.querySelector('.count__text');
+                        const loader = document.getElementById('loader');
+                        
+                        const interval = setInterval(() => {
+                            count += Math.random() * 15;
+                            if (count > 100) count = 100;
+                            if (countElement) countElement.textContent = Math.floor(count);
+                            if (count >= 100) {
+                                clearInterval(interval);
+                                setTimeout(() => {
+                                    if (loader) loader.style.opacity = '0';
+                                    setTimeout(() => {
+                                        if (loader) loader.style.display = 'none';
+                                    }, 500);
+                                }, 200);
+                            }
+                        }, 50);
+                    `
+                }} />
+            </>
         );
     }
 
     if (error || !homepageData) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-100">
-                <div className="text-center">
+                <div className="text-center max-w-md mx-auto p-6">
                     <h1 className="text-2xl font-bold text-gray-800 mb-4">
                         Unable to load homepage
                     </h1>
-                    <p className="text-gray-600 mb-4">
+                    <p className="text-gray-600 mb-6">
                         {error || 'Homepage data not available'}
                     </p>
-                    <button 
-                        onClick={() => window.location.reload()}
-                        className="bg-brand-primary text-white px-6 py-2 rounded-md hover:bg-brand-primary/90"
-                    >
-                        Retry
-                    </button>
+                    <div className="space-y-3">
+                        <button 
+                            onClick={() => window.location.reload()}
+                            className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 w-full"
+                        >
+                            Retry Loading
+                        </button>
+                        <button 
+                            onClick={() => {
+                                // Switch to static version by redirecting to iframe
+                                window.location.href = '/static/index.html';
+                            }}
+                            className="bg-gray-600 text-white px-6 py-2 rounded-md hover:bg-gray-700 w-full"
+                        >
+                            Load Static Version
+                        </button>
+                        {error?.includes('Server is not responding') && (
+                            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                                <p className="text-sm text-yellow-800">
+                                    <strong>Note:</strong> The backend server needs to be running on port 4000. 
+                                    Start it with <code className="bg-yellow-100 px-1 rounded">npm start</code> in the server directory.
+                                </p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         );
