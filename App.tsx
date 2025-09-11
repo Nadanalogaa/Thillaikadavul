@@ -255,7 +255,7 @@ function App() {
       {!isDashboard && !isStaticThemed && <Footer />}
       <WhatsAppButton />
 
-      <Modal isOpen={isLoginModalOpen} onClose={closeLoginModal} size="xl">
+      <Modal isOpen={isLoginModalOpen} onClose={closeLoginModal} size="2xl">
         <LoginForm 
           onSuccess={handleLoginSuccess} 
           initialEmail={loginEmail} 

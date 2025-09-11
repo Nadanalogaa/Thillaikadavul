@@ -20,7 +20,7 @@ const SIZES: { [key in ModalSize]: string } = {
 };
 
 
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, size = 'xl' }) => {
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, size = '2xl' }) => {
   if (!isOpen) return null;
 
   const isFull = size === 'full';

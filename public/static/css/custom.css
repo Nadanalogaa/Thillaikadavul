@@ -645,7 +645,9 @@ body,
   background: var(--base-tint);
   border: 1px solid rgba(var(--base-rgb), 0.25);
   transition: box-shadow .2s ease, border-color .2s ease, transform .05s ease;
+  font-size: 16px;
 }
+.nad-input::placeholder { font-size: 16px; color: var(--t-muted); }
 .nad-input:focus {
   outline: none;
   border-color: var(--accent);
@@ -671,6 +673,7 @@ body,
 
 .nad-modal__header h2 { font-size: 26px; }
 .nad-modal__header p { color: var(--t-medium); }
+.nad-modal label { font-size: 14px; }
 
 
 /* Force light theme regardless of OS preference */
