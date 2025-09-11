@@ -580,6 +580,19 @@ body,
 /* Borders inside content adapt to theme */
 .nad-content .border-b { border-color: rgba(var(--base-rgb), 0.22) !important; }
 
+/* -------------------------------------------------- */
+/* Pinned Projects (Our Programs) sticky left column   */
+/* -------------------------------------------------- */
+@media (min-width: 1200px) {
+  .mxd-pinned-projects { position: relative; }
+  .mxd-pinned-projects__static { position: sticky; top: 88px; align-self: flex-start; z-index: 2; }
+  .mxd-pinned-projects__static-inner { padding-bottom: 24px; }
+}
+
+@media (max-width: 1199.98px) {
+  .mxd-pinned-projects__static { position: static; }
+}
+
 /* Nadanaloga Modal Theme Overrides */
 .nad-modal-overlay {
   z-index: 2001 !important;
