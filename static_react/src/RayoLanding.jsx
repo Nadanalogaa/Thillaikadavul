@@ -313,7 +313,7 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
             const ScrollTrigger = window.ScrollTrigger;
             if (pinTarget && section) {
               const headerH = headerEl ? Math.round(headerEl.getBoundingClientRect().height) : 72;
-              const offset = headerH + 16; // gap below header
+              const offset = headerH + 28; // slightly lower under header
               document.documentElement.style.setProperty('--header-offset', `${offset}px`);
 
               if (gsap && ScrollTrigger) {
@@ -321,6 +321,13 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
                 ScrollTrigger.getAll().forEach(t => {
                   if (t.vars && t.vars.pin === pinTarget) t.kill();
                 });
+
+                // Small entrance/exit easing
+                const easeIn = gsap.fromTo(pinTarget,
+                  { y: 24, opacity: 0.95 },
+                  { y: 0, opacity: 1, duration: 0.6, ease: 'power2.out', paused: true }
+                );
+                const easeOut = gsap.to(pinTarget, { y: -12, duration: 0.4, ease: 'power1.out', paused: true });
 
                 ScrollTrigger.create({
                   trigger: section,
@@ -330,11 +337,15 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
                   pinSpacing: false,
                   anticipatePin: 1,
                   invalidateOnRefresh: true,
+                  onEnter: () => easeIn.play(),
+                  onLeave: () => easeOut.play(),
+                  onEnterBack: () => easeOut.reverse(),
+                  onLeaveBack: () => easeIn.reverse(),
                 });
 
                 window.addEventListener('resize', () => {
                   const newH = headerEl ? Math.round(headerEl.getBoundingClientRect().height) : 72;
-                  const newOffset = newH + 16;
+                  const newOffset = newH + 28;
                   document.documentElement.style.setProperty('--header-offset', `${newOffset}px`);
                   ScrollTrigger.refresh();
                 });
