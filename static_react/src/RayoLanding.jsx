@@ -261,6 +261,26 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
             }, { once: false });
           }
 
+          // Remove Statistics row (counters) and Our Partners sections
+          try {
+            const removed = new Set();
+            const removeSectionOf = (el) => {
+              if (!el) return;
+              const sec = el.closest('.mxd-section');
+              if (sec && !removed.has(sec)) { sec.parentNode && sec.parentNode.removeChild(sec); removed.add(sec); }
+            };
+            // Statistics cards
+            document.querySelectorAll('.mxd-stats-cards__inner').forEach((el) => removeSectionOf(el));
+            // Marquee with "Our Partners" text
+            document.querySelectorAll('.marquee__text').forEach((p) => {
+              if (p.textContent && p.textContent.toLowerCase().includes('our partners')) {
+                removeSectionOf(p);
+              }
+            });
+            // Partners cards grid
+            document.querySelectorAll('.mxd-partners-cards').forEach((el) => removeSectionOf(el));
+          } catch {}
+
           // Patch header controls to reflect auth state
           const getDashboardPath = (role) => {
             const r = (role || '').toLowerCase();
