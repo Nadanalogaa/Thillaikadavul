@@ -7,6 +7,7 @@ import AboutPage from './pages/AboutPage';
 import GalleryPage from './pages/GalleryPage';
 import FAQPage from './pages/FAQPage';
 import ContactPage from './pages/ContactPage';
+import StaticShell from './components/StaticShell';
 import Modal from './components/Modal';
 import LoginForm from './components/LoginForm';
 import RegisterPage from './pages/RegisterPage';
@@ -186,11 +187,11 @@ function App() {
       )}
       <main className="flex-grow">
         <Routes>
-          <Route path="/" element={<HomePage onLoginClick={() => setLoginModalOpen(true)} />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/gallery" element={<GalleryPage />} />
-          <Route path="/faq" element={<FAQPage />} />
-          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/" element={<HomePage onLoginClick={() => setLoginModalOpen(true)} user={currentUser} onLogout={handleLogout} />} />
+          <Route path="/about" element={<StaticShell user={currentUser} onLoginClick={() => setLoginModalOpen(true)} onLogout={handleLogout}><AboutPage /></StaticShell>} />
+          <Route path="/gallery" element={<StaticShell user={currentUser} onLoginClick={() => setLoginModalOpen(true)} onLogout={handleLogout}><GalleryPage /></StaticShell>} />
+          <Route path="/faq" element={<StaticShell user={currentUser} onLoginClick={() => setLoginModalOpen(true)} onLogout={handleLogout}><FAQPage /></StaticShell>} />
+          <Route path="/contact" element={<StaticShell user={currentUser} onLoginClick={() => setLoginModalOpen(true)} onLogout={handleLogout}><ContactPage /></StaticShell>} />
           <Route path="/register" element={<RegisterPage onLoginNeeded={openLoginModal} />} />
           <Route path="/email-test" element={<EmailTestPage />} />
           <Route 
