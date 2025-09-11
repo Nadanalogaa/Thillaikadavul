@@ -22,7 +22,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { toast } from 'react-hot-toast';
+// Using native browser notifications for now
 
 interface HomepageSection {
   id: string;
@@ -136,7 +136,8 @@ const HomepageCMSPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Error loading sections:', error);
-      toast.error(`Failed to load sections: ${error.message}`);
+      console.error('Failed to load sections:', error);
+      alert(`Failed to load sections: ${error.message}`);
       setState(prev => ({ ...prev, loading: false }));
     }
   }, []);
@@ -159,10 +160,7 @@ const HomepageCMSPage: React.FC = () => {
       
       if (response.ok) {
         setState(prev => ({ ...prev, isDirty: false }));
-        toast.success('Auto-saved', { 
-          duration: 1000,
-          position: 'bottom-right'
-        });
+        console.log('Auto-saved successfully');
       }
     } catch (error) {
       console.error('Auto-save error:', error);
@@ -208,10 +206,11 @@ const HomepageCMSPage: React.FC = () => {
         throw new Error('Failed to reorder sections');
       }
       
-      toast.success('Sections reordered successfully');
+      console.log('Sections reordered successfully');
     } catch (error) {
       console.error('Reorder error:', error);
-      toast.error('Failed to reorder sections');
+      console.error('Failed to reorder sections');
+      alert('Failed to reorder sections');
       // Revert on error
       loadSections();
     }
@@ -245,7 +244,7 @@ const HomepageCMSPage: React.FC = () => {
 
   const handleSectionSave = useCallback(async () => {
     if (!state.selectedSection?.content?.id) {
-      toast.error('No content to save');
+      alert('No content to save');
       return;
     }
     
@@ -273,7 +272,7 @@ const HomepageCMSPage: React.FC = () => {
           ...prev,
           isDirty: false
         }));
-        toast.success('Content saved successfully');
+        console.log('Content saved successfully');
         
         // Refresh sections to get latest data
         loadSections();
@@ -282,13 +281,14 @@ const HomepageCMSPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Save error:', error);
-      toast.error(`Failed to save: ${error.message}`);
+      console.error('Save error:', error);
+      alert(`Failed to save: ${error.message}`);
     }
   }, [state.selectedSection, loadSections]);
 
   const handleSectionPublish = useCallback(async () => {
     if (!state.selectedSection?.content?.id) {
-      toast.error('No content to publish');
+      alert('No content to publish');
       return;
     }
     
@@ -305,11 +305,12 @@ const HomepageCMSPage: React.FC = () => {
         throw new Error('Failed to publish content');
       }
       
-      toast.success('Content published successfully');
+      console.log('Content published successfully');
       loadSections();
     } catch (error) {
       console.error('Publish error:', error);
-      toast.error(`Failed to publish: ${error.message}`);
+      console.error('Publish error:', error);
+      alert(`Failed to publish: ${error.message}`);
     }
   }, [state.selectedSection, loadSections]);
 
@@ -331,14 +332,15 @@ const HomepageCMSPage: React.FC = () => {
       const data = await response.json();
       
       if (data.success) {
-        toast.success('Section created successfully');
+        console.log('Section created successfully');
         loadSections();
       } else {
         throw new Error(data.error || 'Create failed');
       }
     } catch (error) {
       console.error('Create error:', error);
-      toast.error(`Failed to create section: ${error.message}`);
+      console.error('Create error:', error);
+      alert(`Failed to create section: ${error.message}`);
     }
   }, [loadSections]);
 
@@ -357,7 +359,7 @@ const HomepageCMSPage: React.FC = () => {
         throw new Error('Failed to delete section');
       }
       
-      toast.success('Section deleted successfully');
+      console.log('Section deleted successfully');
       
       // If we're editing the deleted section, go back to dashboard
       if (state.selectedSection?.id === sectionId) {
@@ -371,7 +373,8 @@ const HomepageCMSPage: React.FC = () => {
       loadSections();
     } catch (error) {
       console.error('Delete error:', error);
-      toast.error(`Failed to delete section: ${error.message}`);
+      console.error('Delete error:', error);
+      alert(`Failed to delete section: ${error.message}`);
     }
   }, [state.selectedSection, loadSections]);
 
