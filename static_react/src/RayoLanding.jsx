@@ -322,25 +322,14 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
                   if (t.vars && t.vars.pin === pinTarget) t.kill();
                 });
 
-                // Small entrance/exit easing
-                const easeIn = gsap.fromTo(pinTarget,
-                  { y: 24, opacity: 0.95 },
-                  { y: 0, opacity: 1, duration: 0.6, ease: 'power2.out', paused: true }
-                );
-                const easeOut = gsap.to(pinTarget, { y: -12, duration: 0.4, ease: 'power1.out', paused: true });
-
                 ScrollTrigger.create({
                   trigger: section,
                   start: `top+=${offset} top`,
                   end: 'bottom bottom',
                   pin: pinTarget,
-                  pinSpacing: false,
+                  pinSpacing: true, // keep layout space for smoother bi-directional scroll
                   anticipatePin: 1,
                   invalidateOnRefresh: true,
-                  onEnter: () => easeIn.play(),
-                  onLeave: () => easeOut.play(),
-                  onEnterBack: () => easeOut.reverse(),
-                  onLeaveBack: () => easeIn.reverse(),
                 });
 
                 window.addEventListener('resize', () => {
@@ -349,6 +338,10 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
                   document.documentElement.style.setProperty('--header-offset', `${newOffset}px`);
                   ScrollTrigger.refresh();
                 });
+
+                // A delayed refresh after initial paint helps when background images
+                // set heights asynchronously (prevents jumpiness on reverse scroll)
+                setTimeout(() => { try { ScrollTrigger.refresh(); } catch {} }, 400);
               }
             }
           } catch {}
