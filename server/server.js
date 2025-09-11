@@ -697,6 +697,94 @@ async function startServer() {
         }
     });
 
+    // API endpoint for homepage media items
+    app.get('/api/media-items', async (req, res) => {
+        try {
+            // For now, return static data that matches the static template structure
+            // TODO: Replace with actual database query when media_items table is implemented
+            const mediaItems = [
+                {
+                    type: 'image',
+                    url: '/static/images/01_hero-img.webp',
+                    title: 'Bharatanatyam Performance',
+                    description: 'Traditional dance performance'
+                },
+                {
+                    type: 'image',
+                    url: '/static/images/02_hero-img.webp', 
+                    title: 'Vocal Music Class',
+                    description: 'Students learning Carnatic music'
+                },
+                {
+                    type: 'image',
+                    url: '/static/images/03_hero-img.webp',
+                    title: 'Drawing Session',
+                    description: 'Art class in progress'
+                },
+                {
+                    type: 'video',
+                    url: '/static/media/540x310_video-01.mp4',
+                    title: 'Academy Overview',
+                    description: 'Welcome to our academy'
+                },
+                // Gallery images for marquee
+                {
+                    type: 'image',
+                    url: '/static/images/1200x1000_marquee-01.webp',
+                    title: 'Student Performance 1',
+                    description: 'Annual day celebration'
+                },
+                {
+                    type: 'image', 
+                    url: '/static/images/1200x1000_marquee-02.webp',
+                    title: 'Student Performance 2',
+                    description: 'Dance recital'
+                },
+                {
+                    type: 'image',
+                    url: '/static/images/1200x1000_marquee-03.webp',
+                    title: 'Student Performance 3', 
+                    description: 'Music concert'
+                },
+                {
+                    type: 'image',
+                    url: '/static/images/1200x1000_marquee-04.webp',
+                    title: 'Student Performance 4',
+                    description: 'Art exhibition'
+                },
+                {
+                    type: 'image',
+                    url: '/static/images/1200x1000_marquee-05.webp',
+                    title: 'Student Performance 5',
+                    description: 'Cultural program'
+                },
+                {
+                    type: 'image',
+                    url: '/static/images/1200x1000_marquee-06.webp',
+                    title: 'Student Performance 6',
+                    description: 'Traditional ceremony'
+                },
+                {
+                    type: 'image',
+                    url: '/static/images/1200x1000_marquee-07.webp',
+                    title: 'Student Performance 7',
+                    description: 'Workshop session'
+                },
+                {
+                    type: 'image',
+                    url: '/static/images/1200x1000_marquee-08.webp',
+                    title: 'Student Performance 8',
+                    description: 'Special event'
+                }
+            ];
+
+            res.json(mediaItems);
+        } catch (error) {
+            console.error('Error fetching media items:', error);
+            res.status(500).json({ message: 'Server error fetching media items.' });
+        }
+    });
+
     app.put('/api/profile', ensureAuthenticated, async (req, res) => {
         try {
             const userId = req.session.user.id;
