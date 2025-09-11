@@ -132,44 +132,54 @@ const SimpleHomepageCMS: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <AdminNav />
       <div className="ml-64">
-        <AdminPageHeader 
-          title="Homepage Editor"
-          subtitle="Edit your homepage content directly"
-          action={
-            <div className="flex items-center space-x-3">
+        {/* Simple Header with Prominent Edit Button */}
+        <div className="bg-white shadow-sm border-b border-gray-200 px-8 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Homepage Editor</h1>
+              <p className="text-lg text-gray-600 mt-2">Edit your homepage content directly</p>
+            </div>
+            
+            {/* PROMINENT EDIT BUTTONS */}
+            <div className="flex items-center space-x-4">
               {isEditing && (
                 <button
                   onClick={handlePublish}
-                  className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+                  className="flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-bold text-lg shadow-lg transition-all transform hover:scale-105"
                 >
-                  <Save className="w-4 h-4" />
-                  <span>Publish Changes</span>
+                  <Save className="w-5 h-5" />
+                  <span>💾 PUBLISH CHANGES</span>
                 </button>
               )}
               
               <button
                 onClick={handleEditToggle}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`flex items-center space-x-3 px-8 py-4 rounded-xl font-bold text-xl shadow-xl transition-all transform hover:scale-105 ${
                   isEditing
-                    ? 'bg-gray-600 text-white hover:bg-gray-700'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                    ? 'bg-red-600 text-white hover:bg-red-700 border-4 border-red-400'
+                    : 'bg-orange-500 text-white hover:bg-orange-600 border-4 border-orange-300 animate-pulse'
                 }`}
+                style={{
+                  fontSize: '20px',
+                  minWidth: '200px',
+                  minHeight: '60px'
+                }}
               >
                 {isEditing ? (
                   <>
-                    <X className="w-4 h-4" />
-                    <span>Exit Edit</span>
+                    <X className="w-6 h-6" />
+                    <span>❌ EXIT EDIT MODE</span>
                   </>
                 ) : (
                   <>
-                    <Edit3 className="w-4 h-4" />
-                    <span>Edit Homepage</span>
+                    <Edit3 className="w-6 h-6" />
+                    <span>✏️ EDIT HOMEPAGE</span>
                   </>
                 )}
               </button>
             </div>
-          }
-        />
+          </div>
+        </div>
 
         {/* Edit Mode Indicator */}
         {isEditing && (
@@ -195,7 +205,10 @@ const SimpleHomepageCMS: React.FC = () => {
               {/* Inject edit buttons directly into homepage */}
               <script dangerouslySetInnerHTML={{
                 __html: `
-                  (function() {
+                  // Run immediately and also on intervals to ensure buttons appear
+                  function addEditButtons() {
+                    console.log('🔧 CMS: Adding edit buttons...');
+                    
                     // Remove existing buttons first
                     document.querySelectorAll('.cms-edit-btn, .cms-section-overlay').forEach(el => el.remove());
                     
@@ -356,8 +369,21 @@ const SimpleHomepageCMS: React.FC = () => {
                       });
                     });
                     
-                    console.log('CMS: Added edit buttons to', sectionCounter, 'sections');
-                  })();
+                    console.log('🎯 CMS: Added edit buttons to', sectionCounter, 'sections');
+                  }
+                  
+                  // Run the function immediately
+                  addEditButtons();
+                  
+                  // Run again after a delay to catch dynamically loaded content
+                  setTimeout(addEditButtons, 500);
+                  setTimeout(addEditButtons, 1500);
+                  setTimeout(addEditButtons, 3000);
+                  
+                  // Also run when the page loads completely
+                  window.addEventListener('load', addEditButtons);
+                  
+                  console.log('🚀 CMS: Edit button system initialized');
                 `
               }} />
             </>
