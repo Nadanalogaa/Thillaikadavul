@@ -165,24 +165,35 @@ const ExactStaticHomepage: React.FC<ExactStaticHomepageProps> = ({ onLoginClick 
       {/* Primary CTAs */}
       <section className="nad-cta" aria-label="Primary actions">
         <div className="nad-cta__wrap">
+          {/* Book a Demo Class */}
           <div className="nad-cta__card demo">
             <div className="nad-cta__content">
-              <h2 className="nad-cta__title">Experience Our Academy</h2>
-              <p className="nad-cta__text">Watch live classes and see our teaching methodology</p>
-            </div>
-            <div className="nad-cta__actions">
-              <a className="nad-btn nad-btn--primary" href="/demo">Watch Demo</a>
-              <a className="nad-btn nad-btn--ghost" href="/gallery">View Gallery</a>
-            </div>
-          </div>
-          <div className="nad-cta__card auth">
-            <div className="nad-cta__content">
-              <h2 className="nad-cta__title">Join Nadanaloga</h2>
-              <p className="nad-cta__text">Start your journey in fine arts with expert guidance</p>
+              <h2 className="nad-cta__title">Book a Demo Class</h2>
+              <p className="nad-cta__text">Experience our teaching style with a complimentary session.</p>
             </div>
             <div className="nad-cta__actions nad-cta__actions--split">
-              <a className="nad-btn nad-btn--ghost" href="/register">Enroll Now</a>
-              <a className="nad-btn nad-btn--dark" href="/login" onClick={onLoginClick}>Student Login</a>
+              <a className="nad-btn nad-btn--primary" href="/contact">Book Now</a>
+            </div>
+          </div>
+
+          {/* Login / Register */}
+          <div className="nad-cta__card auth">
+            <div className="nad-cta__content">
+              <h2 className="nad-cta__title">Login / Register</h2>
+              <p className="nad-cta__text">Access your student portal or create a new account.</p>
+            </div>
+            <div className="nad-cta__actions nad-cta__actions--split">
+              <a
+                className="nad-btn nad-btn--dark"
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onLoginClick();
+                }}
+              >
+                Login
+              </a>
+              <a className="nad-btn nad-btn--ghost" href="/register">Register</a>
             </div>
           </div>
         </div>
