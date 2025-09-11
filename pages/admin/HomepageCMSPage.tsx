@@ -2,12 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import AdminNav from '../../components/admin/AdminNav';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import SimpleCMSDashboard from '../../components/cms/SimpleCMSDashboard';
-// TODO: Create missing CMS components
-// import SimpleSectionEditor from '../../components/cms/SimpleSectionEditor';
-// import MediaLibrary from '../../components/cms/MediaLibrary';
-// import AIAssistant from '../../components/cms/AIAssistant';
-// import PreviewModal from '../../components/cms/PreviewModal';
-// import AddSectionModal from '../../components/cms/AddSectionModal';
+import SimpleSectionEditor from '../../components/cms/SimpleSectionEditor';
+import MediaLibrary from '../../components/cms/MediaLibrary';
+import AIAssistant from '../../components/cms/AIAssistant';
+import PreviewModal from '../../components/cms/PreviewModal';
+import AddSectionModal from '../../components/cms/AddSectionModal';
 import { 
   DndContext, 
   closestCenter, 
@@ -585,41 +584,46 @@ const HomepageCMSPage: React.FC = () => {
               )}
 
               {state.view === 'editor' && state.selectedSection && (
-                <div className="p-8 text-center bg-white rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Section Editor</h3>
-                  <p className="text-gray-600">Section editor component coming soon...</p>
-                  <p className="text-sm text-gray-500 mt-2">Selected: {state.selectedSection.name}</p>
-                </div>
+                <SimpleSectionEditor
+                  section={state.selectedSection}
+                  onSectionUpdate={handleSectionUpdate}
+                  onSave={handleSectionSave}
+                  onPublish={handleSectionPublish}
+                  isDirty={state.isDirty}
+                />
               )}
 
               {state.view === 'media' && (
-                <div className="p-8 text-center bg-white rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Media Library</h3>
-                  <p className="text-gray-600">Media library component coming soon...</p>
-                </div>
+                <MediaLibrary />
               )}
 
               {state.view === 'preview' && (
-                <div className="p-8 text-center bg-white rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Preview</h3>
-                  <p className="text-gray-600">Preview component coming soon...</p>
-                </div>
+                <PreviewModal
+                  sections={state.sections.filter(s => s.is_active)}
+                  mode={state.previewMode}
+                  onModeChange={(mode) => setState(prev => ({ ...prev, previewMode: mode }))}
+                />
               )}
             </div>
 
             {/* AI Assistant Panel */}
             {state.showAIAssistant && (
-              <div className="fixed right-0 top-0 w-80 h-full bg-white border-l border-gray-200 shadow-xl z-40 p-6">
-                <div className="text-center">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">AI Assistant</h3>
-                  <p className="text-gray-600 mb-4">AI assistant component coming soon...</p>
-                  <button
-                    onClick={() => handleAIAssistant(false)}
-                    className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
-                  >
-                    Close
-                  </button>
-                </div>
+              <div className="fixed right-0 top-0 w-80 h-full bg-white border-l border-gray-200 shadow-xl z-40">
+                <AIAssistant
+                  selectedSection={state.selectedSection}
+                  onContentGenerated={(content) => {
+                    if (state.selectedSection) {
+                      handleSectionUpdate({
+                        ...state.selectedSection,
+                        content: {
+                          ...state.selectedSection.content,
+                          ...content
+                        }
+                      });
+                    }
+                  }}
+                  onClose={() => handleAIAssistant(false)}
+                />
               </div>
             )}
           </div>
