@@ -2,11 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import AdminNav from '../../components/admin/AdminNav';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import SimpleCMSDashboard from '../../components/cms/SimpleCMSDashboard';
-import SimpleSectionEditor from '../../components/cms/SimpleSectionEditor';
-import MediaLibrary from '../../components/cms/MediaLibrary';
-import AIAssistant from '../../components/cms/AIAssistant';
-import PreviewModal from '../../components/cms/PreviewModal';
-import AddSectionModal from '../../components/cms/AddSectionModal';
+// TODO: Create missing CMS components
+// import SimpleSectionEditor from '../../components/cms/SimpleSectionEditor';
+// import MediaLibrary from '../../components/cms/MediaLibrary';
+// import AIAssistant from '../../components/cms/AIAssistant';
+// import PreviewModal from '../../components/cms/PreviewModal';
+// import AddSectionModal from '../../components/cms/AddSectionModal';
 import { 
   DndContext, 
   closestCenter, 
@@ -584,46 +585,41 @@ const HomepageCMSPage: React.FC = () => {
               )}
 
               {state.view === 'editor' && state.selectedSection && (
-                <SimpleSectionEditor
-                  section={state.selectedSection}
-                  onSectionUpdate={handleSectionUpdate}
-                  onSave={handleSectionSave}
-                  onPublish={handleSectionPublish}
-                  isDirty={state.isDirty}
-                />
+                <div className="p-8 text-center bg-white rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Section Editor</h3>
+                  <p className="text-gray-600">Section editor component coming soon...</p>
+                  <p className="text-sm text-gray-500 mt-2">Selected: {state.selectedSection.name}</p>
+                </div>
               )}
 
               {state.view === 'media' && (
-                <MediaLibrary />
+                <div className="p-8 text-center bg-white rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Media Library</h3>
+                  <p className="text-gray-600">Media library component coming soon...</p>
+                </div>
               )}
 
               {state.view === 'preview' && (
-                <PreviewModal
-                  sections={state.sections.filter(s => s.is_active)}
-                  mode={state.previewMode}
-                  onModeChange={(mode) => setState(prev => ({ ...prev, previewMode: mode }))}
-                />
+                <div className="p-8 text-center bg-white rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Preview</h3>
+                  <p className="text-gray-600">Preview component coming soon...</p>
+                </div>
               )}
             </div>
 
             {/* AI Assistant Panel */}
             {state.showAIAssistant && (
-              <div className="fixed right-0 top-0 w-80 h-full bg-white border-l border-gray-200 shadow-xl z-40">
-                <AIAssistant
-                  selectedSection={state.selectedSection}
-                  onContentGenerated={(content) => {
-                    if (state.selectedSection) {
-                      handleSectionUpdate({
-                        ...state.selectedSection,
-                        content: {
-                          ...state.selectedSection.content!,
-                          ...content
-                        }
-                      });
-                    }
-                  }}
-                  onClose={() => handleAIAssistant(false)}
-                />
+              <div className="fixed right-0 top-0 w-80 h-full bg-white border-l border-gray-200 shadow-xl z-40 p-6">
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">AI Assistant</h3>
+                  <p className="text-gray-600 mb-4">AI assistant component coming soon...</p>
+                  <button
+                    onClick={() => handleAIAssistant(false)}
+                    className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -632,10 +628,18 @@ const HomepageCMSPage: React.FC = () => {
 
       {/* Add Section Modal */}
       {state.showAddSectionModal && (
-        <AddSectionModal
-          onClose={() => handleAddSectionModal(false)}
-          onAddSection={handleAddSection}
-        />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Add Section</h3>
+            <p className="text-gray-600 mb-4">Add section modal coming soon...</p>
+            <button
+              onClick={() => handleAddSectionModal(false)}
+              className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
+            >
+              Close
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Keyboard shortcuts help */}
