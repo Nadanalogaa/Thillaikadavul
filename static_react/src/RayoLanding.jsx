@@ -151,7 +151,25 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
           containerRef.current.innerHTML = bodyHtml;
         }
         // Load required scripts once (libs then app)
-        return loadScriptsSequentially(SCRIPT_SOURCES);
+        return loadScriptsSequentially(SCRIPT_SOURCES).then(() => {
+          // Re-dispatch lifecycle events for templates that initialize on load/ready
+          try {
+            document.dispatchEvent(new Event('DOMContentLoaded'));
+          } catch {}
+          try {
+            window.dispatchEvent(new Event('load'));
+          } catch {}
+
+          // Force-complete the loader if present
+          const loader = document.getElementById('loader');
+          if (loader) {
+            loader.classList.add('loaded');
+            document.body && document.body.classList && document.body.classList.add('loaded');
+            setTimeout(() => {
+              try { loader.remove(); } catch {}
+            }, 600);
+          }
+        });
       })
       .catch((e) => {
         if (mounted) setError(e.message || String(e));
