@@ -189,158 +189,178 @@ const SimpleHomepageCMS: React.FC = () => {
 
         {/* Homepage Content */}
         <div className="relative">
-          {/* Editing Overlay - Dynamic Edit Buttons on ALL Sections */}
+          {/* FIXED: Simple Edit Buttons on Every Section */}
           {isEditing && (
-            <div className="absolute inset-0 z-10 pointer-events-none">
-              <style dangerouslySetInnerHTML={{
-                __html: `
-                  /* Universal section detection and edit buttons */
-                  .mxd-section {
-                    position: relative;
-                  }
-                  
-                  .edit-section-overlay {
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    border: 2px dashed #3B82F6;
-                    background-color: rgba(59, 130, 246, 0.05);
-                    pointer-events: auto;
-                    z-index: 1000;
-                  }
-                  
-                  .edit-button-overlay {
-                    position: absolute;
-                    top: 10px;
-                    right: 10px;
-                    background: #3B82F6;
-                    color: white;
-                    border: none;
-                    border-radius: 8px;
-                    padding: 10px 15px;
-                    font-size: 13px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    gap: 6px;
-                    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-                    transition: all 0.2s ease;
-                    pointer-events: auto;
-                    z-index: 1001;
-                  }
-                  
-                  .edit-button-overlay:hover {
-                    background: #2563EB;
-                    transform: translateY(-2px);
-                    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
-                  }
-                  
-                  .edit-button-overlay svg {
-                    width: 14px;
-                    height: 14px;
-                  }
-                  
-                  /* Section labels */
-                  .edit-section-label {
-                    position: absolute;
-                    top: 10px;
-                    left: 10px;
-                    background: rgba(59, 130, 246, 0.9);
-                    color: white;
-                    padding: 6px 10px;
-                    border-radius: 6px;
-                    font-size: 11px;
-                    font-weight: 600;
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
-                    z-index: 1001;
-                  }
-                `
-              }} />
-              
+            <>
+              {/* Inject edit buttons directly into homepage */}
               <script dangerouslySetInnerHTML={{
                 __html: `
-                  // Wait for DOM to be ready, then add edit overlays to all sections
-                  setTimeout(() => {
-                    // Remove existing overlays first
-                    document.querySelectorAll('.edit-section-overlay').forEach(el => el.remove());
+                  (function() {
+                    // Remove existing buttons first
+                    document.querySelectorAll('.cms-edit-btn, .cms-section-overlay').forEach(el => el.remove());
                     
-                    // Find all sections in the homepage
-                    const sections = document.querySelectorAll('.mxd-section, section, [class*="section"], [id*="section"]');
-                    
-                    sections.forEach((section, index) => {
-                      // Skip if it's part of admin interface
-                      if (section.closest('[class*="admin"]') || 
-                          section.closest('[class*="ml-64"]') ||
-                          section.querySelector('[class*="admin"]')) {
-                        return;
-                      }
-                      
-                      // Create overlay
-                      const overlay = document.createElement('div');
-                      overlay.className = 'edit-section-overlay';
-                      
-                      // Try to identify section type/name
-                      let sectionName = '';
-                      if (section.className.includes('hero')) {
-                        sectionName = 'Hero Section';
-                      } else if (section.className.includes('about') || section.textContent?.toLowerCase().includes('about')) {
-                        sectionName = 'About Section';
-                      } else if (section.className.includes('service') || section.textContent?.toLowerCase().includes('service')) {
-                        sectionName = 'Services Section';
-                      } else if (section.className.includes('project') || section.id === 'projects') {
-                        sectionName = 'Projects Section';
-                      } else if (section.className.includes('testimonial') || section.textContent?.toLowerCase().includes('testimonial')) {
-                        sectionName = 'Testimonials Section';
-                      } else if (section.className.includes('contact') || section.textContent?.toLowerCase().includes('contact')) {
-                        sectionName = 'Contact Section';
-                      } else if (section.className.includes('blog') || section.textContent?.toLowerCase().includes('blog')) {
-                        sectionName = 'Blog Section';
-                      } else if (section.className.includes('gallery') || section.textContent?.toLowerCase().includes('gallery')) {
-                        sectionName = 'Gallery Section';
-                      } else {
-                        sectionName = 'Section ' + (index + 1);
-                      }
-                      
-                      // Section label
-                      const label = document.createElement('div');
-                      label.className = 'edit-section-label';
-                      label.textContent = sectionName;
-                      
-                      // Edit button
-                      const button = document.createElement('button');
-                      button.className = 'edit-button-overlay';
-                      button.innerHTML = \`
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                        </svg>
-                        Edit \${sectionName}
+                    // Add styles
+                    if (!document.getElementById('cms-edit-styles')) {
+                      const style = document.createElement('style');
+                      style.id = 'cms-edit-styles';
+                      style.textContent = \`
+                        .cms-section-overlay {
+                          position: absolute !important;
+                          top: 0 !important;
+                          left: 0 !important;
+                          right: 0 !important;
+                          bottom: 0 !important;
+                          border: 3px solid #FF6B35 !important;
+                          border-style: dashed !important;
+                          background: rgba(255, 107, 53, 0.1) !important;
+                          pointer-events: none !important;
+                          z-index: 999999 !important;
+                        }
+                        
+                        .cms-edit-btn {
+                          position: absolute !important;
+                          top: 15px !important;
+                          right: 15px !important;
+                          background: #FF6B35 !important;
+                          color: white !important;
+                          border: none !important;
+                          border-radius: 8px !important;
+                          padding: 12px 20px !important;
+                          font-size: 14px !important;
+                          font-weight: 700 !important;
+                          cursor: pointer !important;
+                          box-shadow: 0 4px 15px rgba(255, 107, 53, 0.5) !important;
+                          transition: all 0.3s ease !important;
+                          pointer-events: auto !important;
+                          z-index: 1000000 !important;
+                          display: flex !important;
+                          align-items: center !important;
+                          gap: 8px !important;
+                          min-width: 120px !important;
+                          justify-content: center !important;
+                        }
+                        
+                        .cms-edit-btn:hover {
+                          background: #E55A2B !important;
+                          transform: translateY(-3px) scale(1.05) !important;
+                          box-shadow: 0 6px 25px rgba(255, 107, 53, 0.7) !important;
+                        }
+                        
+                        .cms-section-label {
+                          position: absolute !important;
+                          top: 15px !important;
+                          left: 15px !important;
+                          background: #FF6B35 !important;
+                          color: white !important;
+                          padding: 8px 12px !important;
+                          border-radius: 6px !important;
+                          font-size: 12px !important;
+                          font-weight: 700 !important;
+                          text-transform: uppercase !important;
+                          z-index: 1000000 !important;
+                          box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
+                        }
                       \`;
-                      
-                      // Click handler
-                      button.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        window.dispatchEvent(new CustomEvent('editSection', { 
-                          detail: { 
-                            sectionId: 'section-' + index,
-                            sectionName: sectionName,
-                            element: section
-                          } 
-                        }));
+                      document.head.appendChild(style);
+                    }
+                    
+                    // Find ALL sections - cast a wide net
+                    const selectors = [
+                      '.mxd-section',
+                      'section', 
+                      '[class*="section"]',
+                      '.mxd-hero-section',
+                      '.nad-cta',
+                      '.tkd-cta',
+                      '[class*="hero"]',
+                      '[class*="about"]',
+                      '[class*="service"]',
+                      '[class*="project"]',
+                      '[class*="gallery"]',
+                      '[class*="contact"]',
+                      '[class*="testimonial"]',
+                      'main > div',
+                      '[class*="padding"]'
+                    ];
+                    
+                    let sectionCounter = 0;
+                    
+                    selectors.forEach(selector => {
+                      document.querySelectorAll(selector).forEach((section) => {
+                        // Skip admin elements and already processed sections
+                        if (section.closest('.ml-64') || 
+                            section.querySelector('.cms-edit-btn') ||
+                            section.classList.contains('processed-cms-section')) {
+                          return;
+                        }
+                        
+                        // Mark as processed
+                        section.classList.add('processed-cms-section');
+                        sectionCounter++;
+                        
+                        // Make section relative if not already positioned
+                        const computedStyle = getComputedStyle(section);
+                        if (computedStyle.position === 'static') {
+                          section.style.position = 'relative';
+                        }
+                        
+                        // Determine section name
+                        let sectionName = 'Section ' + sectionCounter;
+                        if (section.className.includes('hero') || section.textContent?.toLowerCase().includes('dance') || section.textContent?.toLowerCase().includes('music')) {
+                          sectionName = 'Hero Section';
+                        } else if (section.className.includes('cta') || section.textContent?.toLowerCase().includes('demo') || section.textContent?.toLowerCase().includes('login')) {
+                          sectionName = 'CTA Section';
+                        } else if (section.className.includes('about') || section.textContent?.toLowerCase().includes('about')) {
+                          sectionName = 'About Section';
+                        } else if (section.className.includes('service') || section.textContent?.toLowerCase().includes('service')) {
+                          sectionName = 'Services Section';
+                        } else if (section.className.includes('project') || section.id === 'projects') {
+                          sectionName = 'Projects Section';
+                        } else if (section.className.includes('contact') || section.textContent?.toLowerCase().includes('contact')) {
+                          sectionName = 'Contact Section';
+                        }
+                        
+                        // Create section overlay
+                        const overlay = document.createElement('div');
+                        overlay.className = 'cms-section-overlay';
+                        
+                        // Create section label
+                        const label = document.createElement('div');
+                        label.className = 'cms-section-label';
+                        label.textContent = sectionName;
+                        
+                        // Create edit button
+                        const editBtn = document.createElement('button');
+                        editBtn.className = 'cms-edit-btn';
+                        editBtn.innerHTML = '✏️ EDIT ' + sectionName.toUpperCase();
+                        
+                        // Add click handler
+                        editBtn.addEventListener('click', function(e) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          
+                          // Dispatch edit event
+                          window.dispatchEvent(new CustomEvent('editSection', {
+                            detail: {
+                              sectionId: 'section-' + sectionCounter,
+                              sectionName: sectionName,
+                              element: section
+                            }
+                          }));
+                        });
+                        
+                        // Add elements to section
+                        section.appendChild(overlay);
+                        section.appendChild(label);
+                        section.appendChild(editBtn);
                       });
-                      
-                      overlay.appendChild(label);
-                      overlay.appendChild(button);
-                      section.appendChild(overlay);
                     });
-                  }, 1000);
+                    
+                    console.log('CMS: Added edit buttons to', sectionCounter, 'sections');
+                  })();
                 `
               }} />
-            </div>
+            </>
           )}
 
           {/* Expose handler to global scope */}
