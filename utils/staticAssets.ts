@@ -16,7 +16,9 @@ export const loadStaticCSS = (options: AssetLoadingOptions = {}) => {
   const cssFiles = [
     '/static/css/loader.min.css',
     '/static/css/plugins.min.css', 
-    '/static/css/main.min.css'
+    '/static/css/main.min.css',
+    // Custom overrides specific to our theme (needed for CTA + layout tweaks)
+    '/static/css/custom.css'
   ];
 
   let loadedCount = 0;
@@ -60,7 +62,9 @@ export const loadStaticCSS = (options: AssetLoadingOptions = {}) => {
 export const loadStaticJS = (options: AssetLoadingOptions = {}) => {
   // Only load libs.min.js for GSAP - skip app.min.js to avoid conflicts
   const jsFiles = [
-    '/static/js/libs.min.js'   // Load only GSAP and essential libraries
+    '/static/js/libs.min.js',   // GSAP and vendor libs
+    // Load the template's app script to fully match static behavior (menu, toggles, effects)
+    '/static/js/app.min.js'
   ];
 
   let loadedCount = 0;
