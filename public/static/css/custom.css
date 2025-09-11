@@ -36,6 +36,13 @@
   opacity: 0;
 }
 
+/* When loading completes, ensure header children become visible */
+body.loaded .mxd-header--modern .loading__fade,
+#loader.loaded ~ .mxd-header--modern .loading__fade,
+#loader.loaded ~ * .mxd-header--modern .loading__fade {
+  opacity: 1 !important;
+}
+
 /* After loader completes, header should be visible and fixed */
 #loader.loaded ~ .mxd-header--modern,
 .mxd-header--modern.loaded {

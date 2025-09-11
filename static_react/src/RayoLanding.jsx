@@ -169,6 +169,18 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
               try { loader.remove(); } catch {}
             }, 600);
           }
+
+          // Ensure header visibility even if GSAP intro didn't run
+          const header = document.getElementById('header') || document.querySelector('.mxd-header');
+          if (header) {
+            header.classList.add('loaded');
+            header.style.transform = 'translateY(0)';
+            const fades = header.querySelectorAll('.loading__fade');
+            fades.forEach((el) => {
+              el.classList.remove('loading__fade');
+              el.style.opacity = '1';
+            });
+          }
         });
       })
       .catch((e) => {
