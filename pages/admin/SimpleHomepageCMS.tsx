@@ -30,6 +30,8 @@ const SimpleHomepageCMS: React.FC = () => {
   useEffect(() => {
     const cls = 'cms-editing';
     document.body.classList.toggle(cls, isEditing);
+    // Ask the injector to (re)attach edit overlays when mode toggles
+    try { window.dispatchEvent(new Event('cmsEditToggle')); } catch {}
     return () => {
       document.body.classList.remove(cls);
     };
@@ -166,8 +168,8 @@ const SimpleHomepageCMS: React.FC = () => {
               function addSectionEditButtons() {
                 console.log('🔧 CMS: Adding section edit buttons...');
                 
-                // Remove existing buttons
-                document.querySelectorAll('.section-edit-overlay, .section-edit-btn').forEach(el => el.remove());
+                // Remove existing buttons (only those we added)
+                document.querySelectorAll('.section-edit-overlay, .section-edit-btn, .section-title-label').forEach(el => el.remove());
                 
                 // Add styles - make them super prominent
                 if (!document.getElementById('section-edit-styles')) {
@@ -184,7 +186,7 @@ const SimpleHomepageCMS: React.FC = () => {
                       border-style: solid !important;
                       background: rgba(59, 130, 246, 0.05) !important;
                       pointer-events: none !important;
-                      z-index: 10000 !important;
+                      z-index: 999999 !important;
                       display: none;
                     }
                     
@@ -204,7 +206,7 @@ const SimpleHomepageCMS: React.FC = () => {
                       box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4) !important;
                       transition: all 0.3s ease !important;
                       pointer-events: auto !important;
-                      z-index: 10001 !important;
+                      z-index: 1000000 !important;
                       display: none !important;
                       align-items: center !important;
                       gap: 10px !important;
@@ -230,7 +232,7 @@ const SimpleHomepageCMS: React.FC = () => {
                       border-radius: 8px !important;
                       font-size: 14px !important;
                       font-weight: 600 !important;
-                      z-index: 10001 !important;
+                      z-index: 1000000 !important;
                       box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
                       display: none !important;
                     }
@@ -254,9 +256,8 @@ const SimpleHomepageCMS: React.FC = () => {
                 
                 mainSelectors.forEach(selector => {
                   document.querySelectorAll(selector).forEach((section) => {
-                    // Skip admin areas and already processed
-                    if (section.closest('.ml-64') || 
-                        section.querySelector('.section-edit-btn') ||
+                    // Skip already processed only; allow sections inside ml-64 (main content wrapper)
+                    if (section.querySelector('.section-edit-btn') ||
                         section.classList.contains('cms-processed')) {
                       return;
                     }
@@ -335,6 +336,7 @@ const SimpleHomepageCMS: React.FC = () => {
               setTimeout(addSectionEditButtons, 1000);
               setTimeout(addSectionEditButtons, 2000);
               setTimeout(addSectionEditButtons, 4000);
+              window.addEventListener('cmsEditToggle', addSectionEditButtons);
             `
           }} />
 
