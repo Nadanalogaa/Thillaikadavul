@@ -261,7 +261,7 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
             }, { once: false });
           }
 
-          // Remove Statistics row (counters) and Our Partners sections
+          // Remove unwanted blocks: bottom two stats cards; keep top two. Also remove Our Partners section
           try {
             const removed = new Set();
             const removeSectionOf = (el) => {
@@ -269,8 +269,16 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
               const sec = el.closest('.mxd-section');
               if (sec && !removed.has(sec)) { sec.parentNode && sec.parentNode.removeChild(sec); removed.add(sec); }
             };
-            // Statistics cards
-            document.querySelectorAll('.mxd-stats-cards__inner').forEach((el) => removeSectionOf(el));
+            // Remove only bottom two statistics cards (ids: stats-counter-3 and stats-counter-4)
+            const removeStatsItemById = (id) => {
+              const cnt = document.getElementById(id);
+              if (cnt) {
+                const item = cnt.closest('.mxd-stats-cards__item');
+                if (item && item.parentNode) item.parentNode.removeChild(item);
+              }
+            };
+            removeStatsItemById('stats-counter-3');
+            removeStatsItemById('stats-counter-4');
             // Marquee with "Our Partners" text
             document.querySelectorAll('.marquee__text').forEach((p) => {
               if (p.textContent && p.textContent.toLowerCase().includes('our partners')) {
