@@ -90,6 +90,39 @@ export default function StaticShell({ user, onLoginClick, onLogout, children }: 
             }
           }
         }
+
+        // Theme: apply saved theme and wire color switcher
+        const applyTheme = (theme: string) => {
+          const root = document.documentElement;
+          root.classList.remove('theme-light', 'theme-dark');
+          root.classList.add(theme === 'dark' ? 'theme-dark' : 'theme-light');
+          try { localStorage.setItem('theme', theme); } catch {}
+          const switcher = document.getElementById('color-switcher');
+          if (switcher) switcher.setAttribute('aria-checked', theme === 'dark' ? 'false' : 'true');
+        };
+        const saved = (() => { try { return localStorage.getItem('theme'); } catch { return null; } })();
+        applyTheme(saved === 'dark' ? 'dark' : 'light');
+        const switcher = document.getElementById('color-switcher');
+        if (switcher) {
+          switcher.addEventListener('click', (e) => {
+            e.preventDefault();
+            const isDark = document.documentElement.classList.contains('theme-dark');
+            applyTheme(isDark ? 'light' : 'dark');
+          });
+        }
+
+        // Active menu highlight based on current path
+        const pathname = window.location.pathname.replace(/\/$/, '') || '/';
+        const links = scope.querySelectorAll<HTMLAnchorElement>('.mxd-nav-link');
+        links.forEach((a) => {
+          const href = a.getAttribute('href') || '';
+          const norm = href.replace(/\/$/, '');
+          if ((pathname === '/' && norm === '/') || (norm && norm !== '/' && pathname.startsWith(norm))) {
+            a.classList.add('is-active');
+          } else {
+            a.classList.remove('is-active');
+          }
+        });
       } catch (e) {
         // swallow
       }
@@ -107,4 +140,3 @@ export default function StaticShell({ user, onLoginClick, onLogout, children }: 
     </div>
   );
 }
-

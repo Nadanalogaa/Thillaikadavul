@@ -121,6 +121,15 @@ body.loaded .mxd-header--modern,
   width: 100%;
 }
 
+/* Active menu item */
+.mxd-nav-link.is-active {
+  color: var(--accent) !important;
+}
+.mxd-nav-link.is-active::after {
+  width: 100%;
+  background: var(--accent);
+}
+
 /* Logo Section */
 .mxd-header__logo {
   flex-shrink: 0;
