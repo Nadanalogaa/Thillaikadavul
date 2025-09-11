@@ -26,6 +26,15 @@ const SimpleHomepageCMS: React.FC = () => {
     setShowEditModal(false);
   };
 
+  // Reflect edit mode on <body> for CSS-controlled overlays
+  useEffect(() => {
+    const cls = 'cms-editing';
+    document.body.classList.toggle(cls, isEditing);
+    return () => {
+      document.body.classList.remove(cls);
+    };
+  }, [isEditing]);
+
   const handleElementClick = (elementId: string) => {
     if (isEditing) {
       setSelectedElement(elementId);
@@ -140,7 +149,15 @@ const SimpleHomepageCMS: React.FC = () => {
           </div>
         </div>
 
-        {/* Homepage Content with Always-Visible Edit Buttons */}
+        {/* Controls */}
+        <div className="bg-white border-b px-8 py-4 flex justify-end gap-2">
+          <button onClick={handleEditToggle} className={`px-4 py-2 rounded-md font-medium ${isEditing ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'}`}>
+            {isEditing ? 'Exit Edit Mode' : 'Enter Edit Mode'}
+          </button>
+          <button onClick={handlePublish} className="px-4 py-2 rounded-md font-medium bg-green-600 text-white">Publish</button>
+        </div>
+
+        {/* Homepage Content with Edit Buttons (shown in edit mode) */}
         <div className="relative">
           {/* Always show edit buttons - no conditional rendering */}
           <script dangerouslySetInnerHTML={{
@@ -168,6 +185,7 @@ const SimpleHomepageCMS: React.FC = () => {
                       background: rgba(59, 130, 246, 0.05) !important;
                       pointer-events: none !important;
                       z-index: 10000 !important;
+                      display: none;
                     }
                     
                     .section-edit-btn {
@@ -187,7 +205,7 @@ const SimpleHomepageCMS: React.FC = () => {
                       transition: all 0.3s ease !important;
                       pointer-events: auto !important;
                       z-index: 10001 !important;
-                      display: flex !important;
+                      display: none !important;
                       align-items: center !important;
                       gap: 10px !important;
                       min-width: 200px !important;
@@ -214,7 +232,12 @@ const SimpleHomepageCMS: React.FC = () => {
                       font-weight: 600 !important;
                       z-index: 10001 !important;
                       box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+                      display: none !important;
                     }
+
+                    body.cms-editing .section-edit-overlay { display:block !important; }
+                    body.cms-editing .section-edit-btn { display:flex !important; }
+                    body.cms-editing .section-title-label { display:block !important; }
                   \`;
                   document.head.appendChild(style);
                 }
