@@ -1,21 +1,15 @@
 
 import React from 'react';
+import NativeHomepage from '../components/NativeHomepage';
 
 interface HomePageProps {
   onLoginClick: () => void;
 }
 
-// Render the static landing template (with loader & parallax) in an isolated iframe.
-const HomePage: React.FC<HomePageProps> = () => {
+// Native React homepage component - no iframe, direct rendering with static assets
+const HomePage: React.FC<HomePageProps> = ({ onLoginClick }) => {
   return (
-    <div className="w-full h-screen">
-      <iframe
-        title="Landing"
-        src="/static/index.html"
-        className="w-full h-full block"
-        style={{ border: '0' }}
-      />
-    </div>
+    <NativeHomepage onLoginClick={onLoginClick} />
   );
 };
 
