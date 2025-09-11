@@ -70,7 +70,9 @@ body.loaded .mxd-header--modern,
 }
 
 .mxd-header--modern.is-hidden {
-  transform: translateY(-100%) !important;
+  /* Keep header always visible */
+  transform: translateY(0) !important;
+  opacity: 1 !important;
 }
 
 .mxd-header--modern.is-scrolled {
@@ -304,6 +306,9 @@ body {
 
 /* Quick container with theme spacing */
 .nad-cta {
+  /* Ensure CTA sits below the fixed header and remove extra gap below */
+  margin-top: 84px;
+  margin-bottom: 0;
   padding: clamp(16px, 3vw, 32px) clamp(16px, 4vw, 40px);
 }
 
@@ -465,8 +470,9 @@ body {
 
 :root.theme-dark {
   color-scheme: dark;
-  --base: var(--base--dark);
-  --base-rgb: var(--base-rgb--dark);
+  /* Force the exact requested dark background */
+  --base: #161616;
+  --base-rgb: 22,22,22;
   --base-tint: var(--base-tint--dark);
   --base-shade: var(--base-shade--dark);
   --base-opp: var(--base-opp--dark);
@@ -493,6 +499,24 @@ body {
   --t-opp-bright: var(--t-opp-bright--dark);
   --t-opp-medium: var(--t-opp-medium--dark);
   --t-opp-muted: var(--t-opp-muted--dark);
+}
+
+/* Consistent page background bound to theme */
+body,
+.mxd-page-content {
+  background-color: var(--base) !important;
+}
+
+/* Also ensure base sections inherit background */
+.mxd-section,
+.mxd-hero-section {
+  background-color: transparent;
+}
+
+/* Never hide header on scroll even if js toggles class */
+.mxd-header.is-hidden {
+  transform: translateY(0) !important;
+  opacity: 1 !important;
 }
 
 /* Force light theme regardless of OS preference */
