@@ -585,8 +585,8 @@ body,
 /* -------------------------------------------------- */
 @media (min-width: 1200px) {
   .mxd-pinned-projects { position: relative; }
-  .mxd-pinned-projects__static { position: sticky; top: 88px; align-self: flex-start; z-index: 2; }
-  .mxd-pinned-projects__static-inner { padding-bottom: 24px; }
+  /* Fallback sticky in case JS pin isn't active */
+  .mxd-pinned-projects__static-inner { position: sticky; top: var(--header-offset, 88px); padding-bottom: 24px; }
 }
 
 @media (max-width: 1199.98px) {

@@ -303,6 +303,44 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
               if (enrollLink) enrollLink.setAttribute('target','_parent');
             }
           }
+
+          // Pin the "Our Programs" left panel under the header while right column scrolls
+          try {
+            const pinTarget = document.querySelector('.mxd-pinned-projects__static-inner');
+            const section = document.querySelector('.mxd-pinned-projects');
+            const headerEl = document.querySelector('.mxd-header');
+            const gsap = window.gsap;
+            const ScrollTrigger = window.ScrollTrigger;
+            if (pinTarget && section) {
+              const headerH = headerEl ? Math.round(headerEl.getBoundingClientRect().height) : 72;
+              const offset = headerH + 16; // gap below header
+              document.documentElement.style.setProperty('--header-offset', `${offset}px`);
+
+              if (gsap && ScrollTrigger) {
+                // Clean existing pin triggers for idempotency
+                ScrollTrigger.getAll().forEach(t => {
+                  if (t.vars && t.vars.pin === pinTarget) t.kill();
+                });
+
+                ScrollTrigger.create({
+                  trigger: section,
+                  start: `top+=${offset} top`,
+                  end: 'bottom bottom',
+                  pin: pinTarget,
+                  pinSpacing: false,
+                  anticipatePin: 1,
+                  invalidateOnRefresh: true,
+                });
+
+                window.addEventListener('resize', () => {
+                  const newH = headerEl ? Math.round(headerEl.getBoundingClientRect().height) : 72;
+                  const newOffset = newH + 16;
+                  document.documentElement.style.setProperty('--header-offset', `${newOffset}px`);
+                  ScrollTrigger.refresh();
+                });
+              }
+            }
+          } catch {}
         });
       })
       .catch((e) => {
