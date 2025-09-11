@@ -58,9 +58,9 @@ export const loadStaticCSS = (options: AssetLoadingOptions = {}) => {
  * Load JavaScript files from /static/js/ folder
  */
 export const loadStaticJS = (options: AssetLoadingOptions = {}) => {
+  // Only load libs.min.js for GSAP - skip app.min.js to avoid conflicts
   const jsFiles = [
-    '/static/js/libs.min.js',   // Load libraries first (GSAP, etc.)
-    '/static/js/app.min.js'     // Load app scripts after libraries
+    '/static/js/libs.min.js'   // Load only GSAP and essential libraries
   ];
 
   let loadedCount = 0;
@@ -109,13 +109,13 @@ export const loadStaticJS = (options: AssetLoadingOptions = {}) => {
  * This replicates the initialization that happens in the static template
  */
 export const initializeStaticEffects = () => {
-  // Wait for DOM to be ready
+  // Wait for DOM to be ready and React components to be mounted
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-      setTimeout(initEffects, 100);
+      setTimeout(initEffects, 500); // Increased delay for React mounting
     });
   } else {
-    setTimeout(initEffects, 100);
+    setTimeout(initEffects, 500); // Increased delay for React mounting
   }
 };
 
@@ -124,25 +124,40 @@ const initEffects = () => {
   if (typeof window !== 'undefined' && (window as any).gsap) {
     const gsap = (window as any).gsap;
     
-    // Initialize loading animations
-    gsap.fromTo('.loading__fade', 
-      { opacity: 0, y: 30 }, 
-      { opacity: 1, y: 0, duration: 0.8, stagger: 0.1 }
-    );
-    
-    gsap.fromTo('.loading__item', 
-      { opacity: 0, y: 50 }, 
-      { opacity: 1, y: 0, duration: 1, stagger: 0.2 }
-    );
+    // Wait for React components to mount before initializing animations
+    const checkAndInitialize = () => {
+      const loadingFadeElements = document.querySelectorAll('.loading__fade');
+      const loadingItemElements = document.querySelectorAll('.loading__item');
+      
+      // Only initialize if elements exist
+      if (loadingFadeElements.length > 0) {
+        gsap.fromTo('.loading__fade', 
+          { opacity: 0, y: 30 }, 
+          { opacity: 1, y: 0, duration: 0.8, stagger: 0.1 }
+        );
+      }
+      
+      if (loadingItemElements.length > 0) {
+        gsap.fromTo('.loading__item', 
+          { opacity: 0, y: 50 }, 
+          { opacity: 1, y: 0, duration: 1, stagger: 0.2 }
+        );
+      }
 
-    // Initialize parallax effects
-    initParallaxEffects();
-    
-    // Initialize marquee animations
-    initMarqueeAnimations();
-    
-    // Initialize hero animations
-    initHeroAnimations();
+      // Initialize other effects
+      initParallaxEffects();
+      initMarqueeAnimations();
+      initHeroAnimations();
+    };
+
+    // Check if elements exist, if not wait a bit more
+    const loadingFadeExists = document.querySelectorAll('.loading__fade').length > 0;
+    if (loadingFadeExists) {
+      checkAndInitialize();
+    } else {
+      // Retry after React components have mounted
+      setTimeout(checkAndInitialize, 1000);
+    }
   }
 
   // Initialize other effects that don't depend on GSAP
