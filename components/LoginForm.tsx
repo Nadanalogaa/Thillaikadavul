@@ -45,15 +45,17 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, initialEmail, onForgot
 
   return (
     <div>
-      <ModalHeader title="Welcome Back!" />
+      <div className="nad-modal__header mb-6">
+        <ModalHeader title="Welcome Back!" subtitle="Log in to continue to your dashboard" />
+      </div>
       {initialEmail && (
         <p className="text-center text-sm text-yellow-800 bg-yellow-100 p-2 rounded-md mb-4">
           This email is already registered. Please log in.
         </p>
       )}
-      <form className="space-y-6" onSubmit={handleSubmit}>
+      <form className="nad-form space-y-5" onSubmit={handleSubmit}>
         <div>
-          <label htmlFor="login-email" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="login-email" className="block text-sm font-medium">
             Email Address
           </label>
           <input
@@ -65,17 +67,18 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, initialEmail, onForgot
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             disabled={isLoading}
-            className="mt-1 block w-full form-input"
+            placeholder="you@example.com"
+            className="mt-2 block w-full nad-input"
           />
         </div>
 
         <div>
           <div className="flex items-center justify-between">
-            <label htmlFor="login-password" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="login-password" className="block text-sm font-medium">
               Password
             </label>
             <div className="text-sm">
-              <a href="#" onClick={(e) => { e.preventDefault(); onForgotPassword(); }} className="font-medium text-brand-primary hover:text-brand-dark">
+              <a href="#" onClick={(e) => { e.preventDefault(); onForgotPassword(); }} className="font-medium text-accent hover:opacity-90">
                 Forgot your password?
               </a>
             </div>
@@ -89,7 +92,8 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, initialEmail, onForgot
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={isLoading}
-            className="mt-1 block w-full form-input"
+            placeholder="••••••••"
+            className="mt-2 block w-full nad-input"
           />
         </div>
 
@@ -99,7 +103,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, initialEmail, onForgot
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:bg-indigo-300 disabled:cursor-not-allowed"
+            className="nad-btn-primary w-full"
           >
             {isLoading ? 'Logging in...' : 'Login'}
           </button>
