@@ -429,3 +429,36 @@ body {
     min-height: 72px;
   }
 }
+
+/* Force light theme regardless of OS preference */
+:root {
+  color-scheme: light;
+  --base: var(--base--light);
+  --base-rgb: var(--base-rgb--light);
+  --base-tint: var(--base-tint--light);
+  --base-shade: var(--base-shade--light);
+  --base-opp: var(--base-opp--light);
+  --base-opp-tint: var(--base-opp-tint--light);
+  --accent: var(--accent--light);
+  --accent-rgb: var(--accent-rgb--light);
+  --additional: var(--additional--light);
+  --additional-rgb: var(--additional-rgb--light);
+  --neutral-transparent: var(--neutral-transparent--light);
+  --st-bright: var(--st-bright--light);
+  --st-medium: var(--st-medium--light);
+  --st-muted: var(--st-muted--light);
+  --st-opp-bright: var(--st-opp-bright--light);
+  --fw-regular: var(--fw-regular--light);
+  --fw-medium: var(--fw-medium--light);
+  --fw-semibold: var(--fw-semibold--light);
+  --fw-bold: var(--fw-bold--light);
+  --fw-regular-opp: var(--fw-regular-opp--light);
+  --fw-medium-opp: var(--fw-medium-opp--light);
+  --t-bright: var(--t-bright--light);
+  --t-medium: var(--t-medium--light);
+  --t-muted: var(--t-muted--light);
+  --t-muted-extra: var(--t-muted-extra--light);
+  --t-opp-bright: var(--t-opp-bright--light);
+  --t-opp-medium: var(--t-opp-medium--light);
+  --t-opp-muted: var(--t-opp-muted--light);
+}

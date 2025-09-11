@@ -94,6 +94,7 @@ function extractBodyHtml(htmlText) {
 function buildCtaSection(onLoginClick) {
   const wrapper = document.createElement("section");
   wrapper.className = "nad-cta";
+  wrapper.setAttribute("data-injected-cta", "true");
   wrapper.setAttribute("aria-label", "Primary actions");
 
   wrapper.innerHTML = `
@@ -201,11 +202,19 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
       const pageContent = document.getElementById("mxd-page-content") || document.querySelector(".mxd-page-content");
       if (!header || !pageContent) return false;
 
-      // If already inserted, skip
-      if (document.querySelector("section.nad-cta")) return true;
+      // Remove any existing CTAs from the static HTML to avoid duplicates
+      document.querySelectorAll("section.nad-cta:not([data-injected-cta])").forEach((el) => el.parentNode && el.parentNode.removeChild(el));
 
       const cta = buildCtaSection(onLoginClick);
       header.parentNode.insertBefore(cta, pageContent);
+
+      // Run a delayed cleanup in case the template adds another CTA later
+      setTimeout(() => {
+        document.querySelectorAll("section.nad-cta:not([data-injected-cta])").forEach((el) => el.parentNode && el.parentNode.removeChild(el));
+      }, 1200);
+      setTimeout(() => {
+        document.querySelectorAll("section.nad-cta:not([data-injected-cta])").forEach((el) => el.parentNode && el.parentNode.removeChild(el));
+      }, 2500);
       return true;
     };
 
