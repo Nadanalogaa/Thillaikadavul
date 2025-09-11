@@ -30,14 +30,14 @@ const ContactSection: React.FC = () => {
   };
 
   return (
-    <section id="contact" className="container mx-auto px-6 lg:px-8">
+    <section id="contact" className="nad-content">
       <div className="text-center">
-        <h2 className="text-4xl font-bold text-brand-primary sm:text-5xl tangerine-title">Get in Touch</h2>
-        <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
+        <h2 className="text-3xl sm:text-4xl">Get in Touch</h2>
+        <p className="mt-4 nad-muted max-w-2xl mx-auto">
           Have a question or ready to enroll? Send us a message, and we'll get back to you soon.
         </p>
       </div>
-      <div className="mt-12 max-w-lg mx-auto bg-white p-8 rounded-xl shadow-lg">
+      <div className="mt-10 max-w-lg mx-auto p-8 rounded-xl nad-card">
         {success ? (
           <div className="text-center p-4 bg-green-100 text-green-800 rounded-md">
             <h3 className="font-semibold">Message Sent!</h3>
@@ -46,15 +46,15 @@ const ContactSection: React.FC = () => {
         ) : (
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">Name</label>
+              <label htmlFor="name" className="block text-sm font-medium">Name</label>
               <input type="text" name="name" id="name" required disabled={isLoading} value={formData.name} onChange={handleChange} className="mt-1 block w-full form-input" />
             </div>
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
+              <label htmlFor="email" className="block text-sm font-medium">Email</label>
               <input type="email" name="email" id="email" required disabled={isLoading} value={formData.email} onChange={handleChange} className="mt-1 block w-full form-input" />
             </div>
             <div>
-              <label htmlFor="message" className="block text-sm font-medium text-gray-700">Message</label>
+              <label htmlFor="message" className="block text-sm font-medium">Message</label>
               <textarea name="message" id="message" rows={4} required disabled={isLoading} value={formData.message} onChange={handleChange} className="mt-1 block w-full form-textarea"></textarea>
             </div>
             {error && <p className="text-sm text-red-600 text-center">{error}</p>}
