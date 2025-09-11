@@ -1,0 +1,109 @@
+/* Lightweight overrides and CTA styling aligned with current theme */
+
+/* Quick container with theme spacing */
+.nad-cta {
+  padding: clamp(16px, 3vw, 32px) clamp(16px, 4vw, 40px);
+}
+
+.nad-cta__wrap {
+  max-width: 1200px;
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(12px, 2vw, 24px);
+}
+
+.nad-cta__card {
+  background: var(--base-tint);
+  color: var(--t-bright);
+  border-radius: var(--_radius-l);
+  border: 1px solid var(--st-muted);
+  border-color: rgba(var(--base-rgb), 0.12);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+  padding: clamp(16px, 2.5vw, 28px);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 180px;
+}
+
+.nad-cta__title {
+  font-family: var(--_font-accent);
+  font-size: clamp(20px, 3vw, 28px);
+  line-height: 1.15;
+  margin: 0 0 6px 0;
+}
+
+.nad-cta__text {
+  color: var(--t-medium);
+  margin: 0;
+}
+
+.nad-cta__actions {
+  margin-top: 16px;
+  display: flex;
+  gap: 12px;
+}
+
+.nad-cta__actions--split { justify-content: flex-start; }
+
+/* Buttons */
+.nad-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--_radius-m);
+  text-decoration: none;
+  font-weight: var(--fw-semibold, 600);
+  border: 1px solid transparent;
+  transition: transform var(--_animspeed-medium) var(--_animbezier),
+              background-color var(--_animspeed-medium) var(--_animbezier),
+              color var(--_animspeed-medium) var(--_animbezier),
+              border-color var(--_animspeed-medium) var(--_animbezier);
+}
+
+.nad-btn:hover { transform: translateY(-1px); }
+
+.nad-btn--primary {
+  background: var(--accent);
+  color: var(--t-opp-bright);
+}
+.nad-btn--primary:hover { filter: brightness(0.95); }
+
+.nad-btn--ghost {
+  background: transparent;
+  color: var(--t-bright);
+  border-color: var(--st-muted);
+}
+.nad-btn--ghost:hover { background: rgba(var(--base-rgb), 0.5); }
+
+.nad-btn--dark {
+  background: var(--base-opp);
+  color: var(--t-opp-bright);
+}
+.nad-btn--dark:hover { filter: brightness(1.05); }
+
+/* Layout: split cards on desktop */
+@media (min-width: 900px) {
+  .nad-cta__wrap { grid-template-columns: 1fr 1fr; }
+}
+
+/* Align hero animated images to the right on larger screens */
+@media (min-width: 1024px) {
+  .mxd-hero-01__title-wrap { position: relative; }
+  .mxd-hero-01__images {
+    position: absolute;
+    right: 0;
+    top: 0;
+    max-width: min(42vw, 560px);
+    transform: translateX(10%);
+    pointer-events: none;
+  }
+}
+
+/* On small screens the CTAs should appear first (already before the hero in DOM) */
+@media (max-width: 899px) {
+  .mxd-hero-01__images { margin-inline: auto; }
+}
