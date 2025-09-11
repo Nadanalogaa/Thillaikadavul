@@ -1,6 +1,6 @@
 
 import React from 'react';
-import NativeHomepage from '../components/NativeHomepage';
+import RayoLanding from '../static_react/src/RayoLanding.jsx';
 
 interface HomePageProps {
   onLoginClick: () => void;
@@ -8,9 +8,7 @@ interface HomePageProps {
 
 // Native React homepage component - no iframe, direct rendering with static assets
 const HomePage: React.FC<HomePageProps> = ({ onLoginClick }) => {
-  return (
-    <NativeHomepage onLoginClick={onLoginClick} />
-  );
+  return <RayoLanding htmlPath="/static/index.html" onLoginClick={onLoginClick} />;
 };
 
 export default HomePage;
