@@ -430,6 +430,71 @@ body {
   }
 }
 
+/* Theme control via classes to ensure the switcher works */
+:root.theme-light {
+  color-scheme: light;
+  --base: var(--base--light);
+  --base-rgb: var(--base-rgb--light);
+  --base-tint: var(--base-tint--light);
+  --base-shade: var(--base-shade--light);
+  --base-opp: var(--base-opp--light);
+  --base-opp-tint: var(--base-opp-tint--light);
+  --accent: var(--accent--light);
+  --accent-rgb: var(--accent-rgb--light);
+  --additional: var(--additional--light);
+  --additional-rgb: var(--additional-rgb--light);
+  --neutral-transparent: var(--neutral-transparent--light);
+  --st-bright: var(--st-bright--light);
+  --st-medium: var(--st-medium--light);
+  --st-muted: var(--st-muted--light);
+  --st-opp-bright: var(--st-opp-bright--light);
+  --fw-regular: var(--fw-regular--light);
+  --fw-medium: var(--fw-medium--light);
+  --fw-semibold: var(--fw-semibold--light);
+  --fw-bold: var(--fw-bold--light);
+  --fw-regular-opp: var(--fw-regular-opp--light);
+  --fw-medium-opp: var(--fw-medium-opp--light);
+  --t-bright: var(--t-bright--light);
+  --t-medium: var(--t-medium--light);
+  --t-muted: var(--t-muted--light);
+  --t-muted-extra: var(--t-muted-extra--light);
+  --t-opp-bright: var(--t-opp-bright--light);
+  --t-opp-medium: var(--t-opp-medium--light);
+  --t-opp-muted: var(--t-opp-muted--light);
+}
+
+:root.theme-dark {
+  color-scheme: dark;
+  --base: var(--base--dark);
+  --base-rgb: var(--base-rgb--dark);
+  --base-tint: var(--base-tint--dark);
+  --base-shade: var(--base-shade--dark);
+  --base-opp: var(--base-opp--dark);
+  --base-opp-tint: var(--base-opp-tint--dark);
+  --accent: var(--accent--dark);
+  --accent-rgb: var(--accent-rgb--dark);
+  --additional: var(--additional--dark);
+  --additional-rgb: var(--additional-rgb--dark);
+  --neutral-transparent: var(--neutral-transparent--dark);
+  --st-bright: var(--st-bright--dark);
+  --st-medium: var(--st-medium--dark);
+  --st-muted: var(--st-muted--dark);
+  --st-opp-bright: var(--st-opp-bright--dark);
+  --fw-regular: var(--fw-regular--dark);
+  --fw-medium: var(--fw-medium--dark);
+  --fw-semibold: var(--fw-semibold--dark);
+  --fw-bold: var(--fw-bold--dark);
+  --fw-regular-opp: var(--fw-regular-opp--dark);
+  --fw-medium-opp: var(--fw-medium-opp--dark);
+  --t-bright: var(--t-bright--dark);
+  --t-medium: var(--t-medium--dark);
+  --t-muted: var(--t-muted--dark);
+  --t-muted-extra: var(--t-muted-extra--dark);
+  --t-opp-bright: var(--t-opp-bright--dark);
+  --t-opp-medium: var(--t-opp-medium--dark);
+  --t-opp-muted: var(--t-opp-muted--dark);
+}
+
 /* Force light theme regardless of OS preference */
 :root {
   color-scheme: light;

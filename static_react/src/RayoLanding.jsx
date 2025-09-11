@@ -92,8 +92,9 @@ function extractBodyHtml(htmlText) {
 }
 
 function buildCtaSection(onLoginClick) {
-  const wrapper = document.createElement("section");
-  wrapper.className = "nad-cta";
+  // Match template section wrapper class for spacing
+  const wrapper = document.createElement("div");
+  wrapper.className = "mxd-section nad-cta";
   wrapper.setAttribute("data-injected-cta", "true");
   wrapper.setAttribute("aria-label", "Primary actions");
 
@@ -182,6 +183,26 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
               el.style.opacity = '1';
             });
           }
+
+          // Initialize theme from localStorage and hook the switcher
+          const applyTheme = (theme) => {
+            const root = document.documentElement;
+            root.classList.remove('theme-light', 'theme-dark');
+            root.classList.add(theme === 'dark' ? 'theme-dark' : 'theme-light');
+            try { localStorage.setItem('theme', theme); } catch {}
+            const switcher = document.getElementById('color-switcher');
+            if (switcher) switcher.setAttribute('aria-checked', theme === 'dark' ? 'false' : 'true');
+          };
+          const saved = (() => { try { return localStorage.getItem('theme'); } catch { return null; } })();
+          applyTheme(saved === 'dark' ? 'dark' : 'light');
+          const switcher = document.getElementById('color-switcher');
+          if (switcher) {
+            switcher.addEventListener('click', (e) => {
+              e.preventDefault();
+              const isDark = document.documentElement.classList.contains('theme-dark');
+              applyTheme(isDark ? 'light' : 'dark');
+            }, { once: false });
+          }
         });
       })
       .catch((e) => {
@@ -202,31 +223,31 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
       const pageContent = document.getElementById("mxd-page-content") || document.querySelector(".mxd-page-content");
       if (!header || !pageContent) return false;
 
+      // If already inserted, stop
+      if (document.querySelector(".nad-cta[data-injected-cta]")) return true;
+
       // Remove any existing CTAs from the static HTML to avoid duplicates
-      document.querySelectorAll("section.nad-cta:not([data-injected-cta])").forEach((el) => el.parentNode && el.parentNode.removeChild(el));
+      document.querySelectorAll(".nad-cta:not([data-injected-cta])").forEach((el) => el.parentNode && el.parentNode.removeChild(el));
 
       const cta = buildCtaSection(onLoginClick);
       header.parentNode.insertBefore(cta, pageContent);
 
       // Run a delayed cleanup in case the template adds another CTA later
       setTimeout(() => {
-        document.querySelectorAll("section.nad-cta:not([data-injected-cta])").forEach((el) => el.parentNode && el.parentNode.removeChild(el));
+        document.querySelectorAll(".nad-cta:not([data-injected-cta])").forEach((el) => el.parentNode && el.parentNode.removeChild(el));
       }, 1200);
       setTimeout(() => {
-        document.querySelectorAll("section.nad-cta:not([data-injected-cta])").forEach((el) => el.parentNode && el.parentNode.removeChild(el));
+        document.querySelectorAll(".nad-cta:not([data-injected-cta])").forEach((el) => el.parentNode && el.parentNode.removeChild(el));
       }, 2500);
       return true;
     };
 
     // Attempt immediately and then retry shortly as the static DOM settles
-    if (!tryInsertCTA()) {
-      const t1 = setTimeout(tryInsertCTA, 200);
-      const t2 = setTimeout(tryInsertCTA, 800);
-      return () => {
-        clearTimeout(t1);
-        clearTimeout(t2);
-      };
-    }
+    const done = tryInsertCTA();
+    const timers = [];
+    if (!done) timers.push(setTimeout(tryInsertCTA, 200));
+    timers.push(setTimeout(tryInsertCTA, 800));
+    return () => { timers.forEach(clearTimeout); };
   }, [onLoginClick]);
 
   if (error) {
