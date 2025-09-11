@@ -35,6 +35,13 @@ const SimpleHomepageCMS: React.FC = () => {
   };
 
   const getDefaultContent = (elementId: string) => {
+    // Handle dynamic section IDs or static ones
+    let sectionType = elementId;
+    if (elementId.startsWith('section-')) {
+      // For dynamic sections, try to determine type from content
+      sectionType = 'generic-section';
+    }
+    
     const defaults = {
       'hero-section': {
         text: 'Dance, Music and Fine Arts\nDiscover the rich heritage of Indian classical arts through expert guidance.',
@@ -59,9 +66,13 @@ const SimpleHomepageCMS: React.FC = () => {
       'contact-section': {
         text: 'Contact Us\nGet in touch to start your artistic journey.',
         image: '/images/contact.jpg'
+      },
+      'generic-section': {
+        text: 'Section Content\nEdit this section\'s text, images, and videos.',
+        image: '/images/default-section.jpg'
       }
     };
-    return defaults[elementId] || {};
+    return defaults[sectionType] || defaults['generic-section'];
   };
 
   const getSectionTitle = (elementId: string) => {
@@ -73,6 +84,13 @@ const SimpleHomepageCMS: React.FC = () => {
       'testimonials-section': 'Testimonials Section',
       'contact-section': 'Contact Section'
     };
+    
+    // Handle dynamic sections
+    if (elementId.startsWith('section-')) {
+      const sectionNumber = elementId.replace('section-', '');
+      return `Section ${parseInt(sectionNumber) + 1}`;
+    }
+    
     return titles[elementId] || 'Edit Content';
   };
 
@@ -171,139 +189,157 @@ const SimpleHomepageCMS: React.FC = () => {
 
         {/* Homepage Content */}
         <div className="relative">
-          {/* Editing Overlay - Show Edit Buttons on Sections */}
+          {/* Editing Overlay - Dynamic Edit Buttons on ALL Sections */}
           {isEditing && (
             <div className="absolute inset-0 z-10 pointer-events-none">
               <style dangerouslySetInnerHTML={{
                 __html: `
+                  /* Universal section detection and edit buttons */
+                  .mxd-section {
+                    position: relative;
+                  }
+                  
                   .edit-section-overlay {
                     position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
                     border: 2px dashed #3B82F6;
                     background-color: rgba(59, 130, 246, 0.05);
                     pointer-events: auto;
+                    z-index: 1000;
                   }
+                  
                   .edit-button-overlay {
                     position: absolute;
-                    top: 8px;
-                    right: 8px;
+                    top: 10px;
+                    right: 10px;
                     background: #3B82F6;
                     color: white;
                     border: none;
-                    border-radius: 6px;
-                    padding: 8px 12px;
-                    font-size: 12px;
+                    border-radius: 8px;
+                    padding: 10px 15px;
+                    font-size: 13px;
                     font-weight: 600;
                     cursor: pointer;
                     display: flex;
                     align-items: center;
-                    gap: 4px;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                    gap: 6px;
+                    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
                     transition: all 0.2s ease;
                     pointer-events: auto;
+                    z-index: 1001;
                   }
+                  
                   .edit-button-overlay:hover {
                     background: #2563EB;
-                    transform: translateY(-1px);
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
+                  }
+                  
+                  .edit-button-overlay svg {
+                    width: 14px;
+                    height: 14px;
+                  }
+                  
+                  /* Section labels */
+                  .edit-section-label {
+                    position: absolute;
+                    top: 10px;
+                    left: 10px;
+                    background: rgba(59, 130, 246, 0.9);
+                    color: white;
+                    padding: 6px 10px;
+                    border-radius: 6px;
+                    font-size: 11px;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    z-index: 1001;
                   }
                 `
               }} />
               
-              {/* Hero Section Edit Overlay */}
-              <div className="edit-section-overlay" style={{
-                top: '100px',
-                left: '0',
-                right: '0',
-                height: '600px'
-              }}>
-                <button 
-                  className="edit-button-overlay"
-                  onClick={() => handleElementClick('hero-section')}
-                >
-                  <Edit3 className="w-3 h-3" />
-                  Edit Hero Section
-                </button>
-              </div>
-
-              {/* About Section Edit Overlay */}
-              <div className="edit-section-overlay" style={{
-                top: '720px',
-                left: '0',
-                right: '0',
-                height: '400px'
-              }}>
-                <button 
-                  className="edit-button-overlay"
-                  onClick={() => handleElementClick('about-section')}
-                >
-                  <Edit3 className="w-3 h-3" />
-                  Edit About Section
-                </button>
-              </div>
-
-              {/* Services Section Edit Overlay */}
-              <div className="edit-section-overlay" style={{
-                top: '1140px',
-                left: '0',
-                right: '0',
-                height: '500px'
-              }}>
-                <button 
-                  className="edit-button-overlay"
-                  onClick={() => handleElementClick('services-section')}
-                >
-                  <Edit3 className="w-3 h-3" />
-                  Edit Services Section
-                </button>
-              </div>
-
-              {/* Gallery Section Edit Overlay */}
-              <div className="edit-section-overlay" style={{
-                top: '1660px',
-                left: '0',
-                right: '0',
-                height: '400px'
-              }}>
-                <button 
-                  className="edit-button-overlay"
-                  onClick={() => handleElementClick('gallery-section')}
-                >
-                  <Edit3 className="w-3 h-3" />
-                  Edit Gallery Section
-                </button>
-              </div>
-
-              {/* Testimonials Section Edit Overlay */}
-              <div className="edit-section-overlay" style={{
-                top: '2080px',
-                left: '0',
-                right: '0',
-                height: '400px'
-              }}>
-                <button 
-                  className="edit-button-overlay"
-                  onClick={() => handleElementClick('testimonials-section')}
-                >
-                  <Edit3 className="w-3 h-3" />
-                  Edit Testimonials
-                </button>
-              </div>
-
-              {/* Contact Section Edit Overlay */}
-              <div className="edit-section-overlay" style={{
-                top: '2500px',
-                left: '0',
-                right: '0',
-                height: '300px'
-              }}>
-                <button 
-                  className="edit-button-overlay"
-                  onClick={() => handleElementClick('contact-section')}
-                >
-                  <Edit3 className="w-3 h-3" />
-                  Edit Contact Section
-                </button>
-              </div>
+              <script dangerouslySetInnerHTML={{
+                __html: `
+                  // Wait for DOM to be ready, then add edit overlays to all sections
+                  setTimeout(() => {
+                    // Remove existing overlays first
+                    document.querySelectorAll('.edit-section-overlay').forEach(el => el.remove());
+                    
+                    // Find all sections in the homepage
+                    const sections = document.querySelectorAll('.mxd-section, section, [class*="section"], [id*="section"]');
+                    
+                    sections.forEach((section, index) => {
+                      // Skip if it's part of admin interface
+                      if (section.closest('[class*="admin"]') || 
+                          section.closest('[class*="ml-64"]') ||
+                          section.querySelector('[class*="admin"]')) {
+                        return;
+                      }
+                      
+                      // Create overlay
+                      const overlay = document.createElement('div');
+                      overlay.className = 'edit-section-overlay';
+                      
+                      // Try to identify section type/name
+                      let sectionName = '';
+                      if (section.className.includes('hero')) {
+                        sectionName = 'Hero Section';
+                      } else if (section.className.includes('about') || section.textContent?.toLowerCase().includes('about')) {
+                        sectionName = 'About Section';
+                      } else if (section.className.includes('service') || section.textContent?.toLowerCase().includes('service')) {
+                        sectionName = 'Services Section';
+                      } else if (section.className.includes('project') || section.id === 'projects') {
+                        sectionName = 'Projects Section';
+                      } else if (section.className.includes('testimonial') || section.textContent?.toLowerCase().includes('testimonial')) {
+                        sectionName = 'Testimonials Section';
+                      } else if (section.className.includes('contact') || section.textContent?.toLowerCase().includes('contact')) {
+                        sectionName = 'Contact Section';
+                      } else if (section.className.includes('blog') || section.textContent?.toLowerCase().includes('blog')) {
+                        sectionName = 'Blog Section';
+                      } else if (section.className.includes('gallery') || section.textContent?.toLowerCase().includes('gallery')) {
+                        sectionName = 'Gallery Section';
+                      } else {
+                        sectionName = 'Section ' + (index + 1);
+                      }
+                      
+                      // Section label
+                      const label = document.createElement('div');
+                      label.className = 'edit-section-label';
+                      label.textContent = sectionName;
+                      
+                      // Edit button
+                      const button = document.createElement('button');
+                      button.className = 'edit-button-overlay';
+                      button.innerHTML = \`
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                        </svg>
+                        Edit \${sectionName}
+                      \`;
+                      
+                      // Click handler
+                      button.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.dispatchEvent(new CustomEvent('editSection', { 
+                          detail: { 
+                            sectionId: 'section-' + index,
+                            sectionName: sectionName,
+                            element: section
+                          } 
+                        }));
+                      });
+                      
+                      overlay.appendChild(label);
+                      overlay.appendChild(button);
+                      section.appendChild(overlay);
+                    });
+                  }, 1000);
+                `
+              }} />
             </div>
           )}
 
@@ -320,10 +356,11 @@ const SimpleHomepageCMS: React.FC = () => {
           <div ref={(div) => {
             if (div) {
               const handleEditEvent = (e: any) => {
-                handleElementClick(e.detail.elementId);
+                console.log('Section edit event:', e.detail);
+                handleElementClick(e.detail.sectionId);
               };
-              window.addEventListener('editElement', handleEditEvent);
-              return () => window.removeEventListener('editElement', handleEditEvent);
+              window.addEventListener('editSection', handleEditEvent);
+              return () => window.removeEventListener('editSection', handleEditEvent);
             }
           }} />
 
