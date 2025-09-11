@@ -519,6 +519,57 @@ body,
   opacity: 1 !important;
 }
 
+/* Nadanaloga Modal Theme Overrides */
+.nad-modal-overlay {
+  z-index: 2001 !important;
+}
+
+.nad-modal {
+  background: var(--base-tint);
+  color: var(--t-bright);
+  border: 1px solid rgba(var(--base-rgb), 0.16);
+}
+
+.nad-modal h1, .nad-modal h2, .nad-modal h3, .nad-modal label {
+  color: var(--t-bright);
+}
+
+.nad-modal .form-input, 
+.nad-modal .form-select, 
+.nad-modal .form-textarea {
+  background: #fff;
+  color: var(--t-bright);
+  border: 1px solid rgba(var(--base-rgb), 0.25);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  font-size: 16px;
+}
+
+.nad-modal .form-input::placeholder {
+  color: var(--t-muted);
+}
+
+.nad-modal button[type="submit"] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.nad-modal button[type="submit"]:hover {
+  filter: brightness(0.95);
+}
+
+:root.theme-dark .nad-modal {
+  background: #1C1C1C;
+}
+
+:root.theme-dark .nad-modal .form-input,
+:root.theme-dark .nad-modal .form-select,
+:root.theme-dark .nad-modal .form-textarea {
+  background: #0f0f0f;
+  color: #fff;
+  border-color: rgba(255,255,255,0.18);
+}
+
+
 /* Force light theme regardless of OS preference */
 :root {
   color-scheme: light;

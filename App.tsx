@@ -173,6 +173,7 @@ function App() {
 
   const isDashboard = location.pathname.startsWith('/dashboard/') || location.pathname.startsWith('/admin/');
   const isHome = location.pathname === '/';
+  const isStaticThemed = ['/','/about','/gallery','/faq','/contact'].includes(location.pathname);
 
   return (
     <div className="flex flex-col min-h-screen bg-brand-light/20">
@@ -250,10 +251,10 @@ function App() {
 
         </Routes>
       </main>
-      {!isDashboard && <Footer />}
+      {!isDashboard && !isStaticThemed && <Footer />}
       <WhatsAppButton />
 
-      <Modal isOpen={isLoginModalOpen} onClose={closeLoginModal}>
+      <Modal isOpen={isLoginModalOpen} onClose={closeLoginModal} size="xl">
         <LoginForm 
           onSuccess={handleLoginSuccess} 
           initialEmail={loginEmail} 

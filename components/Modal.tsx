@@ -20,18 +20,18 @@ const SIZES: { [key in ModalSize]: string } = {
 };
 
 
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, size = 'md' }) => {
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, size = 'xl' }) => {
   if (!isOpen) return null;
 
   const isFull = size === 'full';
 
   return (
     <div 
-      className={`fixed inset-0 bg-black bg-opacity-60 z-50 ${isFull ? '' : 'flex justify-center items-center p-4'}`}
+      className={`nad-modal-overlay fixed inset-0 bg-black bg-opacity-60 ${isFull ? '' : 'flex justify-center items-center p-4'}`}
       onClick={onClose}
     >
       <div
-        className={`bg-white ${isFull ? 'w-full h-full' : `bg-gray-50 rounded-lg ${SIZES[size]}`} shadow-2xl relative animate-modal-fade-in-up w-full flex flex-col`}
+        className={`nad-modal ${isFull ? 'w-full h-full' : `rounded-xl ${SIZES[size]}`} shadow-2xl relative animate-modal-fade-in-up w-full flex flex-col`}
         onClick={(e) => e.stopPropagation()}
       >
         {!isFull && (
