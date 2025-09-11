@@ -632,18 +632,10 @@ const HomepageCMSPage: React.FC = () => {
 
       {/* Add Section Modal */}
       {state.showAddSectionModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Add Section</h3>
-            <p className="text-gray-600 mb-4">Add section modal coming soon...</p>
-            <button
-              onClick={() => handleAddSectionModal(false)}
-              className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
-            >
-              Close
-            </button>
-          </div>
-        </div>
+        <AddSectionModal
+          onClose={() => handleAddSectionModal(false)}
+          onAddSection={handleAddSection}
+        />
       )}
 
       {/* Keyboard shortcuts help */}

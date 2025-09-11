@@ -1395,6 +1395,271 @@ async function startServer() {
         }
     });
 
+    // CMS Sections API (compatibility layer for new CMS frontend)
+    // Get all sections (mapped to content blocks)
+    app.get('/api/cms/sections', async (req, res) => {
+        try {
+            const contentBlocks = await ContentBlock.find({})
+                .populate('createdBy', 'name email')
+                .populate('updatedBy', 'name email')
+                .sort({ 'settings.order': 1, createdAt: -1 });
+            
+            // Transform to match frontend expectations
+            const sections = contentBlocks.map(block => ({
+                id: block.id,
+                section_key: block.sectionId,
+                section_type: block.sectionType,
+                name: block.title || block.sectionType,
+                description: block.description || '',
+                order_index: block.settings?.order || 0,
+                is_active: block.settings?.visible || false,
+                layout_config: {},
+                responsive_settings: {},
+                animation_config: {},
+                custom_css: block.settings?.customStyles || '',
+                seo: block.seo || {},
+                content: {
+                    id: block.id,
+                    version: block.version,
+                    title: block.title,
+                    subtitle: block.subtitle,
+                    description: block.description,
+                    body_content: block.content?.body || '',
+                    rich_content: block.content,
+                    metadata: block.content,
+                    tags: [],
+                    status: block.status,
+                    ai_generated_content: null,
+                    ai_seo_score: null,
+                    media: block.media || [],
+                    ctas: block.links || [],
+                    specialized: block.content,
+                    updated_at: block.updatedAt
+                }
+            }));
+            
+            res.json({
+                success: true,
+                data: sections
+            });
+        } catch (error) {
+            console.error('[CMS] Error fetching sections:', error);
+            res.status(500).json({ 
+                success: false, 
+                error: 'Failed to fetch sections' 
+            });
+        }
+    });
+
+    // Create new section
+    app.post('/api/cms/sections', ensureAdmin, async (req, res) => {
+        try {
+            const {
+                section_type,
+                name,
+                description,
+                order_index,
+                is_active,
+                layout_config,
+                responsive_settings,
+                animation_config,
+                custom_css,
+                seo
+            } = req.body;
+
+            // Generate unique section ID
+            const sectionId = `${section_type}-${Date.now()}`;
+
+            const contentBlock = new ContentBlock({
+                sectionId: sectionId,
+                sectionType: section_type,
+                title: name,
+                description: description,
+                content: {},
+                media: [],
+                links: [],
+                settings: {
+                    visible: is_active || true,
+                    order: order_index || 0,
+                    customStyles: custom_css || ''
+                },
+                seo: seo || {},
+                status: 'draft',
+                createdBy: req.session.user.id,
+                updatedBy: req.session.user.id
+            });
+
+            await contentBlock.save();
+            await contentBlock.populate('createdBy', 'name email');
+            await contentBlock.populate('updatedBy', 'name email');
+
+            res.status(201).json({
+                success: true,
+                data: contentBlock
+            });
+        } catch (error) {
+            console.error('[CMS] Error creating section:', error);
+            if (error.code === 11000) {
+                res.status(400).json({ 
+                    success: false, 
+                    error: 'Section ID already exists' 
+                });
+            } else {
+                res.status(500).json({ 
+                    success: false, 
+                    error: 'Failed to create section' 
+                });
+            }
+        }
+    });
+
+    // Update section order (reorder sections)
+    app.post('/api/cms/sections/reorder', ensureAdmin, async (req, res) => {
+        try {
+            const { section_orders } = req.body; // [{ id, order_index }]
+            
+            const bulkOps = section_orders.map(item => ({
+                updateOne: {
+                    filter: { _id: item.id },
+                    update: { 
+                        'settings.order': item.order_index,
+                        updatedBy: req.session.user.id,
+                        updatedAt: new Date()
+                    }
+                }
+            }));
+            
+            await ContentBlock.bulkWrite(bulkOps);
+            res.json({ 
+                success: true, 
+                message: 'Sections reordered successfully' 
+            });
+        } catch (error) {
+            console.error('[CMS] Error reordering sections:', error);
+            res.status(500).json({ 
+                success: false, 
+                error: 'Failed to reorder sections' 
+            });
+        }
+    });
+
+    // Update content item
+    app.put('/api/cms/content/:id', async (req, res) => {
+        try {
+            const {
+                title,
+                subtitle,
+                description,
+                body_content,
+                rich_content,
+                metadata,
+                tags,
+                status,
+                media,
+                ctas,
+                specialized
+            } = req.body;
+
+            const updateData = {
+                title,
+                subtitle, 
+                description,
+                content: {
+                    body: body_content,
+                    ...rich_content,
+                    ...metadata,
+                    ...specialized
+                },
+                media: media || [],
+                links: ctas || [],
+                status: status || 'draft',
+                updatedBy: req.session?.user?.id,
+                updatedAt: new Date()
+            };
+
+            if (status === 'published') {
+                updateData.publishedAt = new Date();
+            }
+
+            const contentBlock = await ContentBlock.findByIdAndUpdate(
+                req.params.id,
+                updateData,
+                { new: true, runValidators: true }
+            );
+            
+            if (!contentBlock) {
+                return res.status(404).json({ 
+                    success: false, 
+                    error: 'Content not found' 
+                });
+            }
+            
+            res.json({ success: true, data: contentBlock });
+        } catch (error) {
+            console.error('[CMS] Error updating content:', error);
+            res.status(500).json({ 
+                success: false, 
+                error: 'Failed to update content' 
+            });
+        }
+    });
+
+    // Publish content
+    app.post('/api/cms/content/:id/publish', async (req, res) => {
+        try {
+            const contentBlock = await ContentBlock.findByIdAndUpdate(
+                req.params.id,
+                { 
+                    status: 'published',
+                    publishedAt: new Date(),
+                    updatedBy: req.session?.user?.id,
+                    updatedAt: new Date()
+                },
+                { new: true }
+            );
+            
+            if (!contentBlock) {
+                return res.status(404).json({ 
+                    success: false, 
+                    error: 'Content not found' 
+                });
+            }
+            
+            res.json({ success: true, data: contentBlock });
+        } catch (error) {
+            console.error('[CMS] Error publishing content:', error);
+            res.status(500).json({ 
+                success: false, 
+                error: 'Failed to publish content' 
+            });
+        }
+    });
+
+    // Delete section
+    app.delete('/api/cms/sections/:id', ensureAdmin, async (req, res) => {
+        try {
+            const contentBlock = await ContentBlock.findByIdAndDelete(req.params.id);
+            
+            if (!contentBlock) {
+                return res.status(404).json({ 
+                    success: false, 
+                    error: 'Section not found' 
+                });
+            }
+            
+            res.json({ 
+                success: true, 
+                message: 'Section deleted successfully' 
+            });
+        } catch (error) {
+            console.error('[CMS] Error deleting section:', error);
+            res.status(500).json({ 
+                success: false, 
+                error: 'Failed to delete section' 
+            });
+        }
+    });
+
     // Health check endpoint for Railway deployment
     app.get('/api/health', (req, res) => {
         res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
