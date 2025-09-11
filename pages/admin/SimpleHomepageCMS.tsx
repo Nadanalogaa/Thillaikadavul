@@ -132,262 +132,188 @@ const SimpleHomepageCMS: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <AdminNav />
       <div className="ml-64">
-        {/* Simple Header with Prominent Edit Button */}
+        {/* Simple Header - NO EDIT BUTTONS */}
         <div className="bg-white shadow-sm border-b border-gray-200 px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Homepage Editor</h1>
-              <p className="text-lg text-gray-600 mt-2">Edit your homepage content directly</p>
-            </div>
-            
-            {/* PROMINENT EDIT BUTTONS */}
-            <div className="flex items-center space-x-4">
-              {isEditing && (
-                <button
-                  onClick={handlePublish}
-                  className="flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-bold text-lg shadow-lg transition-all transform hover:scale-105"
-                >
-                  <Save className="w-5 h-5" />
-                  <span>💾 PUBLISH CHANGES</span>
-                </button>
-              )}
-              
-              <button
-                onClick={handleEditToggle}
-                className={`flex items-center space-x-3 px-8 py-4 rounded-xl font-bold text-xl shadow-xl transition-all transform hover:scale-105 ${
-                  isEditing
-                    ? 'bg-red-600 text-white hover:bg-red-700 border-4 border-red-400'
-                    : 'bg-orange-500 text-white hover:bg-orange-600 border-4 border-orange-300 animate-pulse'
-                }`}
-                style={{
-                  fontSize: '20px',
-                  minWidth: '200px',
-                  minHeight: '60px'
-                }}
-              >
-                {isEditing ? (
-                  <>
-                    <X className="w-6 h-6" />
-                    <span>❌ EXIT EDIT MODE</span>
-                  </>
-                ) : (
-                  <>
-                    <Edit3 className="w-6 h-6" />
-                    <span>✏️ EDIT HOMEPAGE</span>
-                  </>
-                )}
-              </button>
-            </div>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Homepage Editor</h1>
+            <p className="text-lg text-gray-600 mt-2">Click edit buttons on each section to modify content</p>
           </div>
         </div>
 
-        {/* Edit Mode Indicator */}
-        {isEditing && (
-          <div className="bg-orange-100 border-l-4 border-orange-500 p-4 mb-6 mx-8">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <Edit3 className="h-5 w-5 text-orange-400" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-orange-700">
-                  <strong>Edit Mode Active:</strong> Click on any text, image, or section to edit it.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Homepage Content */}
+        {/* Homepage Content with Always-Visible Edit Buttons */}
         <div className="relative">
-          {/* FIXED: Simple Edit Buttons on Every Section */}
-          {isEditing && (
-            <>
-              {/* Inject edit buttons directly into homepage */}
-              <script dangerouslySetInnerHTML={{
-                __html: `
-                  // Run immediately and also on intervals to ensure buttons appear
-                  function addEditButtons() {
-                    console.log('🔧 CMS: Adding edit buttons...');
-                    
-                    // Remove existing buttons first
-                    document.querySelectorAll('.cms-edit-btn, .cms-section-overlay').forEach(el => el.remove());
-                    
-                    // Add styles
-                    if (!document.getElementById('cms-edit-styles')) {
-                      const style = document.createElement('style');
-                      style.id = 'cms-edit-styles';
-                      style.textContent = \`
-                        .cms-section-overlay {
-                          position: absolute !important;
-                          top: 0 !important;
-                          left: 0 !important;
-                          right: 0 !important;
-                          bottom: 0 !important;
-                          border: 3px solid #FF6B35 !important;
-                          border-style: dashed !important;
-                          background: rgba(255, 107, 53, 0.1) !important;
-                          pointer-events: none !important;
-                          z-index: 999999 !important;
-                        }
-                        
-                        .cms-edit-btn {
-                          position: absolute !important;
-                          top: 15px !important;
-                          right: 15px !important;
-                          background: #FF6B35 !important;
-                          color: white !important;
-                          border: none !important;
-                          border-radius: 8px !important;
-                          padding: 12px 20px !important;
-                          font-size: 14px !important;
-                          font-weight: 700 !important;
-                          cursor: pointer !important;
-                          box-shadow: 0 4px 15px rgba(255, 107, 53, 0.5) !important;
-                          transition: all 0.3s ease !important;
-                          pointer-events: auto !important;
-                          z-index: 1000000 !important;
-                          display: flex !important;
-                          align-items: center !important;
-                          gap: 8px !important;
-                          min-width: 120px !important;
-                          justify-content: center !important;
-                        }
-                        
-                        .cms-edit-btn:hover {
-                          background: #E55A2B !important;
-                          transform: translateY(-3px) scale(1.05) !important;
-                          box-shadow: 0 6px 25px rgba(255, 107, 53, 0.7) !important;
-                        }
-                        
-                        .cms-section-label {
-                          position: absolute !important;
-                          top: 15px !important;
-                          left: 15px !important;
-                          background: #FF6B35 !important;
-                          color: white !important;
-                          padding: 8px 12px !important;
-                          border-radius: 6px !important;
-                          font-size: 12px !important;
-                          font-weight: 700 !important;
-                          text-transform: uppercase !important;
-                          z-index: 1000000 !important;
-                          box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
-                        }
-                      \`;
-                      document.head.appendChild(style);
+          {/* Always show edit buttons - no conditional rendering */}
+          <script dangerouslySetInnerHTML={{
+            __html: `
+              // ALWAYS run - no conditions
+              function addSectionEditButtons() {
+                console.log('🔧 CMS: Adding section edit buttons...');
+                
+                // Remove existing buttons
+                document.querySelectorAll('.section-edit-overlay, .section-edit-btn').forEach(el => el.remove());
+                
+                // Add styles - make them super prominent
+                if (!document.getElementById('section-edit-styles')) {
+                  const style = document.createElement('style');
+                  style.id = 'section-edit-styles';
+                  style.textContent = \`
+                    .section-edit-overlay {
+                      position: absolute !important;
+                      top: 0 !important;
+                      left: 0 !important;
+                      right: 0 !important;
+                      bottom: 0 !important;
+                      border: 3px solid #3B82F6 !important;
+                      border-style: solid !important;
+                      background: rgba(59, 130, 246, 0.05) !important;
+                      pointer-events: none !important;
+                      z-index: 10000 !important;
                     }
                     
-                    // Find ALL sections - cast a wide net
-                    const selectors = [
-                      '.mxd-section',
-                      'section', 
-                      '[class*="section"]',
-                      '.mxd-hero-section',
-                      '.nad-cta',
-                      '.tkd-cta',
-                      '[class*="hero"]',
-                      '[class*="about"]',
-                      '[class*="service"]',
-                      '[class*="project"]',
-                      '[class*="gallery"]',
-                      '[class*="contact"]',
-                      '[class*="testimonial"]',
-                      'main > div',
-                      '[class*="padding"]'
-                    ];
+                    .section-edit-btn {
+                      position: absolute !important;
+                      top: 50% !important;
+                      left: 50% !important;
+                      transform: translate(-50%, -50%) !important;
+                      background: #3B82F6 !important;
+                      color: white !important;
+                      border: none !important;
+                      border-radius: 12px !important;
+                      padding: 16px 32px !important;
+                      font-size: 16px !important;
+                      font-weight: 700 !important;
+                      cursor: pointer !important;
+                      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4) !important;
+                      transition: all 0.3s ease !important;
+                      pointer-events: auto !important;
+                      z-index: 10001 !important;
+                      display: flex !important;
+                      align-items: center !important;
+                      gap: 10px !important;
+                      min-width: 200px !important;
+                      justify-content: center !important;
+                      opacity: 0.9 !important;
+                    }
                     
-                    let sectionCounter = 0;
+                    .section-edit-btn:hover {
+                      background: #2563EB !important;
+                      transform: translate(-50%, -50%) scale(1.1) !important;
+                      opacity: 1 !important;
+                      box-shadow: 0 12px 35px rgba(59, 130, 246, 0.6) !important;
+                    }
                     
-                    selectors.forEach(selector => {
-                      document.querySelectorAll(selector).forEach((section) => {
-                        // Skip admin elements and already processed sections
-                        if (section.closest('.ml-64') || 
-                            section.querySelector('.cms-edit-btn') ||
-                            section.classList.contains('processed-cms-section')) {
-                          return;
+                    .section-title-label {
+                      position: absolute !important;
+                      top: 10px !important;
+                      left: 10px !important;
+                      background: #3B82F6 !important;
+                      color: white !important;
+                      padding: 8px 16px !important;
+                      border-radius: 8px !important;
+                      font-size: 14px !important;
+                      font-weight: 600 !important;
+                      z-index: 10001 !important;
+                      box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+                    }
+                  \`;
+                  document.head.appendChild(style);
+                }
+                
+                // Find sections - be more specific to avoid too many
+                const mainSelectors = [
+                  '.mxd-section',
+                  '.nad-cta', 
+                  '.tkd-cta',
+                  'section'
+                ];
+                
+                let sectionCount = 0;
+                
+                mainSelectors.forEach(selector => {
+                  document.querySelectorAll(selector).forEach((section) => {
+                    // Skip admin areas and already processed
+                    if (section.closest('.ml-64') || 
+                        section.querySelector('.section-edit-btn') ||
+                        section.classList.contains('cms-processed')) {
+                      return;
+                    }
+                    
+                    section.classList.add('cms-processed');
+                    sectionCount++;
+                    
+                    // Make section relative
+                    section.style.position = section.style.position || 'relative';
+                    
+                    // Determine section name from content
+                    let sectionName = 'Section ' + sectionCount;
+                    const content = section.textContent?.toLowerCase() || '';
+                    
+                    if (content.includes('book') && content.includes('demo')) {
+                      sectionName = 'Demo Booking';
+                    } else if (content.includes('login') || content.includes('register')) {
+                      sectionName = 'Login/Register';
+                    } else if (content.includes('dance') || content.includes('music') || section.className.includes('hero')) {
+                      sectionName = 'Hero Section';
+                    } else if (section.className.includes('cta') || content.includes('demo')) {
+                      sectionName = 'Call to Action';
+                    } else if (content.includes('about')) {
+                      sectionName = 'About Section';
+                    } else if (content.includes('service')) {
+                      sectionName = 'Services';
+                    } else if (content.includes('project') || content.includes('portfolio')) {
+                      sectionName = 'Projects';
+                    } else if (content.includes('contact')) {
+                      sectionName = 'Contact';
+                    }
+                    
+                    // Create overlay
+                    const overlay = document.createElement('div');
+                    overlay.className = 'section-edit-overlay';
+                    
+                    // Create title label
+                    const titleLabel = document.createElement('div');
+                    titleLabel.className = 'section-title-label';
+                    titleLabel.textContent = sectionName;
+                    
+                    // Create edit button
+                    const editButton = document.createElement('button');
+                    editButton.className = 'section-edit-btn';
+                    editButton.innerHTML = '✏️ Edit ' + sectionName;
+                    
+                    // Click handler
+                    editButton.addEventListener('click', function(e) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      
+                      // Trigger modal
+                      window.dispatchEvent(new CustomEvent('editSection', {
+                        detail: {
+                          sectionId: 'section-' + sectionCount,
+                          sectionName: sectionName,
+                          element: section
                         }
-                        
-                        // Mark as processed
-                        section.classList.add('processed-cms-section');
-                        sectionCounter++;
-                        
-                        // Make section relative if not already positioned
-                        const computedStyle = getComputedStyle(section);
-                        if (computedStyle.position === 'static') {
-                          section.style.position = 'relative';
-                        }
-                        
-                        // Determine section name
-                        let sectionName = 'Section ' + sectionCounter;
-                        if (section.className.includes('hero') || section.textContent?.toLowerCase().includes('dance') || section.textContent?.toLowerCase().includes('music')) {
-                          sectionName = 'Hero Section';
-                        } else if (section.className.includes('cta') || section.textContent?.toLowerCase().includes('demo') || section.textContent?.toLowerCase().includes('login')) {
-                          sectionName = 'CTA Section';
-                        } else if (section.className.includes('about') || section.textContent?.toLowerCase().includes('about')) {
-                          sectionName = 'About Section';
-                        } else if (section.className.includes('service') || section.textContent?.toLowerCase().includes('service')) {
-                          sectionName = 'Services Section';
-                        } else if (section.className.includes('project') || section.id === 'projects') {
-                          sectionName = 'Projects Section';
-                        } else if (section.className.includes('contact') || section.textContent?.toLowerCase().includes('contact')) {
-                          sectionName = 'Contact Section';
-                        }
-                        
-                        // Create section overlay
-                        const overlay = document.createElement('div');
-                        overlay.className = 'cms-section-overlay';
-                        
-                        // Create section label
-                        const label = document.createElement('div');
-                        label.className = 'cms-section-label';
-                        label.textContent = sectionName;
-                        
-                        // Create edit button
-                        const editBtn = document.createElement('button');
-                        editBtn.className = 'cms-edit-btn';
-                        editBtn.innerHTML = '✏️ EDIT ' + sectionName.toUpperCase();
-                        
-                        // Add click handler
-                        editBtn.addEventListener('click', function(e) {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          
-                          // Dispatch edit event
-                          window.dispatchEvent(new CustomEvent('editSection', {
-                            detail: {
-                              sectionId: 'section-' + sectionCounter,
-                              sectionName: sectionName,
-                              element: section
-                            }
-                          }));
-                        });
-                        
-                        // Add elements to section
-                        section.appendChild(overlay);
-                        section.appendChild(label);
-                        section.appendChild(editBtn);
-                      });
+                      }));
                     });
                     
-                    console.log('🎯 CMS: Added edit buttons to', sectionCounter, 'sections');
-                  }
-                  
-                  // Run the function immediately
-                  addEditButtons();
-                  
-                  // Run again after a delay to catch dynamically loaded content
-                  setTimeout(addEditButtons, 500);
-                  setTimeout(addEditButtons, 1500);
-                  setTimeout(addEditButtons, 3000);
-                  
-                  // Also run when the page loads completely
-                  window.addEventListener('load', addEditButtons);
-                  
-                  console.log('🚀 CMS: Edit button system initialized');
-                `
-              }} />
-            </>
-          )}
+                    // Add to section
+                    section.appendChild(overlay);
+                    section.appendChild(titleLabel);
+                    section.appendChild(editButton);
+                  });
+                });
+                
+                console.log('✅ CMS: Added edit buttons to', sectionCount, 'sections');
+              }
+              
+              // Run immediately
+              addSectionEditButtons();
+              
+              // Run multiple times to catch dynamic content
+              setTimeout(addSectionEditButtons, 1000);
+              setTimeout(addSectionEditButtons, 2000);
+              setTimeout(addSectionEditButtons, 4000);
+            `
+          }} />
 
           {/* Expose handler to global scope */}
           <script dangerouslySetInnerHTML={{
@@ -420,16 +346,17 @@ const SimpleHomepageCMS: React.FC = () => {
         </div>
       </div>
 
-      {/* Edit Modal */}
+      {/* FULL WIDTH Edit Modal */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg w-full max-w-2xl m-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-full max-w-6xl mx-4 my-4 max-h-[95vh] overflow-y-auto shadow-2xl">
             <div className="p-6 border-b">
               <h3 className="text-lg font-semibold">Edit {getSectionTitle(selectedElement || '')}</h3>
               <p className="text-gray-600 text-sm mt-1">Update text, images, or videos for this section</p>
             </div>
             
-            <div className="p-6 space-y-6">
+            <div className="p-8 space-y-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Text Content */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -530,26 +457,27 @@ const SimpleHomepageCMS: React.FC = () => {
                 </div>
               </div>
 
-              {/* YouTube URL */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  YouTube Video URL
-                </label>
-                <input
-                  type="url"
-                  placeholder="https://www.youtube.com/watch?v=..."
-                  value={tempContent.youtube || ''}
-                  onChange={(e) => setTempContent(prev => ({ ...prev, youtube: e.target.value }))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                {tempContent.youtube && (
-                  <div className="mt-2">
-                    <p className="text-sm text-gray-600 mb-2">Preview:</p>
-                    <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
-                      <span className="text-gray-500">YouTube Video Preview</span>
+                {/* YouTube URL */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    YouTube Video URL
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    value={tempContent.youtube || ''}
+                    onChange={(e) => setTempContent(prev => ({ ...prev, youtube: e.target.value }))}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  {tempContent.youtube && (
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-600 mb-2">Preview:</p>
+                      <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+                        <span className="text-gray-500">YouTube Video Preview</span>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
             
