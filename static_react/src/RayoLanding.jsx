@@ -106,7 +106,7 @@ function buildCtaSection(onLoginClick) {
           <p class="nad-cta__text">Experience our teaching style with a complimentary session.</p>
         </div>
         <div class="nad-cta__actions nad-cta__actions--split">
-          <a class="nad-btn nad-btn--primary" href="/contact">Book Now</a>
+          <a class="nad-btn nad-btn--primary" href="/contact" data-action="enroll">Enroll Now</a>
         </div>
       </div>
       <div class="nad-cta__card auth">
@@ -116,12 +116,13 @@ function buildCtaSection(onLoginClick) {
         </div>
         <div class="nad-cta__actions nad-cta__actions--split">
           <a class="nad-btn nad-btn--dark" href="#" data-action="login">Login</a>
-          <a class="nad-btn nad-btn--ghost" href="/register">Register</a>
+          <a class="nad-btn nad-btn--ghost" href="/register" data-action="register">Register</a>
         </div>
       </div>
     </div>
   `;
 
+  // Handle Login button click
   const loginBtn = wrapper.querySelector('[data-action="login"]');
   if (loginBtn) {
     loginBtn.addEventListener("click", (e) => {
@@ -129,6 +130,31 @@ function buildCtaSection(onLoginClick) {
       if (typeof onLoginClick === "function") onLoginClick();
     });
   }
+
+  // Handle Enroll Now button click - navigate using React Router
+  const enrollBtn = wrapper.querySelector('[data-action="enroll"]');
+  if (enrollBtn) {
+    enrollBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      // Use React Router navigation instead of direct href
+      window.history.pushState({}, '', '/contact');
+      const navEvent = new PopStateEvent('popstate');
+      window.dispatchEvent(navEvent);
+    });
+  }
+
+  // Handle Register button click - navigate using React Router
+  const registerBtn = wrapper.querySelector('[data-action="register"]');
+  if (registerBtn) {
+    registerBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      // Use React Router navigation instead of direct href
+      window.history.pushState({}, '', '/register');
+      const navEvent = new PopStateEvent('popstate');
+      window.dispatchEvent(navEvent);
+    });
+  }
+
   return wrapper;
 }
 
@@ -183,6 +209,37 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
               el.style.opacity = '1';
             });
           }
+
+          // Handle any existing login/register buttons in the static HTML
+          const staticLoginButtons = document.querySelectorAll('a[href*="/login"], a[href*="/admin/login"]');
+          staticLoginButtons.forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+              e.preventDefault();
+              if (typeof onLoginClick === "function") onLoginClick();
+            });
+          });
+
+          // Handle register buttons
+          const staticRegisterButtons = document.querySelectorAll('a[href*="/register"]');
+          staticRegisterButtons.forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+              e.preventDefault();
+              window.history.pushState({}, '', '/register');
+              const navEvent = new PopStateEvent('popstate');
+              window.dispatchEvent(navEvent);
+            });
+          });
+
+          // Handle contact/enroll buttons
+          const staticContactButtons = document.querySelectorAll('a[href*="/contact"]');
+          staticContactButtons.forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+              e.preventDefault();
+              window.history.pushState({}, '', '/contact');
+              const navEvent = new PopStateEvent('popstate');
+              window.dispatchEvent(navEvent);
+            });
+          });
 
           // Initialize theme from localStorage and hook the switcher
           const applyTheme = (theme) => {
