@@ -158,241 +158,27 @@ function buildCtaSection(onLoginClick) {
   return wrapper;
 }
 
-// Function to fetch CMS content and update the HTML  
-async function fetchAndInjectCMSContent(containerElement) {
-  try {
-    // Early return if containerElement is not available
-    if (!containerElement) {
-      console.log('Container element not available for CMS content injection');
-      return;
-    }
-
-    // First check for locally saved content (only in browser)
-    let sections = [];
-    
-    if (typeof window !== 'undefined' && typeof sessionStorage !== 'undefined') {
-      // Try sessionStorage first (immediate updates)
-      try {
-        const sessionContent = sessionStorage.getItem('homepage-content');
-        if (sessionContent) {
-          sections = JSON.parse(sessionContent);
-          console.log('Loaded CMS content from session storage:', sections);
-        }
-      } catch (e) {
-        console.log('Failed to parse session content:', e);
-      }
-    }
-    
-    // Fallback to localStorage if no session content
-    if (!sections.length && typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-      try {
-        const localContent = localStorage.getItem('cms-sections');
-        if (localContent) {
-          sections = JSON.parse(localContent);
-          console.log('Loaded CMS content from local storage:', sections);
-        }
-      } catch (e) {
-        console.log('Failed to parse local content:', e);
-      }
-    }
-    
-    // If no local content available, use static content
-    if (!sections.length) {
-      console.log('No local CMS content available, using static content');
-      return;
-    }
-
-    // Update sections with CMS content
-    sections.forEach(section => {
-      const sectionId = section.id;
-      
-      // Update Hero Section
-      if (sectionId === 'hero') {
-        // Update hero title in multiple possible locations
-        const heroTitles = containerElement.querySelectorAll('.intro-title, .hero-title, h1, .banner h1, .banner-title');
-        heroTitles.forEach(title => {
-          if (title && section.title) {
-            title.textContent = section.title;
-          }
-        });
-        
-        // Update hero text/content in multiple possible locations
-        const heroTexts = containerElement.querySelectorAll('.intro-text, .hero-text, .hero-subtitle, .banner p, .banner-text');
-        heroTexts.forEach(text => {
-          if (text && section.content) {
-            text.textContent = section.content;
-          }
-        });
-        
-        // Update hero background image if available
-        if (section.imageUrl) {
-          const heroSections = containerElement.querySelectorAll('.intro, .hero, .banner, .hero-section');
-          heroSections.forEach(heroSection => {
-            if (heroSection) {
-              heroSection.style.backgroundImage = `url('${section.imageUrl}')`;
-              heroSection.style.backgroundSize = 'cover';
-              heroSection.style.backgroundPosition = 'center';
-            }
-          });
-        }
-      }
-      
-      // Update About Section
-      if (sectionId === 'about') {
-        const aboutTitles = containerElement.querySelectorAll('[data-section="about"] .section-title, .about-title, .about h2, .about h3');
-        aboutTitles.forEach(title => {
-          if (title && section.title) {
-            title.textContent = section.title;
-          }
-        });
-        
-        const aboutTexts = containerElement.querySelectorAll('[data-section="about"] .section-text, .about-text, .about p');
-        aboutTexts.forEach(text => {
-          if (text && section.content) {
-            text.innerHTML = section.content;
-          }
-        });
-        
-        // Update about image
-        if (section.imageUrl) {
-          const aboutImgs = containerElement.querySelectorAll('[data-section="about"] img, .about-image, .about img');
-          aboutImgs.forEach(img => {
-            if (img) {
-              img.src = section.imageUrl;
-              img.alt = section.title || 'About us';
-            }
-          });
-        }
-      }
-      
-      // Update Programs Section
-      if (sectionId === 'programs') {
-        const programTitles = containerElement.querySelectorAll('[data-section="programs"] .section-title, .programs-title, .programs h2, .programs h3');
-        programTitles.forEach(title => {
-          if (title && section.title) {
-            title.textContent = section.title;
-          }
-        });
-        
-        const programTexts = containerElement.querySelectorAll('[data-section="programs"] .section-text, .programs-text, .programs p');
-        programTexts.forEach(text => {
-          if (text && section.content) {
-            text.innerHTML = section.content;
-          }
-        });
-        
-        if (section.imageUrl) {
-          const programImgs = containerElement.querySelectorAll('[data-section="programs"] img, .programs-image, .programs img');
-          programImgs.forEach(img => {
-            if (img) {
-              img.src = section.imageUrl;
-              img.alt = section.title || 'Programs';
-            }
-          });
-        }
-      }
-      
-      // Update Contact Section
-      if (sectionId === 'contact') {
-        const contactTitles = containerElement.querySelectorAll('[data-section="contact"] .section-title, .contact-title, .contact h2, .contact h3');
-        contactTitles.forEach(title => {
-          if (title && section.title) {
-            title.textContent = section.title;
-          }
-        });
-        
-        const contactTexts = containerElement.querySelectorAll('[data-section="contact"] .section-text, .contact-text, .contact p');
-        contactTexts.forEach(text => {
-          if (text && section.content) {
-            text.innerHTML = section.content;
-          }
-        });
-        
-        if (section.imageUrl) {
-          const contactImgs = containerElement.querySelectorAll('[data-section="contact"] img, .contact-image, .contact img');
-          contactImgs.forEach(img => {
-            if (img) {
-              img.src = section.imageUrl;
-              img.alt = section.title || 'Contact';
-            }
-          });
-        }
-      }
-    });
-
-    console.log('CMS content successfully injected into homepage');
-  } catch (error) {
-    console.error('Error loading CMS content:', error);
-    // Continue with static content if CMS fails
-  }
-}
 
 export default function RayoLanding({ htmlPath = "/static/index.html", onLoginClick, user = null, onLogout = () => {} }) {
   const containerRef = useRef(null);
   const [error, setError] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
-    setIsLoading(true);
-
-    console.log('RayoLanding: Starting to load homepage...');
-    
-    // Ensure CSS is loaded
-    try {
-      ensureCssInjected();
-    } catch (err) {
-      console.error('CSS injection failed:', err);
-    }
+    ensureCssInjected();
 
     // Fetch the prototype HTML and inject the body markup
     fetch(htmlPath, { credentials: "same-origin" })
       .then((res) => {
-        console.log('HTML fetch response:', res.status);
         if (!res.ok) throw new Error(`Failed to load HTML: ${res.status}`);
         return res.text();
       })
       .then((htmlText) => {
         if (!mounted) return;
-        console.log('HTML content received, length:', htmlText.length);
-        
         const bodyHtml = extractBodyHtml(htmlText);
         if (containerRef.current) {
           containerRef.current.innerHTML = bodyHtml;
-          console.log('HTML injected into container');
           
-          // Inject CMS content after HTML is loaded (safely)
-          try {
-            fetchAndInjectCMSContent(containerRef.current);
-          } catch (error) {
-            console.log('CMS content injection failed, continuing with static content:', error);
-          }
-          
-          setIsLoading(false);
-          
-          // Listen for real-time CMS updates (only in browser)
-          if (typeof window !== 'undefined') {
-            const handleCMSUpdate = (event) => {
-              console.log('Received CMS update event:', event.detail);
-              if (containerRef.current && event.detail.sections) {
-                try {
-                  sessionStorage.setItem('homepage-content', JSON.stringify(event.detail.sections));
-                  fetchAndInjectCMSContent(containerRef.current);
-                } catch (err) {
-                  console.error('CMS update failed:', err);
-                }
-              }
-            };
-            
-            window.addEventListener('cms-content-updated', handleCMSUpdate);
-            
-            // Cleanup function
-            return () => {
-              if (typeof window !== 'undefined') {
-                window.removeEventListener('cms-content-updated', handleCMSUpdate);
-              }
-            };
-          }
         }
         // Load required scripts once (libs then app)
         return loadScriptsSequentially(SCRIPT_SOURCES).then(() => {
@@ -592,11 +378,7 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
         });
       })
       .catch((e) => {
-        console.error('RayoLanding fetch error:', e);
-        if (mounted) {
-          setError(e.message || String(e));
-          setIsLoading(false);
-        }
+        if (mounted) setError(e.message || String(e));
       });
 
     return () => {
@@ -649,36 +431,5 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
   }
 
   // We render into a div container. Scripts are loaded via useEffect.
-  // Show loading indicator while content is loading
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading homepage...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show error if there's an error
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="text-red-600 text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Loading Error</h2>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Reload Page
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return <div ref={containerRef} data-rayo-container />;
 }
