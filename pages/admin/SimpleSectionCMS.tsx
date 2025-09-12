@@ -7,6 +7,7 @@ import { getHomepageSections, updateSectionContent, approveSectionContent, rejec
 const SimpleSectionCMS: React.FC = () => {
   const [sections, setSections] = useState<CMSSection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [editingSection, setEditingSection] = useState<CMSSection | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -21,9 +22,27 @@ const SimpleSectionCMS: React.FC = () => {
       setLoading(true);
       const data = await getHomepageSections();
       setSections(data);
+      setError(null); // Clear any previous errors
     } catch (error) {
       console.error('Error loading sections:', error);
-      alert('Failed to load sections. Please check your database connection.');
+      setError('Failed to load sections. Please check your database connection.');
+      // Set default sections if database fails
+      setSections([
+        {
+          id: 'temp-hero',
+          section_key: 'hero-main',
+          section_type: 'hero',
+          name: 'Hero Section',
+          description: 'Main hero section',
+          title: 'Dance, Draw and Fine Arts',
+          body_content: 'Nurturing creativity through traditional and contemporary artistic expression at Nadanaloga Fine Arts Academy.',
+          image_url: '/images/hero-bg.jpg',
+          status: 'published',
+          order_index: 1,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ]);
     } finally {
       setLoading(false);
     }

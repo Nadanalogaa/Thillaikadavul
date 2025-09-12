@@ -3400,56 +3400,114 @@ export const rejectSectionContent = async (sectionId: string): Promise<void> => 
 // Get homepage sections for homepage display
 export const getHomepageSections = async (): Promise<CMSSection[]> => {
   try {
-    const response = await fetch('/api/homepage-sections', {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
-    });
+    // Try to get sections directly from database
+    const { data: sections, error: sectionsError } = await supabase
+      .from('homepage_sections')
+      .select('*')
+      .eq('is_active', true)
+      .order('order_index');
 
-    if (!response.ok) {
-      // Fallback to database query if API endpoint doesn't exist
-      const { data: sections, error: sectionsError } = await supabase
-        .from('homepage_sections')
-        .select('*')
-        .eq('is_active', true)
-        .order('order_index');
-
-      if (sectionsError) throw sectionsError;
-
-      const { data: contentBlocks, error: contentError } = await supabase
-        .from('section_content_blocks')
-        .select('*')
-        .eq('status', 'published')
-        .eq('is_current_version', true);
-
-      if (contentError) throw contentError;
-
-      // Join sections with their content
-      const sectionsWithContent = sections?.map(section => {
-        const content = contentBlocks?.find(block => block.section_id === section.id);
-        return {
-          id: section.id,
-          section_key: section.section_key,
-          section_type: section.section_type,
-          name: section.name,
-          description: section.description,
-          title: content?.title || section.name,
-          body_content: content?.body_content || '',
-          image_url: content?.rich_content?.image_url || '',
-          status: content?.status || 'draft',
-          order_index: section.order_index,
-          created_at: section.created_at,
-          updated_at: content?.updated_at || section.updated_at
-        };
-      }) || [];
-
-      return sectionsWithContent;
+    if (sectionsError) {
+      console.warn('Homepage sections table not found or no data:', sectionsError);
+      // Return default sections if database tables don't exist yet
+      return [
+        {
+          id: 'temp-hero',
+          section_key: 'hero-main',
+          section_type: 'hero',
+          name: 'Hero Section',
+          description: 'Main hero section',
+          title: 'Dance, Draw and Fine Arts',
+          body_content: 'Nurturing creativity through traditional and contemporary artistic expression at Nadanaloga Fine Arts Academy.',
+          image_url: '/images/hero-bg.jpg',
+          status: 'published',
+          order_index: 1,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          id: 'temp-about',
+          section_key: 'about-academy',
+          section_type: 'about',
+          name: 'About Academy',
+          description: 'About section',
+          title: 'About Our Academy',
+          body_content: 'We are a premier fine arts academy dedicated to offering comprehensive training in Bharatanatyam classical dance, Carnatic vocal music, drawing & painting, and Abacus mathematics.',
+          image_url: '/images/about-academy.jpg',
+          status: 'published',
+          order_index: 2,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ];
     }
 
-    const data = await response.json();
-    return data;
+    if (!sections || sections.length === 0) {
+      // Return default sections if no data exists
+      return [
+        {
+          id: 'temp-hero',
+          section_key: 'hero-main',
+          section_type: 'hero',
+          name: 'Hero Section',
+          description: 'Main hero section',
+          title: 'Dance, Draw and Fine Arts',
+          body_content: 'Nurturing creativity through traditional and contemporary artistic expression at Nadanaloga Fine Arts Academy.',
+          image_url: '/images/hero-bg.jpg',
+          status: 'published',
+          order_index: 1,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ];
+    }
+
+    // Get content blocks for the sections
+    const { data: contentBlocks } = await supabase
+      .from('section_content_blocks')
+      .select('*')
+      .eq('status', 'published')
+      .eq('is_current_version', true);
+
+    // Join sections with their content
+    const sectionsWithContent = sections.map(section => {
+      const content = contentBlocks?.find(block => block.section_id === section.id);
+      return {
+        id: section.id,
+        section_key: section.section_key,
+        section_type: section.section_type,
+        name: section.name,
+        description: section.description,
+        title: content?.title || section.name,
+        body_content: content?.body_content || '',
+        image_url: content?.rich_content?.image_url || '',
+        status: content?.status || 'published',
+        order_index: section.order_index,
+        created_at: section.created_at,
+        updated_at: content?.updated_at || section.updated_at
+      };
+    });
+
+    return sectionsWithContent;
   } catch (error) {
     console.error('Error fetching homepage sections:', error);
-    throw error;
+    // Return default sections as fallback
+    return [
+      {
+        id: 'temp-hero',
+        section_key: 'hero-main',
+        section_type: 'hero',
+        name: 'Hero Section',
+        description: 'Main hero section',
+        title: 'Dance, Draw and Fine Arts',
+        body_content: 'Nurturing creativity through traditional and contemporary artistic expression at Nadanaloga Fine Arts Academy.',
+        image_url: '/images/hero-bg.jpg',
+        status: 'published',
+        order_index: 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+    ];
   }
 };
 
