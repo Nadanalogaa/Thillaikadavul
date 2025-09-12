@@ -3147,3 +3147,226 @@ export const deleteMediaItem = async (id: string): Promise<void> => {
     throw error;
   }
 };
+
+// CMS API Functions for Homepage Content Management
+export interface CMSSection {
+  id: string;
+  section_key: string;
+  name: string;
+  title: string;
+  description: string;
+  body_content: string;
+  image_url?: string;
+  status: 'draft' | 'pending' | 'published';
+  order_index: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Get all homepage sections with their content
+export const getHomepageSections = async (): Promise<CMSSection[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('homepage_sections')
+      .select(`
+        id,
+        section_key,
+        name,
+        description,
+        order_index,
+        section_content_blocks(
+          id,
+          title,
+          description,
+          body_content,
+          rich_content,
+          status,
+          created_at,
+          updated_at
+        )
+      `)
+      .order('order_index', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching homepage sections:', error);
+      throw error;
+    }
+
+    // Map the data to our interface
+    return (data || []).map((section: any) => {
+      const latestContent = section.section_content_blocks?.find((block: any) => block.status === 'published') 
+                           || section.section_content_blocks?.[0] 
+                           || {};
+      return {
+        id: section.id,
+        section_key: section.section_key,
+        name: section.name,
+        title: latestContent.title || section.name,
+        description: section.description || '',
+        body_content: latestContent.body_content || latestContent.description || '',
+        image_url: latestContent.rich_content?.image_url || '',
+        status: latestContent.status || 'draft',
+        order_index: section.order_index,
+        created_at: latestContent.created_at,
+        updated_at: latestContent.updated_at
+      };
+    });
+  } catch (error) {
+    console.error('Error in getHomepageSections:', error);
+    throw error;
+  }
+};
+
+// Update section content
+export const updateSectionContent = async (sectionId: string, updates: {
+  title?: string;
+  body_content?: string;
+  image_url?: string;
+}): Promise<CMSSection> => {
+  try {
+    const user = await getCurrentUser();
+    if (!user) throw new Error('User not authenticated');
+
+    // Insert new content block (versioned)
+    const { data, error } = await supabase
+      .from('section_content_blocks')
+      .insert({
+        section_id: sectionId,
+        title: updates.title,
+        description: updates.body_content,
+        body_content: updates.body_content,
+        rich_content: {
+          image_url: updates.image_url
+        },
+        status: 'pending',
+        created_by: user.id,
+        updated_by: user.id
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating section content:', error);
+      throw error;
+    }
+
+    return {
+      id: sectionId,
+      section_key: '',
+      name: '',
+      title: data.title || '',
+      description: '',
+      body_content: data.body_content || data.description || '',
+      image_url: data.rich_content?.image_url || '',
+      status: data.status,
+      order_index: 0,
+      created_at: data.created_at,
+      updated_at: data.updated_at
+    };
+  } catch (error) {
+    console.error('Error in updateSectionContent:', error);
+    throw error;
+  }
+};
+
+// Approve section content
+export const approveSectionContent = async (sectionId: string): Promise<void> => {
+  try {
+    const user = await getCurrentUser();
+    if (!user || user.role !== 'Admin') {
+      throw new Error('Insufficient permissions');
+    }
+
+    // Find the latest pending content for this section
+    const { data: contentBlocks, error: fetchError } = await supabase
+      .from('section_content_blocks')
+      .select('id')
+      .eq('section_id', sectionId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (fetchError) throw fetchError;
+    if (!contentBlocks || contentBlocks.length === 0) {
+      throw new Error('No pending content found for this section');
+    }
+
+    // Update status to published
+    const { error } = await supabase
+      .from('section_content_blocks')
+      .update({
+        status: 'published',
+        updated_by: user.id,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', contentBlocks[0].id);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error in approveSectionContent:', error);
+    throw error;
+  }
+};
+
+// Reject section content
+export const rejectSectionContent = async (sectionId: string): Promise<void> => {
+  try {
+    const user = await getCurrentUser();
+    if (!user || user.role !== 'Admin') {
+      throw new Error('Insufficient permissions');
+    }
+
+    // Find the latest pending content for this section
+    const { data: contentBlocks, error: fetchError } = await supabase
+      .from('section_content_blocks')
+      .select('id')
+      .eq('section_id', sectionId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (fetchError) throw fetchError;
+    if (!contentBlocks || contentBlocks.length === 0) {
+      throw new Error('No pending content found for this section');
+    }
+
+    // Update status to draft
+    const { error } = await supabase
+      .from('section_content_blocks')
+      .update({
+        status: 'draft',
+        updated_by: user.id,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', contentBlocks[0].id);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error in rejectSectionContent:', error);
+    throw error;
+  }
+};
+
+// Upload file to local server
+export const uploadFile = async (file: File): Promise<string> => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_URL}/cms/media/upload`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      throw new Error('Upload failed');
+    }
+
+    const result = await response.json();
+    return result.url; // Returns the local file URL
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    throw error;
+  }
+};
