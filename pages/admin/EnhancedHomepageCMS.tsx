@@ -48,6 +48,8 @@ const EnhancedHomepageCMS: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editData, setEditData] = useState<EditModalData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [iframeLoading, setIframeLoading] = useState(true);
+  const [iframeError, setIframeError] = useState(false);
   const [activeTab, setActiveTab] = useState<'content' | 'images' | 'icons' | 'media'>('content');
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -344,9 +346,38 @@ const EnhancedHomepageCMS: React.FC = () => {
   };
 
   const handleIframeLoad = () => {
+    const iframe = iframeRef.current;
+    if (!iframe || !iframe.contentDocument) {
+      setIframeError(true);
+      setIframeLoading(false);
+      return;
+    }
+    
+    setIframeError(false);
+    
+    // Wait for React components to fully render
     setTimeout(() => {
-      injectEditButtons();
-    }, 1000);
+      // Check if the homepage content is fully loaded
+      const checkContentLoaded = () => {
+        if (!iframe.contentDocument) return;
+        
+        const mainContent = iframe.contentDocument.querySelector('.mxd-page-content, main, #root, body');
+        if (mainContent && (mainContent.children.length > 0 || mainContent.textContent?.trim())) {
+          injectEditButtons();
+          setIframeLoading(false);
+        } else {
+          // Retry after a short delay if content isn't loaded yet
+          setTimeout(checkContentLoaded, 500);
+        }
+      };
+      
+      checkContentLoaded();
+    }, 1500); // Increased delay to ensure React components load
+  };
+
+  const handleIframeError = () => {
+    setIframeError(true);
+    setIframeLoading(false);
   };
 
   const addMediaItem = () => {
@@ -812,7 +843,17 @@ const EnhancedHomepageCMS: React.FC = () => {
                   <input
                     type="file"
                     accept={mediaItem.type === 'image' ? 'image/*' : 'video/*'}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const fileUrl = URL.createObjectURL(file);
+                        updateMediaItem(mediaItem.id, { 
+                          url: fileUrl,
+                          thumbnail: mediaItem.type === 'image' ? fileUrl : undefined
+                        });
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                   />
                   <input
                     type="url"
@@ -839,16 +880,17 @@ const EnhancedHomepageCMS: React.FC = () => {
 
           {mediaItem.url && (
             <div className="mt-4">
-              <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Preview</label>
+              <div className="w-32 h-24 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
                 {mediaItem.type === 'youtube' ? (
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Youtube className="w-6 h-6" />
-                    <span>YouTube Video Preview</span>
+                  <div className="flex flex-col items-center gap-1 text-gray-600">
+                    <Youtube className="w-5 h-5" />
+                    <span className="text-xs">YouTube</span>
                   </div>
                 ) : mediaItem.type === 'video' ? (
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Play className="w-6 h-6" />
-                    <span>Video Preview</span>
+                  <div className="flex flex-col items-center gap-1 text-gray-600">
+                    <Play className="w-5 h-5" />
+                    <span className="text-xs">Video</span>
                   </div>
                 ) : (
                   <img
@@ -927,12 +969,50 @@ const EnhancedHomepageCMS: React.FC = () => {
             </div>
             
             <div className="relative" style={{ height: '80vh' }}>
+              {/* Loading Overlay */}
+              {iframeLoading && (
+                <div className="absolute inset-0 bg-gray-50 flex items-center justify-center z-10">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading homepage preview...</p>
+                    <p className="text-sm text-gray-500 mt-2">This may take a few seconds</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Error State */}
+              {iframeError && (
+                <div className="absolute inset-0 bg-gray-50 flex items-center justify-center z-10">
+                  <div className="text-center p-8">
+                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <X className="w-8 h-8 text-red-600" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to load homepage</h3>
+                    <p className="text-gray-600 mb-4">Unable to load the homepage preview.</p>
+                    <button
+                      onClick={() => {
+                        setIframeError(false);
+                        setIframeLoading(true);
+                        if (iframeRef.current) {
+                          iframeRef.current.src = iframeRef.current.src; // Reload iframe
+                        }
+                      }}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <iframe
                 ref={iframeRef}
-                src="/static/index.html"
+                src="/"
                 className="w-full h-full border-0"
                 onLoad={handleIframeLoad}
+                onError={handleIframeError}
                 title="Homepage Preview"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
               />
             </div>
           </div>
