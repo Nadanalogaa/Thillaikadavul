@@ -1,48 +1,61 @@
 -- Step 1: Database Inspection Script
 -- Run this FIRST to see what exists in your database
 
--- Check if section_type enum exists and show its values
-SELECT 'section_type enum values:' as info;
-SELECT unnest(enum_range(NULL::section_type)) as section_type_values;
+DO $$
+BEGIN
+    -- Show section_type enum values if exists
+    IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'section_type') THEN
+        RAISE NOTICE 'section_type enum exists with values:';
+        -- Note: Individual enum values will be shown in query results below
+    ELSE
+        RAISE NOTICE 'section_type enum does NOT exist';
+    END IF;
+    
+    -- Show content_status enum values if exists
+    IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'content_status') THEN
+        RAISE NOTICE 'content_status enum exists with values:';
+    ELSE
+        RAISE NOTICE 'content_status enum does NOT exist';
+    END IF;
+    
+    -- Check tables
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'homepage_sections') THEN
+        RAISE NOTICE 'homepage_sections table EXISTS';
+    ELSE
+        RAISE NOTICE 'homepage_sections table does NOT exist';
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'section_content_blocks') THEN
+        RAISE NOTICE 'section_content_blocks table EXISTS';
+    ELSE
+        RAISE NOTICE 'section_content_blocks table does NOT exist';
+    END IF;
+    
+    RAISE NOTICE 'Database inspection complete. Review the query results below, then run step 2.';
+END $$;
 
--- Check if content_status enum exists and show its values  
-SELECT 'content_status enum values:' as info;
-SELECT unnest(enum_range(NULL::content_status)) as content_status_values;
+-- Show enum values (run these separately if tables exist)
+-- Uncomment the lines below if the enums exist:
 
--- Check if homepage_sections table exists
-SELECT 'homepage_sections table info:' as info;
-SELECT 
-    table_name,
-    column_name,
-    data_type,
-    is_nullable,
-    column_default
-FROM information_schema.columns 
-WHERE table_name = 'homepage_sections' 
-ORDER BY ordinal_position;
+-- SELECT unnest(enum_range(NULL::section_type)) as section_type_values;
+-- SELECT unnest(enum_range(NULL::content_status)) as content_status_values;
 
--- Check if section_content_blocks table exists
-SELECT 'section_content_blocks table info:' as info;
-SELECT 
-    table_name,
-    column_name,
-    data_type,
-    is_nullable,
-    column_default
-FROM information_schema.columns 
-WHERE table_name = 'section_content_blocks' 
-ORDER BY ordinal_position;
+-- Show table structure (run these if tables exist)
+-- Uncomment the lines below if the tables exist:
 
--- Count existing data
-SELECT 'Existing data counts:' as info;
-SELECT 
-    (SELECT COUNT(*) FROM homepage_sections) as sections_count,
-    (SELECT COUNT(*) FROM section_content_blocks) as content_blocks_count;
+-- SELECT column_name, data_type, is_nullable, column_default
+-- FROM information_schema.columns 
+-- WHERE table_name = 'homepage_sections' 
+-- ORDER BY ordinal_position;
 
--- Show existing sections if any
-SELECT 'Existing sections:' as info;
-SELECT id, section_key, section_type, name, is_active 
-FROM homepage_sections 
-ORDER BY order_index;
+-- SELECT column_name, data_type, is_nullable, column_default
+-- FROM information_schema.columns 
+-- WHERE table_name = 'section_content_blocks' 
+-- ORDER BY ordinal_position;
 
-RAISE NOTICE 'Database inspection complete. Review the results above before running step 2.';
+-- Show existing data (run these if tables exist)
+-- Uncomment the lines below if the tables exist:
+
+-- SELECT COUNT(*) as homepage_sections_count FROM homepage_sections;
+-- SELECT COUNT(*) as section_content_blocks_count FROM section_content_blocks;
+-- SELECT id, section_key, section_type, name, is_active FROM homepage_sections ORDER BY order_index;

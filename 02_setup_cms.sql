@@ -156,6 +156,7 @@ DO $$
 DECLARE
     sections_count INTEGER;
     content_count INTEGER;
+    section_info RECORD;
 BEGIN
     SELECT COUNT(*) INTO sections_count FROM homepage_sections;
     SELECT COUNT(*) INTO content_count FROM section_content_blocks;
@@ -168,9 +169,9 @@ BEGIN
     RAISE NOTICE 'Available sections:';
     
     -- List all sections
-    FOR section_record IN 
+    FOR section_info IN 
         SELECT section_key, name, section_type FROM homepage_sections ORDER BY order_index
     LOOP
-        RAISE NOTICE '  - % (%) - %', section_record.section_key, section_record.section_type, section_record.name;
+        RAISE NOTICE '  - % (%) - %', section_info.section_key, section_info.section_type, section_info.name;
     END LOOP;
 END $$;
