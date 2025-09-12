@@ -8,7 +8,8 @@
     "dev": "vite",
     "dev:full": "concurrently \"npm run start\" \"npm run dev\"",
     "build": "vite build --emptyOutDir",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "npm run build && npx --yes --cache=/tmp/.npm vercel --prod --yes"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

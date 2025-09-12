@@ -168,7 +168,7 @@ const UltraSimpleCMS: React.FC = () => {
   return (
     <div className="min-h-screen bg-white">
       <AdminNav />
-      <div className="ml-64">
+      <div >
         <AdminPageHeader 
           title="Ultra Simple CMS" 
           subtitle="Click ENTER EDIT MODE, then look for RED EDIT BUTTONS that appear next to each section"
