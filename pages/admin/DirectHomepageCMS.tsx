@@ -178,61 +178,108 @@ const DirectHomepageCMS: React.FC = () => {
     // Remove existing edit elements first
     removeEditElements();
 
-    const sections = [
-      { selector: '.mxd-header', type: 'mixed', title: 'Header Navigation', icon: '🧭' },
-      { selector: '.mxd-hero', type: 'mixed', title: 'Hero Section', icon: '🚀' },
-      { selector: '.nad-cta', type: 'text', title: 'Call-to-Action Cards', icon: '📢' },
-      { selector: '.mxd-about', type: 'mixed', title: 'About Section', icon: '📖' },
-      { selector: '.mxd-pinned-projects', type: 'mixed', title: 'Our Programs', icon: '🎯' },
-      { selector: '.mxd-stats-cards', type: 'mixed', title: 'Statistics', icon: '📊' },
-      { selector: '.mxd-testimonials', type: 'carousel', title: 'Testimonials', icon: '💬' },
-      { selector: '.mxd-gallery', type: 'carousel', title: 'Gallery', icon: '🖼️' },
-      { selector: '.mxd-features', type: 'mixed', title: 'Features', icon: '⭐' },
-      { selector: '.mxd-footer', type: 'mixed', title: 'Footer', icon: '🔗' }
-    ];
-
-    sections.forEach((section, index) => {
-      const element = document.querySelector(section.selector);
-      if (element) {
-        element.classList.add('cms-editable-section');
-        
-        const overlay = document.createElement('div');
-        overlay.className = 'cms-edit-overlay';
-        overlay.dataset.cmsElement = 'true';
-        
-        const indicator = document.createElement('div');
-        indicator.className = 'cms-section-indicator';
-        indicator.textContent = `${section.icon} ${section.title}`;
-        indicator.dataset.cmsElement = 'true';
-        
-        const editBtn = document.createElement('button');
-        editBtn.className = 'cms-edit-btn';
-        editBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>Edit`;
-        editBtn.dataset.cmsElement = 'true';
-        
-        editBtn.onclick = (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const sectionType = detectSectionType(element);
-          const content = extractSectionContent(element, sectionType);
-          
-          setEditData({
-            type: sectionType,
-            title: section.title,
-            content: element.textContent || '',
-            sectionId: section.selector,
-            elementId: `section-${index}`,
-            ...content
-          });
-          setShowEditModal(true);
-          setActiveTab(sectionType === 'carousel' ? 'media' : 'content');
-        };
-        
-        overlay.appendChild(indicator);
-        overlay.appendChild(editBtn);
-        element.appendChild(overlay);
+    // Wait a bit more for the RayoLanding component to fully render
+    setTimeout(() => {
+      const homepageContainer = document.getElementById('homepage-content');
+      if (!homepageContainer) {
+        console.log('Homepage container not found');
+        return;
       }
-    });
+
+      const sections = [
+        { selector: '.mxd-header', type: 'mixed', title: 'Header Navigation', icon: '🧭' },
+        { selector: '.mxd-hero', type: 'mixed', title: 'Hero Section', icon: '🚀' },
+        { selector: '.nad-cta', type: 'text', title: 'Call-to-Action Cards', icon: '📢' },
+        { selector: '.mxd-about', type: 'mixed', title: 'About Section', icon: '📖' },
+        { selector: '.mxd-pinned-projects', type: 'mixed', title: 'Our Programs', icon: '🎯' },
+        { selector: '.mxd-stats-cards', type: 'mixed', title: 'Statistics', icon: '📊' },
+        { selector: '.mxd-testimonials', type: 'carousel', title: 'Testimonials', icon: '💬' },
+        { selector: '.mxd-gallery', type: 'carousel', title: 'Gallery', icon: '🖼️' },
+        { selector: '.mxd-features', type: 'mixed', title: 'Features', icon: '⭐' },
+        { selector: '.mxd-footer', type: 'mixed', title: 'Footer', icon: '🔗' }
+      ];
+
+      let foundSections = 0;
+      sections.forEach((section, index) => {
+        // Search within the homepage container
+        const element = homepageContainer.querySelector(section.selector);
+        console.log(`Looking for ${section.selector}:`, element);
+        
+        if (element) {
+          foundSections++;
+          element.classList.add('cms-editable-section');
+          
+          const overlay = document.createElement('div');
+          overlay.className = 'cms-edit-overlay';
+          overlay.dataset.cmsElement = 'true';
+          
+          const indicator = document.createElement('div');
+          indicator.className = 'cms-section-indicator';
+          indicator.textContent = `${section.icon} ${section.title}`;
+          indicator.dataset.cmsElement = 'true';
+          
+          const editBtn = document.createElement('button');
+          editBtn.className = 'cms-edit-btn';
+          editBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>Edit`;
+          editBtn.dataset.cmsElement = 'true';
+          
+          editBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const sectionType = detectSectionType(element);
+            const content = extractSectionContent(element, sectionType);
+            
+            setEditData({
+              type: sectionType,
+              title: section.title,
+              content: element.textContent || '',
+              sectionId: section.selector,
+              elementId: `section-${index}`,
+              ...content
+            });
+            setShowEditModal(true);
+            setActiveTab(sectionType === 'carousel' ? 'media' : 'content');
+          };
+          
+          overlay.appendChild(indicator);
+          overlay.appendChild(editBtn);
+          element.appendChild(overlay);
+        }
+      });
+
+      console.log(`Found ${foundSections} sections out of ${sections.length}`);
+      
+      // If no sections found, let's try to find what elements are available
+      if (foundSections === 0) {
+        console.log('Available elements in homepage:', homepageContainer.querySelectorAll('*[class*="mxd"], *[class*="nad"]'));
+        
+        // Try to add edit buttons to any section-like elements we can find
+        const fallbackSections = homepageContainer.querySelectorAll('section, .section, [class*="section"], [class*="card"], [class*="hero"]');
+        fallbackSections.forEach((element, index) => {
+          if (!element.querySelector('.cms-edit-overlay')) {
+            element.classList.add('cms-editable-section');
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'cms-edit-overlay';
+            overlay.dataset.cmsElement = 'true';
+            
+            const editBtn = document.createElement('button');
+            editBtn.className = 'cms-edit-btn';
+            editBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z"/></svg>Edit Section`;
+            editBtn.dataset.cmsElement = 'true';
+            
+            editBtn.onclick = (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              alert(`Editing: ${element.className || 'Unknown Section'}`);
+            };
+            
+            overlay.appendChild(editBtn);
+            element.appendChild(overlay);
+          }
+        });
+      }
+    }, 2000); // Increased delay to ensure RayoLanding is fully loaded
   };
 
   const removeEditElements = () => {
@@ -571,7 +618,7 @@ const DirectHomepageCMS: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <AdminNav />
-      <div className="ml-64">
+      <div className="ml-64 relative">
         <AdminPageHeader 
           title="Homepage CMS" 
           subtitle="Direct editing mode - toggle edit mode to see edit buttons on homepage sections"
@@ -590,37 +637,30 @@ const DirectHomepageCMS: React.FC = () => {
           }
         />
         
-        <div className="p-8">
-          <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-            <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 border-b">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-700">
-                  <span className="font-medium">
-                    {isEditMode ? '✅ Edit Mode Active' : '⚪ Edit Mode Inactive'}:
-                  </span>
-                  {isEditMode 
-                    ? ' Hover over sections below to see edit options' 
-                    : ' Click "Enter Edit Mode" to start editing'
-                  }
-                </p>
-                <div className="flex items-center gap-2 text-xs text-gray-600">
-                  <span className="px-2 py-1 bg-blue-100 rounded">📝 Text</span>
-                  <span className="px-2 py-1 bg-green-100 rounded">🖼️ Images</span>
-                  <span className="px-2 py-1 bg-purple-100 rounded">🎠 Carousel</span>
-                </div>
+        {isEditMode && (
+          <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 border-b">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-700">
+                <span className="font-medium">✅ Edit Mode Active:</span>
+                Hover over sections below to see edit options
+              </p>
+              <div className="flex items-center gap-2 text-xs text-gray-600">
+                <span className="px-2 py-1 bg-blue-100 rounded">📝 Text</span>
+                <span className="px-2 py-1 bg-green-100 rounded">🖼️ Images</span>
+                <span className="px-2 py-1 bg-purple-100 rounded">🎠 Carousel</span>
               </div>
             </div>
-            
-            {/* Render the actual homepage */}
-            <div className="relative">
-              <RayoLanding 
-                htmlPath="/static/index.html" 
-                onLoginClick={() => {}} 
-                user={null} 
-                onLogout={() => {}} 
-              />
-            </div>
           </div>
+        )}
+        
+        {/* Render the actual homepage */}
+        <div className="relative" id="homepage-content">
+          <RayoLanding 
+            htmlPath="/static/index.html" 
+            onLoginClick={() => {}} 
+            user={null} 
+            onLogout={() => {}} 
+          />
         </div>
       </div>
 
