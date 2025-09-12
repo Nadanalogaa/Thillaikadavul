@@ -330,22 +330,36 @@ async function fetchAndInjectCMSContent(containerElement) {
 export default function RayoLanding({ htmlPath = "/static/index.html", onLoginClick, user = null, onLogout = () => {} }) {
   const containerRef = useRef(null);
   const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
-    ensureCssInjected();
+    setIsLoading(true);
+
+    console.log('RayoLanding: Starting to load homepage...');
+    
+    // Ensure CSS is loaded
+    try {
+      ensureCssInjected();
+    } catch (err) {
+      console.error('CSS injection failed:', err);
+    }
 
     // Fetch the prototype HTML and inject the body markup
     fetch(htmlPath, { credentials: "same-origin" })
       .then((res) => {
+        console.log('HTML fetch response:', res.status);
         if (!res.ok) throw new Error(`Failed to load HTML: ${res.status}`);
         return res.text();
       })
       .then((htmlText) => {
         if (!mounted) return;
+        console.log('HTML content received, length:', htmlText.length);
+        
         const bodyHtml = extractBodyHtml(htmlText);
         if (containerRef.current) {
           containerRef.current.innerHTML = bodyHtml;
+          console.log('HTML injected into container');
           
           // Inject CMS content after HTML is loaded (safely)
           try {
@@ -354,14 +368,19 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
             console.log('CMS content injection failed, continuing with static content:', error);
           }
           
+          setIsLoading(false);
+          
           // Listen for real-time CMS updates (only in browser)
           if (typeof window !== 'undefined') {
             const handleCMSUpdate = (event) => {
               console.log('Received CMS update event:', event.detail);
               if (containerRef.current && event.detail.sections) {
-                // Clear session storage and update with new content
-                sessionStorage.setItem('homepage-content', JSON.stringify(event.detail.sections));
-                fetchAndInjectCMSContent(containerRef.current);
+                try {
+                  sessionStorage.setItem('homepage-content', JSON.stringify(event.detail.sections));
+                  fetchAndInjectCMSContent(containerRef.current);
+                } catch (err) {
+                  console.error('CMS update failed:', err);
+                }
               }
             };
             
@@ -573,7 +592,11 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
         });
       })
       .catch((e) => {
-        if (mounted) setError(e.message || String(e));
+        console.error('RayoLanding fetch error:', e);
+        if (mounted) {
+          setError(e.message || String(e));
+          setIsLoading(false);
+        }
       });
 
     return () => {
@@ -626,5 +649,36 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
   }
 
   // We render into a div container. Scripts are loaded via useEffect.
+  // Show loading indicator while content is loading
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="mt-4 text-gray-600">Loading homepage...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error if there's an error
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="text-red-600 text-6xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Loading Error</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Reload Page
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return <div ref={containerRef} data-rayo-container />;
 }
