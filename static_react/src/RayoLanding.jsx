@@ -158,6 +158,108 @@ function buildCtaSection(onLoginClick) {
   return wrapper;
 }
 
+// Function to fetch CMS content and update the HTML
+async function fetchAndInjectCMSContent(containerElement) {
+  try {
+    // Fetch CMS content from the API
+    const response = await fetch('/api/homepage-sections', {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (!response.ok) {
+      console.warn('CMS content not available, using static content');
+      return;
+    }
+
+    const sections = await response.json();
+    console.log('Loaded CMS sections:', sections);
+
+    // Update sections with CMS content
+    sections.forEach(section => {
+      if (section.status !== 'published') return; // Only show published content
+      
+      const sectionKey = section.section_key;
+      
+      // Update Hero Section
+      if (sectionKey === 'hero-main' || sectionKey === 'hero') {
+        const heroTitle = containerElement.querySelector('.intro-title, .hero-title, h1');
+        const heroText = containerElement.querySelector('.intro-text, .hero-text, .hero-subtitle');
+        
+        if (heroTitle && section.title) {
+          heroTitle.textContent = section.title;
+        }
+        if (heroText && section.body_content) {
+          heroText.textContent = section.body_content;
+        }
+        
+        // Update hero background image if available
+        if (section.image_url) {
+          const heroSection = containerElement.querySelector('.intro, .hero, .banner');
+          if (heroSection) {
+            heroSection.style.backgroundImage = `url('${section.image_url}')`;
+          }
+        }
+      }
+      
+      // Update About Section
+      if (sectionKey === 'about-academy' || sectionKey === 'about') {
+        const aboutTitle = containerElement.querySelector('[data-section="about"] .section-title, .about-title');
+        const aboutText = containerElement.querySelector('[data-section="about"] .section-text, .about-text');
+        
+        if (aboutTitle && section.title) {
+          aboutTitle.textContent = section.title;
+        }
+        if (aboutText && section.body_content) {
+          aboutText.innerHTML = section.body_content;
+        }
+        
+        // Update about image
+        if (section.image_url) {
+          const aboutImg = containerElement.querySelector('[data-section="about"] img, .about-image');
+          if (aboutImg) {
+            aboutImg.src = section.image_url;
+            aboutImg.alt = section.title || 'About us';
+          }
+        }
+      }
+      
+      // Update Contact Section
+      if (sectionKey === 'contact-info' || sectionKey === 'contact') {
+        const contactTitle = containerElement.querySelector('[data-section="contact"] .section-title, .contact-title');
+        const contactText = containerElement.querySelector('[data-section="contact"] .section-text, .contact-text');
+        
+        if (contactTitle && section.title) {
+          contactTitle.textContent = section.title;
+        }
+        if (contactText && section.body_content) {
+          contactText.innerHTML = section.body_content;
+        }
+      }
+      
+      // Generic section content update
+      const sectionElement = containerElement.querySelector(`[data-section="${sectionKey}"]`);
+      if (sectionElement) {
+        const title = sectionElement.querySelector('.section-title, h2, h3');
+        const content = sectionElement.querySelector('.section-content, .section-text, p');
+        const image = sectionElement.querySelector('img');
+        
+        if (title && section.title) title.textContent = section.title;
+        if (content && section.body_content) content.innerHTML = section.body_content;
+        if (image && section.image_url) {
+          image.src = section.image_url;
+          image.alt = section.title || section.name;
+        }
+      }
+    });
+
+    console.log('CMS content successfully injected into homepage');
+  } catch (error) {
+    console.error('Error loading CMS content:', error);
+    // Continue with static content if CMS fails
+  }
+}
+
 export default function RayoLanding({ htmlPath = "/static/index.html", onLoginClick, user = null, onLogout = () => {} }) {
   const containerRef = useRef(null);
   const [error, setError] = useState(null);
@@ -177,6 +279,9 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
         const bodyHtml = extractBodyHtml(htmlText);
         if (containerRef.current) {
           containerRef.current.innerHTML = bodyHtml;
+          
+          // Inject CMS content after HTML is loaded
+          fetchAndInjectCMSContent(containerRef.current);
         }
         // Load required scripts once (libs then app)
         return loadScriptsSequentially(SCRIPT_SOURCES).then(() => {

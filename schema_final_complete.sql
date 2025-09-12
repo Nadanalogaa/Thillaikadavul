@@ -717,30 +717,54 @@ END $$;
 -- Complete content management system for 25+ sections
 -- =====================================================
 
--- Section Types Enum
-CREATE TYPE section_type AS ENUM (
-  'cta_overlay', 'hero', 'parallax_divider', 'about', 'statistics', 
-  'marquee_text', 'featured_projects', 'services_stack', 'approach_philosophy',
-  'carousel_images_dual', 'awards_publications', 'testimonials_slider', 
-  'marquee_secondary', 'partners_grid', 'blog_preview', 'final_cta',
-  'text_content', 'carousel_images', 'gallery', 'video_section', 'contact',
-  'testimonials', 'awards', 'custom'
-);
+-- CMS Enums - Create only if they don't exist
+DO $$ 
+BEGIN
+    -- Section Types Enum
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'section_type') THEN
+        CREATE TYPE section_type AS ENUM (
+          'cta_overlay', 'hero', 'parallax_divider', 'about', 'statistics', 
+          'marquee_text', 'featured_projects', 'services_stack', 'approach_philosophy',
+          'carousel_images_dual', 'awards_publications', 'testimonials_slider', 
+          'marquee_secondary', 'partners_grid', 'blog_preview', 'final_cta',
+          'text_content', 'carousel_images', 'gallery', 'video_section', 'contact',
+          'testimonials', 'awards', 'custom'
+        );
+        RAISE NOTICE '✅ Created section_type enum for CMS';
+    ELSE
+        RAISE NOTICE '⚠️  section_type enum already exists - using existing enum';
+    END IF;
 
--- Content Status for Approval Workflow
-CREATE TYPE content_status AS ENUM (
-  'draft', 'pending_review', 'approved', 'published', 'archived', 'rejected'
-);
+    -- Content Status for Approval Workflow
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'content_status') THEN
+        CREATE TYPE content_status AS ENUM (
+          'draft', 'pending_review', 'approved', 'published', 'archived', 'rejected'
+        );
+        RAISE NOTICE '✅ Created content_status enum for CMS';
+    ELSE
+        RAISE NOTICE '⚠️  content_status enum already exists - using existing enum';
+    END IF;
 
--- Media Types
-CREATE TYPE media_type AS ENUM (
-  'image', 'video', 'youtube', 'audio', 'document', 'svg'
-);
+    -- Media Types
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'media_type') THEN
+        CREATE TYPE media_type AS ENUM (
+          'image', 'video', 'youtube', 'audio', 'document', 'svg'
+        );
+        RAISE NOTICE '✅ Created media_type enum for CMS';
+    ELSE
+        RAISE NOTICE '⚠️  media_type enum already exists - using existing enum';
+    END IF;
 
--- Animation Direction Types
-CREATE TYPE animation_direction AS ENUM (
-  'left_to_right', 'right_to_left', 'top_to_bottom', 'bottom_to_top', 'fade_in', 'zoom_in'
-);
+    -- Animation Direction Types
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'animation_direction') THEN
+        CREATE TYPE animation_direction AS ENUM (
+          'left_to_right', 'right_to_left', 'top_to_bottom', 'bottom_to_top', 'fade_in', 'zoom_in'
+        );
+        RAISE NOTICE '✅ Created animation_direction enum for CMS';
+    ELSE
+        RAISE NOTICE '⚠️  animation_direction enum already exists - using existing enum';
+    END IF;
+END $$;
 
 -- =====================================================
 -- CORE CONTENT MANAGEMENT TABLES

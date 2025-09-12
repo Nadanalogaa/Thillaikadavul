@@ -3397,20 +3397,79 @@ export const rejectSectionContent = async (sectionId: string): Promise<void> => 
   }
 };
 
+// Get homepage sections for homepage display
+export const getHomepageSections = async (): Promise<CMSSection[]> => {
+  try {
+    const response = await fetch('/api/homepage-sections', {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (!response.ok) {
+      // Fallback to database query if API endpoint doesn't exist
+      const { data: sections, error: sectionsError } = await supabase
+        .from('homepage_sections')
+        .select('*')
+        .eq('is_active', true)
+        .order('order_index');
+
+      if (sectionsError) throw sectionsError;
+
+      const { data: contentBlocks, error: contentError } = await supabase
+        .from('section_content_blocks')
+        .select('*')
+        .eq('status', 'published')
+        .eq('is_current_version', true);
+
+      if (contentError) throw contentError;
+
+      // Join sections with their content
+      const sectionsWithContent = sections?.map(section => {
+        const content = contentBlocks?.find(block => block.section_id === section.id);
+        return {
+          id: section.id,
+          section_key: section.section_key,
+          section_type: section.section_type,
+          name: section.name,
+          description: section.description,
+          title: content?.title || section.name,
+          body_content: content?.body_content || '',
+          image_url: content?.rich_content?.image_url || '',
+          status: content?.status || 'draft',
+          order_index: section.order_index,
+          created_at: section.created_at,
+          updated_at: content?.updated_at || section.updated_at
+        };
+      }) || [];
+
+      return sectionsWithContent;
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching homepage sections:', error);
+    throw error;
+  }
+};
+
 // Upload file to local server
 export const uploadFile = async (file: File): Promise<string> => {
   try {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch(`${API_URL}/cms/media/upload`, {
+    // Use direct API path since API_URL already includes /api
+    const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:4000';
+    const response = await fetch(`${serverUrl}/api/cms/media/upload`, {
       method: 'POST',
       body: formData,
       credentials: 'include'
     });
 
     if (!response.ok) {
-      throw new Error('Upload failed');
+      const errorText = await response.text();
+      throw new Error(`Upload failed: ${response.status} ${errorText}`);
     }
 
     const result = await response.json();

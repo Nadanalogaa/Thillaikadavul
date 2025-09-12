@@ -257,22 +257,22 @@ const SimpleSectionCMS: React.FC = () => {
                       
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Image Preview</label>
-                        <div className="aspect-square bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
+                        <div className="w-32 h-32 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
                           {section.image_url ? (
                             <img 
                               src={section.image_url} 
                               alt={section.title}
-                              className="max-w-full max-h-full object-contain rounded-lg"
+                              className="w-full h-full object-cover rounded-lg"
                               onError={(e) => {
                                 const target = e.target as HTMLImageElement;
                                 target.style.display = 'none';
-                                target.parentElement!.innerHTML = '<div class="text-gray-500 text-center"><p>Image not found</p><p class="text-xs mt-1">Please upload a new image</p></div>';
+                                target.parentElement!.innerHTML = '<div class="text-gray-500 text-center text-xs p-2"><p>Image not found</p><p>Please upload new</p></div>';
                               }}
                             />
                           ) : (
                             <div className="text-gray-500 text-center">
-                              <FileImage className="w-12 h-12 mx-auto mb-2" />
-                              <p>No image uploaded</p>
+                              <FileImage className="w-8 h-8 mx-auto mb-1" />
+                              <p className="text-xs">No image</p>
                             </div>
                           )}
                         </div>
@@ -355,12 +355,12 @@ const SimpleSectionCMS: React.FC = () => {
                   <label className="block text-lg font-medium text-gray-700 mb-3">
                     Image Preview
                   </label>
-                  <div className="aspect-square bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
+                  <div className="w-40 h-40 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
                     {editingSection.image_url ? (
                       <img 
                         src={editingSection.image_url} 
                         alt={editingSection.title}
-                        className="max-w-full max-h-full object-contain rounded-lg"
+                        className="w-full h-full object-cover rounded-lg"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
                           target.style.display = 'none';
