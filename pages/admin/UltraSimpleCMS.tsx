@@ -14,6 +14,21 @@ const UltraSimpleCMS: React.FC = () => {
   const [editData, setEditData] = useState<EditData>({ title: '', content: '' });
   const [isEditMode, setIsEditMode] = useState(false);
 
+  // Add body class for edit mode
+  React.useEffect(() => {
+    if (isEditMode) {
+      document.body.classList.add('cms-editing');
+      console.log('🟢 Added cms-editing class to body');
+    } else {
+      document.body.classList.remove('cms-editing');
+      console.log('🔴 Removed cms-editing class from body');
+    }
+    
+    return () => {
+      document.body.classList.remove('cms-editing');
+    };
+  }, [isEditMode]);
+
   const handleSectionEdit = (title: string, content: string) => {
     setEditData({ title, content });
     setShowEditModal(true);
@@ -34,7 +49,21 @@ const UltraSimpleCMS: React.FC = () => {
           subtitle="Click ENTER EDIT MODE, then click the FLOATING EDIT BUTTONS that appear over each section"
           action={
             <button 
-              onClick={() => setIsEditMode(!isEditMode)}
+              onClick={() => {
+                const newMode = !isEditMode;
+                console.log('🔄 Edit mode changed to:', newMode);
+                setIsEditMode(newMode);
+                if (newMode) {
+                  console.log('✅ Edit mode ACTIVATED - buttons should be visible');
+                  setTimeout(() => {
+                    const buttons = document.querySelectorAll('.fixed.bg-red-600');
+                    console.log('🔍 Found edit buttons:', buttons.length);
+                    buttons.forEach((btn, i) => console.log(`Button ${i}:`, btn));
+                  }, 100);
+                } else {
+                  console.log('❌ Edit mode DEACTIVATED');
+                }
+              }}
               className={`px-6 py-3 rounded-lg font-bold text-lg transition-colors flex items-center gap-3 ${
                 isEditMode 
                   ? 'bg-red-600 text-white hover:bg-red-700 animate-pulse' 
@@ -74,6 +103,24 @@ const UltraSimpleCMS: React.FC = () => {
             {/* FLOATING EDIT BUTTONS - These appear over specific sections */}
             {isEditMode && (
               <>
+                {/* DEBUG BUTTON - Big and impossible to miss */}
+                <button
+                  onClick={() => {
+                    console.log('🔴 DEBUG BUTTON CLICKED!');
+                    alert('DEBUG: Button is working! This proves buttons are rendering.');
+                    handleSectionEdit('DEBUG TEST', 'This is a test to see if buttons work');
+                  }}
+                  className="fixed top-32 right-8 bg-red-600 text-white px-8 py-6 rounded-lg font-bold shadow-2xl hover:bg-red-700 z-[9999] animate-bounce text-xl"
+                  style={{ 
+                    minWidth: '200px',
+                    minHeight: '80px',
+                    fontSize: '18px',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  🚨 DEBUG BUTTON
+                </button>
+
                 {/* Book Demo Section */}
                 <button
                   onClick={() => handleSectionEdit('Book Demo Section', 'Book a Demo Class\n\nExperience our teaching style with a complimentary session.\n\nEnroll Now')}
