@@ -3164,7 +3164,7 @@ export interface CMSSection {
 }
 
 // Get all homepage sections with their content
-export const getHomepageSections = async (): Promise<CMSSection[]> => {
+export const getHomepageContentSectionsOld = async (): Promise<CMSSection[]> => {
   try {
     // First, check if the tables exist and get sections
     const { data, error } = await supabase
