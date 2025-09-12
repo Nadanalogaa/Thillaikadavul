@@ -1,0 +1,218 @@
+/* Enhanced CMS Styles */
+.enhanced-cms-container {
+  @apply min-h-screen bg-gray-50;
+}
+
+.enhanced-cms-modal {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.enhanced-cms-tab {
+  position: relative;
+  overflow: hidden;
+}
+
+.enhanced-cms-tab::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s;
+}
+
+.enhanced-cms-tab:hover::before {
+  left: 100%;
+}
+
+.enhanced-cms-upload-area {
+  @apply border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors;
+}
+
+.enhanced-cms-upload-area.dragover {
+  @apply border-blue-500 bg-blue-50;
+}
+
+.enhanced-cms-media-preview {
+  @apply aspect-video bg-gray-100 rounded-lg overflow-hidden relative;
+}
+
+.enhanced-cms-media-preview::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(45deg, transparent 40%, rgba(0,0,0,0.1) 50%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.enhanced-cms-media-preview:hover::before {
+  opacity: 1;
+}
+
+.enhanced-cms-section-indicator {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.enhanced-cms-edit-btn {
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.enhanced-cms-gradient-border {
+  position: relative;
+  background: white;
+  border-radius: 12px;
+  padding: 2px;
+}
+
+.enhanced-cms-gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 2px;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6, #f59e0b);
+  border-radius: inherit;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+}
+
+.enhanced-cms-stats-card {
+  @apply bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-shadow;
+}
+
+.enhanced-cms-stats-card:hover {
+  transform: translateY(-2px);
+  transition: all 0.2s ease;
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+  .enhanced-cms-modal .grid-cols-3 {
+    @apply grid-cols-1;
+  }
+  
+  .enhanced-cms-modal .lg\:col-span-2 {
+    @apply col-span-1;
+  }
+}
+
+@media (max-width: 768px) {
+  .enhanced-cms-modal {
+    @apply p-2;
+  }
+  
+  .enhanced-cms-modal .max-w-7xl {
+    @apply max-w-full;
+  }
+  
+  .enhanced-cms-modal .h-\[90vh\] {
+    @apply h-screen;
+  }
+}
+
+/* Custom scrollbar for modal content */
+.enhanced-cms-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.enhanced-cms-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.enhanced-cms-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.enhanced-cms-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Iframe loading placeholder */
+.enhanced-cms-iframe-loader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  items-center;
+  justify-content: center;
+  background: linear-gradient(90deg, #f8fafc 25%, #e2e8f0 50%, #f8fafc 75%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite linear;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Success animations */
+.enhanced-cms-success {
+  animation: bounceIn 0.6s ease-out;
+}
+
+@keyframes bounceIn {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Error states */
+.enhanced-cms-error {
+  @apply border-red-300 bg-red-50;
+}
+
+.enhanced-cms-error-message {
+  @apply text-red-600 text-sm mt-1;
+}
+
+/* Loading states */
+.enhanced-cms-loading {
+  @apply opacity-50 pointer-events-none;
+}
+
+.enhanced-cms-spinner {
+  @apply animate-spin rounded-full border-2 border-gray-200 border-t-blue-600;
+}
