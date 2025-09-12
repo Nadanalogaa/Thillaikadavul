@@ -3157,7 +3157,7 @@ export interface CMSSection {
   description: string;
   body_content: string;
   image_url?: string;
-  status: 'draft' | 'pending' | 'published';
+  status: 'draft' | 'pending_review' | 'approved' | 'published' | 'archived' | 'rejected';
   order_index: number;
   created_at?: string;
   updated_at?: string;
@@ -3269,7 +3269,7 @@ export const updateSectionContent = async (sectionId: string, updates: {
         description: '',
         body_content: updates.body_content || '',
         image_url: updates.image_url || '',
-        status: 'pending',
+        status: 'pending_review',
         order_index: 0,
       };
     }
@@ -3283,7 +3283,7 @@ export const updateSectionContent = async (sectionId: string, updates: {
         description: updates.body_content, // Use description field for content
         body_content: updates.body_content,
         rich_content: updates.image_url ? { image_url: updates.image_url } : {},
-        status: 'pending',
+        status: 'pending_review',
         created_by: user.id,
         updated_by: user.id,
         version: 1,
@@ -3332,7 +3332,7 @@ export const approveSectionContent = async (sectionId: string): Promise<void> =>
       .from('section_content_blocks')
       .select('id')
       .eq('section_id', sectionId)
-      .eq('status', 'pending')
+      .eq('status', 'pending_review')
       .order('created_at', { ascending: false })
       .limit(1);
 
@@ -3371,7 +3371,7 @@ export const rejectSectionContent = async (sectionId: string): Promise<void> => 
       .from('section_content_blocks')
       .select('id')
       .eq('section_id', sectionId)
-      .eq('status', 'pending')
+      .eq('status', 'pending_review')
       .order('created_at', { ascending: false })
       .limit(1);
 

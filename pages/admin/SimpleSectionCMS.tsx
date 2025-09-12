@@ -102,8 +102,11 @@ const SimpleSectionCMS: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'published': return 'bg-green-100 text-green-800 border-green-200';
-      case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'approved': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'pending_review': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'draft': return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'rejected': return 'bg-red-100 text-red-800 border-red-200';
+      case 'archived': return 'bg-purple-100 text-purple-800 border-purple-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
@@ -111,8 +114,11 @@ const SimpleSectionCMS: React.FC = () => {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'published': return '✅';
-      case 'pending': return '⏳';
+      case 'approved': return '👍';
+      case 'pending_review': return '⏳';
       case 'draft': return '📝';
+      case 'rejected': return '❌';
+      case 'archived': return '📦';
       default: return '📝';
     }
   };
@@ -193,7 +199,7 @@ const SimpleSectionCMS: React.FC = () => {
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        {section.status === 'pending' && (
+                        {section.status === 'pending_review' && (
                           <>
                             <button
                               onClick={() => handleApproveSection(section.id)}
