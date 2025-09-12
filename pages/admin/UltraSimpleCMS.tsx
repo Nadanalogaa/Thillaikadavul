@@ -43,35 +43,49 @@ const UltraSimpleCMS: React.FC = () => {
 
   const injectEditButtons = () => {
     console.log('🔄 Injecting edit buttons into HTML content...');
+    console.log('📍 Document body exists:', !!document.body);
+    console.log('🌐 Total elements in document:', document.querySelectorAll('*').length);
     
     // Remove existing injected buttons
     removeInjectedButtons();
     
-    // Find sections to edit by looking for specific text content
+    // Find sections to edit by looking for specific text content (based on actual HTML content)
     const sections = [
-      { text: 'Book a Demo Class', title: 'Book Demo Section' },
-      { text: 'Login', title: 'Login Section' },
-      { text: 'Dance', title: 'Main Title' },
-      { text: 'fine arts academy', title: 'Academy Description' },
-      { text: 'Happy students', title: 'Statistics' },
+      { text: 'Book a Demo', title: 'Book Demo Section' },
+      { text: 'Student Login', title: 'Login Section' },
+      { text: 'Dance,', title: 'Main Title' },
+      { text: 'fine arts academy offering', title: 'Academy Description' },
       { text: 'Our Programs', title: 'Programs Section' },
       { text: 'Bharatanatyam', title: 'Dance Section' },
       { text: 'Vocal Music', title: 'Music Section' },
-      { text: 'Drawing', title: 'Art Section' },
-      { text: 'Abacus', title: 'Math Section' }
+      { text: 'Drawing & Painting', title: 'Art Section' },
+      { text: 'Abacus', title: 'Math Section' },
+      { text: 'classical dance training', title: 'Dance Description' },
+      { text: 'Carnatic basics to performance', title: 'Music Description' },
+      { text: 'fundamentals and creativity', title: 'Art Description' },
+      { text: 'skill development & speed math', title: 'Math Description' }
     ];
     
     let buttonsAdded = 0;
     
     sections.forEach((section, index) => {
+      console.log(`🔍 Searching for: "${section.text}"`);
+      
       // Find elements containing the specific text
       const allElements = Array.from(document.querySelectorAll('*'));
       const elements = allElements.filter(el => 
         el.textContent && 
         el.textContent.toLowerCase().includes(section.text.toLowerCase()) &&
         el.textContent.trim().length > 5 &&
-        el.textContent.trim().length < 200 // Avoid huge containers
+        el.textContent.trim().length < 1000 // Increased limit to catch more elements
       );
+      
+      console.log(`📊 Found ${elements.length} elements containing "${section.text}"`);
+      if (elements.length > 0) {
+        elements.forEach((el, i) => {
+          console.log(`   ${i+1}. "${el.textContent?.substring(0, 100)}..." (${el.tagName})`);
+        });
+      }
       
       if (elements.length > 0) {
         const element = elements[0]; // Use first match
