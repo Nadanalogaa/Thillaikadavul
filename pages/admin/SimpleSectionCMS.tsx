@@ -153,14 +153,32 @@ const SimpleSectionCMS: React.FC = () => {
               <h3 className="text-xl font-semibold text-gray-900 mb-2">No Sections Found</h3>
               <p className="text-gray-600 mb-4">
                 It looks like your database doesn't have homepage sections yet. 
-                Please run the schema_final_complete.sql file in your Supabase database.
+                Please run the <code className="bg-gray-100 px-2 py-1 rounded">cms_fix.sql</code> file in your Supabase SQL Editor.
               </p>
-              <button
-                onClick={loadSections}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Try Again
-              </button>
+              <div className="bg-blue-50 p-4 rounded-lg mb-4 text-left">
+                <h4 className="font-semibold text-blue-900 mb-2">Quick Setup Instructions:</h4>
+                <ol className="list-decimal list-inside text-sm text-blue-800 space-y-1">
+                  <li>Go to your Supabase project dashboard</li>
+                  <li>Click on "SQL Editor" in the left sidebar</li>
+                  <li>Copy and paste the contents of <code>cms_fix.sql</code></li>
+                  <li>Click "Run" to create the CMS tables</li>
+                  <li>Come back here and click "Try Again"</li>
+                </ol>
+              </div>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={loadSections}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  🔄 Try Again
+                </button>
+                <button
+                  onClick={() => window.open('https://supabase.com/dashboard/projects', '_blank')}
+                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                  📊 Open Supabase
+                </button>
+              </div>
             </div>
           ) : (
             <div className="grid gap-6">
