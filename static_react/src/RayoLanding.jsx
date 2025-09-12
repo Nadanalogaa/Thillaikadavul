@@ -186,48 +186,22 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
               const sections = JSON.parse(cmsContent);
               console.log('Found CMS content, applying updates:', sections);
               
-              // Apply CMS content safely to specific sections
+              // Apply CMS content safely
               sections.forEach(section => {
-                console.log('Processing section:', section.id, section);
-                
                 if (section.id === 'hero') {
-                  // Update main hero title (large "Nadanaloga" text)
-                  const heroTitleElements = containerRef.current.querySelectorAll('h1, .hero-title, .main-title, [class*="title"]');
-                  console.log('Found hero title elements:', heroTitleElements.length);
-                  heroTitleElements.forEach(el => {
-                    if (el && section.title && el.textContent && el.textContent.length > 5) {
-                      console.log('Updating hero title from:', el.textContent, 'to:', section.title);
+                  // Update hero title
+                  const titleElements = containerRef.current.querySelectorAll('h1, .hero-title, .intro-title');
+                  titleElements.forEach(el => {
+                    if (el && section.title) {
                       el.textContent = section.title;
                     }
                   });
                   
-                  // Update hero subtitle/content
-                  const contentElements = containerRef.current.querySelectorAll('.hero-subtitle, .intro-text, .subtitle, p');
+                  // Update hero content
+                  const contentElements = containerRef.current.querySelectorAll('.hero-subtitle, .intro-text, .banner p');
                   contentElements.forEach(el => {
                     if (el && section.content) {
                       el.textContent = section.content;
-                    }
-                  });
-                }
-                
-                if (section.id === 'about') {
-                  // Update about section content - "We are a fine arts academy..."
-                  const aboutTextElements = containerRef.current.querySelectorAll('p');
-                  aboutTextElements.forEach(el => {
-                    if (el && section.content && el.textContent && el.textContent.includes('fine arts academy')) {
-                      console.log('Updating about content from:', el.textContent, 'to:', section.content);
-                      el.textContent = section.content;
-                    }
-                  });
-                }
-                
-                if (section.id === 'programs') {
-                  // Update CTA cards content
-                  const ctaElements = containerRef.current.querySelectorAll('[class*="cta"], [class*="card"]');
-                  ctaElements.forEach(el => {
-                    const textEl = el.querySelector('p, .description');
-                    if (textEl && section.content) {
-                      textEl.textContent = section.content;
                     }
                   });
                 }
@@ -448,45 +422,20 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
           const sections = event.detail.sections;
           
           sections.forEach(section => {
-            console.log('Real-time update for section:', section.id);
-            
             if (section.id === 'hero') {
-              // Update main hero title (large "Nadanaloga" text)
-              const heroTitleElements = containerRef.current.querySelectorAll('h1, .hero-title, .main-title, [class*="title"]');
-              heroTitleElements.forEach(el => {
-                if (el && section.title && el.textContent && el.textContent.length > 5) {
-                  console.log('Real-time updating hero title to:', section.title);
+              // Update hero title
+              const titleElements = containerRef.current.querySelectorAll('h1, .hero-title, .intro-title');
+              titleElements.forEach(el => {
+                if (el && section.title) {
                   el.textContent = section.title;
                 }
               });
               
-              // Update hero subtitle/content
-              const contentElements = containerRef.current.querySelectorAll('.hero-subtitle, .intro-text, .subtitle, p');
+              // Update hero content
+              const contentElements = containerRef.current.querySelectorAll('.hero-subtitle, .intro-text, .banner p');
               contentElements.forEach(el => {
                 if (el && section.content) {
                   el.textContent = section.content;
-                }
-              });
-            }
-            
-            if (section.id === 'about') {
-              // Update about section content
-              const aboutTextElements = containerRef.current.querySelectorAll('p');
-              aboutTextElements.forEach(el => {
-                if (el && section.content && el.textContent && el.textContent.includes('fine arts academy')) {
-                  console.log('Real-time updating about content to:', section.content);
-                  el.textContent = section.content;
-                }
-              });
-            }
-            
-            if (section.id === 'programs') {
-              // Update CTA cards content
-              const ctaElements = containerRef.current.querySelectorAll('[class*="cta"], [class*="card"]');
-              ctaElements.forEach(el => {
-                const textEl = el.querySelector('p, .description');
-                if (textEl && section.content) {
-                  textEl.textContent = section.content;
                 }
               });
             }
