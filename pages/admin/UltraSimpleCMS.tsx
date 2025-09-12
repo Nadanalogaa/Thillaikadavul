@@ -1,280 +1,341 @@
-import React, { useState } from 'react';
-import { X, Save, Edit3 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Save, Edit3, RefreshCw } from 'lucide-react';
 import AdminNav from '../../components/admin/AdminNav';
-import AdminPageHeader from '../../components/admin/AdminPageHeader';
-import RayoLanding from '../../static_react/src/RayoLanding.jsx';
 
-interface EditData {
+interface SimpleSection {
+  id: string;
+  name: string;
   title: string;
   content: string;
+  imageUrl: string;
 }
 
 const UltraSimpleCMS: React.FC = () => {
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editData, setEditData] = useState<EditData>({ title: '', content: '' });
-  const [isEditMode, setIsEditMode] = useState(false);
-
-  // Inject edit buttons directly into the loaded HTML content
-  React.useEffect(() => {
-    if (isEditMode) {
-      document.body.classList.add('cms-editing');
-      console.log('🟢 Edit mode ACTIVATED - injecting buttons into HTML content');
-      
-      // Wait for RayoLanding to load, then inject edit buttons
-      const injectTimer = setTimeout(() => {
-        injectEditButtons();
-      }, 3000); // Give more time for content to load
-      
-      return () => {
-        clearTimeout(injectTimer);
-        removeInjectedButtons();
-      };
-    } else {
-      document.body.classList.remove('cms-editing');
-      console.log('🔴 Edit mode DEACTIVATED');
-      removeInjectedButtons();
+  const [sections, setSections] = useState<SimpleSection[]>([
+    {
+      id: 'hero',
+      name: 'Hero Section',
+      title: 'Dance, Draw and Fine Arts',
+      content: 'Nurturing creativity through traditional and contemporary artistic expression at Nadanaloga Fine Arts Academy.',
+      imageUrl: '/static/images/01_hero-img.webp'
+    },
+    {
+      id: 'about',
+      name: 'About Academy',
+      title: 'About Our Academy', 
+      content: 'We are a premier fine arts academy dedicated to offering comprehensive training in Bharatanatyam classical dance, Carnatic vocal music, drawing & painting, and Abacus mathematics.',
+      imageUrl: '/static/images/02_hero-img.webp'
+    },
+    {
+      id: 'programs',
+      name: 'Programs Overview',
+      title: 'Our Programs',
+      content: 'Explore our diverse range of programs designed to cultivate artistic excellence: Classical Dance, Vocal Music, Visual Arts, and Mathematical Skills Development.',
+      imageUrl: '/static/images/03_hero-img.webp'
+    },
+    {
+      id: 'contact',
+      name: 'Contact Information',
+      title: 'Get In Touch',
+      content: 'Connect with us to begin your artistic journey. We offer both online and offline classes with flexible scheduling to accommodate your needs.',
+      imageUrl: '/static/images/1200x1000_marquee-01.webp'
     }
-    
-    return () => {
-      document.body.classList.remove('cms-editing');
-      removeInjectedButtons();
-    };
-  }, [isEditMode]);
+  ]);
 
-  const injectEditButtons = () => {
-    console.log('🔄 Injecting edit buttons into HTML content...');
-    console.log('📍 Document body exists:', !!document.body);
-    console.log('🌐 Total elements in document:', document.querySelectorAll('*').length);
-    
-    // Remove existing injected buttons
-    removeInjectedButtons();
-    
-    // Find sections to edit by looking for specific text content (based on actual HTML content)
-    const sections = [
-      { text: 'Book a Demo', title: 'Book Demo Section' },
-      { text: 'Student Login', title: 'Login Section' },
-      { text: 'Dance,', title: 'Main Title' },
-      { text: 'fine arts academy offering', title: 'Academy Description' },
-      { text: 'Our Programs', title: 'Programs Section' },
-      { text: 'Bharatanatyam', title: 'Dance Section' },
-      { text: 'Vocal Music', title: 'Music Section' },
-      { text: 'Drawing & Painting', title: 'Art Section' },
-      { text: 'Abacus', title: 'Math Section' },
-      { text: 'classical dance training', title: 'Dance Description' },
-      { text: 'Carnatic basics to performance', title: 'Music Description' },
-      { text: 'fundamentals and creativity', title: 'Art Description' },
-      { text: 'skill development & speed math', title: 'Math Description' }
-    ];
-    
-    let buttonsAdded = 0;
-    
-    sections.forEach((section, index) => {
-      console.log(`🔍 Searching for: "${section.text}"`);
-      
-      // Find elements containing the specific text
-      const allElements = Array.from(document.querySelectorAll('*'));
-      const elements = allElements.filter(el => 
-        el.textContent && 
-        el.textContent.toLowerCase().includes(section.text.toLowerCase()) &&
-        el.textContent.trim().length > 5 &&
-        el.textContent.trim().length < 1000 // Increased limit to catch more elements
-      );
-      
-      console.log(`📊 Found ${elements.length} elements containing "${section.text}"`);
-      if (elements.length > 0) {
-        elements.forEach((el, i) => {
-          console.log(`   ${i+1}. "${el.textContent?.substring(0, 100)}..." (${el.tagName})`);
-        });
+  const [editingSection, setEditingSection] = useState<SimpleSection | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('cms-sections');
+    if (saved) {
+      try {
+        setSections(JSON.parse(saved));
+      } catch (e) {
+        console.error('Failed to load saved sections');
       }
-      
-      if (elements.length > 0) {
-        const element = elements[0]; // Use first match
-        const rect = element.getBoundingClientRect();
-        
-        if (rect.width > 50 && rect.height > 20) { // Ensure it's a visible element
-          // Create edit button
-          const editBtn = document.createElement('button');
-          editBtn.className = 'cms-injected-btn';
-          editBtn.innerHTML = `✏️ EDIT`;
-          editBtn.style.cssText = `
-            position: fixed;
-            top: ${rect.top + window.scrollY}px;
-            left: ${rect.right + 5}px;
-            background: #ef4444;
-            color: white;
-            border: none;
-            padding: 6px 10px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: bold;
-            cursor: pointer;
-            z-index: 99999;
-            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.5);
-            animation: editBtnBounce 2s infinite;
-          `;
-          
-          editBtn.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('🖱️ Clicked edit button for:', section.title);
-            handleSectionEdit(section.title, element.textContent || '');
-          };
-          
-          document.body.appendChild(editBtn);
-          buttonsAdded++;
-          console.log(`✅ Added edit button for: ${section.title} at position top:${rect.top}px left:${rect.right}px`);
-        }
-      }
-    });
-    
-    console.log(`🎯 Total edit buttons added: ${buttonsAdded}`);
-    
-    // Add CSS animation if not already added
-    if (!document.getElementById('cms-edit-btn-styles')) {
-      const style = document.createElement('style');
-      style.id = 'cms-edit-btn-styles';
-      style.textContent = `
-        @keyframes editBtnBounce {
-          0%, 20%, 50%, 80%, 100% { transform: scale(1); }
-          40% { transform: scale(1.1); }
-          60% { transform: scale(1.05); }
-        }
-        .cms-injected-btn:hover {
-          background: #dc2626 !important;
-          transform: scale(1.1) !important;
-        }
-      `;
-      document.head.appendChild(style);
     }
-  };
-  
-  const removeInjectedButtons = () => {
-    const buttons = document.querySelectorAll('.cms-injected-btn');
-    buttons.forEach(btn => btn.remove());
-    console.log(`🧹 Removed ${buttons.length} injected buttons`);
-  };
-
-  const handleSectionEdit = (title: string, content: string) => {
-    setEditData({ title, content });
-    setShowEditModal(true);
-  };
+  }, []);
 
   const handleSave = () => {
-    console.log('Saving:', editData);
-    alert(`✅ Content saved!\n\nSection: ${editData.title}\nContent: ${editData.content.substring(0, 100)}...`);
-    setShowEditModal(false);
+    if (!editingSection) return;
+    
+    setSaving(true);
+    
+    // Update sections array
+    const updatedSections = sections.map(section => 
+      section.id === editingSection.id ? editingSection : section
+    );
+    
+    // Save to localStorage
+    localStorage.setItem('cms-sections', JSON.stringify(updatedSections));
+    
+    // Update state
+    setSections(updatedSections);
+    
+    // Update homepage immediately
+    updateHomepage(updatedSections);
+    
+    setTimeout(() => {
+      setSaving(false);
+      setEditingSection(null);
+      alert('✅ Section saved successfully! The homepage has been updated.');
+    }, 1000);
+  };
+
+  const updateHomepage = (updatedSections: SimpleSection[]) => {
+    // Inject updated content into the homepage
+    const event = new CustomEvent('cms-content-updated', {
+      detail: { sections: updatedSections }
+    });
+    window.dispatchEvent(event);
+    
+    // Also save to sessionStorage for immediate homepage access
+    sessionStorage.setItem('homepage-content', JSON.stringify(updatedSections));
+  };
+
+  const handleImageUrlChange = (url: string) => {
+    if (editingSection) {
+      setEditingSection({ ...editingSection, imageUrl: url });
+    }
+  };
+
+  const getAvailableImages = () => [
+    '/static/images/01_hero-img.webp',
+    '/static/images/02_hero-img.webp', 
+    '/static/images/03_hero-img.webp',
+    '/static/images/1200x1000_marquee-01.webp',
+    '/static/images/1200x1000_marquee-02.webp',
+    '/static/images/1200x1000_marquee-03.webp',
+    '/static/images/1200x1000_marquee-04.webp',
+    '/static/images/1200x1000_marquee-05.webp',
+    '/static/images/1200x1000_marquee-06.webp',
+    '/static/images/1200x1000_marquee-07.webp',
+    '/static/images/1200x1000_marquee-08.webp'
+  ];
+
+  const refreshHomepage = () => {
+    // Force homepage refresh
+    if (window.location.pathname === '/') {
+      window.location.reload();
+    } else {
+      // Open homepage in new tab to see changes
+      window.open('/', '_blank');
+    }
   };
 
   return (
     <div className="min-h-screen bg-white">
       <AdminNav />
-      <div >
-        <AdminPageHeader 
-          title="Ultra Simple CMS" 
-          subtitle="Click ENTER EDIT MODE, then look for RED EDIT BUTTONS that appear next to each section"
-          action={
-            <button 
-              onClick={() => {
-                const newMode = !isEditMode;
-                console.log('🔄 Edit mode changed to:', newMode);
-                setIsEditMode(newMode);
-                if (newMode) {
-                  console.log('✅ Edit mode ACTIVATED - buttons will be injected into content');
-                } else {
-                  console.log('❌ Edit mode DEACTIVATED');
-                }
-              }}
-              className={`px-6 py-3 rounded-lg font-bold text-lg transition-colors flex items-center gap-3 ${
-                isEditMode 
-                  ? 'bg-red-600 text-white hover:bg-red-700 animate-pulse' 
-                  : 'bg-green-600 text-white hover:bg-green-700'
-              }`}
+      <div>
+        <div className="bg-white border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Ultra Simple CMS</h1>
+              <p className="text-gray-600 mt-1">Edit your homepage content instantly - no server required!</p>
+            </div>
+            <button
+              onClick={refreshHomepage}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
             >
-              <Edit3 className="w-6 h-6" />
-              {isEditMode ? '🔴 EXIT EDIT MODE' : '🟢 ENTER EDIT MODE'}
+              <RefreshCw className="w-4 h-4" />
+              View Homepage
             </button>
-          }
-        />
+          </div>
+        </div>
         
-        <div className="relative">
-          {/* Edit Mode Alert */}
-          {isEditMode && (
-            <div className="fixed top-20 left-64 right-4 bg-red-100 border-2 border-red-500 p-4 z-50 rounded-lg shadow-lg">
-              <div className="flex items-center justify-center">
-                <div className="text-center">
-                  <h3 className="text-xl font-bold text-red-800 mb-2">🔴 EDIT MODE ACTIVE!</h3>
-                  <p className="text-red-700">
-                    Look for small <strong>RED "✏️ EDIT" BUTTONS</strong> that appear next to text sections. Click them to edit!
-                  </p>
+        <div className="p-6">
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <h3 className="text-green-800 font-semibold mb-2">✅ Server-Free CMS</h3>
+            <p className="text-green-700 text-sm">
+              This CMS works completely in your browser - no server needed! 
+              Changes are saved locally and update the homepage immediately.
+            </p>
+          </div>
+
+          <div className="grid gap-6">
+            {sections.map((section) => (
+              <div key={section.id} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">{section.name}</h3>
+                    <p className="text-sm text-gray-500">ID: {section.id}</p>
+                  </div>
+                  <button
+                    onClick={() => setEditingSection({...section})}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                    Edit
+                  </button>
+                </div>
+                
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="font-semibold mb-2">Current Content</h4>
+                    <div className="space-y-2">
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Title:</label>
+                        <p className="text-gray-900">{section.title}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Content:</label>
+                        <p className="text-gray-700 text-sm leading-relaxed">{section.content}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-semibold mb-2">Current Image</h4>
+                    <div className="w-32 h-32 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 overflow-hidden">
+                      {section.imageUrl && (
+                        <img 
+                          src={section.imageUrl} 
+                          alt={section.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjRjNGNEY2Ii8+Cjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSIjOUM5Qzk3IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5JbWFnZTwvdGV4dD4KPC9zdmc+';
+                          }}
+                        />
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* Homepage Content */}
-          <div className="relative mt-8">
-            <RayoLanding 
-              htmlPath="/static/index.html" 
-              onLoginClick={() => {}} 
-              user={null} 
-              onLogout={() => {}} 
-            />
+            ))}
           </div>
         </div>
       </div>
 
       {/* Edit Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[100]">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b bg-green-50">
-              <h2 className="text-2xl font-bold text-green-800">
-                ✅ SUCCESS! Editing: {editData.title}
+      {editingSection && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-auto">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-2xl font-bold text-gray-900">
+                Edit {editingSection.name}
               </h2>
-              <button onClick={() => setShowEditModal(false)} className="text-gray-500 hover:text-gray-700">
-                <X className="w-8 h-8" />
+              <button 
+                onClick={() => setEditingSection(null)} 
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ×
               </button>
             </div>
-
-            <div className="p-8">
-              <div className="bg-green-50 p-4 rounded-lg mb-6">
-                <h3 className="font-bold text-green-800 text-lg mb-2">🎉 The CMS is Working!</h3>
-                <p className="text-green-700">
-                  You successfully clicked an edit button! This proves the system is working. 
-                  Edit the content below and save your changes.
-                </p>
-              </div>
-
-              <div className="space-y-6">
+            
+            <div className="p-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Section Title
+                    </label>
+                    <input
+                      type="text"
+                      value={editingSection.title}
+                      onChange={(e) => setEditingSection({...editingSection, title: e.target.value})}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter section title"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Content
+                    </label>
+                    <textarea
+                      value={editingSection.content}
+                      onChange={(e) => setEditingSection({...editingSection, content: e.target.value})}
+                      rows={6}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter section content"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Image URL (or select from available images below)
+                    </label>
+                    <input
+                      type="url"
+                      value={editingSection.imageUrl}
+                      onChange={(e) => handleImageUrlChange(e.target.value)}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter image URL"
+                    />
+                  </div>
+                </div>
+                
                 <div>
-                  <label className="block text-lg font-medium text-gray-700 mb-3">
-                    Section Content:
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Image Preview
                   </label>
-                  <textarea
-                    value={editData.content}
-                    onChange={(e) => setEditData({...editData, content: e.target.value})}
-                    rows={10}
-                    className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="Edit your content here..."
-                  />
+                  <div className="w-40 h-40 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 mb-4 overflow-hidden">
+                    {editingSection.imageUrl && (
+                      <img 
+                        src={editingSection.imageUrl} 
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjRjNGNEY2Ii8+Cjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSIjOUM5Qzk3IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5JbWFnZTwvdGV4dD4KPC9zdmc+';
+                        }}
+                      />
+                    )}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Available Images (Click to select)
+                    </label>
+                    <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto">
+                      {getAvailableImages().map((imageUrl, index) => (
+                        <div
+                          key={index}
+                          onClick={() => handleImageUrlChange(imageUrl)}
+                          className={`cursor-pointer border-2 rounded-lg overflow-hidden hover:border-blue-500 ${
+                            editingSection.imageUrl === imageUrl ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200'
+                          }`}
+                        >
+                          <img 
+                            src={imageUrl} 
+                            alt={`Image ${index + 1}`}
+                            className="w-full h-16 object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjRjNGNEY2Ii8+Cjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSIjOUM5Qzk3IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5JbWFnZTwvdGV4dD4KPC9zdmc+';
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-
-            <div className="flex justify-end space-x-4 p-6 border-t bg-gray-50">
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="px-6 py-3 text-gray-700 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-3 text-lg font-bold"
-              >
-                <Save className="w-5 h-5" />
-                💾 SAVE CHANGES
-              </button>
+              
+              <div className="flex items-center justify-end gap-4 mt-8 pt-6 border-t">
+                <button
+                  onClick={() => setEditingSection(null)}
+                  className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {saving ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Save Changes
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

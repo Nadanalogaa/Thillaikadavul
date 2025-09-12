@@ -158,97 +158,156 @@ function buildCtaSection(onLoginClick) {
   return wrapper;
 }
 
-// Function to fetch CMS content and update the HTML
+// Function to fetch CMS content and update the HTML  
 async function fetchAndInjectCMSContent(containerElement) {
   try {
-    // Fetch CMS content from the API
-    const response = await fetch('/api/homepage-sections', {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
-    });
-
-    if (!response.ok) {
-      console.warn('CMS content not available, using static content');
+    // First check for locally saved content
+    let sections = [];
+    
+    // Try sessionStorage first (immediate updates)
+    const sessionContent = sessionStorage.getItem('homepage-content');
+    if (sessionContent) {
+      try {
+        sections = JSON.parse(sessionContent);
+        console.log('Loaded CMS content from session storage:', sections);
+      } catch (e) {
+        console.log('Failed to parse session content');
+      }
+    }
+    
+    // Fallback to localStorage if no session content
+    if (!sections.length) {
+      const localContent = localStorage.getItem('cms-sections');
+      if (localContent) {
+        try {
+          sections = JSON.parse(localContent);
+          console.log('Loaded CMS content from local storage:', sections);
+        } catch (e) {
+          console.log('Failed to parse local content');
+        }
+      }
+    }
+    
+    // If no local content, try API (optional)
+    if (!sections.length) {
+      console.log('No local CMS content, using static content');
       return;
     }
 
-    const sections = await response.json();
-    console.log('Loaded CMS sections:', sections);
-
     // Update sections with CMS content
     sections.forEach(section => {
-      if (section.status !== 'published') return; // Only show published content
-      
-      const sectionKey = section.section_key;
+      const sectionId = section.id;
       
       // Update Hero Section
-      if (sectionKey === 'hero-main' || sectionKey === 'hero') {
-        const heroTitle = containerElement.querySelector('.intro-title, .hero-title, h1');
-        const heroText = containerElement.querySelector('.intro-text, .hero-text, .hero-subtitle');
+      if (sectionId === 'hero') {
+        // Update hero title in multiple possible locations
+        const heroTitles = containerElement.querySelectorAll('.intro-title, .hero-title, h1, .banner h1, .banner-title');
+        heroTitles.forEach(title => {
+          if (title && section.title) {
+            title.textContent = section.title;
+          }
+        });
         
-        if (heroTitle && section.title) {
-          heroTitle.textContent = section.title;
-        }
-        if (heroText && section.body_content) {
-          heroText.textContent = section.body_content;
-        }
+        // Update hero text/content in multiple possible locations
+        const heroTexts = containerElement.querySelectorAll('.intro-text, .hero-text, .hero-subtitle, .banner p, .banner-text');
+        heroTexts.forEach(text => {
+          if (text && section.content) {
+            text.textContent = section.content;
+          }
+        });
         
         // Update hero background image if available
-        if (section.image_url) {
-          const heroSection = containerElement.querySelector('.intro, .hero, .banner');
-          if (heroSection) {
-            heroSection.style.backgroundImage = `url('${section.image_url}')`;
-          }
+        if (section.imageUrl) {
+          const heroSections = containerElement.querySelectorAll('.intro, .hero, .banner, .hero-section');
+          heroSections.forEach(heroSection => {
+            if (heroSection) {
+              heroSection.style.backgroundImage = `url('${section.imageUrl}')`;
+              heroSection.style.backgroundSize = 'cover';
+              heroSection.style.backgroundPosition = 'center';
+            }
+          });
         }
       }
       
       // Update About Section
-      if (sectionKey === 'about-academy' || sectionKey === 'about') {
-        const aboutTitle = containerElement.querySelector('[data-section="about"] .section-title, .about-title');
-        const aboutText = containerElement.querySelector('[data-section="about"] .section-text, .about-text');
+      if (sectionId === 'about') {
+        const aboutTitles = containerElement.querySelectorAll('[data-section="about"] .section-title, .about-title, .about h2, .about h3');
+        aboutTitles.forEach(title => {
+          if (title && section.title) {
+            title.textContent = section.title;
+          }
+        });
         
-        if (aboutTitle && section.title) {
-          aboutTitle.textContent = section.title;
-        }
-        if (aboutText && section.body_content) {
-          aboutText.innerHTML = section.body_content;
-        }
+        const aboutTexts = containerElement.querySelectorAll('[data-section="about"] .section-text, .about-text, .about p');
+        aboutTexts.forEach(text => {
+          if (text && section.content) {
+            text.innerHTML = section.content;
+          }
+        });
         
         // Update about image
-        if (section.image_url) {
-          const aboutImg = containerElement.querySelector('[data-section="about"] img, .about-image');
-          if (aboutImg) {
-            aboutImg.src = section.image_url;
-            aboutImg.alt = section.title || 'About us';
+        if (section.imageUrl) {
+          const aboutImgs = containerElement.querySelectorAll('[data-section="about"] img, .about-image, .about img');
+          aboutImgs.forEach(img => {
+            if (img) {
+              img.src = section.imageUrl;
+              img.alt = section.title || 'About us';
+            }
+          });
+        }
+      }
+      
+      // Update Programs Section
+      if (sectionId === 'programs') {
+        const programTitles = containerElement.querySelectorAll('[data-section="programs"] .section-title, .programs-title, .programs h2, .programs h3');
+        programTitles.forEach(title => {
+          if (title && section.title) {
+            title.textContent = section.title;
           }
+        });
+        
+        const programTexts = containerElement.querySelectorAll('[data-section="programs"] .section-text, .programs-text, .programs p');
+        programTexts.forEach(text => {
+          if (text && section.content) {
+            text.innerHTML = section.content;
+          }
+        });
+        
+        if (section.imageUrl) {
+          const programImgs = containerElement.querySelectorAll('[data-section="programs"] img, .programs-image, .programs img');
+          programImgs.forEach(img => {
+            if (img) {
+              img.src = section.imageUrl;
+              img.alt = section.title || 'Programs';
+            }
+          });
         }
       }
       
       // Update Contact Section
-      if (sectionKey === 'contact-info' || sectionKey === 'contact') {
-        const contactTitle = containerElement.querySelector('[data-section="contact"] .section-title, .contact-title');
-        const contactText = containerElement.querySelector('[data-section="contact"] .section-text, .contact-text');
+      if (sectionId === 'contact') {
+        const contactTitles = containerElement.querySelectorAll('[data-section="contact"] .section-title, .contact-title, .contact h2, .contact h3');
+        contactTitles.forEach(title => {
+          if (title && section.title) {
+            title.textContent = section.title;
+          }
+        });
         
-        if (contactTitle && section.title) {
-          contactTitle.textContent = section.title;
-        }
-        if (contactText && section.body_content) {
-          contactText.innerHTML = section.body_content;
-        }
-      }
-      
-      // Generic section content update
-      const sectionElement = containerElement.querySelector(`[data-section="${sectionKey}"]`);
-      if (sectionElement) {
-        const title = sectionElement.querySelector('.section-title, h2, h3');
-        const content = sectionElement.querySelector('.section-content, .section-text, p');
-        const image = sectionElement.querySelector('img');
+        const contactTexts = containerElement.querySelectorAll('[data-section="contact"] .section-text, .contact-text, .contact p');
+        contactTexts.forEach(text => {
+          if (text && section.content) {
+            text.innerHTML = section.content;
+          }
+        });
         
-        if (title && section.title) title.textContent = section.title;
-        if (content && section.body_content) content.innerHTML = section.body_content;
-        if (image && section.image_url) {
-          image.src = section.image_url;
-          image.alt = section.title || section.name;
+        if (section.imageUrl) {
+          const contactImgs = containerElement.querySelectorAll('[data-section="contact"] img, .contact-image, .contact img');
+          contactImgs.forEach(img => {
+            if (img) {
+              img.src = section.imageUrl;
+              img.alt = section.title || 'Contact';
+            }
+          });
         }
       }
     });
@@ -282,6 +341,23 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
           
           // Inject CMS content after HTML is loaded
           fetchAndInjectCMSContent(containerRef.current);
+          
+          // Listen for real-time CMS updates
+          const handleCMSUpdate = (event) => {
+            console.log('Received CMS update event:', event.detail);
+            if (containerRef.current && event.detail.sections) {
+              // Clear session storage and update with new content
+              sessionStorage.setItem('homepage-content', JSON.stringify(event.detail.sections));
+              fetchAndInjectCMSContent(containerRef.current);
+            }
+          };
+          
+          window.addEventListener('cms-content-updated', handleCMSUpdate);
+          
+          // Cleanup function
+          return () => {
+            window.removeEventListener('cms-content-updated', handleCMSUpdate);
+          };
         }
         // Load required scripts once (libs then app)
         return loadScriptsSequentially(SCRIPT_SOURCES).then(() => {
