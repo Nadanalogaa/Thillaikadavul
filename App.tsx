@@ -34,7 +34,7 @@ import BookMaterialsManagementPage from './pages/admin/BookMaterialsManagementPa
 import NoticesManagementPage from './pages/admin/NoticesManagementPage';
 import LocationsManagementPage from './pages/admin/LocationsManagementPage';
 import MediaManagementPage from './pages/admin/MediaManagementPage';
-import UltraSimpleCMS from './pages/admin/UltraSimpleCMS';
+import SimpleSectionCMS from './pages/admin/SimpleSectionCMS';
 import EmailTestPage from './pages/EmailTestPage';
 
 // New Student Pages
@@ -209,7 +209,7 @@ function App() {
           <Route path="/admin/grade-exams" element={<AdminProtectedRoute><GradeExamsManagementPage /></AdminProtectedRoute>} />
           <Route path="/admin/book-materials" element={<AdminProtectedRoute><BookMaterialsManagementPage /></AdminProtectedRoute>} />
           <Route path="/admin/media" element={<AdminProtectedRoute><MediaManagementPage /></AdminProtectedRoute>} />
-          <Route path="/admin/cms" element={<AdminProtectedRoute><UltraSimpleCMS /></AdminProtectedRoute>} />
+          <Route path="/admin/cms" element={<AdminProtectedRoute><SimpleSectionCMS /></AdminProtectedRoute>} />
           <Route path="/admin/notices" element={<AdminProtectedRoute><NoticesManagementPage /></AdminProtectedRoute>} />
           <Route path="/admin/trash" element={<AdminProtectedRoute><TrashPage /></AdminProtectedRoute>} />
           
