@@ -14,20 +14,131 @@ const UltraSimpleCMS: React.FC = () => {
   const [editData, setEditData] = useState<EditData>({ title: '', content: '' });
   const [isEditMode, setIsEditMode] = useState(false);
 
-  // Add body class for edit mode
+  // Inject edit buttons directly into the loaded HTML content
   React.useEffect(() => {
     if (isEditMode) {
       document.body.classList.add('cms-editing');
-      console.log('🟢 Added cms-editing class to body');
+      console.log('🟢 Edit mode ACTIVATED - injecting buttons into HTML content');
+      
+      // Wait for RayoLanding to load, then inject edit buttons
+      const injectTimer = setTimeout(() => {
+        injectEditButtons();
+      }, 3000); // Give more time for content to load
+      
+      return () => {
+        clearTimeout(injectTimer);
+        removeInjectedButtons();
+      };
     } else {
       document.body.classList.remove('cms-editing');
-      console.log('🔴 Removed cms-editing class from body');
+      console.log('🔴 Edit mode DEACTIVATED');
+      removeInjectedButtons();
     }
     
     return () => {
       document.body.classList.remove('cms-editing');
+      removeInjectedButtons();
     };
   }, [isEditMode]);
+
+  const injectEditButtons = () => {
+    console.log('🔄 Injecting edit buttons into HTML content...');
+    
+    // Remove existing injected buttons
+    removeInjectedButtons();
+    
+    // Find sections to edit by looking for specific text content
+    const sections = [
+      { text: 'Book a Demo Class', title: 'Book Demo Section' },
+      { text: 'Login', title: 'Login Section' },
+      { text: 'Dance', title: 'Main Title' },
+      { text: 'fine arts academy', title: 'Academy Description' },
+      { text: 'Happy students', title: 'Statistics' },
+      { text: 'Our Programs', title: 'Programs Section' },
+      { text: 'Bharatanatyam', title: 'Dance Section' },
+      { text: 'Vocal Music', title: 'Music Section' },
+      { text: 'Drawing', title: 'Art Section' },
+      { text: 'Abacus', title: 'Math Section' }
+    ];
+    
+    let buttonsAdded = 0;
+    
+    sections.forEach((section, index) => {
+      // Find elements containing the specific text
+      const allElements = Array.from(document.querySelectorAll('*'));
+      const elements = allElements.filter(el => 
+        el.textContent && 
+        el.textContent.toLowerCase().includes(section.text.toLowerCase()) &&
+        el.textContent.trim().length > 5 &&
+        el.textContent.trim().length < 200 // Avoid huge containers
+      );
+      
+      if (elements.length > 0) {
+        const element = elements[0]; // Use first match
+        const rect = element.getBoundingClientRect();
+        
+        if (rect.width > 50 && rect.height > 20) { // Ensure it's a visible element
+          // Create edit button
+          const editBtn = document.createElement('button');
+          editBtn.className = 'cms-injected-btn';
+          editBtn.innerHTML = `✏️ EDIT`;
+          editBtn.style.cssText = `
+            position: fixed;
+            top: ${rect.top + window.scrollY}px;
+            left: ${rect.right + 5}px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 99999;
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.5);
+            animation: editBtnBounce 2s infinite;
+          `;
+          
+          editBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🖱️ Clicked edit button for:', section.title);
+            handleSectionEdit(section.title, element.textContent || '');
+          };
+          
+          document.body.appendChild(editBtn);
+          buttonsAdded++;
+          console.log(`✅ Added edit button for: ${section.title} at position top:${rect.top}px left:${rect.right}px`);
+        }
+      }
+    });
+    
+    console.log(`🎯 Total edit buttons added: ${buttonsAdded}`);
+    
+    // Add CSS animation if not already added
+    if (!document.getElementById('cms-edit-btn-styles')) {
+      const style = document.createElement('style');
+      style.id = 'cms-edit-btn-styles';
+      style.textContent = `
+        @keyframes editBtnBounce {
+          0%, 20%, 50%, 80%, 100% { transform: scale(1); }
+          40% { transform: scale(1.1); }
+          60% { transform: scale(1.05); }
+        }
+        .cms-injected-btn:hover {
+          background: #dc2626 !important;
+          transform: scale(1.1) !important;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  };
+  
+  const removeInjectedButtons = () => {
+    const buttons = document.querySelectorAll('.cms-injected-btn');
+    buttons.forEach(btn => btn.remove());
+    console.log(`🧹 Removed ${buttons.length} injected buttons`);
+  };
 
   const handleSectionEdit = (title: string, content: string) => {
     setEditData({ title, content });
@@ -46,7 +157,7 @@ const UltraSimpleCMS: React.FC = () => {
       <div className="ml-64">
         <AdminPageHeader 
           title="Ultra Simple CMS" 
-          subtitle="Click ENTER EDIT MODE, then click the FLOATING EDIT BUTTONS that appear over each section"
+          subtitle="Click ENTER EDIT MODE, then look for RED EDIT BUTTONS that appear next to each section"
           action={
             <button 
               onClick={() => {
@@ -54,12 +165,7 @@ const UltraSimpleCMS: React.FC = () => {
                 console.log('🔄 Edit mode changed to:', newMode);
                 setIsEditMode(newMode);
                 if (newMode) {
-                  console.log('✅ Edit mode ACTIVATED - buttons should be visible');
-                  setTimeout(() => {
-                    const buttons = document.querySelectorAll('.fixed.bg-red-600');
-                    console.log('🔍 Found edit buttons:', buttons.length);
-                    buttons.forEach((btn, i) => console.log(`Button ${i}:`, btn));
-                  }, 100);
+                  console.log('✅ Edit mode ACTIVATED - buttons will be injected into content');
                 } else {
                   console.log('❌ Edit mode DEACTIVATED');
                 }
@@ -84,7 +190,7 @@ const UltraSimpleCMS: React.FC = () => {
                 <div className="text-center">
                   <h3 className="text-xl font-bold text-red-800 mb-2">🔴 EDIT MODE ACTIVE!</h3>
                   <p className="text-red-700">
-                    Look for <strong>FLOATING RED EDIT BUTTONS</strong> that appear over each section below. Click them to edit!
+                    Look for small <strong>RED "✏️ EDIT" BUTTONS</strong> that appear next to text sections. Click them to edit!
                   </p>
                 </div>
               </div>
@@ -99,120 +205,6 @@ const UltraSimpleCMS: React.FC = () => {
               user={null} 
               onLogout={() => {}} 
             />
-
-            {/* FLOATING EDIT BUTTONS - These appear over specific sections */}
-            {isEditMode && (
-              <>
-                {/* DEBUG BUTTON - Big and impossible to miss */}
-                <button
-                  onClick={() => {
-                    console.log('🔴 DEBUG BUTTON CLICKED!');
-                    alert('DEBUG: Button is working! This proves buttons are rendering.');
-                    handleSectionEdit('DEBUG TEST', 'This is a test to see if buttons work');
-                  }}
-                  className="fixed top-32 right-8 bg-red-600 text-white px-8 py-6 rounded-lg font-bold shadow-2xl hover:bg-red-700 z-[9999] animate-bounce text-xl"
-                  style={{ 
-                    minWidth: '200px',
-                    minHeight: '80px',
-                    fontSize: '18px',
-                    fontWeight: 'bold'
-                  }}
-                >
-                  🚨 DEBUG BUTTON
-                </button>
-
-                {/* Book Demo Section */}
-                <button
-                  onClick={() => handleSectionEdit('Book Demo Section', 'Book a Demo Class\n\nExperience our teaching style with a complimentary session.\n\nEnroll Now')}
-                  className="fixed top-80 left-96 bg-red-600 text-white px-4 py-3 rounded-lg font-bold shadow-lg hover:bg-red-700 z-50 animate-bounce"
-                  style={{ marginLeft: '100px' }}
-                >
-                  ✏️ EDIT DEMO
-                </button>
-
-                {/* Login Section */}
-                <button
-                  onClick={() => handleSectionEdit('Login/Register Section', 'Login / Register\n\nAccess your student portal or create a new account.\n\nLogin | Register')}
-                  className="fixed top-80 right-96 bg-red-600 text-white px-4 py-3 rounded-lg font-bold shadow-lg hover:bg-red-700 z-50 animate-bounce"
-                  style={{ marginRight: '100px' }}
-                >
-                  ✏️ EDIT LOGIN
-                </button>
-
-                {/* Main Title */}
-                <button
-                  onClick={() => handleSectionEdit('Main Title', 'Dance, Draw and Fine Arts')}
-                  className="fixed top-[500px] left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-6 py-4 rounded-lg font-bold text-lg shadow-lg hover:bg-red-700 z-50 animate-bounce"
-                >
-                  ✏️ EDIT TITLE
-                </button>
-
-                {/* Academy Description */}
-                <button
-                  onClick={() => handleSectionEdit('Academy Description', 'We are a fine arts academy offering Bharatanatyam, Vocal music, Drawing, and Abacus training led by experienced instructors.')}
-                  className="fixed top-[700px] left-80 bg-red-600 text-white px-4 py-3 rounded-lg font-bold shadow-lg hover:bg-red-700 z-50 animate-bounce"
-                >
-                  ✏️ EDIT DESCRIPTION
-                </button>
-
-                {/* Statistics Section */}
-                <button
-                  onClick={() => handleSectionEdit('Statistics', '0\nHappy students and parents\n\n0\nStudents returning for advanced levels')}
-                  className="fixed top-[800px] left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-4 py-3 rounded-lg font-bold shadow-lg hover:bg-red-700 z-50 animate-bounce"
-                >
-                  ✏️ EDIT STATS
-                </button>
-
-                {/* Our Programs */}
-                <button
-                  onClick={() => handleSectionEdit('Our Programs', 'Our Programs\n\nExplore courses that blend tradition with engaging, modern teaching\n\nAll Programs')}
-                  className="fixed top-[1000px] left-72 bg-red-600 text-white px-4 py-3 rounded-lg font-bold shadow-lg hover:bg-red-700 z-50 animate-bounce"
-                >
-                  ✏️ EDIT PROGRAMS
-                </button>
-
-                {/* Bharatanatyam */}
-                <button
-                  onClick={() => handleSectionEdit('Bharatanatyam Section', 'Bharatanatyam classical dance training')}
-                  className="fixed top-[1200px] right-80 bg-red-600 text-white px-4 py-3 rounded-lg font-bold shadow-lg hover:bg-red-700 z-50 animate-bounce"
-                >
-                  ✏️ EDIT DANCE
-                </button>
-
-                {/* Vocal Music */}
-                <button
-                  onClick={() => handleSectionEdit('Vocal Music Section', 'Vocal Music Carnatic basics to performance')}
-                  className="fixed top-[1400px] right-80 bg-red-600 text-white px-4 py-3 rounded-lg font-bold shadow-lg hover:bg-red-700 z-50 animate-bounce"
-                >
-                  ✏️ EDIT MUSIC
-                </button>
-
-                {/* Drawing Section */}
-                <button
-                  onClick={() => handleSectionEdit('Drawing Section', 'Drawing & Painting fundamentals and creativity')}
-                  className="fixed top-[1600px] right-80 bg-red-600 text-white px-4 py-3 rounded-lg font-bold shadow-lg hover:bg-red-700 z-50 animate-bounce"
-                >
-                  ✏️ EDIT ART
-                </button>
-
-                {/* Abacus Section */}
-                <button
-                  onClick={() => handleSectionEdit('Abacus Section', 'Abacus skill development & speed math')}
-                  className="fixed top-[1800px] right-80 bg-red-600 text-white px-4 py-3 rounded-lg font-bold shadow-lg hover:bg-red-700 z-50 animate-bounce"
-                >
-                  ✏️ EDIT MATH
-                </button>
-
-                {/* BIG CENTER INSTRUCTION */}
-                <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-red-600 text-white p-6 rounded-xl shadow-2xl z-50 text-center animate-pulse">
-                  <h2 className="text-2xl font-bold mb-4">🎯 EDIT BUTTONS ACTIVE!</h2>
-                  <p className="text-lg">Click any RED BUTTON to edit that section</p>
-                  <div className="mt-4 text-sm opacity-90">
-                    ↑ ↓ ← → Look around for red buttons
-                  </div>
-                </div>
-              </>
-            )}
           </div>
         </div>
       </div>
