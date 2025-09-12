@@ -251,11 +251,32 @@ const DirectHomepageCMS: React.FC = () => {
       
       // If no sections found, let's try to find what elements are available
       if (foundSections === 0) {
-        console.log('Available elements in homepage:', homepageContainer.querySelectorAll('*[class*="mxd"], *[class*="nad"]'));
+        console.log('No specific sections found. Searching for any elements...');
+        console.log('All elements with classes:', Array.from(homepageContainer.querySelectorAll('*')).filter(el => el.className).map(el => el.className));
         
         // Try to add edit buttons to any section-like elements we can find
-        const fallbackSections = homepageContainer.querySelectorAll('section, .section, [class*="section"], [class*="card"], [class*="hero"]');
+        const fallbackSections = homepageContainer.querySelectorAll(`
+          section, 
+          .section, 
+          [class*="section"], 
+          [class*="card"], 
+          [class*="hero"], 
+          [class*="cta"],
+          [class*="demo"],
+          [class*="auth"],
+          h1, h2, h3,
+          .nad-cta__card,
+          div[class*="nad"],
+          div[class*="mxd"]
+        `);
+        
+        console.log('Found fallback sections:', fallbackSections);
+        
         fallbackSections.forEach((element, index) => {
+          // Skip small or hidden elements
+          const rect = element.getBoundingClientRect();
+          if (rect.width < 50 || rect.height < 50) return;
+          
           if (!element.querySelector('.cms-edit-overlay')) {
             element.classList.add('cms-editable-section');
             
@@ -265,19 +286,33 @@ const DirectHomepageCMS: React.FC = () => {
             
             const editBtn = document.createElement('button');
             editBtn.className = 'cms-edit-btn';
-            editBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z"/></svg>Edit Section`;
+            editBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z"/></svg>Edit`;
             editBtn.dataset.cmsElement = 'true';
             
             editBtn.onclick = (e) => {
               e.preventDefault();
               e.stopPropagation();
-              alert(`Editing: ${element.className || 'Unknown Section'}`);
+              const sectionType = detectSectionType(element);
+              const content = extractSectionContent(element, sectionType);
+              
+              setEditData({
+                type: sectionType,
+                title: element.className || `Section ${index + 1}`,
+                content: element.textContent || '',
+                sectionId: `.${element.className}`,
+                elementId: `fallback-section-${index}`,
+                ...content
+              });
+              setShowEditModal(true);
+              setActiveTab('content');
             };
             
             overlay.appendChild(editBtn);
             element.appendChild(overlay);
           }
         });
+        
+        console.log(`Added edit buttons to ${fallbackSections.length} fallback sections`);
       }
     }, 2000); // Increased delay to ensure RayoLanding is fully loaded
   };
@@ -616,52 +651,48 @@ const DirectHomepageCMS: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <AdminNav />
-      <div className="ml-64 relative">
-        <AdminPageHeader 
-          title="Homepage CMS" 
-          subtitle="Direct editing mode - toggle edit mode to see edit buttons on homepage sections"
-          action={
-            <button 
-              onClick={() => setIsEditMode(!isEditMode)}
-              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
-                isEditMode 
-                  ? 'bg-green-600 text-white hover:bg-green-700' 
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
-              }`}
-            >
-              <Edit3 className="w-4 h-4" />
-              {isEditMode ? 'Exit Edit Mode' : 'Enter Edit Mode'}
-            </button>
-          }
-        />
-        
-        {isEditMode && (
-          <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 border-b">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-700">
-                <span className="font-medium">✅ Edit Mode Active:</span>
-                Hover over sections below to see edit options
-              </p>
-              <div className="flex items-center gap-2 text-xs text-gray-600">
-                <span className="px-2 py-1 bg-blue-100 rounded">📝 Text</span>
-                <span className="px-2 py-1 bg-green-100 rounded">🖼️ Images</span>
-                <span className="px-2 py-1 bg-purple-100 rounded">🎠 Carousel</span>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {/* Render the actual homepage */}
-        <div className="relative" id="homepage-content">
-          <RayoLanding 
-            htmlPath="/static/index.html" 
-            onLoginClick={() => {}} 
-            user={null} 
-            onLogout={() => {}} 
-          />
+    <div className="min-h-screen bg-white">
+      {/* Floating Edit Control */}
+      <div className="fixed top-4 right-4 z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-3">
+        <button 
+          onClick={() => setIsEditMode(!isEditMode)}
+          className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium ${
+            isEditMode 
+              ? 'bg-green-600 text-white hover:bg-green-700' 
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+          }`}
+        >
+          <Edit3 className="w-4 h-4" />
+          {isEditMode ? 'Exit Edit Mode' : 'Enter Edit Mode'}
+        </button>
+        <div className="mt-2 text-xs text-gray-500 text-center">
+          CMS Mode
         </div>
+      </div>
+
+      {isEditMode && (
+        <div className="fixed top-20 right-4 z-40 bg-white rounded-lg shadow-lg border border-gray-200 p-3 max-w-sm">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-700">
+              <span className="font-medium">✅ Edit Mode Active</span>
+            </p>
+          </div>
+          <div className="flex items-center gap-1 mt-2">
+            <span className="px-2 py-1 bg-blue-100 rounded text-xs">📝 Text</span>
+            <span className="px-2 py-1 bg-green-100 rounded text-xs">🖼️ Images</span>
+            <span className="px-2 py-1 bg-purple-100 rounded text-xs">🎠 Media</span>
+          </div>
+        </div>
+      )}
+      
+      {/* Render the actual homepage */}
+      <div className="relative" id="homepage-content">
+        <RayoLanding 
+          htmlPath="/static/index.html" 
+          onLoginClick={() => {}} 
+          user={null} 
+          onLogout={() => {}} 
+        />
       </div>
 
       {/* Edit Modal */}
