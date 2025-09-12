@@ -161,36 +161,44 @@ function buildCtaSection(onLoginClick) {
 // Function to fetch CMS content and update the HTML  
 async function fetchAndInjectCMSContent(containerElement) {
   try {
-    // First check for locally saved content
+    // Early return if containerElement is not available
+    if (!containerElement) {
+      console.log('Container element not available for CMS content injection');
+      return;
+    }
+
+    // First check for locally saved content (only in browser)
     let sections = [];
     
-    // Try sessionStorage first (immediate updates)
-    const sessionContent = sessionStorage.getItem('homepage-content');
-    if (sessionContent) {
+    if (typeof window !== 'undefined' && typeof sessionStorage !== 'undefined') {
+      // Try sessionStorage first (immediate updates)
       try {
-        sections = JSON.parse(sessionContent);
-        console.log('Loaded CMS content from session storage:', sections);
+        const sessionContent = sessionStorage.getItem('homepage-content');
+        if (sessionContent) {
+          sections = JSON.parse(sessionContent);
+          console.log('Loaded CMS content from session storage:', sections);
+        }
       } catch (e) {
-        console.log('Failed to parse session content');
+        console.log('Failed to parse session content:', e);
       }
     }
     
     // Fallback to localStorage if no session content
-    if (!sections.length) {
-      const localContent = localStorage.getItem('cms-sections');
-      if (localContent) {
-        try {
+    if (!sections.length && typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+      try {
+        const localContent = localStorage.getItem('cms-sections');
+        if (localContent) {
           sections = JSON.parse(localContent);
           console.log('Loaded CMS content from local storage:', sections);
-        } catch (e) {
-          console.log('Failed to parse local content');
         }
+      } catch (e) {
+        console.log('Failed to parse local content:', e);
       }
     }
     
-    // If no local content, try API (optional)
+    // If no local content available, use static content
     if (!sections.length) {
-      console.log('No local CMS content, using static content');
+      console.log('No local CMS content available, using static content');
       return;
     }
 
@@ -339,25 +347,33 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
         if (containerRef.current) {
           containerRef.current.innerHTML = bodyHtml;
           
-          // Inject CMS content after HTML is loaded
-          fetchAndInjectCMSContent(containerRef.current);
+          // Inject CMS content after HTML is loaded (safely)
+          try {
+            fetchAndInjectCMSContent(containerRef.current);
+          } catch (error) {
+            console.log('CMS content injection failed, continuing with static content:', error);
+          }
           
-          // Listen for real-time CMS updates
-          const handleCMSUpdate = (event) => {
-            console.log('Received CMS update event:', event.detail);
-            if (containerRef.current && event.detail.sections) {
-              // Clear session storage and update with new content
-              sessionStorage.setItem('homepage-content', JSON.stringify(event.detail.sections));
-              fetchAndInjectCMSContent(containerRef.current);
-            }
-          };
-          
-          window.addEventListener('cms-content-updated', handleCMSUpdate);
-          
-          // Cleanup function
-          return () => {
-            window.removeEventListener('cms-content-updated', handleCMSUpdate);
-          };
+          // Listen for real-time CMS updates (only in browser)
+          if (typeof window !== 'undefined') {
+            const handleCMSUpdate = (event) => {
+              console.log('Received CMS update event:', event.detail);
+              if (containerRef.current && event.detail.sections) {
+                // Clear session storage and update with new content
+                sessionStorage.setItem('homepage-content', JSON.stringify(event.detail.sections));
+                fetchAndInjectCMSContent(containerRef.current);
+              }
+            };
+            
+            window.addEventListener('cms-content-updated', handleCMSUpdate);
+            
+            // Cleanup function
+            return () => {
+              if (typeof window !== 'undefined') {
+                window.removeEventListener('cms-content-updated', handleCMSUpdate);
+              }
+            };
+          }
         }
         // Load required scripts once (libs then app)
         return loadScriptsSequentially(SCRIPT_SOURCES).then(() => {
