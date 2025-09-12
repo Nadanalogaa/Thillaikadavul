@@ -20,9 +20,28 @@ interface EditModalData {
   mediaItems?: MediaItem[];
   sectionId: string;
   elementId: string;
-  textElements?: { id: string; content: string; tag: string }[];
-  imageElements?: { id: string; url: string; alt: string }[];
-  iconElements?: { id: string; url: string; alt: string }[];
+  textElements?: { 
+    id: string; 
+    content: string; 
+    tag: string; 
+    label?: string; 
+    preview?: string; 
+  }[];
+  imageElements?: { 
+    id: string; 
+    url: string; 
+    alt: string; 
+    width?: number; 
+    height?: number; 
+    element?: HTMLImageElement;
+  }[];
+  iconElements?: { 
+    id: string; 
+    url: string; 
+    alt: string; 
+    type?: string;
+    element?: Element;
+  }[];
 }
 
 const EnhancedHomepageCMS: React.FC = () => {
@@ -57,23 +76,111 @@ const EnhancedHomepageCMS: React.FC = () => {
   };
 
   const extractSectionContent = (element: Element, sectionType: EditModalData['type']) => {
-    const textElements = Array.from(element.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, div')).map((el, index) => ({
-      id: `text-${index}`,
-      content: el.textContent || '',
-      tag: el.tagName.toLowerCase()
-    }));
+    // Better text extraction - filter out single letters and empty content
+    const textElements = Array.from(element.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, div'))
+      .filter(el => {
+        const text = el.textContent?.trim() || '';
+        // Skip elements that are:
+        // - Single letters or very short
+        // - Empty or whitespace only
+        // - Hidden elements
+        // - Elements that are likely containers (no direct text)
+        const hasDirectText = Array.from(el.childNodes).some(node => 
+          node.nodeType === Node.TEXT_NODE && node.textContent?.trim()
+        );
+        const isVisible = !el.closest('[style*="display: none"], [hidden]');
+        
+        return text.length > 2 && hasDirectText && isVisible;
+      })
+      .map((el, index) => {
+        const text = el.textContent?.trim() || '';
+        const tag = el.tagName.toLowerCase();
+        
+        // Create more descriptive labels
+        let label = tag.toUpperCase();
+        if (tag === 'h1') label = 'Main Title';
+        else if (tag === 'h2') label = 'Section Title';  
+        else if (tag === 'h3') label = 'Subtitle';
+        else if (tag === 'p') label = 'Paragraph';
+        else if (tag === 'span') label = 'Text';
+        else if (tag === 'div') label = 'Content Block';
+        
+        return {
+          id: `text-${index}`,
+          content: text,
+          tag: tag,
+          label: label,
+          preview: text.length > 50 ? text.substring(0, 50) + '...' : text
+        };
+      });
 
-    const imageElements = Array.from(element.querySelectorAll('img')).map((img, index) => ({
-      id: `img-${index}`,
-      url: img.src,
-      alt: img.alt || ''
-    }));
+    // Better image extraction with thumbnails and descriptions
+    const imageElements = Array.from(element.querySelectorAll('img'))
+      .filter(img => {
+        // Filter out tiny icons, loading gifs, etc.
+        const width = img.naturalWidth || img.width || 0;
+        const height = img.naturalHeight || img.height || 0;
+        const isVisible = !img.closest('[style*="display: none"], [hidden]');
+        
+        return width > 30 && height > 30 && isVisible && img.src && !img.src.includes('data:image');
+      })
+      .map((img, index) => ({
+        id: `img-${index}`,
+        url: img.src,
+        alt: img.alt || `Image ${index + 1}`,
+        width: img.naturalWidth || img.width || 0,
+        height: img.naturalHeight || img.height || 0,
+        element: img
+      }));
 
-    const iconElements = Array.from(element.querySelectorAll('.icon, [class*="icon"], .fa, [class*="ph-"]')).map((icon, index) => ({
-      id: `icon-${index}`,
-      url: (icon as HTMLImageElement).src || '',
-      alt: (icon as HTMLImageElement).alt || icon.className
-    }));
+    // Better icon extraction - look for SVG icons, font icons, etc.
+    const iconSelectors = [
+      'svg', 
+      '.icon', 
+      '[class*="icon"]', 
+      '.fa', 
+      '[class*="fa-"]',
+      '[class*="ph-"]',
+      'i[class*="icon"]',
+      'i[class*="fa"]',
+      'i[class*="ph"]'
+    ];
+    
+    const iconElements = [];
+    iconSelectors.forEach(selector => {
+      const icons = Array.from(element.querySelectorAll(selector))
+        .filter((icon, index, arr) => {
+          // Avoid duplicates and ensure it's actually an icon
+          const isVisible = !icon.closest('[style*="display: none"], [hidden]');
+          const isDuplicate = arr.slice(0, index).some(prev => prev.isEqualNode(icon));
+          
+          return isVisible && !isDuplicate;
+        });
+      
+      icons.forEach((icon, index) => {
+        let iconType = 'icon';
+        let iconUrl = '';
+        
+        if (icon.tagName === 'SVG') {
+          iconType = 'SVG';
+          iconUrl = icon.outerHTML;
+        } else if (icon.tagName === 'IMG') {
+          iconType = 'image';
+          iconUrl = (icon as HTMLImageElement).src;
+        } else {
+          iconType = 'font-icon';
+          iconUrl = icon.className;
+        }
+        
+        iconElements.push({
+          id: `icon-${iconElements.length}`,
+          url: iconUrl,
+          alt: icon.getAttribute('title') || icon.className || `Icon ${iconElements.length + 1}`,
+          type: iconType,
+          element: icon
+        });
+      });
+    });
 
     const mediaItems: MediaItem[] = [];
     if (sectionType === 'carousel') {
@@ -82,7 +189,8 @@ const EnhancedHomepageCMS: React.FC = () => {
           id: `media-${index}`,
           type: 'image',
           url: img.url,
-          caption: img.alt
+          caption: img.alt || `Image ${index + 1}`,
+          thumbnail: img.url
         });
       });
     }
@@ -293,153 +401,351 @@ const EnhancedHomepageCMS: React.FC = () => {
 
   const renderContentTab = () => (
     <div className="space-y-6">
-      {editData?.textElements?.map((textEl, index) => (
-        <div key={textEl.id} className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
-            <Type className="w-4 h-4 inline mr-2" />
-            {textEl.tag.toUpperCase()} Content
-          </label>
-          <textarea
-            value={textEl.content}
-            onChange={(e) => {
-              if (!editData) return;
-              const updated = editData.textElements?.map(el => 
-                el.id === textEl.id ? { ...el, content: e.target.value } : el
-              );
-              setEditData({ ...editData, textElements: updated });
-            }}
-            rows={textEl.tag === 'p' ? 4 : 2}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-            placeholder={`Enter ${textEl.tag} content...`}
-          />
+      {editData?.textElements && editData.textElements.length > 0 ? (
+        editData.textElements.map((textEl, index) => (
+          <div key={textEl.id} className="p-4 bg-white border border-gray-200 rounded-lg">
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-sm font-medium text-gray-700 flex items-center">
+                <Type className="w-4 h-4 mr-2 text-blue-600" />
+                {(textEl as any).label || textEl.tag.toUpperCase()} Content
+              </label>
+              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                {textEl.content.length} chars
+              </span>
+            </div>
+            
+            {/* Preview of current content */}
+            <div className="mb-3 p-2 bg-gray-50 rounded text-xs text-gray-600 italic">
+              Current: "{(textEl as any).preview || textEl.content}"
+            </div>
+            
+            <textarea
+              value={textEl.content}
+              onChange={(e) => {
+                if (!editData) return;
+                const updated = editData.textElements?.map(el => 
+                  el.id === textEl.id ? { ...el, content: e.target.value } : el
+                );
+                setEditData({ ...editData, textElements: updated });
+              }}
+              rows={textEl.tag === 'p' ? 4 : textEl.content.length > 100 ? 3 : 2}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              placeholder={`Enter ${(textEl as any).label || textEl.tag} content...`}
+            />
+          </div>
+        ))
+      ) : (
+        <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+          <Type className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No editable text found</h3>
+          <p className="text-gray-600">This section may contain only images or other non-text content.</p>
         </div>
-      ))}
+      )}
     </div>
   );
 
   const renderImagesTab = () => (
     <div className="space-y-6">
-      {editData?.imageElements?.map((imgEl, index) => (
-        <div key={imgEl.id} className="p-4 border border-gray-200 rounded-lg">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="font-medium text-gray-900">Image {index + 1}</h4>
-            <button className="text-blue-600 hover:text-blue-800">
-              <RotateCcw className="w-4 h-4" />
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Upload className="w-4 h-4 inline mr-1" />
-                Upload New Image
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-              <div className="mt-2">
-                <input
-                  type="url"
-                  value={imgEl.url}
-                  onChange={(e) => {
-                    if (!editData) return;
-                    const updated = editData.imageElements?.map(el => 
-                      el.id === imgEl.id ? { ...el, url: e.target.value } : el
-                    );
-                    setEditData({ ...editData, imageElements: updated });
-                  }}
-                  placeholder="Or enter image URL"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
+      {editData?.imageElements && editData.imageElements.length > 0 ? (
+        editData.imageElements.map((imgEl, index) => (
+          <div key={imgEl.id} className="p-6 border border-gray-200 rounded-xl bg-white shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Image className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-900">{imgEl.alt || `Image ${index + 1}`}</h4>
+                  <p className="text-sm text-gray-500">
+                    {(imgEl as any).width && (imgEl as any).height ? 
+                      `${(imgEl as any).width}x${(imgEl as any).height}px` : 
+                      'Click to replace this image'
+                    }
+                  </p>
+                </div>
+              </div>
+              <button className="text-blue-600 hover:text-blue-800 p-2 hover:bg-blue-50 rounded-lg transition-colors">
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            </div>
+            
+            {/* Current Image Preview */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Current Image</label>
+              <div className="relative">
+                {imgEl.url ? (
+                  <div className="relative group">
+                    <img
+                      src={imgEl.url}
+                      alt={imgEl.alt}
+                      className="w-full h-48 object-cover rounded-lg border-2 border-gray-200"
+                    />
+                    <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                      <span className="text-white text-sm font-medium">Current Image</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-full h-48 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
+                    <div className="text-center">
+                      <Image className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-500">No image found</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             
-            <div>
-              {imgEl.url && (
-                <img
-                  src={imgEl.url}
-                  alt={imgEl.alt}
-                  className="w-full h-32 object-cover rounded-lg border"
-                />
-              )}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  <Upload className="w-4 h-4 inline mr-2" />
+                  Replace with New Image
+                </label>
+                
+                {/* File Upload */}
+                <div className="mb-4">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file && editData) {
+                        const imageUrl = URL.createObjectURL(file);
+                        const updated = editData.imageElements?.map(el => 
+                          el.id === imgEl.id ? { ...el, url: imageUrl } : el
+                        );
+                        setEditData({ ...editData, imageElements: updated });
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                </div>
+                
+                {/* URL Input */}
+                <div>
+                  <input
+                    type="url"
+                    value={imgEl.url}
+                    onChange={(e) => {
+                      if (!editData) return;
+                      const updated = editData.imageElements?.map(el => 
+                        el.id === imgEl.id ? { ...el, url: e.target.value } : el
+                      );
+                      setEditData({ ...editData, imageElements: updated });
+                    }}
+                    placeholder="Or paste image URL here..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">Image Details</label>
+                
+                {/* Alt Text */}
+                <div className="mb-4">
+                  <label className="block text-xs text-gray-600 mb-1">Alt Text (for accessibility)</label>
+                  <input
+                    type="text"
+                    value={imgEl.alt}
+                    onChange={(e) => {
+                      if (!editData) return;
+                      const updated = editData.imageElements?.map(el => 
+                        el.id === imgEl.id ? { ...el, alt: e.target.value } : el
+                      );
+                      setEditData({ ...editData, imageElements: updated });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    placeholder="Describe this image..."
+                  />
+                </div>
+                
+                {/* Image Info */}
+                <div className="space-y-2 text-xs text-gray-600">
+                  <div className="flex justify-between">
+                    <span>File size:</span>
+                    <span>Auto-optimized</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Format:</span>
+                    <span>JPG, PNG, WebP</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Max size:</span>
+                    <span>5MB recommended</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          
-          <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Alt Text</label>
-            <input
-              type="text"
-              value={imgEl.alt}
-              onChange={(e) => {
-                if (!editData) return;
-                const updated = editData.imageElements?.map(el => 
-                  el.id === imgEl.id ? { ...el, alt: e.target.value } : el
-                );
-                setEditData({ ...editData, imageElements: updated });
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              placeholder="Image description"
-            />
-          </div>
+        ))
+      ) : (
+        <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+          <Image className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No images found</h3>
+          <p className="text-gray-600">This section doesn't contain any editable images.</p>
         </div>
-      ))}
+      )}
     </div>
   );
 
   const renderIconsTab = () => (
     <div className="space-y-6">
-      {editData?.iconElements?.map((iconEl, index) => (
-        <div key={iconEl.id} className="p-4 border border-gray-200 rounded-lg">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="font-medium text-gray-900">Icon {index + 1}</h4>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Upload className="w-4 h-4 inline mr-1" />
-                Upload Icon
-              </label>
-              <input
-                type="file"
-                accept="image/*,.svg"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-              <div className="mt-2">
-                <input
-                  type="url"
-                  value={iconEl.url}
-                  onChange={(e) => {
-                    if (!editData) return;
-                    const updated = editData.iconElements?.map(el => 
-                      el.id === iconEl.id ? { ...el, url: e.target.value } : el
-                    );
-                    setEditData({ ...editData, iconElements: updated });
-                  }}
-                  placeholder="Or enter icon URL"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
+      {editData?.iconElements && editData.iconElements.length > 0 ? (
+        editData.iconElements.map((iconEl, index) => (
+          <div key={iconEl.id} className="p-6 border border-gray-200 rounded-xl bg-white shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <div className="w-5 h-5 text-purple-600">⭐</div>
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-900">{iconEl.alt || `Icon ${index + 1}`}</h4>
+                  <p className="text-sm text-gray-500 capitalize">
+                    {(iconEl as any).type || 'icon'} {(iconEl as any).type === 'font-icon' ? '(Font Icon)' : (iconEl as any).type === 'SVG' ? '(SVG)' : '(Image)'}
+                  </p>
+                </div>
               </div>
             </div>
             
-            <div className="flex items-center justify-center">
-              {iconEl.url ? (
-                <img
-                  src={iconEl.url}
-                  alt={iconEl.alt}
-                  className="w-16 h-16 object-contain"
-                />
-              ) : (
-                <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
-                  <Image className="w-6 h-6 text-gray-400" />
+            {/* Current Icon Preview */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Current Icon</label>
+              <div className="flex items-center justify-center p-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                {iconEl.url ? (
+                  (iconEl as any).type === 'SVG' ? (
+                    <div dangerouslySetInnerHTML={{ __html: iconEl.url }} className="w-16 h-16" />
+                  ) : (iconEl as any).type === 'font-icon' ? (
+                    <div className={`${iconEl.url} text-4xl text-gray-700`} title={iconEl.alt} />
+                  ) : (
+                    <img
+                      src={iconEl.url}
+                      alt={iconEl.alt}
+                      className="w-16 h-16 object-contain"
+                    />
+                  )
+                ) : (
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center mx-auto mb-2">
+                      <div className="text-2xl">⭐</div>
+                    </div>
+                    <p className="text-gray-500 text-sm">No icon found</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  <Upload className="w-4 h-4 inline mr-2" />
+                  Replace Icon
+                </label>
+                
+                {/* File Upload */}
+                <div className="mb-4">
+                  <input
+                    type="file"
+                    accept="image/*,.svg,.ico"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file && editData) {
+                        const iconUrl = URL.createObjectURL(file);
+                        const updated = editData.iconElements?.map(el => 
+                          el.id === iconEl.id ? { ...el, url: iconUrl, type: file.type.includes('svg') ? 'SVG' : 'image' } : el
+                        );
+                        setEditData({ ...editData, iconElements: updated });
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+                  />
                 </div>
-              )}
+                
+                {/* URL Input */}
+                <div>
+                  <input
+                    type="url"
+                    value={(iconEl as any).type === 'font-icon' ? '' : iconEl.url}
+                    onChange={(e) => {
+                      if (!editData) return;
+                      const updated = editData.iconElements?.map(el => 
+                        el.id === iconEl.id ? { ...el, url: e.target.value, type: 'image' } : el
+                      );
+                      setEditData({ ...editData, iconElements: updated });
+                    }}
+                    placeholder="Or paste icon/SVG URL here..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">Icon Details</label>
+                
+                {/* Icon Alt/Title */}
+                <div className="mb-4">
+                  <label className="block text-xs text-gray-600 mb-1">Icon Description</label>
+                  <input
+                    type="text"
+                    value={iconEl.alt}
+                    onChange={(e) => {
+                      if (!editData) return;
+                      const updated = editData.iconElements?.map(el => 
+                        el.id === iconEl.id ? { ...el, alt: e.target.value } : el
+                      );
+                      setEditData({ ...editData, iconElements: updated });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    placeholder="Describe this icon..."
+                  />
+                </div>
+                
+                {/* Font Icon Class (if applicable) */}
+                {(iconEl as any).type === 'font-icon' && (
+                  <div className="mb-4">
+                    <label className="block text-xs text-gray-600 mb-1">Font Icon Class</label>
+                    <input
+                      type="text"
+                      value={iconEl.url}
+                      onChange={(e) => {
+                        if (!editData) return;
+                        const updated = editData.iconElements?.map(el => 
+                          el.id === iconEl.id ? { ...el, url: e.target.value } : el
+                        );
+                        setEditData({ ...editData, iconElements: updated });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono"
+                      placeholder="fa-home, ph-house, etc."
+                    />
+                  </div>
+                )}
+                
+                {/* Icon Info */}
+                <div className="space-y-2 text-xs text-gray-600">
+                  <div className="flex justify-between">
+                    <span>Formats:</span>
+                    <span>SVG, PNG, ICO</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Best size:</span>
+                    <span>24x24px - 64x64px</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Background:</span>
+                    <span>Transparent preferred</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
+        ))
+      ) : (
+        <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+          <div className="w-12 h-12 text-gray-400 mx-auto mb-4 text-3xl">⭐</div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No icons found</h3>
+          <p className="text-gray-600">This section doesn't contain any editable icons.</p>
         </div>
-      ))}
+      )}
     </div>
   );
 
