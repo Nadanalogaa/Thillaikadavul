@@ -179,6 +179,39 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
         if (containerRef.current) {
           containerRef.current.innerHTML = bodyHtml;
           
+          // SAFE CMS integration - only read from localStorage
+          try {
+            const cmsContent = localStorage.getItem('cms-sections');
+            if (cmsContent) {
+              const sections = JSON.parse(cmsContent);
+              console.log('Found CMS content, applying updates:', sections);
+              
+              // Apply CMS content safely
+              sections.forEach(section => {
+                if (section.id === 'hero') {
+                  // Update hero title
+                  const titleElements = containerRef.current.querySelectorAll('h1, .hero-title, .intro-title');
+                  titleElements.forEach(el => {
+                    if (el && section.title) {
+                      el.textContent = section.title;
+                    }
+                  });
+                  
+                  // Update hero content
+                  const contentElements = containerRef.current.querySelectorAll('.hero-subtitle, .intro-text, .banner p');
+                  contentElements.forEach(el => {
+                    if (el && section.content) {
+                      el.textContent = section.content;
+                    }
+                  });
+                }
+              });
+              
+              console.log('CMS content applied successfully');
+            }
+          } catch (error) {
+            console.log('CMS integration error (non-critical):', error);
+          }
         }
         // Load required scripts once (libs then app)
         return loadScriptsSequentially(SCRIPT_SOURCES).then(() => {
@@ -381,8 +414,47 @@ export default function RayoLanding({ htmlPath = "/static/index.html", onLoginCl
         if (mounted) setError(e.message || String(e));
       });
 
+    // Listen for CMS updates (safe)
+    const handleCMSUpdate = (event) => {
+      try {
+        if (containerRef.current && event.detail && event.detail.sections) {
+          console.log('Received CMS update event:', event.detail);
+          const sections = event.detail.sections;
+          
+          sections.forEach(section => {
+            if (section.id === 'hero') {
+              // Update hero title
+              const titleElements = containerRef.current.querySelectorAll('h1, .hero-title, .intro-title');
+              titleElements.forEach(el => {
+                if (el && section.title) {
+                  el.textContent = section.title;
+                }
+              });
+              
+              // Update hero content
+              const contentElements = containerRef.current.querySelectorAll('.hero-subtitle, .intro-text, .banner p');
+              contentElements.forEach(el => {
+                if (el && section.content) {
+                  el.textContent = section.content;
+                }
+              });
+            }
+          });
+        }
+      } catch (error) {
+        console.log('CMS update error (non-critical):', error);
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('cms-content-updated', handleCMSUpdate);
+    }
+
     return () => {
       mounted = false;
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('cms-content-updated', handleCMSUpdate);
+      }
       // We intentionally leave CSS/JS in place to avoid reloading between navigations
       // and to preserve animations state across mounts where applicable.
     };
