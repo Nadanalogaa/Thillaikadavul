@@ -117,7 +117,6 @@ CREATE TABLE IF NOT EXISTS events (
     date DATE,
     time TIME,
     location TEXT,
-    recipient_ids JSONB DEFAULT '[]', -- For targeting specific students/teachers
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -168,7 +167,6 @@ CREATE TABLE notices (
     title TEXT NOT NULL,
     content TEXT,
     target_audience TEXT DEFAULT 'All', -- CRITICAL: target_audience column
-    recipient_ids JSONB DEFAULT '[]', -- For targeting specific students/teachers
     issued_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

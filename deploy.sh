@@ -23,18 +23,18 @@ echo "📦 Installing Nginx..."
 sudo apt install nginx git -y
 
 # Clone/pull repository
-if [ ! -d "/home/ubuntu/Thillaikadavul" ]; then
+if [ ! -d "/home/ubuntu/Nadanaloga" ]; then
     echo "📥 Cloning repository..."
     cd /home/ubuntu
-    git clone https://github.com/Nadanalogaa/Thillaikadavul.git
+    git clone https://github.com/Nadanalogaa/Nadanaloga.git
 else
     echo "📥 Updating repository..."
-    cd /home/ubuntu/Thillaikadavul
+    cd /home/ubuntu/Nadanaloga
     git pull origin main
 fi
 
 # Navigate to app directory
-cd /home/ubuntu/Thillaikadavul
+cd /home/ubuntu/Nadanaloga
 
 # Setup production environment
 echo "⚙️  Setting up production environment..."

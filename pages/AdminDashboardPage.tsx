@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import type { Course, DashboardStats } from '../types';
@@ -10,9 +9,10 @@ import EditCourseModal from '../components/admin/EditCourseModal';
 import StatCard from '../components/admin/StatCard';
 import AdminPageHeader from '../components/admin/AdminPageHeader';
 import AdminNav from '../components/admin/AdminNav';
-
+import { useTheme } from '../contexts/ThemeContext';
 
 const AdminDashboardPage: React.FC = () => {
+    const { theme } = useTheme();
     const [courses, setCourses] = useState<Course[]>([]);
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -69,9 +69,10 @@ const AdminDashboardPage: React.FC = () => {
         }
     };
     
-
     return (
-        <div className="bg-gray-50 min-h-full py-3">
+        <div className={`min-h-full py-3 transition-colors duration-300 ${
+            theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
+        }`}>
             <div className="container mx-auto px-6 lg:px-8">
                 <div className="max-w-7xl mx-auto">
                     <AdminPageHeader 

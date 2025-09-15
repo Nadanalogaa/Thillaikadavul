@@ -2,6 +2,8 @@
 import React from 'react';
 import { NavLink, Outlet, useOutletContext } from 'react-router-dom';
 import type { User } from '../types';
+import { useTheme } from '../contexts/ThemeContext';
+import ThemeToggle from '../components/ThemeToggle';
 
 // --- SVG Icons for Sidebar ---
 const IconWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -24,6 +26,7 @@ interface TeacherDashboardPageProps {
 
 // --- Sidebar Component ---
 const Sidebar: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
+    const { theme } = useTheme();
     const NAV_ITEMS = [
         { name: 'Dashboard', path: '/dashboard/teacher', icon: DashboardIcon, end: true },
         { name: 'Profile', path: 'profile', icon: ProfileIcon },
@@ -35,9 +38,15 @@ const Sidebar: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     ];
     
     return (
-        <aside className="w-64 bg-white shadow-md flex-col hidden lg:flex">
+        <aside className={`w-64 shadow-lg flex-col hidden lg:flex transition-colors duration-300 ${
+            theme === 'dark' 
+                ? 'bg-gray-800/90 backdrop-blur-sm border-r border-gray-700/50' 
+                : 'bg-white/90 backdrop-blur-sm border-r border-gray-200/50'
+        }`}>
             <div className="px-8 py-6">
-                 <h1 className="text-3xl font-bold text-brand-primary tangerine-title">Nadanaloga</h1>
+                <h1 className={`text-3xl font-bold tangerine-title transition-colors duration-300 ${
+                    theme === 'dark' ? 'text-emerald-400' : 'text-brand-primary'
+                }`}>Nadanaloga</h1>
             </div>
             <nav className="flex-grow px-4">
                 <ul>
@@ -46,7 +55,20 @@ const Sidebar: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                             <NavLink 
                                 to={item.path} 
                                 end={item.end}
-                                className={({isActive}) => `flex items-center space-x-3 px-4 py-3 my-1 rounded-lg transition-colors ${isActive ? 'bg-brand-purple text-white' : 'text-light-text hover:bg-light-purple hover:text-dark-text'}`}
+                                className={({isActive}) => {
+                                    if (isActive) {
+                                        return `flex items-center space-x-3 px-4 py-3 my-1 rounded-lg transition-all duration-300 ${
+                                            theme === 'dark' 
+                                                ? 'bg-gradient-to-r from-emerald-600 to-blue-600 text-white shadow-lg'
+                                                : 'bg-brand-purple text-white shadow-lg'
+                                        }`;
+                                    }
+                                    return `flex items-center space-x-3 px-4 py-3 my-1 rounded-lg transition-all duration-300 ${
+                                        theme === 'dark'
+                                            ? 'text-gray-300 hover:bg-emerald-900/30 hover:text-white'
+                                            : 'text-light-text hover:bg-light-purple hover:text-dark-text'
+                                    }`;
+                                }}
                             >
                                 <item.icon />
                                 <span className="font-medium">{item.name}</span>
@@ -55,8 +77,25 @@ const Sidebar: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                     ))}
                 </ul>
             </nav>
+            
+            {/* Theme Toggle */}
+            <div className="px-4 py-2">
+                <div className={`p-3 rounded-lg ${
+                    theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-100'
+                }`}>
+                    <ThemeToggle />
+                </div>
+            </div>
+            
             <div className="p-4">
-                 <button onClick={onLogout} className="flex items-center w-full space-x-3 px-4 py-3 rounded-lg text-light-text hover:bg-light-purple hover:text-dark-text">
+                <button 
+                    onClick={onLogout} 
+                    className={`flex items-center w-full space-x-3 px-4 py-3 rounded-lg transition-all duration-300 ${
+                        theme === 'dark'
+                            ? 'text-gray-300 hover:bg-red-900/30 hover:text-red-400'
+                            : 'text-light-text hover:bg-red-100 hover:text-red-600'
+                    }`}
+                >
                     <LogoutIcon />
                     <span className="font-medium">Logout</span>
                 </button>
@@ -66,8 +105,12 @@ const Sidebar: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
 };
 
 const TeacherDashboardPage: React.FC<TeacherDashboardPageProps> = ({ user, onLogout, onUpdate }) => {
+    const { theme } = useTheme();
+    
     return (
-        <div className="flex min-h-screen bg-background font-sans">
+        <div className={`flex min-h-screen font-sans transition-colors duration-300 ${
+            theme === 'dark' ? 'bg-gray-900' : 'bg-background'
+        }`}>
             <Sidebar onLogout={onLogout} />
             <main className="flex-1 overflow-y-auto">
                 <Outlet context={{ user, onUpdate }} />

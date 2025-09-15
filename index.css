@@ -83,6 +83,60 @@ body {
    margin-bottom: 0.25rem; /* 4px */
 }
 
+/* Theme-aware Autofill Styling */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+textarea:-webkit-autofill:active,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus,
+select:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px rgb(249 250 251) inset !important;
+    -webkit-text-fill-color: rgb(17 24 39) !important;
+    transition: background-color 5000s ease-in-out 0s !important;
+}
+
+/* Dark theme autofill styling */
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus,
+.dark input:-webkit-autofill:active,
+.dark textarea:-webkit-autofill,
+.dark textarea:-webkit-autofill:hover,
+.dark textarea:-webkit-autofill:focus,
+.dark textarea:-webkit-autofill:active,
+.dark select:-webkit-autofill,
+.dark select:-webkit-autofill:hover,
+.dark select:-webkit-autofill:focus,
+.dark select:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px rgb(55 65 81) inset !important;
+    -webkit-text-fill-color: rgb(243 244 246) !important;
+    transition: background-color 5000s ease-in-out 0s !important;
+}
+
+/* Modern browsers using internal-autofill-selected */
+input:-internal-autofill-selected,
+textarea:-internal-autofill-selected,
+select:-internal-autofill-selected {
+    appearance: menulist-button !important;
+    background-image: none !important;
+    background-color: rgb(249 250 251) !important;
+    color: rgb(17 24 39) !important;
+}
+
+/* Dark theme for internal-autofill-selected */
+.dark input:-internal-autofill-selected,
+.dark textarea:-internal-autofill-selected,
+.dark select:-internal-autofill-selected {
+    background-color: rgb(55 65 81) !important;
+    color: rgb(243 244 246) !important;
+}
+
 /* Specific Component Styles */
 .btn-assign {
     padding: 0.25rem 0.75rem;

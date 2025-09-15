@@ -1,17 +1,53 @@
 
+
 import React from 'react';
-import RayoLanding from '../static_react/src/RayoLanding.jsx';
-import type { User } from '../types';
+import HeroSection from '../components/modern/HeroSection';
+import AboutUsSection from '../components/modern/AboutUsSection';
+import ImageGallery from '../components/modern/ImageGallery';
+import VideoSection from '../components/modern/VideoSection';
+import CoursesSection from '../components/modern/CoursesSection';
+import AnimatedFooter from '../components/modern/AnimatedFooter';
+import ThemeToggle from '../components/ThemeToggle';
 
 interface HomePageProps {
   onLoginClick: () => void;
-  user?: User | null;
-  onLogout?: () => void;
+  onRegisterClick?: () => void;
+  onBookDemoClick?: () => void;
 }
 
-// Native React homepage component - no iframe, direct rendering with static assets
-const HomePage: React.FC<HomePageProps> = ({ onLoginClick, user = null, onLogout }) => {
-  return <RayoLanding htmlPath="/static/index.html" onLoginClick={onLoginClick} user={user} onLogout={onLogout} />;
+const HomePage: React.FC<HomePageProps> = ({ 
+  onLoginClick, 
+  onRegisterClick, 
+  onBookDemoClick 
+}) => {
+  return (
+    <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
+      {/* Theme Toggle Button */}
+      <ThemeToggle />
+      
+      {/* Hero Section with Parallax */}
+      <HeroSection 
+        onLoginClick={onLoginClick}
+        onRegisterClick={onRegisterClick}
+        onBookDemoClick={onBookDemoClick}
+      />
+      
+      {/* About Us Section */}
+      <AboutUsSection />
+      
+      {/* Image Gallery with Vertical Slider */}
+      <ImageGallery />
+      
+      {/* YouTube Videos Section */}
+      <VideoSection />
+      
+      {/* Courses Section */}
+      <CoursesSection />
+      
+      {/* Animated Footer */}
+      <AnimatedFooter />
+    </div>
+  );
 };
 
 export default HomePage;

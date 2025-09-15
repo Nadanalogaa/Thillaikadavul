@@ -112,7 +112,7 @@ Now that your server is running, you can deploy your Nadanaloga application:
 
 1. **In the SSH terminal, run:**
    ```bash
-   wget https://raw.githubusercontent.com/Nadanalogaa/Thillaikadavul/main/deploy.sh
+   wget https://raw.githubusercontent.com/Nadanalogaa/Nadanaloga/main/deploy.sh
    chmod +x deploy.sh
    sudo ./deploy.sh
    ```
@@ -121,7 +121,7 @@ Now that your server is running, you can deploy your Nadanaloga application:
 
 3. **Update your domain configuration:**
    ```bash
-   cd /home/ubuntu/Thillaikadavul
+   cd /home/ubuntu/Nadanaloga
    nano server/.env
    ```
    - Change `CLIENT_URL=http://127.0.0.1:5500` to `CLIENT_URL=http://YOUR_PUBLIC_IP`
@@ -152,7 +152,7 @@ Now that your server is running, you can deploy your Nadanaloga application:
 
 3. **Update your application:**
    ```bash
-   cd /home/ubuntu/Thillaikadavul
+   cd /home/ubuntu/Nadanaloga
    nano server/.env
    ```
    - Change `CLIENT_URL` to `https://yourdomain.com`

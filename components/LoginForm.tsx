@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { loginUser } from '../api';
 import type { User } from '../types';
 import ModalHeader from './ModalHeader';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface LoginFormProps {
   onSuccess: (user: User) => void;
@@ -11,6 +12,7 @@ interface LoginFormProps {
 }
 
 const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, initialEmail, onForgotPassword }) => {
+  const { theme } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -45,17 +47,21 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, initialEmail, onForgot
 
   return (
     <div>
-      <div className="nad-modal__header mb-6">
-        <ModalHeader title="Welcome Back!" subtitle="Log in to continue to your dashboard" />
-      </div>
+      <ModalHeader title="Welcome Back!" />
       {initialEmail && (
-        <p className="text-center text-sm text-yellow-800 bg-yellow-100 p-2 rounded-md mb-4">
+        <p className={`text-center text-sm p-2 rounded-md mb-4 ${
+          theme === 'dark'
+            ? 'text-yellow-300 bg-yellow-900/30'
+            : 'text-yellow-800 bg-yellow-100'
+        }`}>
           This email is already registered. Please log in.
         </p>
       )}
-      <form className="nad-form space-y-5" onSubmit={handleSubmit}>
+      <form className="space-y-6" onSubmit={handleSubmit}>
         <div>
-          <label htmlFor="login-email" className="block text-sm font-medium">
+          <label htmlFor="login-email" className={`block text-sm font-medium ${
+            theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+          }`}>
             Email Address
           </label>
           <input
@@ -67,18 +73,27 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, initialEmail, onForgot
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             disabled={isLoading}
-            placeholder="you@example.com"
-            className="mt-2 block w-full nad-input"
+            className={`mt-1 block w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${
+              theme === 'dark'
+                ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400'
+                : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'
+            }`}
           />
         </div>
 
         <div>
           <div className="flex items-center justify-between">
-            <label htmlFor="login-password" className="block text-sm font-medium">
+            <label htmlFor="login-password" className={`block text-sm font-medium ${
+              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               Password
             </label>
             <div className="text-sm">
-              <a href="#" onClick={(e) => { e.preventDefault(); onForgotPassword(); }} className="font-medium text-accent hover:opacity-90">
+              <a href="#" onClick={(e) => { e.preventDefault(); onForgotPassword(); }} className={`font-medium transition-colors ${
+                theme === 'dark'
+                  ? 'text-indigo-400 hover:text-indigo-300'
+                  : 'text-indigo-600 hover:text-indigo-800'
+              }`}>
                 Forgot your password?
               </a>
             </div>
@@ -92,18 +107,23 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, initialEmail, onForgot
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={isLoading}
-            placeholder="••••••••"
-            className="mt-2 block w-full nad-input"
+            className={`mt-1 block w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${
+              theme === 'dark'
+                ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400'
+                : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'
+            }`}
           />
         </div>
 
-        {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+        {error && <p className={`text-sm text-center ${
+          theme === 'dark' ? 'text-red-400' : 'text-red-600'
+        }`}>{error}</p>}
 
         <div>
           <button
             type="submit"
             disabled={isLoading}
-            className="nad-btn-primary w-full"
+            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-lg text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? 'Logging in...' : 'Login'}
           </button>

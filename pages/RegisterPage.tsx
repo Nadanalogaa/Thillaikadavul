@@ -6,12 +6,24 @@ import { registerUser, getCourses, checkEmailExists, getPublicLocations } from '
 import PreferredTimingSelector from '../components/registration/PreferredTimingSelector';
 import { XCircleIcon } from '../components/icons';
 import { COUNTRIES, TIMEZONES, WEEKDAY_MAP } from '../constants';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useInView } from 'react-intersection-observer';
+import { 
+    Users, BookOpen, Clock, MapPin, Phone, Mail, User as UserIcon,
+    ChevronLeft, ChevronRight, Check, X, Eye, EyeOff, ArrowRight,
+    Sparkles, Star, Heart, Globe
+} from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
+import ThemeToggle from '../components/ThemeToggle';
 
 interface RegisterPageProps {
   onLoginNeeded: (email: string) => void;
 }
 
 const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
+    const { theme } = useTheme();
+    const [heroRef, heroInView] = useInView({ threshold: 0.1, triggerOnce: true });
+    const [cardsRef, cardsInView] = useInView({ threshold: 0.1, triggerOnce: true });
     const [registrationType, setRegistrationType] = useState<'student' | 'teacher' | null>(null);
     const [learningMode, setLearningMode] = useState<'online' | 'inperson' | null>(null);
     const [currentStep, setCurrentStep] = useState(1);
@@ -68,13 +80,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                     getCourses(),
                     getPublicLocations(),
                 ]);
-                console.log('RegisterPage - Fetched courses:', fetchedCourses);
-                // Remove duplicate courses based on course name to prevent UI duplication
-                const uniqueCourses = fetchedCourses.filter((course, index, array) => 
-                    array.findIndex(c => c.name === course.name) === index
-                );
-                console.log('RegisterPage - Unique courses after deduplication:', uniqueCourses);
-                setCourses(uniqueCourses);
+                setCourses(fetchedCourses);
                 setLocations(fetchedLocations);
             } catch (err) {
                 setError("Could not load registration data. Please try again later.");
@@ -405,140 +411,222 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
     if (success) {
         const loginEmail = registrationType === 'student' ? guardianData.email : teacherData.email || '';
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-                <div className="text-center p-8 bg-white rounded-2xl shadow-xl max-w-md">
-                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                        </svg>
-                    </div>
-                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome to Nadanaloga!</h1>
-                    <p className="text-gray-600 mb-6">Your registration is complete. Ready to begin your artistic journey?</p>
-                    <button 
-                        onClick={() => onLoginNeeded(loginEmail)} 
-                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg"
+            <div className={`min-h-screen flex items-center justify-center transition-colors duration-300 ${
+                theme === 'dark' 
+                    ? 'bg-gradient-to-br from-gray-900 via-indigo-900 to-purple-900' 
+                    : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'
+            }`}>
+                <motion.div 
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className={`text-center p-8 rounded-2xl shadow-xl max-w-md backdrop-blur-sm border transition-all duration-300 ${
+                        theme === 'dark'
+                            ? 'bg-gray-800/90 border-gray-700/50'
+                            : 'bg-white/90 border-white/20'
+                    }`}
+                >
+                    <motion.div 
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: 0.2, type: "spring" }}
+                        className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                            theme === 'dark' ? 'bg-green-800/50' : 'bg-green-100'
+                        }`}
                     >
-                        Login to Your Account
-                    </button>
-                </div>
+                        <Check className="w-8 h-8 text-green-600" />
+                    </motion.div>
+                    <h1 className={`text-2xl font-bold mb-2 ${
+                        theme === 'dark' ? 'text-white' : 'text-gray-900'
+                    }`}>Welcome to Nadanaloga!</h1>
+                    <p className={`mb-6 ${
+                        theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                    }`}>Your registration is complete. Ready to begin your artistic journey?</p>
+                    <motion.button 
+                        whileHover={{ scale: 1.02, y: -2 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => onLoginNeeded(loginEmail)} 
+                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
+                    >
+                        <span>Login to Your Account</span>
+                        <ArrowRight className="w-4 h-4" />
+                    </motion.button>
+                </motion.div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-8">
-            {/* Modern CSS-in-JS styles */}
-            <style>{`
-                .form-card { background: white; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
-                .form-input, .form-select, .form-textarea { 
-                    width: 100%; padding: 0.65rem 0.75rem; border: 2px solid #e5e7eb; border-radius: 8px; 
-                    font-size: 0.875rem; font-weight: 500; transition: all 0.2s; background: #fafafa;
-                }
-                .form-input:focus, .form-select:focus, .form-textarea:focus { 
-                    border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); outline: none; background: white;
-                }
-                .form-label { display: block; font-size: 0.75rem; font-weight: 600; color: #374151; margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px; }
-                .btn-primary { 
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                    color: white; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; font-size: 0.875rem;
-                    border: none; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-                }
-                .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.15); }
-                .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-                .btn-secondary { 
-                    background: white; color: #6b7280; padding: 0.75rem 1.5rem; border: 2px solid #e5e7eb; 
-                    border-radius: 8px; font-weight: 600; font-size: 0.875rem; cursor: pointer; transition: all 0.3s;
-                }
-                .btn-secondary:hover { border-color: #d1d5db; background: #f9fafb; }
-                .course-tile { 
-                    border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;
-                    transition: all 0.3s ease; cursor: pointer; background: white;
-                    box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
-                }
-                .course-tile:hover { 
-                    border-color: #d1d5db; transform: translateY(-2px); 
-                    box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.15);
-                }
-                .course-tile.selected { 
-                    border-color: #93c5fd; background: #eff6ff;
-                    box-shadow: 0 4px 14px -3px rgba(59, 130, 246, 0.2);
-                }
-                .course-tile.active { 
-                    border-color: #60a5fa; 
-                    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.3);
-                }
-                .course-card {
-                    display: flex; align-items: center; gap: 12px; padding: 12px; border: 2px solid #e5e7eb;
-                    border-radius: 8px; cursor: pointer; transition: all 0.2s; background: white;
-                }
-                .course-card:hover { border-color: #d1d5db; background: #f9fafb; }
-                .course-card.selected { border-color: #60a5fa; background: #eff6ff; }
-                .student-tab { 
-                    padding: 0.5rem 1rem; border-radius: 6px 6px 0 0; font-size: 0.75rem; font-weight: 600; 
-                    cursor: pointer; transition: all 0.2s; margin-right: 0.25rem;
-                }
-                .student-tab.active { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
-                .student-tab.inactive { background: #f3f4f6; color: #6b7280; }
-                .student-tab.inactive:hover { background: #e5e7eb; }
-                .registration-type-card { 
-                    border: 2px solid #e5e7eb; border-radius: 12px; padding: 2rem; text-align: center; 
-                    transition: all 0.3s; cursor: pointer; background: white;
-                }
-                .registration-type-card:hover { 
-                    border-color: #667eea; transform: translateY(-2px); 
-                    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-                }
-                .error-alert { 
-                    background: #fee2e2; border: 1px solid #fca5a5; color: #dc2626; 
-                    padding: 0.75rem; border-radius: 8px; font-size: 0.875rem; margin: 1rem 0;
-                }
-            `}</style>
+        <div className={`min-h-screen py-8 transition-colors duration-300 relative overflow-hidden ${
+            theme === 'dark' 
+                ? 'bg-gradient-to-br from-gray-900 via-indigo-900 to-purple-900' 
+                : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'
+        }`}>
+            <ThemeToggle />
+            
+            {/* Animated Background Elements */}
+            <div className="absolute inset-0 overflow-hidden">
+                <motion.div
+                    className={`absolute -top-40 -right-40 w-80 h-80 rounded-full opacity-20 blur-3xl ${
+                        theme === 'dark' 
+                            ? 'bg-gradient-to-br from-purple-600 to-pink-600' 
+                            : 'bg-gradient-to-br from-purple-200 to-pink-200'
+                    }`}
+                    animate={{
+                        y: [0, -20, 0],
+                        rotate: [0, 180, 360],
+                    }}
+                    transition={{
+                        duration: 20,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                    }}
+                />
+                <motion.div
+                    className={`absolute -bottom-40 -left-40 w-80 h-80 rounded-full opacity-20 blur-3xl ${
+                        theme === 'dark' 
+                            ? 'bg-gradient-to-br from-blue-600 to-indigo-600' 
+                            : 'bg-gradient-to-br from-blue-200 to-indigo-200'
+                    }`}
+                    animate={{
+                        y: [0, 20, 0],
+                        rotate: [360, 180, 0],
+                    }}
+                    transition={{
+                        duration: 25,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                    }}
+                />
+            </div>
 
-            <div className="container mx-auto px-4 max-w-7xl">
+            <div className="container mx-auto px-4 max-w-7xl relative z-10">
                 {!registrationType ? (
-                    <div className="form-card">
-                        <div className="form-header">
-                            <h1 className="text-2xl font-bold mb-2">Join Nadanaloga Fine Arts Academy</h1>
-                            <p className="opacity-90">Discover your artistic potential with expert guidance</p>
+                    <motion.div 
+                        ref={heroRef}
+                        initial={{ opacity: 0, y: 50 }}
+                        animate={heroInView ? { opacity: 1, y: 0 } : {}}
+                        transition={{ duration: 1 }}
+                        className={`rounded-2xl shadow-2xl backdrop-blur-lg border transition-all duration-300 ${
+                            theme === 'dark'
+                                ? 'bg-gray-800/90 border-gray-700/50'
+                                : 'bg-white/90 border-white/20'
+                        }`}
+                    >
+                        <div className="text-center p-8 border-b border-gray-200 dark:border-gray-700">
+                            <motion.h1 
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={heroInView ? { opacity: 1, y: 0 } : {}}
+                                transition={{ duration: 0.8, delay: 0.2 }}
+                                className={`text-3xl font-bold mb-3 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent`}
+                            >
+                                Join Nadanaloga Fine Arts Academy
+                            </motion.h1>
+                            <motion.p 
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={heroInView ? { opacity: 1, y: 0 } : {}}
+                                transition={{ duration: 0.8, delay: 0.3 }}
+                                className={`text-lg ${
+                                    theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                                }`}
+                            >
+                                Discover your artistic potential with expert guidance
+                            </motion.p>
                         </div>
                         <div className="p-8">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <button 
+                                <motion.button 
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={heroInView ? { opacity: 1, scale: 1 } : {}}
+                                    transition={{ duration: 0.6, delay: 0.4 }}
+                                    whileHover={{ y: -5, scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
                                     onClick={() => setRegistrationType('student')} 
-                                    className="registration-type-card"
+                                    className={`p-8 text-center rounded-2xl border-2 transition-all duration-300 group ${
+                                        theme === 'dark'
+                                            ? 'border-gray-600 bg-gray-700/50 hover:border-blue-400 hover:bg-blue-900/20'
+                                            : 'border-gray-200 bg-white/80 hover:border-blue-400 hover:bg-blue-50'
+                                    }`}
                                 >
-                                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                        <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-                                        </svg>
+                                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors duration-300 ${
+                                        theme === 'dark' ? 'bg-blue-800/50 group-hover:bg-blue-700/70' : 'bg-blue-100 group-hover:bg-blue-200'
+                                    }`}>
+                                        <BookOpen className="w-8 h-8 text-blue-600" />
                                     </div>
-                                    <h2 className="text-xl font-bold text-gray-900 mb-2">Student & Guardian</h2>
-                                    <p className="text-gray-600 text-sm">Enroll in our arts programs and begin your creative journey</p>
-                                </button>
-                                <button 
+                                    <h2 className={`text-xl font-bold mb-2 ${
+                                        theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                    }`}>Student & Guardian</h2>
+                                    <p className={`text-sm ${
+                                        theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                                    }`}>Enroll in our arts programs and begin your creative journey</p>
+                                </motion.button>
+                                <motion.button 
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={heroInView ? { opacity: 1, scale: 1 } : {}}
+                                    transition={{ duration: 0.6, delay: 0.5 }}
+                                    whileHover={{ y: -5, scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
                                     onClick={() => setRegistrationType('teacher')} 
-                                    className="registration-type-card"
+                                    className={`p-8 text-center rounded-2xl border-2 transition-all duration-300 group ${
+                                        theme === 'dark'
+                                            ? 'border-gray-600 bg-gray-700/50 hover:border-purple-400 hover:bg-purple-900/20'
+                                            : 'border-gray-200 bg-white/80 hover:border-purple-400 hover:bg-purple-50'
+                                    }`}
                                 >
-                                    <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                        <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m8 6V8a2 2 0 00-2-2H10a2 2 0 00-2 2v8a2 2 0 002 2h4a2 2 0 002-2v-2"></path>
-                                        </svg>
+                                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors duration-300 ${
+                                        theme === 'dark' ? 'bg-purple-800/50 group-hover:bg-purple-700/70' : 'bg-purple-100 group-hover:bg-purple-200'
+                                    }`}>
+                                        <Users className="w-8 h-8 text-purple-600" />
                                     </div>
-                                    <h2 className="text-xl font-bold text-gray-900 mb-2">Instructor</h2>
-                                    <p className="text-gray-600 text-sm">Join our team of passionate arts educators</p>
-                                </button>
+                                    <h2 className={`text-xl font-bold mb-2 ${
+                                        theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                    }`}>Instructor</h2>
+                                    <p className={`text-sm ${
+                                        theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                                    }`}>Join our team of passionate arts educators</p>
+                                </motion.button>
                             </div>
                         </div>
-                    </div>
+                    </motion.div>
                 ) : registrationType && !learningMode ? (
-                    <div className="form-card">
-                        <div className="form-header">
-                            <h1 className="text-2xl font-bold mb-2">Choose Your {registrationType === 'student' ? 'Learning' : 'Teaching'} Experience</h1>
-                            <p className="opacity-90">{registrationType === 'student' ? 'How would you prefer to attend your arts classes?' : 'How would you prefer to conduct your arts classes?'}</p>
+                    <motion.div 
+                        ref={cardsRef}
+                        initial={{ opacity: 0, y: 50 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 1 }}
+                        className={`rounded-2xl shadow-2xl backdrop-blur-lg border transition-all duration-300 ${
+                            theme === 'dark'
+                                ? 'bg-gray-800/90 border-gray-700/50'
+                                : 'bg-white/90 border-white/20'
+                        }`}
+                    >
+                        <div className="text-center p-8 border-b border-gray-200 dark:border-gray-700">
+                            <motion.h1 
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.8, delay: 0.2 }}
+                                className={`text-3xl font-bold mb-3 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent`}
+                            >
+                                Choose Your {registrationType === 'student' ? 'Learning' : 'Teaching'} Experience
+                            </motion.h1>
+                            <motion.p 
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.8, delay: 0.3 }}
+                                className={`text-lg ${
+                                    theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                                }`}
+                            >
+                                {registrationType === 'student' ? 'How would you prefer to attend your arts classes?' : 'How would you prefer to conduct your arts classes?'}
+                            </motion.p>
                         </div>
                         <div className="p-8">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <button 
+                                <motion.button 
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ duration: 0.6, delay: 0.4 }}
+                                    whileHover={{ y: -5, scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
                                     onClick={() => {
                                         setLearningMode('online');
                                         if (registrationType === 'student') {
@@ -549,17 +637,30 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                             setTeacherData(prev => ({ ...prev, classPreference: ClassPreference.Online }));
                                         }
                                     }} 
-                                    className="registration-type-card"
+                                    className={`p-8 text-center rounded-2xl border-2 transition-all duration-300 group ${
+                                        theme === 'dark'
+                                            ? 'border-gray-600 bg-gray-700/50 hover:border-green-400 hover:bg-green-900/20'
+                                            : 'border-gray-200 bg-white/80 hover:border-green-400 hover:bg-green-50'
+                                    }`}
                                 >
-                                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                        <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                                        </svg>
+                                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors duration-300 ${
+                                        theme === 'dark' ? 'bg-green-800/50 group-hover:bg-green-700/70' : 'bg-green-100 group-hover:bg-green-200'
+                                    }`}>
+                                        <Globe className="w-8 h-8 text-green-600" />
                                     </div>
-                                    <h2 className="text-xl font-bold text-gray-900 mb-2">Online Classes</h2>
-                                    <p className="text-gray-600 text-sm">{registrationType === 'student' ? 'Learn from anywhere with live virtual sessions and interactive lessons' : 'Teach from anywhere with live virtual sessions and interactive lessons'}</p>
-                                </button>
-                                <button 
+                                    <h2 className={`text-xl font-bold mb-2 ${
+                                        theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                    }`}>Online Classes</h2>
+                                    <p className={`text-sm ${
+                                        theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                                    }`}>{registrationType === 'student' ? 'Learn from anywhere with live virtual sessions and interactive lessons' : 'Teach from anywhere with live virtual sessions and interactive lessons'}</p>
+                                </motion.button>
+                                <motion.button 
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ duration: 0.6, delay: 0.5 }}
+                                    whileHover={{ y: -5, scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
                                     onClick={() => {
                                         setLearningMode('inperson');
                                         if (registrationType === 'student') {
@@ -570,39 +671,65 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                             setTeacherData(prev => ({ ...prev, classPreference: ClassPreference.Offline }));
                                         }
                                     }} 
-                                    className="registration-type-card"
+                                    className={`p-8 text-center rounded-2xl border-2 transition-all duration-300 group ${
+                                        theme === 'dark'
+                                            ? 'border-gray-600 bg-gray-700/50 hover:border-blue-400 hover:bg-blue-900/20'
+                                            : 'border-gray-200 bg-white/80 hover:border-blue-400 hover:bg-blue-50'
+                                    }`}
                                 >
-                                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                        <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                                        </svg>
+                                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors duration-300 ${
+                                        theme === 'dark' ? 'bg-blue-800/50 group-hover:bg-blue-700/70' : 'bg-blue-100 group-hover:bg-blue-200'
+                                    }`}>
+                                        <MapPin className="w-8 h-8 text-blue-600" />
                                     </div>
-                                    <h2 className="text-xl font-bold text-gray-900 mb-2">In-Person Classes</h2>
-                                    <p className="text-gray-600 text-sm">{registrationType === 'student' ? 'Experience hands-on learning in our beautiful studio spaces with direct guidance' : 'Provide hands-on instruction in our beautiful studio spaces with direct student interaction'}</p>
-                                </button>
+                                    <h2 className={`text-xl font-bold mb-2 ${
+                                        theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                    }`}>In-Person Classes</h2>
+                                    <p className={`text-sm ${
+                                        theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                                    }`}>{registrationType === 'student' ? 'Experience hands-on learning in our beautiful studio spaces with direct guidance' : 'Provide hands-on instruction in our beautiful studio spaces with direct student interaction'}</p>
+                                </motion.button>
                             </div>
                             <div className="mt-6 text-center">
-                                <button 
+                                <motion.button 
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    transition={{ duration: 0.8, delay: 0.6 }}
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
                                     onClick={() => setRegistrationType(null)} 
-                                    className="btn-secondary"
+                                    className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 border-2 ${
+                                        theme === 'dark'
+                                            ? 'border-gray-600 text-gray-300 hover:border-gray-500 hover:bg-gray-700/50'
+                                            : 'border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
+                                    }`}
                                 >
-                                    ← Back to Role Selection
-                                </button>
+                                    <ChevronLeft className="w-4 h-4 inline mr-1" />
+                                    Back to Role Selection
+                                </motion.button>
                             </div>
                         </div>
-                    </div>
+                    </motion.div>
                 ) : (
                     <div>
                         {/* Compact Header */}
-                        <div className="bg-white rounded-lg shadow-sm mb-6 p-4">
+                        <motion.div 
+                            initial={{ opacity: 0, y: -20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className={`rounded-2xl shadow-lg mb-6 p-6 backdrop-blur-sm border transition-all duration-300 ${
+                                theme === 'dark'
+                                    ? 'bg-gray-800/80 border-gray-700/50'
+                                    : 'bg-white/90 border-white/20'
+                            }`}
+                        >
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-                                        <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                            <path d="M10 2L13 7l5 1-4 4 1 5-5-3-5 3 1-5-4-4 5-1z"/>
-                                        </svg>
+                                    <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                                        <Star className="w-5 h-5 text-white" />
                                     </div>
-                                    <h1 className="text-lg font-bold text-gray-900">
+                                    <h1 className={`text-xl font-bold ${
+                                        theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                    }`}>
                                         {registrationType === 'student' ? 'Student Registration' : 'Instructor Application'}
                                     </h1>
                                 </div>
@@ -619,41 +746,86 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                 </div>
                                 
                                 <div className="text-right">
-                                    <div className="text-sm font-medium text-gray-700">
+                                    <div className={`text-sm font-medium ${
+                                        theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                                    }`}>
                                         {currentStep === 1 ? (registrationType === 'student' ? 'Guardian Account Details' : 'Your Account Details') : 'Additional Information'}
                                     </div>
-                                    <div className="text-xs text-gray-500">Step {currentStep} of 2</div>
+                                    <div className={`text-xs ${
+                                        theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                                    }`}>Step {currentStep} of 2</div>
                                 </div>
                             </div>
-                        </div>
+                        </motion.div>
 
-                        <div className="flex gap-8">
+                        <div className="flex flex-col lg:flex-row gap-8">
                             {/* Main Form */}
-                            <div className="flex-1">
-                                <div className="form-card">
-                                    {error && <div className="error-alert mx-6 mt-6">{error}</div>}
+                            <div className="flex-1 lg:order-1 order-2">
+                                <motion.div 
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ duration: 0.5 }}
+                                    className={`rounded-2xl shadow-2xl backdrop-blur-lg border transition-all duration-300 ${
+                                        theme === 'dark'
+                                            ? 'bg-gray-800/90 border-gray-700/50'
+                                            : 'bg-white/90 border-white/20'
+                                    }`}
+                                >
+                                    {error && (
+                                        <motion.div 
+                                            initial={{ opacity: 0, scale: 0.9 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            className={`mx-6 mt-6 px-4 py-3 rounded-xl text-sm border ${
+                                                theme === 'dark'
+                                                    ? 'bg-red-900/30 border-red-700/50 text-red-300'
+                                                    : 'bg-red-50 border-red-200 text-red-700'
+                                            }`}
+                                        >
+                                            {error}
+                                        </motion.div>
+                                    )}
 
                                 <form onSubmit={handleSubmit} className="p-6">
                             {currentStep === 1 && (
                                 <div className="space-y-6">
-                                    <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">
+                                    <h3 className={`text-lg font-semibold border-b pb-2 ${
+                                        theme === 'dark' 
+                                            ? 'text-white border-gray-700' 
+                                            : 'text-gray-900 border-gray-200'
+                                    }`}>
                                         {registrationType === 'student' ? 'Guardian Account Details' : 'Your Account Details'}
                                     </h3>
                                     
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="form-label">Full Name</label>
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 20 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: 0.1 }}
+                                        >
+                                            <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${
+                                                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                                            }`}>Full Name</label>
                                             <input 
                                                 name="name" 
                                                 value={registrationType === 'student' ? guardianData.name : teacherData.name || ''} 
                                                 onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
                                                 required 
-                                                className="form-input"
+                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${
+                                                    theme === 'dark'
+                                                        ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400'
+                                                        : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'
+                                                }`}
                                                 placeholder="Enter your full name"
                                             />
-                                        </div>
-                                        <div>
-                                            <label className="form-label">Email Address</label>
+                                        </motion.div>
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 20 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: 0.2 }}
+                                        >
+                                            <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${
+                                                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                                            }`}>Email Address</label>
                                             <div className="relative">
                                                 <input 
                                                     name="email" 
@@ -661,7 +833,9 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                     value={registrationType === 'student' ? guardianData.email : teacherData.email || ''} 
                                                     onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
                                                     required 
-                                                    className={`form-input ${
+                                                    className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${
+                                                        theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'
+                                                    } ${
                                                         emailValidation.isValid === false ? 'border-red-500' : 
                                                         emailValidation.isValid === true ? 'border-green-500' : ''
                                                     }`}
@@ -681,50 +855,50 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                     {emailValidation.message}
                                                 </p>
                                             )}
-                                        </div>
+                                        </motion.div>
                                         <div>
-                                            <label className="form-label">Password</label>
+                                            <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Password</label>
                                             <input 
                                                 name="password" 
                                                 type="password" 
                                                 value={registrationType === 'student' ? guardianData.password : teacherData.password || ''} 
                                                 onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
                                                 required 
-                                                className="form-input"
+                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'}`}
                                                 placeholder="Minimum 6 characters"
                                             />
                                         </div>
                                         <div>
-                                            <label className="form-label">Confirm Password</label>
+                                            <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Confirm Password</label>
                                             <input 
                                                 type="password" 
                                                 value={registrationType === 'student' ? passwordConfirmation : teacherPasswordConfirmation} 
                                                 onChange={(e) => registrationType === 'student' ? setPasswordConfirmation(e.target.value) : setTeacherPasswordConfirmation(e.target.value)} 
                                                 required 
-                                                className="form-input"
+                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'}`}
                                                 placeholder="Re-enter password"
                                             />
                                         </div>
                                         <div>
-                                            <label className="form-label">Contact Number</label>
+                                            <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Contact Number</label>
                                             <input 
                                                 name="contactNumber" 
                                                 type="tel" 
                                                 value={registrationType === 'student' ? guardianData.contactNumber : teacherData.contactNumber || ''} 
                                                 onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
                                                 required 
-                                                className="form-input"
+                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'}`}
                                                 placeholder="+1 234 567 8900"
                                             />
                                         </div>
                                         <div>
-                                            <label className="form-label">Country</label>
+                                            <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Country</label>
                                             <select 
                                                 name="country" 
                                                 value={registrationType === 'student' ? guardianData.country : teacherData.country || ''} 
                                                 onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
                                                 required 
-                                                className="form-select"
+                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 focus:border-indigo-500 focus:bg-white'}`}
                                             >
                                                 <option value="">Select your country</option>
                                                 {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -734,61 +908,61 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
 
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div>
-                                            <label className="form-label">State/Province</label>
+                                            <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>State/Province</label>
                                             <input 
                                                 name="state" 
                                                 value={registrationType === 'student' ? guardianData.state : teacherData.state || ''} 
                                                 onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
                                                 required 
-                                                className="form-input"
+                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'}`}
                                                 placeholder="State/Province"
                                             />
                                         </div>
                                         <div>
-                                            <label className="form-label">City</label>
+                                            <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>City</label>
                                             <input 
                                                 name="city" 
                                                 value={registrationType === 'student' ? guardianData.city : teacherData.city || ''} 
                                                 onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
                                                 required 
-                                                className="form-input"
+                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'}`}
                                                 placeholder="City"
                                             />
                                         </div>
                                         <div>
-                                            <label className="form-label">Postal Code</label>
+                                            <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Postal Code</label>
                                             <input 
                                                 name="postalCode" 
                                                 value={registrationType === 'student' ? guardianData.postalCode : teacherData.postalCode || ''} 
                                                 onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
                                                 required 
-                                                className="form-input"
+                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'}`}
                                                 placeholder="12345"
                                             />
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label className="form-label">Address</label>
+                                        <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Address</label>
                                         <textarea 
                                             name="address" 
                                             value={registrationType === 'student' ? guardianData.address : teacherData.address || ''} 
                                             onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
                                             required 
-                                            className="form-textarea" 
+                                            className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 resize-none ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'}`} 
                                             rows={3}
                                             placeholder="Enter your complete address"
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="form-label">Time Zone</label>
+                                        <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Time Zone</label>
                                         <select 
                                             name="timezone" 
                                             value={registrationType === 'student' ? guardianData.timezone : teacherData.timezone || ''} 
                                             onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
                                             required 
-                                            className="form-select"
+                                            className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 focus:border-indigo-500 focus:bg-white'}`}
                                         >
                                             <option value="">Select your timezone</option>
                                             {TIMEZONES.map(tz => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
@@ -814,12 +988,20 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
 
                             {currentStep === 2 && registrationType === 'student' && students[activeStudentIndex] && (
                                 <div className="space-y-6">
-                                    <div className="flex items-center justify-between border-b pb-2">
-                                        <h3 className="text-lg font-semibold text-gray-900">Student Details</h3>
+                                    <div className={`flex items-center justify-between border-b pb-2 ${
+                                        theme === 'dark' ? 'border-gray-600' : 'border-gray-200'
+                                    }`}>
+                                        <h3 className={`text-lg font-semibold ${
+                                            theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                        }`}>Student Details</h3>
                                         <div className="inline-flex items-center gap-2">
-                                            <span className="text-sm text-gray-500">Learning Mode:</span>
+                                            <span className={`text-sm ${
+                                                theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                                            }`}>Learning Mode:</span>
                                             <span className={`px-3 py-1.5 text-sm font-medium rounded-md ${
-                                                learningMode === 'online' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                                                learningMode === 'online' 
+                                                    ? theme === 'dark' ? 'bg-green-900/50 text-green-300' : 'bg-green-100 text-green-800'
+                                                    : theme === 'dark' ? 'bg-blue-900/50 text-blue-300' : 'bg-blue-100 text-blue-800'
                                             }`}>
                                                 {learningMode === 'online' ? 'Online Classes' : 'In-Person Classes'}
                                             </span>
@@ -827,13 +1009,15 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                     </div>
                                     
                                     {/* Student tabs */}
-                                    <div className="flex border-b">
+                                    <div className={`flex border-b ${
+                                        theme === 'dark' ? 'border-gray-600' : 'border-gray-200'
+                                    }`}>
                                         {students.map((student, index) => (
                                             <button
                                                 key={index}
                                                 type="button"
                                                 onClick={() => setActiveStudentIndex(index)}
-                                                className={`student-tab ${activeStudentIndex === index ? 'active' : 'inactive'}`}
+                                                className={`px-4 py-2 rounded-t-xl text-xs font-semibold cursor-pointer transition-all duration-300 ${theme === 'dark' ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'} ${activeStudentIndex === index ? 'active' : 'inactive'}`}
                                             >
                                                 {student.name || `Student ${index + 1}`}
                                                 {students.length > 1 && (
@@ -864,7 +1048,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                 setStudents(newStudents);
                                                 setActiveStudentIndex(newStudents.length - 1);
                                             }}
-                                            className="student-tab inactive text-blue-600"
+                                            className={`px-4 py-2 rounded-t-xl text-xs font-semibold cursor-pointer transition-all duration-300 ${theme === 'dark' ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'} inactive text-blue-600`}
                                         >
                                             + Add Student
                                         </button>
@@ -874,32 +1058,32 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                         <div className="space-y-4">
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                                 <div>
-                                                    <label className="form-label">Student Name</label>
+                                                    <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Student Name</label>
                                                     <input 
                                                         type="text" 
                                                         value={students[activeStudentIndex].name || ''} 
                                                         onChange={e => handleStudentDataChange(activeStudentIndex, 'name', e.target.value)} 
                                                         required 
-                                                        className="form-input"
+                                                        className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'}`}
                                                         placeholder="Full name"
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="form-label">Date of Birth</label>
+                                                    <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Date of Birth</label>
                                                     <input 
                                                         type="date" 
                                                         value={students[activeStudentIndex].dob || ''} 
                                                         onChange={e => handleStudentDataChange(activeStudentIndex, 'dob', e.target.value)} 
                                                         required 
-                                                        className="form-input"
+                                                        className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'}`}
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="form-label">Gender</label>
+                                                    <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Gender</label>
                                                     <select 
                                                         value={students[activeStudentIndex].sex} 
                                                         onChange={e => handleStudentDataChange(activeStudentIndex, 'sex', e.target.value)} 
-                                                        className="form-select"
+                                                        className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 focus:border-indigo-500 focus:bg-white'}`}
                                                     >
                                                         {Object.values(Sex).map(s => <option key={s} value={s}>{s}</option>)}
                                                     </select>
@@ -908,10 +1092,14 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
 
                                             {/* Student Photo Upload */}
                                             <div>
-                                                <label className="form-label">Student Photo (Optional)</label>
+                                                <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Student Photo (Optional)</label>
                                                 <div className="space-y-3">
                                                     <div className="flex items-center justify-center w-full">
-                                                        <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                                                        <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                                                            theme === 'dark'
+                                                                ? 'border-gray-600 bg-gray-800/50 hover:bg-gray-700/50'
+                                                                : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
+                                                        }`}>
                                                             {students[activeStudentIndex].photoUrl ? (
                                                                 <div className="relative w-full h-full">
                                                                     <img 
@@ -925,11 +1113,17 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                                 </div>
                                                             ) : (
                                                                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                                                    <svg className="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                                                                    <svg className={`w-8 h-8 mb-4 ${
+                                                                        theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                                                                    }`} aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
                                                                         <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
                                                                     </svg>
-                                                                    <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click to upload</span> student photo</p>
-                                                                    <p className="text-xs text-gray-500">PNG, JPG or JPEG (MAX. 5MB)</p>
+                                                                    <p className={`mb-2 text-sm ${
+                                                                        theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                                                                    }`}><span className="font-semibold">Click to upload</span> student photo</p>
+                                                                    <p className={`text-xs ${
+                                                                        theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                                                                    }`}>PNG, JPG or JPEG (MAX. 5MB)</p>
                                                                 </div>
                                                             )}
                                                             <input 
@@ -950,18 +1144,20 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                             />
                                                         </label>
                                                     </div>
-                                                    <p className="text-xs text-gray-500">Upload a photo for the student profile</p>
+                                                    <p className={`text-xs ${
+                                                        theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                                                    }`}>Upload a photo for the student profile</p>
                                                 </div>
                                             </div>
 
                                             {learningMode === 'inperson' && (
                                                 <div>
-                                                    <label className="form-label">Location</label>
+                                                    <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Location</label>
                                                     <select 
                                                         value={students[activeStudentIndex].locationId || ''} 
                                                         onChange={e => handleStudentDataChange(activeStudentIndex, 'locationId', e.target.value)} 
                                                         required 
-                                                        className="form-select"
+                                                        className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 focus:border-indigo-500 focus:bg-white'}`}
                                                     >
                                                         <option value="">Choose location</option>
                                                         {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
@@ -972,8 +1168,12 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                             {/* Course Selection */}
                                             <div className="space-y-4">
                                                 <div>
-                                                    <h4 className="text-lg font-semibold text-gray-900 mb-1">Select your Course</h4>
-                                                    <p className="text-sm text-gray-600 mb-6">You can select multiple courses</p>
+                                                    <h4 className={`text-lg font-semibold mb-1 ${
+                                                        theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                                    }`}>Select your Course</h4>
+                                                    <p className={`text-sm mb-6 ${
+                                                        theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                                    }`}>You can select multiple courses</p>
                                                 </div>
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                                     {courses.map(course => {
@@ -987,7 +1187,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                             <div
                                                                 key={course.id}
                                                                 className={`relative overflow-hidden rounded-xl border transition-all duration-300 cursor-pointer transform hover:scale-105 ${
-                                                                    isSelected ? 'border-blue-300 bg-blue-50 shadow-lg' : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md'
+                                                                    isSelected ? (theme === 'dark' ? 'border-blue-400 bg-blue-900/30 shadow-lg' : 'border-blue-300 bg-blue-50 shadow-lg') : (theme === 'dark' ? 'border-gray-600 bg-gray-700/50 hover:border-gray-500 hover:shadow-md' : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md')
                                                                 } ${isActive ? 'ring-2 ring-blue-300 ring-offset-2' : ''}`}
                                                                 onClick={() => {
                                                                     // Toggle course selection
@@ -1037,9 +1237,13 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                                         )}
                                                                     </div>
                                                                     
-                                                                    <div className="flex items-center justify-between text-xs text-gray-600">
+                                                                    <div className={`flex items-center justify-between text-xs ${
+                                                                        theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                                                    }`}>
                                                                         <span>Time Slots: {courseSlots.length}/2</span>
-                                                                        <span className="text-blue-600 font-medium">
+                                                                        <span className={`font-medium ${
+                                                                            theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                                                                        }`}>
                                                                             {isSelected ? 'Selected' : 'Select'}
                                                                         </span>
                                                                     </div>
@@ -1080,12 +1284,20 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
 
                             {currentStep === 2 && registrationType === 'teacher' && (
                                 <div className="space-y-6">
-                                    <div className="flex items-center justify-between border-b pb-2">
-                                        <h3 className="text-lg font-semibold text-gray-900">Professional Details</h3>
+                                    <div className={`flex items-center justify-between border-b pb-2 ${
+                                        theme === 'dark' ? 'border-gray-600' : 'border-gray-200'
+                                    }`}>
+                                        <h3 className={`text-lg font-semibold ${
+                                            theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                        }`}>Professional Details</h3>
                                         <div className="inline-flex items-center gap-2">
-                                            <span className="text-sm text-gray-500">Teaching Mode:</span>
+                                            <span className={`text-sm ${
+                                                theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                                            }`}>Teaching Mode:</span>
                                             <span className={`px-3 py-1.5 text-sm font-medium rounded-md ${
-                                                learningMode === 'online' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                                                learningMode === 'online' 
+                                                    ? theme === 'dark' ? 'bg-green-900/50 text-green-300' : 'bg-green-100 text-green-800'
+                                                    : theme === 'dark' ? 'bg-blue-900/50 text-blue-300' : 'bg-blue-100 text-blue-800'
                                             }`}>
                                                 {learningMode === 'online' ? 'Online Classes' : 'In-Person Classes'}
                                             </span>
@@ -1094,40 +1306,40 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                     
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <label className="form-label">Date of Birth</label>
+                                            <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Date of Birth</label>
                                             <input 
                                                 name="dob" 
                                                 type="date" 
                                                 value={teacherData.dob || ''} 
                                                 onChange={handleTeacherChange} 
                                                 required 
-                                                className="form-input"
+                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'}`}
                                             />
                                         </div>
                                         <div>
-                                            <label className="form-label">Gender</label>
+                                            <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Gender</label>
                                             <select 
                                                 name="sex" 
                                                 value={teacherData.sex} 
                                                 onChange={handleTeacherChange} 
-                                                className="form-select"
+                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 focus:border-indigo-500 focus:bg-white'}`}
                                             >
                                                 {Object.values(Sex).map(s => <option key={s} value={s}>{s}</option>)}
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="form-label">Employment Type</label>
+                                            <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Employment Type</label>
                                             <select 
                                                 name="employmentType" 
                                                 value={teacherData.employmentType} 
                                                 onChange={handleTeacherChange} 
-                                                className="form-select"
+                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 focus:border-indigo-500 focus:bg-white'}`}
                                             >
                                                 {Object.values(EmploymentType).map(s => <option key={s} value={s}>{s}</option>)}
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="form-label">Years of Experience</label>
+                                            <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Years of Experience</label>
                                             <input 
                                                 name="yearsOfExperience" 
                                                 type="number" 
@@ -1135,7 +1347,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                 max="50"
                                                 value={teacherData.yearsOfExperience || ''} 
                                                 onChange={handleTeacherChange} 
-                                                className="form-input"
+                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'}`}
                                                 placeholder="e.g., 5"
                                             />
                                         </div>
@@ -1143,21 +1355,25 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <label className="form-label">Alternate Contact Number</label>
+                                            <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Alternate Contact Number</label>
                                             <input 
                                                 name="alternateContactNumber" 
                                                 type="tel" 
                                                 value={teacherData.alternateContactNumber || ''} 
                                                 onChange={handleTeacherChange} 
-                                                className="form-input"
+                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'}`}
                                                 placeholder="+1 234 567 8901 (Optional)"
                                             />
                                         </div>
                                         <div>
-                                            <label className="form-label">Profile Photo (Optional)</label>
+                                            <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Profile Photo (Optional)</label>
                                             <div className="space-y-3">
                                                 <div className="flex items-center justify-center w-full">
-                                                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                                                    <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                                                        theme === 'dark'
+                                                            ? 'border-gray-600 bg-gray-800/50 hover:bg-gray-700/50'
+                                                            : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
+                                                    }`}>
                                                         {teacherData.photoUrl ? (
                                                             <div className="relative w-full h-full">
                                                                 <img 
@@ -1171,11 +1387,17 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                             </div>
                                                         ) : (
                                                             <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                                                <svg className="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                                                                <svg className={`w-8 h-8 mb-4 ${
+                                                                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                                                                }`} aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
                                                                     <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
                                                                 </svg>
-                                                                <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click to upload</span> profile photo</p>
-                                                                <p className="text-xs text-gray-500">PNG, JPG or JPEG (MAX. 5MB)</p>
+                                                                <p className={`mb-2 text-sm ${
+                                                                    theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                                                                }`}><span className="font-semibold">Click to upload</span> profile photo</p>
+                                                                <p className={`text-xs ${
+                                                                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                                                                }`}>PNG, JPG or JPEG (MAX. 5MB)</p>
                                                             </div>
                                                         )}
                                                         <input 
@@ -1196,20 +1418,22 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                         />
                                                     </label>
                                                 </div>
-                                                <p className="text-xs text-gray-500">Upload a professional photo for your instructor profile</p>
+                                                <p className={`text-xs ${
+                                                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                                                }`}>Upload a professional photo for your instructor profile</p>
                                             </div>
                                         </div>
                                     </div>
 
                                     {learningMode === 'inperson' && (
                                         <div>
-                                            <label className="form-label">Preferred Location</label>
+                                            <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Preferred Location</label>
                                             <select 
                                                 name="locationId" 
                                                 value={teacherData.locationId || ''} 
                                                 onChange={handleTeacherChange} 
                                                 required 
-                                                className="form-select"
+                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 focus:border-indigo-500 focus:bg-white'}`}
                                             >
                                                 <option value="">Select location</option>
                                                 {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
@@ -1218,21 +1442,25 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                     )}
 
                                     <div>
-                                        <label className="form-label">Educational Qualifications</label>
+                                        <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Educational Qualifications</label>
                                         <input 
                                             name="educationalQualifications" 
                                             value={teacherData.educationalQualifications || ''} 
                                             onChange={handleTeacherChange} 
                                             required 
-                                            className="form-input"
+                                            className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'}`}
                                             placeholder="e.g., Master's in Fine Arts, Bachelor's in Music"
                                         />
                                     </div>
 
                                     <div className="space-y-4">
                                         <div>
-                                            <h4 className="text-lg font-semibold text-gray-900 mb-1">Course Expertise</h4>
-                                            <p className="text-sm text-gray-600 mb-6">Select your areas of expertise (you can choose multiple courses)</p>
+                                            <h4 className={`text-lg font-semibold mb-1 ${
+                                                theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                            }`}>Course Expertise</h4>
+                                            <p className={`text-sm mb-6 ${
+                                                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                            }`}>Select your areas of expertise (you can choose multiple courses)</p>
                                         </div>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                             {courses.map(course => {
@@ -1245,7 +1473,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                     <div
                                                         key={course.id}
                                                         className={`relative overflow-hidden rounded-xl border transition-all duration-300 cursor-pointer transform hover:scale-105 ${
-                                                            isSelected ? 'border-blue-300 bg-blue-50 shadow-lg' : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md'
+                                                            isSelected ? (theme === 'dark' ? 'border-blue-400 bg-blue-900/30 shadow-lg' : 'border-blue-300 bg-blue-50 shadow-lg') : (theme === 'dark' ? 'border-gray-600 bg-gray-700/50 hover:border-gray-500 hover:shadow-md' : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md')
                                                         }`}
                                                         onClick={() => handleTeacherExpertiseChange(courseName, !isSelected)}
                                                     >
@@ -1283,9 +1511,13 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                                 )}
                                                             </div>
                                                             
-                                                            <div className="flex items-center justify-between text-xs text-gray-600">
+                                                            <div className={`flex items-center justify-between text-xs ${
+                                                                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                                            }`}>
                                                                 <span>Time Slots: {courseSlots.length}</span>
-                                                                <span className="text-blue-600 font-medium">
+                                                                <span className={`font-medium ${
+                                                                    theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                                                                }`}>
                                                                     {isSelected ? 'Selected' : 'Select'}
                                                                 </span>
                                                             </div>
@@ -1324,12 +1556,18 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                             )}
 
                             {/* Form Actions */}
-                            <div className="flex justify-between items-center pt-8 border-t">
+                            <div className={`flex justify-between items-center pt-8 border-t ${
+                                theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+                            }`}>
                                 <div className="flex space-x-3">
                                     <button 
                                         type="button" 
                                         onClick={() => setRegistrationType(null)} 
-                                        className="btn-secondary"
+                                        className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 border-2 ${
+                                            theme === 'dark' 
+                                                ? 'border-gray-600 text-gray-300 hover:border-gray-500 hover:bg-gray-700/50' 
+                                                : 'border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
+                                        }`}
                                     >
                                         ← Back to Selection
                                     </button>
@@ -1337,7 +1575,11 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                         <button 
                                             type="button" 
                                             onClick={() => setCurrentStep(prev => prev - 1)} 
-                                            className="btn-secondary"
+                                            className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 border-2 ${
+                                            theme === 'dark' 
+                                                ? 'border-gray-600 text-gray-300 hover:border-gray-500 hover:bg-gray-700/50' 
+                                                : 'border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
+                                        }`}
                                         >
                                             Previous
                                         </button>
@@ -1349,30 +1591,48 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                         type="button" 
                                         onClick={validateAndProceed} 
                                         disabled={isLoading} 
-                                        className="btn-primary"
+                                        className="px-8 py-4 rounded-xl text-white font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                     >
-                                        {isLoading ? 'Verifying...' : 'Next →'}
+                                        {isLoading ? 'Verifying...' : (
+                                            <>
+                                                Next 
+                                                <ArrowRight className="w-4 h-4" />
+                                            </>
+                                        )}
                                     </button>
                                 ) : (
                                     <button 
                                         type="submit" 
                                         disabled={isLoading} 
-                                        className="btn-primary bg-gradient-to-r from-green-500 to-green-600"
+                                        className="px-8 py-4 rounded-xl text-white font-semibold bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                     >
-                                        {isLoading ? 'Creating Account...' : 'Complete Registration'}
+                                        {isLoading ? 'Creating Account...' : (
+                                            <>
+                                                Complete Registration
+                                                <Check className="w-4 h-4" />
+                                            </>
+                                        )}
                                     </button>
                                 )}
                             </div>
                         </form>
-                        </div>
+                        </motion.div>
                         </div>
 
                         {/* Time Selection Modal */}
                         {isTimeModalOpen && modalCourse && (
                             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                                <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                                <div className={`rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto backdrop-blur-lg border transition-all duration-300 ${
+                                    theme === 'dark'
+                                        ? 'bg-gray-800/90 border-gray-700/50'
+                                        : 'bg-white/90 border-white/20'
+                                }`}>
                                     {/* Modal Header */}
-                                    <div className="sticky top-0 bg-white border-b px-6 py-4 rounded-t-2xl">
+                                    <div className={`sticky top-0 border-b px-6 py-4 rounded-t-2xl ${
+                                        theme === 'dark'
+                                            ? 'bg-gray-800/95 border-gray-700'
+                                            : 'bg-white/95 border-gray-200'
+                                    }`}>
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
@@ -1381,10 +1641,14 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                     </svg>
                                                 </div>
                                                 <div>
-                                                    <h3 className="text-xl font-bold text-gray-900">
+                                                    <h3 className={`text-xl font-bold ${
+                                                        theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                                    }`}>
                                                         {registrationType === 'student' ? 'Choose Preferred Times' : 'Set Available Hours'}
                                                     </h3>
-                                                    <p className="text-sm text-gray-600">
+                                                    <p className={`text-sm ${
+                                                        theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                                    }`}>
                                                         {modalCourse} - {registrationType === 'student' ? 'Select your preferred class schedule' : 'Set your teaching availability'}
                                                     </p>
                                                 </div>
@@ -1395,9 +1659,15 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                     setIsTimeModalOpen(false);
                                                     setModalCourse(null);
                                                 }}
-                                                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+                                                className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                                            theme === 'dark'
+                                                ? 'bg-gray-700 hover:bg-gray-600'
+                                                : 'bg-gray-100 hover:bg-gray-200'
+                                        }`}
                                             >
-                                                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg className={`w-5 h-5 ${
+                                                    theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                                                }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
                                                 </svg>
                                             </button>
@@ -1421,7 +1691,9 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                     : 'Select your available teaching hours for this course'
                                                 }
                                             </p>
-                                            <p className="text-xs text-gray-600">
+                                            <p className={`text-xs ${
+                                                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                            }`}>
                                                 Times shown in your timezone ({(registrationType === 'student' ? guardianData.timezone : teacherData.timezone) || 'Kolkata'}) with IST reference
                                             </p>
                                         </div>
@@ -1494,9 +1766,15 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                     </div>
 
                                     {/* Modal Footer */}
-                                    <div className="sticky bottom-0 bg-gray-50 px-6 py-4 rounded-b-2xl border-t">
+                                    <div className={`sticky bottom-0 px-6 py-4 rounded-b-2xl border-t ${
+                                        theme === 'dark'
+                                            ? 'bg-gray-800 border-gray-700'
+                                            : 'bg-gray-50 border-gray-200'
+                                    }`}>
                                         <div className="flex items-center justify-between">
-                                            <div className="text-sm text-gray-600">
+                                            <div className={`text-sm ${
+                                                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                            }`}>
                                                 Selected: {
                                                     registrationType === 'student' ? (
                                                         Array.isArray(students[activeStudentIndex].preferredTimings) 
@@ -1529,28 +1807,46 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                         )}
 
                         {/* Right Sidebar */}
-                        <div className="w-96 space-y-6">
-                            <div className="form-card">
-                                <div className="p-4 bg-gradient-to-r from-green-50 to-teal-50 border-b">
+                        <div className="w-full lg:w-96 lg:order-2 order-1 space-y-6">
+                            <div className={`rounded-2xl shadow-lg backdrop-blur-sm border transition-all duration-300 ${
+                                    theme === 'dark'
+                                        ? 'bg-gray-800/90 border-gray-700/50'
+                                        : 'bg-white/90 border-white/20'
+                                }`}>
+                                <div className={`p-4 border-b ${
+                                    theme === 'dark' 
+                                        ? 'bg-gradient-to-r from-green-900/30 to-teal-900/30 border-gray-700'
+                                        : 'bg-gradient-to-r from-green-50 to-teal-50 border-gray-200'
+                                }`}>
                                     <div className="flex items-center gap-2">
-                                        <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                                            theme === 'dark' ? 'bg-green-800/50' : 'bg-green-100'
+                                        }`}>
                                             <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                             </svg>
                                         </div>
-                                        <h3 className="font-semibold text-gray-800 text-sm">Registration Progress</h3>
+                                        <h3 className={`font-semibold text-sm ${
+                                            theme === 'dark' ? 'text-gray-200' : 'text-gray-800'
+                                        }`}>Registration Progress</h3>
                                     </div>
                                 </div>
                                 <div className="p-4 space-y-3">
                                     <div className="flex items-center gap-2 text-xs">
                                         <div className={`w-2 h-2 rounded-full ${currentStep >= 1 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                                        <span className={currentStep >= 1 ? 'text-green-700 font-medium' : 'text-gray-500'}>
+                                        <span className={currentStep >= 1 
+                                            ? theme === 'dark' ? 'text-green-400 font-medium' : 'text-green-700 font-medium'
+                                            : theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                                        }>
                                             {registrationType === 'student' ? 'Guardian Details' : 'Your Account Details'}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-2 text-xs">
                                         <div className={`w-2 h-2 rounded-full ${currentStep >= 2 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                                        <span className={currentStep >= 2 ? 'text-green-700 font-medium' : 'text-gray-500'}>
+                                        <span className={currentStep >= 2 
+                                            ? theme === 'dark' ? 'text-green-400 font-medium' : 'text-green-700 font-medium'
+                                            : theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                                        }>
                                             {registrationType === 'student' ? 'Student Information' : 'Professional Details'}
                                         </span>
                                     </div>
@@ -1559,19 +1855,33 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
 
                             {((registrationType === 'student' && currentStep === 2 && students[activeStudentIndex] && (students[activeStudentIndex].courses?.length || 0) > 0) || 
                               (registrationType === 'teacher' && currentStep === 2 && (teacherData.courseExpertise?.length || 0) > 0)) && (
-                                <div className="form-card">
-                                    <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 border-b">
+                                <div className={`rounded-2xl shadow-lg backdrop-blur-sm border transition-all duration-300 ${
+                                    theme === 'dark'
+                                        ? 'bg-gray-800/90 border-gray-700/50'
+                                        : 'bg-white/90 border-white/20'
+                                }`}>
+                                    <div className={`p-4 border-b ${
+                                        theme === 'dark'
+                                            ? 'bg-gradient-to-r from-purple-900/30 to-blue-900/30 border-gray-700'
+                                            : 'bg-gradient-to-r from-purple-50 to-blue-50 border-gray-200'
+                                    }`}>
                                         <div className="flex items-center gap-2">
-                                            <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center">
+                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                                                theme === 'dark' ? 'bg-purple-800/50' : 'bg-purple-100'
+                                            }`}>
                                                 <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                                 </svg>
                                             </div>
-                                            <h3 className="font-semibold text-gray-800 text-sm">
+                                            <h3 className={`font-semibold text-sm ${
+                                                theme === 'dark' ? 'text-gray-200' : 'text-gray-800'
+                                            }`}>
                                                 {registrationType === 'student' ? 'Schedule Selection' : 'Availability Schedule'}
                                             </h3>
                                         </div>
-                                        <p className="text-xs text-gray-600 mt-1">
+                                        <p className={`text-xs mt-1 ${
+                                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                        }`}>
                                             {registrationType === 'student' ? 'Choose your preferred class times' : 'Set your teaching availability'}
                                         </p>
                                     </div>
@@ -1605,25 +1915,43 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                 </div>
                             )}
 
-                            <div className="form-card">
-                                <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
+                            <div className={`rounded-2xl shadow-lg backdrop-blur-sm border transition-all duration-300 ${
+                                    theme === 'dark'
+                                        ? 'bg-gray-800/90 border-gray-700/50'
+                                        : 'bg-white/90 border-white/20'
+                                }`}>
+                                <div className={`p-4 border-b ${
+                                    theme === 'dark'
+                                        ? 'bg-gradient-to-r from-blue-900/30 to-indigo-900/30 border-gray-700'
+                                        : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-gray-200'
+                                }`}>
                                     <div className="flex items-center gap-2">
-                                        <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                                            theme === 'dark' ? 'bg-blue-800/50' : 'bg-blue-100'
+                                        }`}>
                                             <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                             </svg>
                                         </div>
-                                        <h3 className="font-semibold text-gray-800 text-sm">Need Help?</h3>
+                                        <h3 className={`font-semibold text-sm ${
+                                            theme === 'dark' ? 'text-gray-200' : 'text-gray-800'
+                                        }`}>Need Help?</h3>
                                     </div>
                                 </div>
                                 <div className="p-4 space-y-2">
-                                    <p className="text-xs text-gray-600">
+                                    <p className={`text-xs ${
+                                        theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                    }`}>
                                         {registrationType === 'student' 
                                             ? 'Having trouble with student registration?' 
                                             : 'Having trouble with instructor application?'
                                         }
                                     </p>
-                                    <button type="button" className="text-xs text-blue-600 hover:text-blue-800 font-medium">Contact Support</button>
+                                    <button type="button" className={`text-xs font-medium transition-colors ${
+                                        theme === 'dark' 
+                                            ? 'text-blue-400 hover:text-blue-300'
+                                            : 'text-blue-600 hover:text-blue-800'
+                                    }`}>Contact Support</button>
                                 </div>
                             </div>
                         </div>
@@ -1632,7 +1960,11 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                 )}
 
                 <div className="text-center mt-8">
-                    <Link to="/login" className="text-sm text-gray-600 hover:text-blue-600 font-medium">
+                    <Link to="/login" className={`text-sm font-medium transition-colors ${
+                        theme === 'dark'
+                            ? 'text-gray-400 hover:text-blue-400'
+                            : 'text-gray-600 hover:text-blue-600'
+                    }`}>
                         Already have an account? Sign in here
                     </Link>
                 </div>

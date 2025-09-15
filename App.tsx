@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, Navigate, NavLink, useParams, Outlet, useLocation } from 'react-router-dom';
+import { ThemeProvider } from './contexts/ThemeContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
@@ -7,7 +8,6 @@ import AboutPage from './pages/AboutPage';
 import GalleryPage from './pages/GalleryPage';
 import FAQPage from './pages/FAQPage';
 import ContactPage from './pages/ContactPage';
-import StaticShell from './components/StaticShell';
 import Modal from './components/Modal';
 import LoginForm from './components/LoginForm';
 import RegisterPage from './pages/RegisterPage';
@@ -33,9 +33,6 @@ import GradeExamsManagementPage from './pages/admin/GradeExamsManagementPage';
 import BookMaterialsManagementPage from './pages/admin/BookMaterialsManagementPage';
 import NoticesManagementPage from './pages/admin/NoticesManagementPage';
 import LocationsManagementPage from './pages/admin/LocationsManagementPage';
-import MediaManagementPage from './pages/admin/MediaManagementPage';
-import UltraSimpleCMS from './pages/admin/UltraSimpleCMS';
-import EmailTestPage from './pages/EmailTestPage';
 
 // New Student Pages
 import StudentDashboardHomePage from './pages/student/StudentDashboardHomePage';
@@ -173,96 +170,102 @@ function App() {
   };
 
   const isDashboard = location.pathname.startsWith('/dashboard/') || location.pathname.startsWith('/admin/');
-  const isHome = location.pathname === '/';
-  const isStaticThemed = ['/','/about','/gallery','/faq','/contact'].includes(location.pathname);
 
   return (
-    <div className="flex flex-col min-h-screen bg-brand-light/20">
-      {!isDashboard && !isHome && (
-        <Header
-          currentUser={currentUser}
-          onLogout={handleLogout}
-          onLoginClick={() => setLoginModalOpen(true)}
-        />
-      )}
-      <main className="flex-grow">
-        <Routes>
-          <Route path="/" element={<HomePage onLoginClick={() => setLoginModalOpen(true)} user={currentUser} onLogout={handleLogout} />} />
-          <Route path="/about" element={<StaticShell user={currentUser} onLoginClick={() => setLoginModalOpen(true)} onLogout={handleLogout}><AboutPage /></StaticShell>} />
-          <Route path="/gallery" element={<StaticShell user={currentUser} onLoginClick={() => setLoginModalOpen(true)} onLogout={handleLogout}><GalleryPage /></StaticShell>} />
-          <Route path="/faq" element={<StaticShell user={currentUser} onLoginClick={() => setLoginModalOpen(true)} onLogout={handleLogout}><FAQPage /></StaticShell>} />
-          <Route path="/contact" element={<StaticShell user={currentUser} onLoginClick={() => setLoginModalOpen(true)} onLogout={handleLogout}><ContactPage /></StaticShell>} />
-          <Route path="/register" element={<RegisterPage onLoginNeeded={openLoginModal} />} />
-          <Route path="/email-test" element={<EmailTestPage />} />
-          <Route 
-            path="/admin/login" 
-            element={<AdminLoginPage onLoginSuccess={handleLoginSuccess} />} 
+    <ThemeProvider>
+      <div className="flex flex-col min-h-screen bg-brand-light/20 dark:bg-gray-900">
+        {!isDashboard && (
+          <Header
+            currentUser={currentUser}
+            onLogout={handleLogout}
+            onLoginClick={() => setLoginModalOpen(true)}
           />
-          <Route path="/admin/dashboard" element={<AdminProtectedRoute><AdminDashboardPage /></AdminProtectedRoute>} />
-          <Route path="/admin/students" element={<AdminProtectedRoute><StudentListPage /></AdminProtectedRoute>} />
-          <Route path="/admin/student/:studentId" element={<AdminProtectedRoute><AdminStudentViewWrapper /></AdminProtectedRoute>} />
-          <Route path="/admin/teachers" element={<AdminProtectedRoute><TeacherListPage /></AdminProtectedRoute>} />
-          <Route path="/admin/batches" element={<AdminProtectedRoute><BatchesPage /></AdminProtectedRoute>} />
-          <Route path="/admin/locations" element={<AdminProtectedRoute><LocationsManagementPage /></AdminProtectedRoute>} />
-          <Route path="/admin/fees" element={<AdminProtectedRoute><FeeManagementPage /></AdminProtectedRoute>} />
-          <Route path="/admin/events" element={<AdminProtectedRoute><EventsManagementPage /></AdminProtectedRoute>} />
-          <Route path="/admin/grade-exams" element={<AdminProtectedRoute><GradeExamsManagementPage /></AdminProtectedRoute>} />
-          <Route path="/admin/book-materials" element={<AdminProtectedRoute><BookMaterialsManagementPage /></AdminProtectedRoute>} />
-          <Route path="/admin/media" element={<AdminProtectedRoute><MediaManagementPage /></AdminProtectedRoute>} />
-          <Route path="/admin/cms" element={<AdminProtectedRoute><UltraSimpleCMS /></AdminProtectedRoute>} />
-          <Route path="/admin/notices" element={<AdminProtectedRoute><NoticesManagementPage /></AdminProtectedRoute>} />
-          <Route path="/admin/trash" element={<AdminProtectedRoute><TrashPage /></AdminProtectedRoute>} />
-          
-          <Route 
-            path="/dashboard/student" 
-            element={
-              <UserProtectedRoute allowedRoles={[UserRole.Student]}>
-                <StudentDashboardPage user={currentUser!} onLogout={handleLogout} onUpdate={setCurrentUser} />
-              </UserProtectedRoute>
-            }
-          >
-            <Route index element={<StudentDashboardHomePage />} />
-            <Route path="family-profile" element={<FamilyProfilePage />} />
-            <Route path="courses" element={<StudentCoursesPage />} />
-            <Route path="grade-exams" element={<GradeExamsPage />} />
-            <Route path="book-materials" element={<BookMaterialsPage />} />
-            <Route path="events" element={<EventsPage />} />
-            <Route path="notices" element={<NoticesPage />} />
-            <Route path="profile" element={<GuardianProfilePage />} />
-            <Route path="payment-history" element={<PaymentHistoryPage />} />
-            <Route path="add" element={<AddFamilyStudentPage />} />
-          </Route>
+        )}
+        <main className="flex-grow">
+          <Routes>
+            <Route path="/" element={
+              <HomePage 
+                onLoginClick={() => setLoginModalOpen(true)} 
+                onRegisterClick={() => navigate('/register')}
+                onBookDemoClick={() => {
+                  // TODO: Implement book demo functionality
+                  console.log('Book demo clicked');
+                }}
+              />
+            } />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/gallery" element={<GalleryPage />} />
+            <Route path="/faq" element={<FAQPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/register" element={<RegisterPage onLoginNeeded={openLoginModal} />} />
+            <Route 
+              path="/admin/login" 
+              element={<AdminLoginPage onLoginSuccess={handleLoginSuccess} />} 
+            />
+            <Route path="/admin/dashboard" element={<AdminProtectedRoute><AdminDashboardPage /></AdminProtectedRoute>} />
+            <Route path="/admin/students" element={<AdminProtectedRoute><StudentListPage /></AdminProtectedRoute>} />
+            <Route path="/admin/student/:studentId" element={<AdminProtectedRoute><AdminStudentViewWrapper /></AdminProtectedRoute>} />
+            <Route path="/admin/teachers" element={<AdminProtectedRoute><TeacherListPage /></AdminProtectedRoute>} />
+            <Route path="/admin/batches" element={<AdminProtectedRoute><BatchesPage /></AdminProtectedRoute>} />
+            <Route path="/admin/locations" element={<AdminProtectedRoute><LocationsManagementPage /></AdminProtectedRoute>} />
+            <Route path="/admin/fees" element={<AdminProtectedRoute><FeeManagementPage /></AdminProtectedRoute>} />
+            <Route path="/admin/events" element={<AdminProtectedRoute><EventsManagementPage /></AdminProtectedRoute>} />
+            <Route path="/admin/grade-exams" element={<AdminProtectedRoute><GradeExamsManagementPage /></AdminProtectedRoute>} />
+            <Route path="/admin/book-materials" element={<AdminProtectedRoute><BookMaterialsManagementPage /></AdminProtectedRoute>} />
+            <Route path="/admin/notices" element={<AdminProtectedRoute><NoticesManagementPage /></AdminProtectedRoute>} />
+            <Route path="/admin/trash" element={<AdminProtectedRoute><TrashPage /></AdminProtectedRoute>} />
+            
+            <Route 
+              path="/dashboard/student" 
+              element={
+                <UserProtectedRoute allowedRoles={[UserRole.Student]}>
+                  <StudentDashboardPage user={currentUser!} onLogout={handleLogout} onUpdate={setCurrentUser} />
+                </UserProtectedRoute>
+              }
+            >
+              <Route index element={<StudentDashboardHomePage />} />
+              <Route path="family-profile" element={<FamilyProfilePage />} />
+              <Route path="courses" element={<StudentCoursesPage />} />
+              <Route path="grade-exams" element={<GradeExamsPage />} />
+              <Route path="book-materials" element={<BookMaterialsPage />} />
+              <Route path="events" element={<EventsPage />} />
+              <Route path="notices" element={<NoticesPage />} />
+              <Route path="profile" element={<GuardianProfilePage />} />
+              <Route path="payment-history" element={<PaymentHistoryPage />} />
+              <Route path="add" element={<AddFamilyStudentPage />} />
+            </Route>
 
-          <Route
-            path="/dashboard/teacher"
-            element={
-              <UserProtectedRoute allowedRoles={[UserRole.Teacher]}>
-                <TeacherDashboardPage user={currentUser!} onLogout={handleLogout} onUpdate={setCurrentUser} />
-              </UserProtectedRoute>
-            }
-          >
-            <Route index element={<TeacherDashboardHomePage />} />
-            <Route path="profile" element={<TeacherProfilePage />} />
-            <Route path="courses" element={<TeacherContentPlaceholder title="Your Courses" />} />
-            <Route path="book-materials" element={<TeacherContentPlaceholder title="Book Materials" />} />
-            <Route path="events" element={<TeacherContentPlaceholder title="Events" />} />
-            <Route path="notice" element={<TeacherContentPlaceholder title="Notice" />} />
-            <Route path="payment-history" element={<TeacherContentPlaceholder title="Payment History" />} />
-          </Route>
+            <Route
+              path="/dashboard/teacher"
+              element={
+                <UserProtectedRoute allowedRoles={[UserRole.Teacher]}>
+                  <TeacherDashboardPage user={currentUser!} onLogout={handleLogout} onUpdate={setCurrentUser} />
+                </UserProtectedRoute>
+              }
+            >
+              <Route index element={<TeacherDashboardHomePage />} />
+              <Route path="profile" element={<TeacherProfilePage />} />
+              <Route path="courses" element={<TeacherContentPlaceholder title="Your Courses" />} />
+              <Route path="book-materials" element={<TeacherContentPlaceholder title="Book Materials" />} />
+              <Route path="events" element={<TeacherContentPlaceholder title="Events" />} />
+              <Route path="notice" element={<TeacherContentPlaceholder title="Notice" />} />
+              <Route path="payment-history" element={<TeacherContentPlaceholder title="Payment History" />} />
+            </Route>
 
-        </Routes>
-      </main>
-      {!isDashboard && !isStaticThemed && <Footer />}
-      <WhatsAppButton />
+          </Routes>
+        </main>
+        {!isDashboard && <Footer />}
+        <WhatsAppButton />
 
-      <Modal isOpen={isLoginModalOpen} onClose={closeLoginModal} size="2xl">
-        <LoginForm 
-          onSuccess={handleLoginSuccess} 
-          initialEmail={loginEmail} 
-          onForgotPassword={handleForgotPassword}
-        />
-      </Modal>
-    </div>
+        <Modal isOpen={isLoginModalOpen} onClose={closeLoginModal}>
+          <LoginForm 
+            onSuccess={handleLoginSuccess} 
+            initialEmail={loginEmail} 
+            onForgotPassword={handleForgotPassword}
+          />
+        </Modal>
+      </div>
+    </ThemeProvider>
   );
 }
 

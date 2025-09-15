@@ -1,26 +1,22 @@
 {
   "name": "nadanaloga-whatsapp-integration",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "start": "node server/server.js",
     "dev": "vite",
-    "dev:full": "concurrently \"npm run start\" \"npm run dev\"",
     "build": "vite build --emptyOutDir",
-    "preview": "vite preview",
-    "deploy": "npm run build && npx --yes --cache=/tmp/.npm vercel --prod --yes"
+    "preview": "vite preview"
   },
   "dependencies": {
-    "@dnd-kit/core": "^6.3.1",
-    "@dnd-kit/sortable": "^10.0.0",
-    "@dnd-kit/utilities": "^3.2.2",
     "@google/genai": "^0.14.0",
     "@supabase/supabase-js": "^2.39.0",
+    "framer-motion": "^12.23.12",
     "lucide-react": "^0.544.0",
-    "nodemailer": "^7.0.6",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-intersection-observer": "^9.16.0",
     "react-router-dom": "^7.6.3"
   },
   "devDependencies": {
@@ -28,7 +24,6 @@
     "@types/react-router-dom": "^5.3.3",
     "@vitejs/plugin-react": "^4.0.0",
     "autoprefixer": "^10.4.21",
-    "concurrently": "^8.2.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "typescript": "~5.8.2",

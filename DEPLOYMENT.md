@@ -17,13 +17,13 @@ This guide will help you deploy the Nadanaloga educational platform on AWS Light
 
 2. **Download and run the deployment script:**
    ```bash
-   wget https://raw.githubusercontent.com/Nadanalogaa/Thillaikadavul/main/deploy.sh
+   wget https://raw.githubusercontent.com/Nadanalogaa/Nadanaloga/main/deploy.sh
    chmod +x deploy.sh
    sudo ./deploy.sh
    ```
 
 3. **Update your domain configuration:**
-   - Edit `/home/ubuntu/Thillaikadavul/server/.env`
+   - Edit `/home/ubuntu/Nadanaloga/server/.env`
    - Change `CLIENT_URL=https://your-domain.com` to your actual domain
    - Restart the application: `pm2 restart nadanaloga-api`
 
@@ -48,8 +48,8 @@ If you prefer to deploy manually:
 2. **Clone the repository:**
    ```bash
    cd /home/ubuntu
-   git clone https://github.com/Nadanalogaa/Thillaikadavul.git
-   cd Thillaikadavul
+   git clone https://github.com/Nadanalogaa/Nadanaloga.git
+   cd Nadanaloga
    ```
 
 3. **Install dependencies:**
@@ -119,7 +119,7 @@ The deployment script automatically configures:
 
 To update your deployment:
 ```bash
-cd /home/ubuntu/Thillaikadavul
+cd /home/ubuntu/Nadanaloga
 git pull origin main
 npm install && cd server && npm install && cd ..
 npm run build

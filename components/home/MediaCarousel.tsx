@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import type { MediaItem } from '../../types';
-import { MediaType } from '../../types';
+
+interface MediaItem {
+  id: number;
+  type: 'image' | 'video';
+  url: string;
+  title: string;
+  uploadDate: Date;
+}
 
 interface MediaCarouselProps {
   mediaItems: MediaItem[];
@@ -13,32 +19,32 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({ mediaItems = [] }) => {
   // Sample data if no media items provided
   const sampleMedia: MediaItem[] = [
     {
-      id: '1',
-      type: MediaType.Image,
+      id: 1,
+      type: 'image',
       url: '/api/placeholder/400/300',
       title: 'Bharatanatyam Performance',
-      uploadDate: new Date('2024-12-01').toISOString()
+      uploadDate: new Date('2024-12-01')
     },
     {
-      id: '2',
-      type: MediaType.Image, 
+      id: 2,
+      type: 'image', 
       url: '/api/placeholder/400/300',
       title: 'Vocal Music Class',
-      uploadDate: new Date('2024-11-28').toISOString()
+      uploadDate: new Date('2024-11-28')
     },
     {
-      id: '3',
-      type: MediaType.Image,
+      id: 3,
+      type: 'image',
       url: '/api/placeholder/400/300',
       title: 'Drawing Exhibition',
-      uploadDate: new Date('2024-11-25').toISOString()
+      uploadDate: new Date('2024-11-25')
     },
     {
-      id: '4',
-      type: MediaType.Image,
+      id: 4,
+      type: 'image',
       url: '/api/placeholder/400/300',
       title: 'Abacus Workshop',
-      uploadDate: new Date('2024-11-20').toISOString()
+      uploadDate: new Date('2024-11-20')
     }
   ];
 
@@ -108,7 +114,7 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({ mediaItems = [] }) => {
                       : 'opacity-0 translate-x-full'
                 }`}
               >
-                {item.type === MediaType.Video ? (
+                {item.type === 'video' ? (
                   <video
                     src={item.url}
                     className="w-full h-full object-cover"
@@ -116,14 +122,6 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({ mediaItems = [] }) => {
                     onPlay={() => setIsPlaying(true)}
                     onPause={() => setIsPlaying(false)}
                     onEnded={() => setIsPlaying(false)}
-                  />
-                ) : item.type === MediaType.YouTube ? (
-                  <iframe
-                    src={item.url}
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    title={item.title}
                   />
                 ) : (
                   <div className="w-full h-full relative">
@@ -141,7 +139,7 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({ mediaItems = [] }) => {
                   <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-4">
                     <h3 className="text-lg font-bold text-gray-800 mb-1">{item.title}</h3>
                     <p className="text-sm text-gray-600">
-                      Uploaded on {new Date(item.uploadDate).toLocaleDateString()}
+                      Uploaded on {item.uploadDate.toLocaleDateString()}
                     </p>
                   </div>
                 </div>
@@ -186,14 +184,12 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({ mediaItems = [] }) => {
                       : 'border-transparent hover:border-gray-300'
                   }`}
                 >
-                  {item.type === MediaType.Video ? (
+                  {item.type === 'video' ? (
                     <div className="w-full h-full bg-gray-800 flex items-center justify-center">
                       <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/>
                       </svg>
                     </div>
-                  ) : item.type === MediaType.YouTube ? (
-                    <div className="w-full h-full bg-red-600 flex items-center justify-center text-white text-xs font-semibold">YouTube</div>
                   ) : (
                     <img
                       src={item.url}
