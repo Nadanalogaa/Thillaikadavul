@@ -164,10 +164,53 @@ BEGIN
     END IF;
 END $$;
 
--- EVENTS SYSTEM MIGRATION: Handle column name compatibility
+-- EVENTS SYSTEM MIGRATION: Add missing columns to events table if needed
 DO $$
 BEGIN
     RAISE NOTICE '🔄 Starting Events System Column Migration...';
+    
+    -- Add new columns to existing events table if they don't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name='events' AND column_name='event_date') THEN
+        ALTER TABLE events ADD COLUMN event_date DATE;
+        RAISE NOTICE '✅ Added event_date column to events table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name='events' AND column_name='event_time') THEN
+        ALTER TABLE events ADD COLUMN event_time TIME;
+        RAISE NOTICE '✅ Added event_time column to events table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name='events' AND column_name='created_by') THEN
+        ALTER TABLE events ADD COLUMN created_by UUID REFERENCES users(id);
+        RAISE NOTICE '✅ Added created_by column to events table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name='events' AND column_name='target_audience') THEN
+        ALTER TABLE events ADD COLUMN target_audience TEXT[] DEFAULT '{}';
+        RAISE NOTICE '✅ Added target_audience column to events table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name='events' AND column_name='images') THEN
+        ALTER TABLE events ADD COLUMN images JSONB DEFAULT '[]';
+        RAISE NOTICE '✅ Added images column to events table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name='events' AND column_name='priority') THEN
+        ALTER TABLE events ADD COLUMN priority TEXT DEFAULT 'Medium' CHECK (priority IN ('Low', 'Medium', 'High'));
+        RAISE NOTICE '✅ Added priority column to events table';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name='events' AND column_name='event_type') THEN
+        ALTER TABLE events ADD COLUMN event_type TEXT DEFAULT 'General';
+        RAISE NOTICE '✅ Added event_type column to events table';
+    END IF;
     
     -- Migrate data from old 'date' column to new 'event_date' column if needed
     IF EXISTS (SELECT 1 FROM information_schema.columns 
@@ -188,45 +231,6 @@ BEGIN
         RAISE NOTICE '✅ Migrated data from old date/time columns to new event_date/event_time columns';
     END IF;
     
-    -- Ensure all new events use both column sets for backward compatibility
-    -- This trigger will keep both old and new columns in sync
-    CREATE OR REPLACE FUNCTION sync_event_date_columns()
-    RETURNS TRIGGER AS $sync$
-    BEGIN
-        -- When event_date is set, also set date
-        IF NEW.event_date IS NOT NULL THEN
-            NEW.date := NEW.event_date;
-        END IF;
-        
-        -- When date is set, also set event_date
-        IF NEW.date IS NOT NULL AND NEW.event_date IS NULL THEN
-            NEW.event_date := NEW.date;
-        END IF;
-        
-        -- When event_time is set, also set time
-        IF NEW.event_time IS NOT NULL THEN
-            NEW.time := NEW.event_time;
-        END IF;
-        
-        -- When time is set, also set event_time
-        IF NEW.time IS NOT NULL AND NEW.event_time IS NULL THEN
-            NEW.event_time := NEW.time;
-        END IF;
-        
-        RETURN NEW;
-    END;
-    $sync$ LANGUAGE plpgsql;
-    
-    -- Drop existing trigger if it exists
-    DROP TRIGGER IF EXISTS sync_event_date_columns_trigger ON events;
-    
-    -- Create trigger for column synchronization
-    CREATE TRIGGER sync_event_date_columns_trigger
-        BEFORE INSERT OR UPDATE ON events
-        FOR EACH ROW
-        EXECUTE FUNCTION sync_event_date_columns();
-    
-    RAISE NOTICE '✅ Created column synchronization trigger for backward compatibility';
     RAISE NOTICE '🎉 Events System Column Migration Complete!';
     
 END $$;
@@ -512,9 +516,19 @@ DECLARE
     test_recipient_ids JSONB;
 BEGIN
     -- Test event insert with recipient_ids (fixes the original error)
-    INSERT INTO events (title, description, date, time, location, recipient_ids, is_active)
-    VALUES ('Test Event ' || gen_random_uuid(), 'Test Description', CURRENT_DATE, '10:00:00', 'Test Location', '["user1", "user2"]', true)
-    RETURNING id INTO test_event_id;
+    -- Check which columns exist and insert accordingly
+    IF EXISTS (SELECT 1 FROM information_schema.columns 
+               WHERE table_name='events' AND column_name='event_date') THEN
+        -- New schema: use event_date and event_time
+        INSERT INTO events (title, description, event_date, event_time, location, recipient_ids, is_active)
+        VALUES ('Test Event ' || gen_random_uuid(), 'Test Description', CURRENT_DATE, '10:00:00', 'Test Location', '["user1", "user2"]', true)
+        RETURNING id INTO test_event_id;
+    ELSE
+        -- Old schema: use date and time
+        INSERT INTO events (title, description, date, time, location, recipient_ids, is_active)
+        VALUES ('Test Event ' || gen_random_uuid(), 'Test Description', CURRENT_DATE, '10:00:00', 'Test Location', '["user1", "user2"]', true)
+        RETURNING id INTO test_event_id;
+    END IF;
     
     -- Test event update with new recipient_ids (simulates sending to different users)
     UPDATE events 
@@ -1534,6 +1548,52 @@ CREATE TRIGGER trigger_events_updated_at
     BEFORE UPDATE ON events
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
+
+-- Column synchronization trigger (ensures backward compatibility)
+DO $$
+BEGIN
+    -- Create trigger function for column synchronization  
+    CREATE OR REPLACE FUNCTION sync_event_date_columns()
+    RETURNS TRIGGER AS $sync$
+    BEGIN
+        -- Sync date columns (handle both directions)
+        IF TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN
+            -- Copy from event_date to date if event_date is provided
+            IF NEW.event_date IS NOT NULL THEN
+                NEW.date := NEW.event_date;
+            END IF;
+            
+            -- Copy from date to event_date if date is provided and event_date is null
+            IF NEW.date IS NOT NULL AND (NEW.event_date IS NULL) THEN
+                NEW.event_date := NEW.date;
+            END IF;
+            
+            -- Copy from event_time to time if event_time is provided
+            IF NEW.event_time IS NOT NULL THEN
+                NEW.time := NEW.event_time;
+            END IF;
+            
+            -- Copy from time to event_time if time is provided and event_time is null
+            IF NEW.time IS NOT NULL AND (NEW.event_time IS NULL) THEN
+                NEW.event_time := NEW.time;
+            END IF;
+        END IF;
+        
+        RETURN NEW;
+    END;
+    $sync$ LANGUAGE plpgsql;
+    
+    -- Drop existing trigger if it exists
+    DROP TRIGGER IF EXISTS sync_event_date_columns_trigger ON events;
+    
+    -- Create trigger for column synchronization
+    CREATE TRIGGER sync_event_date_columns_trigger
+        BEFORE INSERT OR UPDATE ON events
+        FOR EACH ROW
+        EXECUTE FUNCTION sync_event_date_columns();
+    
+    RAISE NOTICE '✅ Created column synchronization trigger for backward compatibility';
+END $$;
 
 -- ================================================
 -- EVENTS SYSTEM SETUP COMPLETE
