@@ -1457,53 +1457,10 @@ CREATE INDEX IF NOT EXISTS idx_event_notifications_user ON event_notifications(u
 CREATE INDEX IF NOT EXISTS idx_event_notifications_read ON event_notifications(is_read);
 CREATE INDEX IF NOT EXISTS idx_event_images_event ON event_images(event_id, display_order);
 
--- RLS (Row Level Security) policies
-ALTER TABLE events ENABLE ROW LEVEL SECURITY;
-ALTER TABLE event_notifications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE event_images ENABLE ROW LEVEL SECURITY;
-
--- Events policies
-CREATE POLICY "Anyone can view active events" ON events
-    FOR SELECT USING (is_active = TRUE);
-
-CREATE POLICY "Only admins and teachers can create events" ON events
-    FOR INSERT WITH CHECK (
-        EXISTS (
-            SELECT 1 FROM users 
-            WHERE id = auth.uid() 
-            AND role IN ('Admin', 'Teacher')
-        )
-    );
-
-CREATE POLICY "Only creators and admins can update events" ON events
-    FOR UPDATE USING (
-        created_by = auth.uid() OR 
-        EXISTS (
-            SELECT 1 FROM users 
-            WHERE id = auth.uid() 
-            AND role = 'Admin'
-        )
-    );
-
--- Event notifications policies  
-CREATE POLICY "Users can view their own notifications" ON event_notifications
-    FOR SELECT USING (user_id = auth.uid());
-
-CREATE POLICY "Users can update their own notifications" ON event_notifications
-    FOR UPDATE USING (user_id = auth.uid());
-
--- Event images policies
-CREATE POLICY "Anyone can view event images" ON event_images
-    FOR SELECT USING (TRUE);
-
-CREATE POLICY "Only admins and teachers can manage event images" ON event_images
-    FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM users 
-            WHERE id = auth.uid() 
-            AND role IN ('Admin', 'Teacher')
-        )
-    );
+-- Disable RLS for events tables since the app uses custom authentication
+ALTER TABLE events DISABLE ROW LEVEL SECURITY;
+ALTER TABLE event_notifications DISABLE ROW LEVEL SECURITY;
+ALTER TABLE event_images DISABLE ROW LEVEL SECURITY;
 
 -- Function to automatically create notifications for target audience
 CREATE OR REPLACE FUNCTION create_event_notifications()
