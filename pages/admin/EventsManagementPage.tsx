@@ -21,8 +21,7 @@ const EventForm: React.FC<{ event?: Partial<Event>, onSave: (event: Partial<Even
             time: event?.time || '',
             location: event?.location || '',
             priority: event?.priority || 'Medium',
-            eventType: event?.eventType || 'General',
-            targetAudience: event?.targetAudience || ['Student'],
+            eventType: event?.eventType || '',
             isActive: event?.isActive !== false,
         });
     }, [event]);
@@ -31,10 +30,6 @@ const EventForm: React.FC<{ event?: Partial<Event>, onSave: (event: Partial<Even
         const { name, value, type } = e.target;
         if (type === 'checkbox') {
             setFormData(prev => ({ ...prev, [name]: (e.target as HTMLInputElement).checked }));
-        } else if (name === 'targetAudience') {
-            const select = e.target as HTMLSelectElement;
-            const values = Array.from(select.selectedOptions, option => option.value);
-            setFormData(prev => ({ ...prev, [name]: values }));
         } else {
             setFormData(prev => ({ ...prev, [name]: value }));
         }
@@ -54,6 +49,7 @@ const EventForm: React.FC<{ event?: Partial<Event>, onSave: (event: Partial<Even
         const dataToSave = {
             ...formData,
             date: formData.date ? new Date(formData.date) : new Date(),
+            targetAudience: ['Student'], // Default target audience since field is removed from UI
             images: imageFiles.length > 0 ? imageFiles.map(file => ({ url: '', filename: file.name })) : event?.images || []
         };
         onSave(dataToSave);
@@ -68,13 +64,7 @@ const EventForm: React.FC<{ event?: Partial<Event>, onSave: (event: Partial<Even
                 </div>
                 <div>
                     <label className="form-label">Event Type</label>
-                    <select name="eventType" value={formData.eventType} onChange={handleChange} className="form-input w-full">
-                        <option value="General">General</option>
-                        <option value="Academic">Academic</option>
-                        <option value="Cultural">Cultural</option>
-                        <option value="Sports">Sports</option>
-                        <option value="Notice">Notice</option>
-                    </select>
+                    <input name="eventType" value={formData.eventType} onChange={handleChange} className="form-input w-full" placeholder="e.g., Academic, Cultural, Sports, Notice" />
                 </div>
             </div>
 
@@ -105,21 +95,6 @@ const EventForm: React.FC<{ event?: Partial<Event>, onSave: (event: Partial<Even
             <div>
                 <label className="form-label">Location / Venue</label>
                 <input name="location" value={formData.location} onChange={handleChange} className="form-input w-full" placeholder="e.g., Main Hall, Online, Classroom 1A" />
-            </div>
-
-            <div>
-                <label className="form-label">Target Audience*</label>
-                <select name="targetAudience" value={formData.targetAudience} onChange={handleChange} multiple className="form-input w-full h-24">
-                    <option value="All">All Users</option>
-                    <option value="Student">Students</option>
-                    <option value="Teacher">Teachers</option>
-                    <option value="Admin">Admins</option>
-                    <option value="Vocal">Vocal Students</option>
-                    <option value="Drawing">Drawing Students</option>
-                    <option value="Abacus">Abacus Students</option>
-                    <option value="Bharatanatyam">Bharatanatyam Students</option>
-                </select>
-                <p className="text-sm text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple options</p>
             </div>
 
             <div>
@@ -299,7 +274,7 @@ const EventsManagementPage: React.FC = () => {
                 </div>
             </div>
 
-            <Modal isOpen={!!editingEvent} onClose={() => setEditingEvent(null)} size="lg">
+            <Modal isOpen={!!editingEvent} onClose={() => setEditingEvent(null)} size="4xl">
                 <ModalHeader title={editingEvent?.id ? 'Edit Event' : 'Add New Event'} />
                 <EventForm event={editingEvent || {}} onSave={handleSave} isLoading={isFormLoading} />
             </Modal>

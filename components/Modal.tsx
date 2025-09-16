@@ -2,7 +2,7 @@
 import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 
-type ModalSize = 'md' | 'lg' | 'xl' | '2xl' | '3xl' | 'full';
+type ModalSize = 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | 'full';
 
 interface ModalProps {
   isOpen: boolean;
@@ -17,6 +17,7 @@ const SIZES: { [key in ModalSize]: string } = {
   xl: 'max-w-xl',
   '2xl': 'max-w-2xl',
   '3xl': 'max-w-3xl',
+  '4xl': 'max-w-4xl',
   full: '',
 };
 
