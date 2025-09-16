@@ -1486,6 +1486,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to auto-create notifications
+DROP TRIGGER IF EXISTS trigger_create_event_notifications ON events;
 CREATE TRIGGER trigger_create_event_notifications
     AFTER INSERT ON events
     FOR EACH ROW
@@ -1501,6 +1502,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger for events updated_at
+DROP TRIGGER IF EXISTS trigger_events_updated_at ON events;
 CREATE TRIGGER trigger_events_updated_at
     BEFORE UPDATE ON events
     FOR EACH ROW
