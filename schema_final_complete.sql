@@ -1477,7 +1477,10 @@ BEGIN
             'All' = ANY(NEW.target_audience) OR
             u.role = ANY(NEW.target_audience) OR
             -- If target_audience contains specific courses and user has those courses
-            (u.role = 'Student' AND u.courses && NEW.target_audience)
+            (u.role = 'Student' AND EXISTS (
+                SELECT 1 FROM jsonb_array_elements_text(u.courses) AS course
+                WHERE course = ANY(NEW.target_audience)
+            ))
         );
     END IF;
     
