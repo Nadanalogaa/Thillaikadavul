@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Event } from '../../types';
-import { getAdminEvents, addEvent, updateEvent, deleteEvent } from '../../api';
+import { getAdminEvents, addEvent, updateEvent, deleteEvent, getEventResponseStats } from '../../api';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import AdminNav from '../../components/admin/AdminNav';
 import Modal from '../../components/Modal';
@@ -134,12 +134,27 @@ const EventsManagementPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [editingEvent, setEditingEvent] = useState<Partial<Event> | null>(null);
     const [notifyingEvent, setNotifyingEvent] = useState<Event | null>(null);
+    const [viewingResponses, setViewingResponses] = useState<Event | null>(null);
+    const [responseStats, setResponseStats] = useState<Record<string, any>>({});
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
             const data = await getAdminEvents();
             setEvents(data);
+            
+            // Fetch response stats for all events
+            const statsPromises = data.map(async (event) => {
+                const stats = await getEventResponseStats(event.id);
+                return { eventId: event.id, stats };
+            });
+            
+            const statsResults = await Promise.all(statsPromises);
+            const statsMap: Record<string, any> = {};
+            statsResults.forEach(({ eventId, stats }) => {
+                statsMap[eventId] = stats;
+            });
+            setResponseStats(statsMap);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to fetch events.');
         } finally {
@@ -202,7 +217,7 @@ const EventsManagementPage: React.FC = () => {
                                         <th className="th-base">Date & Time</th>
                                         <th className="th-base">Type</th>
                                         <th className="th-base">Priority</th>
-                                        <th className="th-base">Target</th>
+                                        <th className="th-base">Responses</th>
                                         <th className="th-base">Status</th>
                                         <th className="th-base text-right">Actions</th>
                                     </tr>
@@ -250,9 +265,19 @@ const EventsManagementPage: React.FC = () => {
                                                 </span>
                                             </td>
                                             <td className="td-base">
-                                                <div className="text-xs">
-                                                    {event.targetAudience?.slice(0, 2).join(', ')}
-                                                    {event.targetAudience && event.targetAudience.length > 2 && ` +${event.targetAudience.length - 2}`}
+                                                <div className="text-xs space-y-1">
+                                                    {responseStats[event.id] ? (
+                                                        <>
+                                                            <div className="flex items-center space-x-2">
+                                                                <span className="text-green-600">✅ {responseStats[event.id].accepted}</span>
+                                                                <span className="text-yellow-600">🤔 {responseStats[event.id].maybe}</span>
+                                                                <span className="text-red-600">❌ {responseStats[event.id].declined}</span>
+                                                            </div>
+                                                            <div className="text-gray-500">Total: {responseStats[event.id].total} responses</div>
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-gray-400">No responses yet</span>
+                                                    )}
                                                 </div>
                                             </td>
                                             <td className="td-base">
@@ -261,6 +286,7 @@ const EventsManagementPage: React.FC = () => {
                                                 </span>
                                             </td>
                                             <td className="td-base text-right space-x-2">
+                                                <button onClick={() => setViewingResponses(event)} className="btn-send">Responses</button>
                                                 <button onClick={() => setNotifyingEvent(event)} className="btn-send">Send</button>
                                                 <button onClick={() => setEditingEvent(event)} className="btn-secondary">Edit</button>
                                                 <button onClick={() => handleDelete(event.id)} className="btn-danger">Delete</button>
@@ -286,6 +312,90 @@ const EventsManagementPage: React.FC = () => {
                 contentType="Event"
             />
 
+            {/* Response Details Modal */}
+            <Modal isOpen={!!viewingResponses} onClose={() => setViewingResponses(null)} size="4xl">
+                <ModalHeader title={`Event Responses: ${viewingResponses?.title}`} />
+                {viewingResponses && responseStats[viewingResponses.id] && (
+                    <div className="p-6">
+                        {/* Summary Stats */}
+                        <div className="grid grid-cols-4 gap-4 mb-6">
+                            <div className="bg-green-50 p-4 rounded-lg text-center">
+                                <div className="text-2xl font-bold text-green-600">{responseStats[viewingResponses.id].accepted}</div>
+                                <div className="text-sm text-green-800">✅ Accepted</div>
+                            </div>
+                            <div className="bg-yellow-50 p-4 rounded-lg text-center">
+                                <div className="text-2xl font-bold text-yellow-600">{responseStats[viewingResponses.id].maybe}</div>
+                                <div className="text-sm text-yellow-800">🤔 Maybe</div>
+                            </div>
+                            <div className="bg-red-50 p-4 rounded-lg text-center">
+                                <div className="text-2xl font-bold text-red-600">{responseStats[viewingResponses.id].declined}</div>
+                                <div className="text-sm text-red-800">❌ Declined</div>
+                            </div>
+                            <div className="bg-gray-50 p-4 rounded-lg text-center">
+                                <div className="text-2xl font-bold text-gray-600">{responseStats[viewingResponses.id].total}</div>
+                                <div className="text-sm text-gray-800">📊 Total</div>
+                            </div>
+                        </div>
+
+                        {/* Detailed Lists */}
+                        <div className="space-y-6">
+                            {/* Accepted Users */}
+                            {responseStats[viewingResponses.id].acceptedUsers.length > 0 && (
+                                <div>
+                                    <h3 className="text-lg font-semibold text-green-800 mb-3">✅ Accepted ({responseStats[viewingResponses.id].acceptedUsers.length})</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                        {responseStats[viewingResponses.id].acceptedUsers.map((user: any) => (
+                                            <div key={user.id} className="bg-green-50 p-3 rounded-lg border border-green-200">
+                                                <div className="font-medium text-green-900">{user.name}</div>
+                                                <div className="text-sm text-green-700">{user.email}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Maybe Users */}
+                            {responseStats[viewingResponses.id].maybeUsers.length > 0 && (
+                                <div>
+                                    <h3 className="text-lg font-semibold text-yellow-800 mb-3">🤔 Maybe ({responseStats[viewingResponses.id].maybeUsers.length})</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                        {responseStats[viewingResponses.id].maybeUsers.map((user: any) => (
+                                            <div key={user.id} className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                                                <div className="font-medium text-yellow-900">{user.name}</div>
+                                                <div className="text-sm text-yellow-700">{user.email}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Declined Users */}
+                            {responseStats[viewingResponses.id].declinedUsers.length > 0 && (
+                                <div>
+                                    <h3 className="text-lg font-semibold text-red-800 mb-3">❌ Declined ({responseStats[viewingResponses.id].declinedUsers.length})</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                        {responseStats[viewingResponses.id].declinedUsers.map((user: any) => (
+                                            <div key={user.id} className="bg-red-50 p-3 rounded-lg border border-red-200">
+                                                <div className="font-medium text-red-900">{user.name}</div>
+                                                <div className="text-sm text-red-700">{user.email}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* No responses message */}
+                            {responseStats[viewingResponses.id].total === 0 && (
+                                <div className="text-center py-8">
+                                    <div className="text-4xl mb-4">📭</div>
+                                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Responses Yet</h3>
+                                    <p className="text-gray-600">Students haven't responded to this event yet.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </Modal>
 
             <style>{`
                 .th-base { padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 500; color: #4B5563; text-transform: uppercase; letter-spacing: 0.05em; }

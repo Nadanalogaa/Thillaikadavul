@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import type { Event, User, EventNotification } from '../../types';
-import { getEvents, getFamilyStudents, getStudentEvents, getEventNotifications, markEventNotificationAsRead, getCurrentUser } from '../../api';
+import { getEvents, getFamilyStudents, getStudentEvents, getEventNotifications, markEventNotificationAsRead, getCurrentUser, submitEventResponse, getEventResponse } from '../../api';
 import AccordionItem from '../../components/AccordionItem';
 
 const EventsPage: React.FC = () => {
@@ -10,6 +10,8 @@ const EventsPage: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('upcoming');
     const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+    const [eventResponses, setEventResponses] = useState<Record<string, {response: string; responseMessage?: string}>>({});
+    const [responseLoading, setResponseLoading] = useState<string | null>(null);
 
     const currentUser = getCurrentUser();
 
@@ -24,6 +26,21 @@ const EventsPage: React.FC = () => {
                     ]);
                     setEvents(eventsData);
                     setNotifications(notificationsData);
+                    
+                    // Fetch existing responses for all events
+                    const responsePromises = eventsData.map(async (event) => {
+                        const response = await getEventResponse(event.id);
+                        return { eventId: event.id, response };
+                    });
+                    
+                    const responses = await Promise.all(responsePromises);
+                    const responseMap: Record<string, {response: string; responseMessage?: string}> = {};
+                    responses.forEach(({ eventId, response }) => {
+                        if (response) {
+                            responseMap[eventId] = response;
+                        }
+                    });
+                    setEventResponses(responseMap);
                 }
             } catch (error) {
                 console.error("Failed to fetch events:", error);
@@ -44,6 +61,22 @@ const EventsPage: React.FC = () => {
             } catch (error) {
                 console.error("Failed to mark notification as read:", error);
             }
+        }
+    };
+
+    const handleEventResponse = async (eventId: string, response: 'accepted' | 'declined' | 'maybe', responseMessage?: string) => {
+        setResponseLoading(eventId);
+        try {
+            await submitEventResponse(eventId, response, responseMessage);
+            setEventResponses(prev => ({
+                ...prev,
+                [eventId]: { response, responseMessage }
+            }));
+        } catch (error) {
+            console.error("Failed to submit event response:", error);
+            alert("Failed to submit response. Please try again.");
+        } finally {
+            setResponseLoading(null);
         }
     };
 
@@ -186,7 +219,57 @@ const EventsPage: React.FC = () => {
                                     </p>
                                 )}
 
-                                <p className="text-gray-700 text-sm line-clamp-3">{event.description}</p>
+                                <p className="text-gray-700 text-sm line-clamp-3 mb-4">{event.description}</p>
+                                
+                                {/* Response Buttons */}
+                                <div className="mt-4 pt-4 border-t border-gray-100">
+                                    {eventResponses[event.id] ? (
+                                        <div className="text-center">
+                                            <div className={`inline-flex items-center px-3 py-2 rounded-full text-sm font-medium ${
+                                                eventResponses[event.id].response === 'accepted' ? 'bg-green-100 text-green-800' :
+                                                eventResponses[event.id].response === 'declined' ? 'bg-red-100 text-red-800' :
+                                                'bg-yellow-100 text-yellow-800'
+                                            }`}>
+                                                {eventResponses[event.id].response === 'accepted' && '✅ Accepted'}
+                                                {eventResponses[event.id].response === 'declined' && '❌ Declined'}
+                                                {eventResponses[event.id].response === 'maybe' && '🤔 Maybe'}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex space-x-2">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleEventResponse(event.id, 'accepted');
+                                                }}
+                                                disabled={responseLoading === event.id}
+                                                className="flex-1 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                                            >
+                                                {responseLoading === event.id ? '...' : '✅ Accept'}
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleEventResponse(event.id, 'maybe');
+                                                }}
+                                                disabled={responseLoading === event.id}
+                                                className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-2 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                                            >
+                                                {responseLoading === event.id ? '...' : '🤔 Maybe'}
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleEventResponse(event.id, 'declined');
+                                                }}
+                                                disabled={responseLoading === event.id}
+                                                className="flex-1 bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                                            >
+                                                {responseLoading === event.id ? '...' : '❌ Decline'}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </motion.div>
                     ))}
@@ -276,13 +359,67 @@ const EventsPage: React.FC = () => {
                                     </div>
                                 )}
 
-                                <div className="flex flex-wrap gap-2">
+                                <div className="flex flex-wrap gap-2 mb-6">
                                     <span className={`px-3 py-1 rounded-full text-sm ${getPriorityColor(selectedEvent.priority)}`}>
                                         {selectedEvent.priority || 'Medium'} Priority
                                     </span>
                                     <span className={`px-3 py-1 rounded-full text-sm ${getEventTypeColor(selectedEvent.eventType)}`}>
                                         {selectedEvent.eventType || 'General'}
                                     </span>
+                                </div>
+
+                                {/* Response Section in Modal */}
+                                <div className="border-t pt-6">
+                                    <h3 className="font-semibold text-gray-900 mb-4">Your Response</h3>
+                                    {eventResponses[selectedEvent.id] ? (
+                                        <div className="text-center p-4 bg-gray-50 rounded-lg">
+                                            <div className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium ${
+                                                eventResponses[selectedEvent.id].response === 'accepted' ? 'bg-green-100 text-green-800' :
+                                                eventResponses[selectedEvent.id].response === 'declined' ? 'bg-red-100 text-red-800' :
+                                                'bg-yellow-100 text-yellow-800'
+                                            }`}>
+                                                {eventResponses[selectedEvent.id].response === 'accepted' && '✅ You have accepted this event'}
+                                                {eventResponses[selectedEvent.id].response === 'declined' && '❌ You have declined this event'}
+                                                {eventResponses[selectedEvent.id].response === 'maybe' && '🤔 You marked this as maybe'}
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    setEventResponses(prev => {
+                                                        const newResponses = { ...prev };
+                                                        delete newResponses[selectedEvent.id];
+                                                        return newResponses;
+                                                    });
+                                                }}
+                                                className="mt-2 text-sm text-blue-600 hover:text-blue-800 underline"
+                                            >
+                                                Change response
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-3 gap-3">
+                                            <button
+                                                onClick={() => handleEventResponse(selectedEvent.id, 'accepted')}
+                                                disabled={responseLoading === selectedEvent.id}
+                                                className="bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
+                                            >
+                                                {responseLoading === selectedEvent.id ? 'Submitting...' : '✅ Accept'}
+                                            </button>
+                                            <button
+                                                onClick={() => handleEventResponse(selectedEvent.id, 'maybe')}
+                                                disabled={responseLoading === selectedEvent.id}
+                                                className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
+                                            >
+                                                {responseLoading === selectedEvent.id ? 'Submitting...' : '🤔 Maybe'}
+                                            </button>
+                                            <button
+                                                onClick={() => handleEventResponse(selectedEvent.id, 'declined')}
+                                                disabled={responseLoading === selectedEvent.id}
+                                                className="bg-red-500 hover:bg-red-600 text-white px-4 py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
+                                            >
+                                                {responseLoading === selectedEvent.id ? 'Submitting...' : '❌ Decline'}
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

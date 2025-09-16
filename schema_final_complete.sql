@@ -1435,6 +1435,19 @@ CREATE TABLE IF NOT EXISTS event_notifications (
     UNIQUE(event_id, user_id)
 );
 
+-- Event responses (accept/decline) tracking
+CREATE TABLE IF NOT EXISTS event_responses (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    event_id UUID REFERENCES events(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    response TEXT NOT NULL CHECK (response IN ('accepted', 'declined', 'maybe')),
+    response_message TEXT, -- Optional message from student
+    responded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(event_id, user_id)
+);
+
 -- Event images storage (alternative approach if needed)
 CREATE TABLE IF NOT EXISTS event_images (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -1455,11 +1468,15 @@ CREATE INDEX IF NOT EXISTS idx_events_active ON events(is_active);
 CREATE INDEX IF NOT EXISTS idx_events_created_by ON events(created_by);
 CREATE INDEX IF NOT EXISTS idx_event_notifications_user ON event_notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_event_notifications_read ON event_notifications(is_read);
+CREATE INDEX IF NOT EXISTS idx_event_responses_event ON event_responses(event_id);
+CREATE INDEX IF NOT EXISTS idx_event_responses_user ON event_responses(user_id);
+CREATE INDEX IF NOT EXISTS idx_event_responses_response ON event_responses(response);
 CREATE INDEX IF NOT EXISTS idx_event_images_event ON event_images(event_id, display_order);
 
 -- Disable RLS for events tables since the app uses custom authentication
 ALTER TABLE events DISABLE ROW LEVEL SECURITY;
 ALTER TABLE event_notifications DISABLE ROW LEVEL SECURITY;
+ALTER TABLE event_responses DISABLE ROW LEVEL SECURITY;
 ALTER TABLE event_images DISABLE ROW LEVEL SECURITY;
 
 -- Function to automatically create notifications for target audience

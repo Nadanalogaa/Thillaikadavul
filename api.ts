@@ -2600,3 +2600,119 @@ export const getUnreadNotificationCount = async (userId: string): Promise<number
     return 0;
   }
 };
+
+// Event Response Functions
+export const submitEventResponse = async (eventId: string, response: 'accepted' | 'declined' | 'maybe', responseMessage?: string): Promise<void> => {
+  try {
+    const currentUser = getCurrentUser();
+    if (!currentUser?.id) {
+      throw new Error('User not logged in');
+    }
+
+    const { error } = await supabase
+      .from('event_responses')
+      .upsert({
+        event_id: eventId,
+        user_id: currentUser.id,
+        response,
+        response_message: responseMessage || null,
+        responded_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+
+    if (error) {
+      console.error('Error submitting event response:', error);
+      throw new Error(`Failed to submit response: ${error.message}`);
+    }
+  } catch (error) {
+    console.error('Error in submitEventResponse:', error);
+    throw error;
+  }
+};
+
+export const getEventResponse = async (eventId: string): Promise<{response: string; responseMessage?: string} | null> => {
+  try {
+    const currentUser = getCurrentUser();
+    if (!currentUser?.id) {
+      return null;
+    }
+
+    const { data, error } = await supabase
+      .from('event_responses')
+      .select('response, response_message')
+      .eq('event_id', eventId)
+      .eq('user_id', currentUser.id)
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      console.error('Error fetching event response:', error);
+      return null;
+    }
+
+    return data ? {
+      response: data.response,
+      responseMessage: data.response_message
+    } : null;
+  } catch (error) {
+    console.error('Error in getEventResponse:', error);
+    return null;
+  }
+};
+
+export const getEventResponseStats = async (eventId: string): Promise<{
+  accepted: number;
+  declined: number;
+  maybe: number;
+  total: number;
+  acceptedUsers: Array<{id: string; name: string; email: string}>;
+  declinedUsers: Array<{id: string; name: string; email: string}>;
+  maybeUsers: Array<{id: string; name: string; email: string}>;
+}> => {
+  try {
+    const { data, error } = await supabase
+      .from('event_responses')
+      .select(`
+        response,
+        users!inner(id, name, email)
+      `)
+      .eq('event_id', eventId);
+
+    if (error) {
+      console.error('Error fetching event response stats:', error);
+      return {
+        accepted: 0,
+        declined: 0,
+        maybe: 0,
+        total: 0,
+        acceptedUsers: [],
+        declinedUsers: [],
+        maybeUsers: []
+      };
+    }
+
+    const accepted = data.filter(r => r.response === 'accepted');
+    const declined = data.filter(r => r.response === 'declined');
+    const maybe = data.filter(r => r.response === 'maybe');
+
+    return {
+      accepted: accepted.length,
+      declined: declined.length,
+      maybe: maybe.length,
+      total: data.length,
+      acceptedUsers: accepted.map(r => r.users),
+      declinedUsers: declined.map(r => r.users),
+      maybeUsers: maybe.map(r => r.users)
+    };
+  } catch (error) {
+    console.error('Error in getEventResponseStats:', error);
+    return {
+      accepted: 0,
+      declined: 0,
+      maybe: 0,
+      total: 0,
+      acceptedUsers: [],
+      declinedUsers: [],
+      maybeUsers: []
+    };
+  }
+};
