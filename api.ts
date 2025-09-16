@@ -2603,6 +2603,8 @@ export const submitEventResponse = async (eventId: string, response: 'accepted' 
         response_message: responseMessage || null,
         responded_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'event_id,user_id'
       });
 
     if (error) {

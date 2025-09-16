@@ -7,7 +7,7 @@ import Modal from '../../components/Modal';
 import ModalHeader from '../../components/ModalHeader';
 import SendContentNotificationModal from '../../components/admin/SendContentNotificationModal';
 
-const EventForm: React.FC<{ event?: Partial<Event>, onSave: (event: Partial<Event>) => void, isLoading: boolean }> = ({ event, onSave, isLoading }) => {
+const EventForm: React.FC<{ event?: Partial<Event>, onSave: (event: Partial<Event>) => Promise<void>, isLoading: boolean }> = ({ event, onSave, isLoading }) => {
     const [formData, setFormData] = useState<Partial<Event>>({});
     const [imageFiles, setImageFiles] = useState<File[]>([]);
     const [imagePreview, setImagePreview] = useState<string[]>([]);
@@ -44,15 +44,38 @@ const EventForm: React.FC<{ event?: Partial<Event>, onSave: (event: Partial<Even
         setImagePreview(previews);
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // Convert image files to base64
+        const processedImages = [];
+        if (imageFiles.length > 0) {
+            for (const file of imageFiles) {
+                try {
+                    const base64 = await new Promise<string>((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result as string);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                    });
+                    processedImages.push({ 
+                        url: base64, 
+                        filename: file.name,
+                        caption: ''
+                    });
+                } catch (error) {
+                    console.error('Error processing image:', error);
+                }
+            }
+        }
+        
         const dataToSave = {
             ...formData,
             date: formData.date ? new Date(formData.date) : new Date(),
             targetAudience: ['Student'], // Default target audience since field is removed from UI
-            images: imageFiles.length > 0 ? imageFiles.map(file => ({ url: '', filename: file.name })) : event?.images || []
+            images: processedImages.length > 0 ? processedImages : event?.images || []
         };
-        onSave(dataToSave);
+        await onSave(dataToSave);
     };
 
     return (

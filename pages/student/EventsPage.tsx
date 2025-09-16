@@ -28,6 +28,7 @@ const EventsPage: React.FC = () => {
                         getStudentEvents(user.id),
                         getEventNotifications(user.id)
                     ]);
+                    console.log('Loaded events:', eventsData);
                     setEvents(eventsData);
                     setNotifications(notificationsData);
                     
@@ -182,6 +183,10 @@ const EventsPage: React.FC = () => {
                                         src={event.images[0].url}
                                         alt={event.images[0].caption || event.title}
                                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                        onError={(e) => {
+                                            console.error('Image failed to load:', event.images[0]);
+                                            e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xMDAgNzBDMTA2LjYyNyA3MCA5Mi4yNzggNzIuMjc4IDg2IDc4VjEzMEg2MFY4NEMzNyA4My4yIDQ4LjggNzMgNjQgNzNIMTAwWiIgZmlsbD0iI0Q5REZFNCJ9Cjx0ZXh0IHg9IjEwMCIgeT0iMTA1IiBmaWxsPSIjOUI5NUE2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiPk5vIEltYWdlPC90ZXh0Pgo8L3N2Zz4K';
+                                        }}
                                     />
                                     {event.images.length > 1 && (
                                         <div className="absolute bottom-3 right-3 bg-black bg-opacity-80 text-white text-xs px-3 py-1 rounded-full font-medium backdrop-blur-sm">
