@@ -1601,8 +1601,9 @@ export const getEvents = async (): Promise<Event[]> => {
   try {
     const { data, error } = await supabase
       .from('events')
-      .select('*')
-      .order('date', { ascending: true });
+      .select('*, event_images(*)')
+      .eq('is_active', true)
+      .order('event_date', { ascending: true });
 
     if (error) {
       console.error('Error fetching events:', error);
@@ -1613,11 +1614,24 @@ export const getEvents = async (): Promise<Event[]> => {
       id: event.id,
       title: event.title,
       description: event.description,
-      date: new Date(event.date),
-      time: event.time,
+      date: new Date(event.event_date),
+      time: event.event_time,
       location: event.location,
       isPublic: event.is_public,
-      createdAt: new Date(event.created_at)
+      createdAt: new Date(event.created_at),
+      createdBy: event.created_by,
+      targetAudience: event.target_audience || [],
+      images: (event.event_images || []).map((img: any) => ({
+        id: img.id,
+        url: img.image_url,
+        caption: img.caption,
+        filename: img.filename,
+        displayOrder: img.display_order
+      })),
+      isActive: event.is_active,
+      priority: event.priority,
+      eventType: event.event_type,
+      updatedAt: event.updated_at ? new Date(event.updated_at) : undefined
     }));
   } catch (error) {
     console.error('Error in getEvents:', error);
@@ -1656,16 +1670,21 @@ export const getPublicEvents = async (): Promise<Event[]> => {
 
 export const addEvent = async (event: Omit<Event, 'id'>): Promise<Event> => {
   try {
+    const currentUser = getCurrentUser();
     const { data, error } = await supabase
       .from('events')
       .insert([{
         title: event.title,
         description: event.description,
-        date: event.date instanceof Date ? event.date.toISOString() : new Date(event.date).toISOString(),
-        time: event.time || '12:00 PM', // Provide default time if null
-        location: event.location || 'To be announced', // Provide default location if null
-        is_public: event.isPublic,
-        created_at: new Date().toISOString()
+        event_date: event.date instanceof Date ? event.date.toISOString().split('T')[0] : new Date(event.date).toISOString().split('T')[0],
+        event_time: event.time,
+        location: event.location,
+        created_by: currentUser?.id,
+        target_audience: event.targetAudience || [],
+        is_active: event.isActive !== undefined ? event.isActive : true,
+        priority: event.priority || 'Medium',
+        event_type: event.eventType || 'General',
+        images: event.images || []
       }])
       .select()
       .single();
@@ -1679,10 +1698,15 @@ export const addEvent = async (event: Omit<Event, 'id'>): Promise<Event> => {
       id: data.id,
       title: data.title,
       description: data.description,
-      date: new Date(data.date),
-      time: data.time,
+      date: new Date(data.event_date),
+      time: data.event_time,
       location: data.location,
-      isPublic: data.is_public,
+      createdBy: data.created_by,
+      targetAudience: data.target_audience || [],
+      images: data.images || [],
+      isActive: data.is_active,
+      priority: data.priority,
+      eventType: data.event_type,
       createdAt: new Date(data.created_at)
     };
   } catch (error) {
@@ -2104,6 +2128,174 @@ export const sendEvent = async (eventId: string, recipientIds: string[]): Promis
     console.log('Event sent successfully to recipients:', data);
   } catch (error) {
     console.error('Error in sendEvent:', error);
+    throw error;
+  }
+};
+
+// Get events for a specific student with notification status
+export const getStudentEvents = async (studentId: string): Promise<Event[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('events')
+      .select(`
+        *,
+        event_images(*),
+        event_notifications!left(
+          id,
+          is_read,
+          read_at
+        )
+      `)
+      .eq('is_active', true)
+      .or(`target_audience.cs.{All},target_audience.cs.{Student}`)
+      .eq('event_notifications.user_id', studentId)
+      .order('event_date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching student events:', error);
+      return [];
+    }
+
+    return (data || []).map(event => ({
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      date: new Date(event.event_date),
+      time: event.event_time,
+      location: event.location,
+      createdBy: event.created_by,
+      targetAudience: event.target_audience || [],
+      images: (event.event_images || []).map((img: any) => ({
+        id: img.id,
+        url: img.image_url,
+        caption: img.caption,
+        filename: img.filename,
+        displayOrder: img.display_order
+      })),
+      isActive: event.is_active,
+      priority: event.priority,
+      eventType: event.event_type,
+      createdAt: new Date(event.created_at),
+      updatedAt: event.updated_at ? new Date(event.updated_at) : undefined
+    }));
+  } catch (error) {
+    console.error('Error in getStudentEvents:', error);
+    return [];
+  }
+};
+
+// Get event notifications for a user
+export const getEventNotifications = async (userId: string): Promise<EventNotification[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('event_notifications')
+      .select(`
+        *,
+        events!inner(
+          id,
+          title,
+          description,
+          event_date,
+          event_time,
+          location,
+          priority,
+          event_type
+        )
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching event notifications:', error);
+      return [];
+    }
+
+    return (data || []).map(notification => ({
+      id: notification.id,
+      eventId: notification.event_id,
+      userId: notification.user_id,
+      isRead: notification.is_read,
+      readAt: notification.read_at ? new Date(notification.read_at) : undefined,
+      createdAt: new Date(notification.created_at),
+      event: notification.events ? {
+        id: notification.events.id,
+        title: notification.events.title,
+        description: notification.events.description,
+        date: new Date(notification.events.event_date),
+        time: notification.events.event_time,
+        location: notification.events.location,
+        priority: notification.events.priority,
+        eventType: notification.events.event_type
+      } : undefined
+    }));
+  } catch (error) {
+    console.error('Error in getEventNotifications:', error);
+    return [];
+  }
+};
+
+// Mark event notification as read
+export const markEventNotificationAsRead = async (notificationId: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('event_notifications')
+      .update({
+        is_read: true,
+        read_at: new Date().toISOString()
+      })
+      .eq('id', notificationId);
+
+    if (error) {
+      console.error('Error marking notification as read:', error);
+      throw new Error(`Failed to mark notification as read: ${error.message}`);
+    }
+  } catch (error) {
+    console.error('Error in markEventNotificationAsRead:', error);
+    throw error;
+  }
+};
+
+// Upload event image
+export const uploadEventImage = async (eventId: string, file: File, caption?: string): Promise<EventImage> => {
+  try {
+    // Convert file to base64 for simple storage
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    const { data, error } = await supabase
+      .from('event_images')
+      .insert([{
+        event_id: eventId,
+        image_url: base64,
+        caption: caption || '',
+        filename: file.name,
+        file_size: file.size,
+        mime_type: file.type,
+        display_order: 0
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error uploading event image:', error);
+      throw new Error(`Failed to upload image: ${error.message}`);
+    }
+
+    return {
+      id: data.id,
+      url: data.image_url,
+      caption: data.caption,
+      filename: data.filename,
+      fileSize: data.file_size,
+      mimeType: data.mime_type,
+      displayOrder: data.display_order
+    };
+  } catch (error) {
+    console.error('Error in uploadEventImage:', error);
     throw error;
   }
 };

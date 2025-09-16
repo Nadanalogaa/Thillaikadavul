@@ -1327,3 +1327,177 @@ BEGIN
     RAISE NOTICE '';
     RAISE NOTICE '================================================';
 END $$;
+
+-- ================================================
+-- EVENTS SYSTEM SCHEMA
+-- Complete events system with image support and notifications
+-- ================================================
+
+-- Events table with image support
+CREATE TABLE IF NOT EXISTS events (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT,
+    event_date DATE NOT NULL,
+    event_time TIME,
+    location TEXT,
+    created_by UUID REFERENCES users(id),
+    target_audience TEXT[] DEFAULT '{}', -- Array of roles: Student, Teacher, Admin, or specific course names
+    images JSONB DEFAULT '[]', -- Array of image objects {url, caption, filename}
+    is_active BOOLEAN DEFAULT TRUE,
+    priority TEXT DEFAULT 'Medium' CHECK (priority IN ('Low', 'Medium', 'High')),
+    event_type TEXT DEFAULT 'General' CHECK (event_type IN ('General', 'Academic', 'Cultural', 'Sports', 'Notice')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Event notifications/receipts tracking
+CREATE TABLE IF NOT EXISTS event_notifications (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    event_id UUID REFERENCES events(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    is_read BOOLEAN DEFAULT FALSE,
+    read_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(event_id, user_id)
+);
+
+-- Event images storage (alternative approach if needed)
+CREATE TABLE IF NOT EXISTS event_images (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    event_id UUID REFERENCES events(id) ON DELETE CASCADE,
+    image_url TEXT NOT NULL,
+    caption TEXT,
+    filename TEXT,
+    file_size INTEGER,
+    mime_type TEXT,
+    display_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_events_date ON events(event_date DESC);
+CREATE INDEX IF NOT EXISTS idx_events_active ON events(is_active);
+CREATE INDEX IF NOT EXISTS idx_events_created_by ON events(created_by);
+CREATE INDEX IF NOT EXISTS idx_event_notifications_user ON event_notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_event_notifications_read ON event_notifications(is_read);
+CREATE INDEX IF NOT EXISTS idx_event_images_event ON event_images(event_id, display_order);
+
+-- RLS (Row Level Security) policies
+ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE event_notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE event_images ENABLE ROW LEVEL SECURITY;
+
+-- Events policies
+CREATE POLICY "Anyone can view active events" ON events
+    FOR SELECT USING (is_active = TRUE);
+
+CREATE POLICY "Only admins and teachers can create events" ON events
+    FOR INSERT WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM users 
+            WHERE id = auth.uid() 
+            AND role IN ('Admin', 'Teacher')
+        )
+    );
+
+CREATE POLICY "Only creators and admins can update events" ON events
+    FOR UPDATE USING (
+        created_by = auth.uid() OR 
+        EXISTS (
+            SELECT 1 FROM users 
+            WHERE id = auth.uid() 
+            AND role = 'Admin'
+        )
+    );
+
+-- Event notifications policies  
+CREATE POLICY "Users can view their own notifications" ON event_notifications
+    FOR SELECT USING (user_id = auth.uid());
+
+CREATE POLICY "Users can update their own notifications" ON event_notifications
+    FOR UPDATE USING (user_id = auth.uid());
+
+-- Event images policies
+CREATE POLICY "Anyone can view event images" ON event_images
+    FOR SELECT USING (TRUE);
+
+CREATE POLICY "Only admins and teachers can manage event images" ON event_images
+    FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM users 
+            WHERE id = auth.uid() 
+            AND role IN ('Admin', 'Teacher')
+        )
+    );
+
+-- Function to automatically create notifications for target audience
+CREATE OR REPLACE FUNCTION create_event_notifications()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Create notifications for users based on target_audience
+    IF NEW.target_audience IS NOT NULL AND array_length(NEW.target_audience, 1) > 0 THEN
+        INSERT INTO event_notifications (event_id, user_id)
+        SELECT NEW.id, u.id
+        FROM users u
+        WHERE u.is_deleted = FALSE
+        AND (
+            -- If target_audience contains 'All' or user's role
+            'All' = ANY(NEW.target_audience) OR
+            u.role = ANY(NEW.target_audience) OR
+            -- If target_audience contains specific courses and user has those courses
+            (u.role = 'Student' AND u.courses && NEW.target_audience)
+        );
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to auto-create notifications
+CREATE TRIGGER trigger_create_event_notifications
+    AFTER INSERT ON events
+    FOR EACH ROW
+    EXECUTE FUNCTION create_event_notifications();
+
+-- Function to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger for events updated_at
+CREATE TRIGGER trigger_events_updated_at
+    BEFORE UPDATE ON events
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- ================================================
+-- EVENTS SYSTEM SETUP COMPLETE
+-- ================================================
+DO $$
+BEGIN
+    RAISE NOTICE '';
+    RAISE NOTICE '================================================';
+    RAISE NOTICE '🎉 EVENTS SYSTEM SUCCESSFULLY INSTALLED!';
+    RAISE NOTICE '';
+    RAISE NOTICE '📅 Events System Features:';
+    RAISE NOTICE '   ✅ Event creation with image support';
+    RAISE NOTICE '   ✅ Priority levels (Low, Medium, High)';
+    RAISE NOTICE '   ✅ Event types (Academic, Cultural, Sports, etc.)';
+    RAISE NOTICE '   ✅ Target audience selection';
+    RAISE NOTICE '   ✅ Automatic notifications to students';
+    RAISE NOTICE '   ✅ Student dashboard integration';
+    RAISE NOTICE '   ✅ Event notification bell';
+    RAISE NOTICE '';
+    RAISE NOTICE '🚀 SYSTEM IS NOW READY:';
+    RAISE NOTICE '   📝 Admin: /admin/events';
+    RAISE NOTICE '   👨‍🎓 Students: /dashboard/student/events';
+    RAISE NOTICE '   🔔 Real-time notifications enabled';
+    RAISE NOTICE '   📸 Image upload support included';
+    RAISE NOTICE '';
+    RAISE NOTICE '================================================';
+END $$;

@@ -272,6 +272,33 @@ export interface Event {
   isPublic?: boolean; // Whether event is public
   createdAt?: Date; // Creation timestamp
   recipientIds?: string[];
+  createdBy?: string; // User ID who created the event
+  targetAudience?: string[]; // Array of roles or course names
+  images?: EventImage[]; // Array of event images
+  isActive?: boolean; // Whether event is active
+  priority?: 'Low' | 'Medium' | 'High';
+  eventType?: 'General' | 'Academic' | 'Cultural' | 'Sports' | 'Notice';
+  updatedAt?: Date;
+}
+
+export interface EventImage {
+  id?: string;
+  url: string;
+  caption?: string;
+  filename?: string;
+  fileSize?: number;
+  mimeType?: string;
+  displayOrder?: number;
+}
+
+export interface EventNotification {
+  id: string;
+  eventId: string;
+  userId: string;
+  isRead: boolean;
+  readAt?: Date;
+  createdAt: Date;
+  event?: Event; // Populated event data
 }
 
 export enum BookMaterialType {

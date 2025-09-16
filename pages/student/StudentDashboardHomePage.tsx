@@ -6,6 +6,7 @@ import type { User, Event, Notice, CourseTimingSlot } from '../../types';
 import { getFamilyStudents, getEvents, getNotices, getCourses } from '../../api';
 import type { Course } from '../../types';
 import NotificationBell from '../../components/NotificationBell';
+import EventNotificationBell from '../../components/EventNotificationBell';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const StatCard: React.FC<{ title: string; value: string | number; linkTo: string; bgColor: string; textColor: string }> = ({ title, value, linkTo, bgColor, textColor }) => (
@@ -210,6 +211,7 @@ const StudentDashboardHomePage: React.FC = () => {
                         className="flex items-center space-x-4"
                     >
                         <NotificationBell user={user} />
+                        <EventNotificationBell />
                         <div className="flex items-center space-x-3">
                             <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{guardianName}</span>
                             <motion.img
