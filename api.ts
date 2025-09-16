@@ -2138,10 +2138,7 @@ export const getStudentEvents = async (studentId: string): Promise<Event[]> => {
     // First, get all active events (simplified approach)
     const { data, error } = await supabase
       .from('events')
-      .select(`
-        *,
-        event_images(*)
-      `)
+      .select('*')
       .eq('is_active', true)
       .order('event_date', { ascending: false });
 
@@ -2159,13 +2156,7 @@ export const getStudentEvents = async (studentId: string): Promise<Event[]> => {
       location: event.location,
       createdBy: event.created_by,
       targetAudience: event.target_audience || [],
-      images: (event.event_images || []).map((img: any) => ({
-        id: img.id,
-        url: img.image_url,
-        caption: img.caption,
-        filename: img.filename,
-        displayOrder: img.display_order
-      })),
+      images: event.images || [], // Use the JSONB images field directly
       isActive: event.is_active,
       priority: event.priority,
       eventType: event.event_type,
@@ -2598,7 +2589,7 @@ export const getUnreadNotificationCount = async (userId: string): Promise<number
 // Event Response Functions
 export const submitEventResponse = async (eventId: string, response: 'accepted' | 'declined' | 'maybe', responseMessage?: string): Promise<void> => {
   try {
-    const currentUser = getCurrentUser();
+    const currentUser = await getCurrentUser();
     if (!currentUser?.id) {
       throw new Error('User not logged in');
     }
@@ -2626,7 +2617,7 @@ export const submitEventResponse = async (eventId: string, response: 'accepted' 
 
 export const getEventResponse = async (eventId: string): Promise<{response: string; responseMessage?: string} | null> => {
   try {
-    const currentUser = getCurrentUser();
+    const currentUser = await getCurrentUser();
     if (!currentUser?.id) {
       return null;
     }

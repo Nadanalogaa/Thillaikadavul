@@ -125,7 +125,7 @@ const EventsPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-4 sm:p-6 md:p-8">
+        <div className="min-h-screen bg-gray-50 p-4 sm:p-6 md:p-8">
             {/* Header */}
             <motion.div
                 initial={{ opacity: 0, y: -20 }}
@@ -140,17 +140,17 @@ const EventsPage: React.FC = () => {
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mb-6"
+                className="mb-8"
             >
-                <div className="flex space-x-1 bg-white p-1 rounded-lg shadow-sm">
+                <div className="flex space-x-1 bg-white p-1 rounded-xl shadow-lg border border-gray-200">
                     {(['upcoming', 'all', 'past'] as const).map((filterOption) => (
                         <button
                             key={filterOption}
                             onClick={() => setFilter(filterOption)}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                            className={`flex-1 px-6 py-3 rounded-lg text-sm font-semibold transition-all duration-200 ${
                                 filter === filterOption
-                                    ? 'bg-indigo-600 text-white'
-                                    : 'text-gray-700 hover:bg-gray-100'
+                                    ? 'bg-indigo-600 text-white shadow-lg transform scale-105'
+                                    : 'text-gray-600 hover:text-indigo-600 hover:bg-indigo-50'
                             }`}
                         >
                             {filterOption.charAt(0).toUpperCase() + filterOption.slice(1)}
@@ -173,66 +173,75 @@ const EventsPage: React.FC = () => {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.1 }}
                             onClick={() => setSelectedEvent(event)}
-                            className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow cursor-pointer overflow-hidden"
+                            className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer overflow-hidden group hover:-translate-y-1 border border-gray-100"
                         >
                             {/* Event Images */}
                             {event.images && event.images.length > 0 && (
-                                <div className="h-48 bg-gray-200 relative">
+                                <div className="h-52 bg-gradient-to-br from-indigo-100 to-purple-100 relative overflow-hidden">
                                     <img
                                         src={event.images[0].url}
                                         alt={event.images[0].caption || event.title}
-                                        className="w-full h-full object-cover"
+                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                     />
                                     {event.images.length > 1 && (
-                                        <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+                                        <div className="absolute bottom-3 right-3 bg-black bg-opacity-80 text-white text-xs px-3 py-1 rounded-full font-medium backdrop-blur-sm">
                                             +{event.images.length - 1} more
                                         </div>
                                     )}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
                                 </div>
                             )}
 
                             <div className="p-6">
                                 {/* Date and badges */}
-                                <div className="flex items-start justify-between mb-3">
-                                    <div className="text-center bg-indigo-100 text-indigo-800 p-3 rounded-lg">
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className="text-center bg-gradient-to-br from-indigo-500 to-purple-600 text-white p-4 rounded-xl shadow-lg">
                                         <div className="text-2xl font-bold">{new Date(event.date).getDate()}</div>
-                                        <div className="text-xs uppercase">{new Date(event.date).toLocaleString('default', { month: 'short' })}</div>
+                                        <div className="text-xs uppercase font-medium">{new Date(event.date).toLocaleString('default', { month: 'short' })}</div>
                                     </div>
                                     <div className="flex flex-col space-y-2">
-                                        <span className={`text-xs px-2 py-1 rounded-full ${getPriorityColor(event.priority)}`}>
+                                        <span className={`text-xs px-3 py-1 rounded-full font-medium ${getPriorityColor(event.priority)}`}>
                                             {event.priority || 'Medium'}
                                         </span>
-                                        <span className={`text-xs px-2 py-1 rounded-full ${getEventTypeColor(event.eventType)}`}>
+                                        <span className={`text-xs px-3 py-1 rounded-full font-medium ${getEventTypeColor(event.eventType)}`}>
                                             {event.eventType || 'General'}
                                         </span>
                                     </div>
                                 </div>
 
                                 {/* Event details */}
-                                <h3 className="font-bold text-lg text-gray-900 mb-2 line-clamp-2">{event.title}</h3>
+                                <h3 className="font-bold text-xl text-gray-900 mb-3 line-clamp-2 group-hover:text-indigo-600 transition-colors">{event.title}</h3>
                                 
-                                {event.time && (
-                                    <p className="text-sm text-gray-600 mb-2">
-                                        🕐 {event.time}
-                                    </p>
-                                )}
-                                
-                                {event.location && (
-                                    <p className="text-sm text-gray-600 mb-3">
-                                        📍 {event.location}
-                                    </p>
-                                )}
+                                <div className="space-y-2 mb-4">
+                                    {event.time && (
+                                        <div className="flex items-center text-sm text-gray-600">
+                                            <div className="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
+                                                <span className="text-indigo-600 text-xs">🕐</span>
+                                            </div>
+                                            <span className="font-medium">{event.time}</span>
+                                        </div>
+                                    )}
+                                    
+                                    {event.location && (
+                                        <div className="flex items-center text-sm text-gray-600">
+                                            <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center mr-3">
+                                                <span className="text-red-600 text-xs">📍</span>
+                                            </div>
+                                            <span className="font-medium">{event.location}</span>
+                                        </div>
+                                    )}
+                                </div>
 
-                                <p className="text-gray-700 text-sm line-clamp-3 mb-4">{event.description}</p>
+                                <p className="text-gray-700 text-sm line-clamp-3 mb-6 leading-relaxed">{event.description}</p>
                                 
                                 {/* Response Buttons */}
-                                <div className="mt-4 pt-4 border-t border-gray-100">
+                                <div className="pt-4 border-t border-gray-100">
                                     {eventResponses[event.id] ? (
                                         <div className="text-center">
-                                            <div className={`inline-flex items-center px-3 py-2 rounded-full text-sm font-medium ${
-                                                eventResponses[event.id].response === 'accepted' ? 'bg-green-100 text-green-800' :
-                                                eventResponses[event.id].response === 'declined' ? 'bg-red-100 text-red-800' :
-                                                'bg-yellow-100 text-yellow-800'
+                                            <div className={`inline-flex items-center px-4 py-3 rounded-xl text-sm font-semibold shadow-lg ${
+                                                eventResponses[event.id].response === 'accepted' ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white' :
+                                                eventResponses[event.id].response === 'declined' ? 'bg-gradient-to-r from-red-500 to-rose-600 text-white' :
+                                                'bg-gradient-to-r from-yellow-500 to-orange-500 text-white'
                                             }`}>
                                                 {eventResponses[event.id].response === 'accepted' && '✅ Accepted'}
                                                 {eventResponses[event.id].response === 'declined' && '❌ Declined'}
@@ -240,16 +249,20 @@ const EventsPage: React.FC = () => {
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="flex space-x-2">
+                                        <div className="grid grid-cols-3 gap-2">
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     handleEventResponse(event.id, 'accepted');
                                                 }}
                                                 disabled={responseLoading === event.id}
-                                                className="flex-1 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                                                className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                                             >
-                                                {responseLoading === event.id ? '...' : '✅ Accept'}
+                                                {responseLoading === event.id ? (
+                                                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mx-auto"></div>
+                                                ) : (
+                                                    '✅ Accept'
+                                                )}
                                             </button>
                                             <button
                                                 onClick={(e) => {
@@ -257,9 +270,13 @@ const EventsPage: React.FC = () => {
                                                     handleEventResponse(event.id, 'maybe');
                                                 }}
                                                 disabled={responseLoading === event.id}
-                                                className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-2 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                                                className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                                             >
-                                                {responseLoading === event.id ? '...' : '🤔 Maybe'}
+                                                {responseLoading === event.id ? (
+                                                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mx-auto"></div>
+                                                ) : (
+                                                    '🤔 Maybe'
+                                                )}
                                             </button>
                                             <button
                                                 onClick={(e) => {
@@ -267,9 +284,13 @@ const EventsPage: React.FC = () => {
                                                     handleEventResponse(event.id, 'declined');
                                                 }}
                                                 disabled={responseLoading === event.id}
-                                                className="flex-1 bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                                                className="bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                                             >
-                                                {responseLoading === event.id ? '...' : '❌ Decline'}
+                                                {responseLoading === event.id ? (
+                                                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mx-auto"></div>
+                                                ) : (
+                                                    '❌ Decline'
+                                                )}
                                             </button>
                                         </div>
                                     )}
@@ -282,14 +303,16 @@ const EventsPage: React.FC = () => {
                 <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="text-center py-16 bg-white rounded-xl shadow-lg"
+                    className="text-center py-20 bg-white rounded-2xl shadow-lg border border-gray-100"
                 >
-                    <div className="text-6xl mb-4">📅</div>
-                    <h3 className="text-xl font-semibold text-gray-700 mb-2">No Events Found</h3>
-                    <p className="text-gray-500">
-                        {filter === 'upcoming' && "No upcoming events scheduled."}
-                        {filter === 'past' && "No past events to show."}
-                        {filter === 'all' && "No events available at this time."}
+                    <div className="w-24 h-24 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full mx-auto mb-6 flex items-center justify-center">
+                        <div className="text-4xl">📅</div>
+                    </div>
+                    <h3 className="text-2xl font-bold text-gray-900 mb-3">No Events Found</h3>
+                    <p className="text-gray-600 text-lg max-w-md mx-auto">
+                        {filter === 'upcoming' && "No upcoming events scheduled. Check back soon for new announcements!"}
+                        {filter === 'past' && "No past events to show at the moment."}
+                        {filter === 'all' && "No events available at this time. Stay tuned for exciting updates!"}
                     </p>
                 </motion.div>
             )}
