@@ -13,16 +13,20 @@ const EventsPage: React.FC = () => {
     const [eventResponses, setEventResponses] = useState<Record<string, {response: string; responseMessage?: string}>>({});
     const [responseLoading, setResponseLoading] = useState<string | null>(null);
 
-    const currentUser = getCurrentUser();
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
 
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                if (currentUser?.id) {
+                // First get the current user
+                const user = await getCurrentUser();
+                setCurrentUser(user);
+                
+                if (user?.id) {
                     const [eventsData, notificationsData] = await Promise.all([
-                        getStudentEvents(currentUser.id),
-                        getEventNotifications(currentUser.id)
+                        getStudentEvents(user.id),
+                        getEventNotifications(user.id)
                     ]);
                     setEvents(eventsData);
                     setNotifications(notificationsData);
@@ -49,7 +53,7 @@ const EventsPage: React.FC = () => {
             }
         };
         fetchData();
-    }, [currentUser?.id]);
+    }, []);
 
     const handleNotificationClick = async (notification: EventNotification) => {
         if (!notification.isRead) {

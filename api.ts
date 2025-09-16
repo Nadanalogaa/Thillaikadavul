@@ -2135,20 +2135,14 @@ export const sendEvent = async (eventId: string, recipientIds: string[]): Promis
 // Get events for a specific student with notification status
 export const getStudentEvents = async (studentId: string): Promise<Event[]> => {
   try {
+    // First, get all active events (simplified approach)
     const { data, error } = await supabase
       .from('events')
       .select(`
         *,
-        event_images(*),
-        event_notifications!left(
-          id,
-          is_read,
-          read_at
-        )
+        event_images(*)
       `)
       .eq('is_active', true)
-      .or(`target_audience.cs.{All},target_audience.cs.{Student}`)
-      .eq('event_notifications.user_id', studentId)
       .order('event_date', { ascending: false });
 
     if (error) {
