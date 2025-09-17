@@ -1,4 +1,4 @@
-import { supabase } from '../supabase';
+import { supabase } from '../src/lib/supabase.js';
 import type { User } from '../types';
 
 export interface NotificationData {
