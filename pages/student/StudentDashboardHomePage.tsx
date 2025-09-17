@@ -160,33 +160,18 @@ const StudentDashboardHomePage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-            {/* Clean Background with Subtle Pattern */}
-            <div className="absolute inset-0 bg-gradient-to-br from-white via-gray-50 to-blue-50/30 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900">
-                {/* Subtle Dance-themed Background Images */}
-                <div className="absolute top-20 right-10 opacity-5 dark:opacity-10">
-                    <img 
-                        src="/danceImages/bharatanatyam1.jpg" 
-                        alt="" 
-                        className="w-40 h-40 object-cover rounded-full"
-                        onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                        }}
-                    />
-                </div>
-                <div className="absolute bottom-20 left-10 opacity-5 dark:opacity-10">
-                    <img 
-                        src="/danceImages/drawing1.jpg" 
-                        alt="" 
-                        className="w-32 h-32 object-cover rounded-full"
-                        onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                        }}
-                    />
-                </div>
+        <div className="p-4 space-y-4 bg-transparent">
+            {/* Subtle Background Elements */}
+            <div className="absolute top-20 right-10 opacity-3 dark:opacity-5 pointer-events-none">
+                <img 
+                    src="/danceImages/bharatanatyam1.jpg" 
+                    alt="" 
+                    className="w-24 h-24 object-cover rounded-full"
+                    onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                    }}
+                />
             </div>
-            
-            <div className="relative z-10 p-4 sm:p-6 md:p-8 space-y-8">
 
                 {/* Student Tabs */}
                 <motion.div
@@ -195,7 +180,7 @@ const StudentDashboardHomePage: React.FC = () => {
                     transition={{ duration: 1, delay: 0.6 }}
                     className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/30"
                 >
-                    <div className="flex items-center justify-between p-6 pb-0">
+                    <div className="flex items-center justify-between p-4 pb-0">
                         <h2 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                             Family Students
                         </h2>
@@ -255,7 +240,7 @@ const StudentDashboardHomePage: React.FC = () => {
                             const studentName = currentStudent?.name || `Student ${activeIdx + 1}`;
 
                             return (
-                                <div className="space-y-8">
+                                <div className="space-y-4">
                                     {/* Student Header */}
                                     <div className="flex items-center space-x-4 pb-6 border-b border-white/20 dark:border-gray-700/30">
                                         <img
@@ -273,24 +258,24 @@ const StudentDashboardHomePage: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* Content Grid */}
-                                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                                        {/* Left content */}
-                                        <div className="lg:col-span-8 space-y-8">
+                                    {/* Horizontal Content Layout */}
+                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                                        {/* Enrolled Courses - Takes 2 columns on desktop */}
+                                        <div className="lg:col-span-2 space-y-4">
                         {/* Enrolled Courses */}
                         <motion.div
                             ref={coursesRef}
                             initial={{ opacity: 0, y: 50 }}
                             animate={coursesInView ? { opacity: 1, y: 0 } : {}}
                             transition={{ duration: 1 }}
-                            className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/30"
+                            className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-gray-200/50 dark:border-gray-700/30"
                         >
-                            <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center justify-between mb-4">
                                 <motion.h2
                                     initial={{ opacity: 0, x: -30 }}
                                     animate={coursesInView ? { opacity: 1, x: 0 } : {}}
                                     transition={{ duration: 1, delay: 0.2 }}
-                                    className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
+                                    className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
                                 >
                                     Enrolled Courses
                                 </motion.h2>
@@ -306,7 +291,7 @@ const StudentDashboardHomePage: React.FC = () => {
                                     </Link>
                                 </motion.div>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {(() => {
                                     
                                     if (studentEnrollments.length === 0) {
@@ -340,7 +325,7 @@ const StudentDashboardHomePage: React.FC = () => {
                                                 animate={coursesInView ? { opacity: 1, scale: 1, y: 0 } : {}}
                                                 transition={{ duration: 0.8, delay: i * 0.1 }}
                                                 whileHover={{ scale: 1.05, y: -5 }}
-                                                className={`relative rounded-2xl p-4 border-2 ${colors.border} ${colors.bg} backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300`}
+                                                className={`relative rounded-xl p-3 border ${colors.border} ${colors.bg} backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-300`}
                                             >
                                                 <div className={`text-lg font-semibold ${colors.text}`}>{enrollment.courseName}</div>
                                                 <div className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} mt-1`}>
@@ -407,9 +392,9 @@ const StudentDashboardHomePage: React.FC = () => {
                             initial={{ opacity: 0, y: 50 }}
                             animate={coursesInView ? { opacity: 1, y: 0 } : {}}
                             transition={{ duration: 1, delay: 0.4 }}
-                            className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/30"
+                            className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-gray-200/50 dark:border-gray-700/30"
                         >
-                            <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Your Teachers</h3>
+                            <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-4`}>Your Teachers</h3>
                             <div className="flex gap-6 flex-wrap">
                                 {(() => {
                                     const stu = family[activeIdx];
@@ -473,9 +458,9 @@ const StudentDashboardHomePage: React.FC = () => {
                             initial={{ opacity: 0, y: 50 }}
                             animate={coursesInView ? { opacity: 1, y: 0 } : {}}
                             transition={{ duration: 1, delay: 0.6 }}
-                            className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/30"
+                            className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-gray-200/50 dark:border-gray-700/30"
                         >
-                            <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Recent Media</h3>
+                            <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-4`}>Recent Media</h3>
                             <div className="flex items-center gap-3">
                                 <motion.button
                                     whileHover={{ scale: 1.1 }}
@@ -512,91 +497,31 @@ const StudentDashboardHomePage: React.FC = () => {
                         </motion.div>
                     </div>
 
-                    {/* Right sidebar */}
-                    <div className="lg:col-span-4">
-                        <motion.div
-                            ref={eventsRef}
-                            initial={{ opacity: 0, x: 50 }}
-                            animate={eventsInView ? { opacity: 1, x: 0 } : {}}
-                            transition={{ duration: 1 }}
-                            className="backdrop-blur-sm bg-white/10 dark:bg-gray-800/20 rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/30 sticky top-8"
-                        >
-                            <div className="flex justify-between items-center mb-6">
-                                <motion.h3
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={eventsInView ? { opacity: 1, y: 0 } : {}}
-                                    transition={{ duration: 1, delay: 0.2 }}
-                                    className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
-                                >
-                                    Recent Events
-                                </motion.h3>
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={eventsInView ? { opacity: 1, y: 0 } : {}}
-                                    transition={{ duration: 1, delay: 0.4 }}
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                >
-                                    <Link to="events" className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:underline transition-colors duration-300">
-                                        See more
-                                    </Link>
-                                </motion.div>
-                            </div>
-                            <ul className="space-y-4">
-                                {recentEvents.slice(0,4).map((ev, i) => (
-                                    <motion.li
-                                        key={ev.id}
-                                        initial={{ opacity: 0, x: 20 }}
-                                        animate={eventsInView ? { opacity: 1, x: 0 } : {}}
-                                        transition={{ duration: 0.8, delay: 0.3 + i * 0.1 }}
-                                        whileHover={{ scale: 1.02, x: 5 }}
-                                        className="p-4 rounded-xl bg-gradient-to-r from-purple-100/50 to-blue-100/50 dark:from-purple-900/30 dark:to-blue-900/30 backdrop-blur-sm border border-purple-200/30 dark:border-purple-700/30 hover:shadow-lg transition-all duration-300"
-                                    >
-                                        <div className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{ev.title}</div>
-                                        <div className={`text-xs mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                                            {new Date(ev.date).toLocaleDateString()}
-                                        </div>
-                                    </motion.li>
-                                ))}
-                                {recentEvents.length === 0 && (
-                                    <motion.div
-                                        initial={{ opacity: 0 }}
-                                        animate={eventsInView ? { opacity: 1 } : {}}
-                                        transition={{ duration: 1, delay: 0.5 }}
-                                        className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} text-center py-8`}
-                                    >
-                                        No upcoming events.
-                                    </motion.div>
-                                )}
-                            </ul>
-                        </motion.div>
-                                        </div>
-
-                                        {/* Right content - Student-specific modules */}
-                                        <div className="lg:col-span-4 space-y-6">
+                                        {/* Right sidebar - Student info and quick links */}
+                                        <div className="lg:col-span-1 space-y-3">
                                             {/* Student Events */}
                                             <motion.div
                                                 initial={{ opacity: 0, x: 50 }}
                                                 animate={{ opacity: 1, x: 0 }}
                                                 transition={{ duration: 1 }}
-                                                className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/30"
+                                                className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl p-3 shadow-lg border border-gray-200/50 dark:border-gray-700/30"
                                             >
-                                                <div className="flex justify-between items-center mb-4">
-                                                    <h4 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                                                        📅 Upcoming Events
+                                                <div className="flex justify-between items-center mb-3">
+                                                    <h4 className={`text-sm font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                                        📅 Events
                                                     </h4>
                                                     <Link to="events" className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:underline">
                                                         See all
                                                     </Link>
                                                 </div>
-                                                <div className="space-y-3">
-                                                    {recentEvents.slice(0, 3).map((event, i) => (
+                                                <div className="space-y-2">
+                                                    {recentEvents.slice(0, 2).map((event, i) => (
                                                         <motion.div
                                                             key={event.id}
                                                             initial={{ opacity: 0, x: 20 }}
                                                             animate={{ opacity: 1, x: 0 }}
                                                             transition={{ delay: i * 0.1 }}
-                                                            className="p-3 rounded-xl bg-gradient-to-r from-purple-100/50 to-blue-100/50 dark:from-purple-900/30 dark:to-blue-900/30 backdrop-blur-sm border border-purple-200/30 dark:border-purple-700/30"
+                                                            className="p-2 rounded-lg bg-gradient-to-r from-purple-100/50 to-blue-100/50 dark:from-purple-900/30 dark:to-blue-900/30 backdrop-blur-sm border border-purple-200/30 dark:border-purple-700/30"
                                                         >
                                                             <div className={`font-medium text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                                                                 {event.title}
@@ -619,19 +544,19 @@ const StudentDashboardHomePage: React.FC = () => {
                                                 initial={{ opacity: 0, x: 50 }}
                                                 animate={{ opacity: 1, x: 0 }}
                                                 transition={{ duration: 1, delay: 0.2 }}
-                                                className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/30"
+                                                className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl p-3 shadow-lg border border-gray-200/50 dark:border-gray-700/30"
                                             >
-                                                <div className="flex justify-between items-center mb-4">
-                                                    <h4 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                                                        📚 Study Materials
+                                                <div className="flex justify-between items-center mb-3">
+                                                    <h4 className={`text-sm font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                                        📚 Materials
                                                     </h4>
                                                     <Link to="book-materials" className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:underline">
                                                         See all
                                                     </Link>
                                                 </div>
-                                                <div className="space-y-3">
+                                                <div className="space-y-2">
                                                     <motion.div
-                                                        className="p-3 rounded-xl bg-gradient-to-r from-green-100/50 to-blue-100/50 dark:from-green-900/30 dark:to-blue-900/30 backdrop-blur-sm border border-green-200/30 dark:border-green-700/30"
+                                                        className="p-2 rounded-lg bg-gradient-to-r from-green-100/50 to-blue-100/50 dark:from-green-900/30 dark:to-blue-900/30 backdrop-blur-sm border border-green-200/30 dark:border-green-700/30"
                                                     >
                                                         <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} text-center py-2`}>
                                                             Materials specific to {studentName}'s courses will appear here
@@ -645,24 +570,24 @@ const StudentDashboardHomePage: React.FC = () => {
                                                 initial={{ opacity: 0, x: 50 }}
                                                 animate={{ opacity: 1, x: 0 }}
                                                 transition={{ duration: 1, delay: 0.4 }}
-                                                className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/30"
+                                                className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl p-3 shadow-lg border border-gray-200/50 dark:border-gray-700/30"
                                             >
-                                                <div className="flex justify-between items-center mb-4">
-                                                    <h4 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                                                        📢 Recent Notices
+                                                <div className="flex justify-between items-center mb-3">
+                                                    <h4 className={`text-sm font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                                        📢 Notices
                                                     </h4>
                                                     <Link to="notices" className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:underline">
                                                         See all
                                                     </Link>
                                                 </div>
-                                                <div className="space-y-3">
+                                                <div className="space-y-2">
                                                     {recentNotices.slice(0, 2).map((notice, i) => (
                                                         <motion.div
                                                             key={notice.id}
                                                             initial={{ opacity: 0, x: 20 }}
                                                             animate={{ opacity: 1, x: 0 }}
                                                             transition={{ delay: i * 0.1 }}
-                                                            className="p-3 rounded-xl bg-gradient-to-r from-orange-100/50 to-red-100/50 dark:from-orange-900/30 dark:to-red-900/30 backdrop-blur-sm border border-orange-200/30 dark:border-orange-700/30"
+                                                            className="p-2 rounded-lg bg-gradient-to-r from-orange-100/50 to-red-100/50 dark:from-orange-900/30 dark:to-red-900/30 backdrop-blur-sm border border-orange-200/30 dark:border-orange-700/30"
                                                         >
                                                             <div className={`font-medium text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                                                                 {notice.title}
@@ -685,13 +610,13 @@ const StudentDashboardHomePage: React.FC = () => {
                                                 initial={{ opacity: 0, x: 50 }}
                                                 animate={{ opacity: 1, x: 0 }}
                                                 transition={{ duration: 1, delay: 0.6 }}
-                                                className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/30"
+                                                className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl p-3 shadow-lg border border-gray-200/50 dark:border-gray-700/30"
                                             >
-                                                <h4 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                                                    📊 Quick Stats
+                                                <h4 className={`text-sm font-semibold mb-3 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                                    📊 Stats
                                                 </h4>
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <div className="text-center p-3 rounded-lg bg-blue-100/50 dark:bg-blue-900/30">
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="text-center p-2 rounded-lg bg-blue-100/50 dark:bg-blue-900/30">
                                                         <div className={`text-2xl font-bold text-blue-600 dark:text-blue-400`}>
                                                             {studentEnrollments.length}
                                                         </div>
@@ -699,7 +624,7 @@ const StudentDashboardHomePage: React.FC = () => {
                                                             Courses
                                                         </div>
                                                     </div>
-                                                    <div className="text-center p-3 rounded-lg bg-green-100/50 dark:bg-green-900/30">
+                                                    <div className="text-center p-2 rounded-lg bg-green-100/50 dark:bg-green-900/30">
                                                         <div className={`text-2xl font-bold text-green-600 dark:text-green-400`}>
                                                             {recentEvents.length}
                                                         </div>

@@ -72,33 +72,28 @@ const TeacherDashboardHomePage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-            {/* Clean Background with Subtle Pattern */}
-            <div className="absolute inset-0 bg-gradient-to-br from-white via-gray-50 to-emerald-50/30 dark:from-gray-900 dark:via-gray-800 dark:to-emerald-900">
-                {/* Subtle Dance-themed Background Images */}
-                <div className="absolute top-20 right-10 opacity-5 dark:opacity-10">
-                    <img 
-                        src="/danceImages/vocal1.jpg" 
-                        alt="" 
-                        className="w-40 h-40 object-cover rounded-full"
-                        onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                        }}
-                    />
-                </div>
-                <div className="absolute bottom-20 left-10 opacity-5 dark:opacity-10">
+        <div className="p-4 space-y-4 bg-transparent">
+            {/* Subtle Dance-themed Background Images */}
+            <div className="absolute top-20 right-10 opacity-3 dark:opacity-5 pointer-events-none">
+                <img 
+                    src="/danceImages/vocal1.jpg" 
+                    alt="" 
+                    className="w-24 h-24 object-cover rounded-full"
+                    onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                    }}
+                />
+            </div>
+            <div className="absolute bottom-20 left-10 opacity-3 dark:opacity-5 pointer-events-none">
                     <img 
                         src="/danceImages/abacus1.jpg" 
                         alt="" 
-                        className="w-32 h-32 object-cover rounded-full"
+                        className="w-24 h-24 object-cover rounded-full"
                         onError={(e) => {
                             e.currentTarget.style.display = 'none';
                         }}
                     />
                 </div>
-            </div>
-            
-            <div className="relative z-10 p-4 sm:p-6 md:p-8 space-y-8">
 
                 {/* Stat Cards */}
                 <motion.div
@@ -106,7 +101,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                     initial={{ opacity: 0, y: 50 }}
                     animate={statsInView ? { opacity: 1, y: 0 } : {}}
                     transition={{ duration: 1 }}
-                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
+                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
                 >
                     {[
                         { title: "Total Students", value: stats.totalStudents, bgColor: "bg-gradient-to-br from-purple-100 to-indigo-100 dark:from-purple-900/50 dark:to-indigo-900/50", textColor: "text-purple-800 dark:text-purple-300" },
