@@ -7,6 +7,7 @@ import { getFamilyStudents, getEvents, getNotices, getCourses, getStudentEnrollm
 import type { Course } from '../../types';
 import UnifiedNotificationBell from '../../components/UnifiedNotificationBell';
 import { useTheme } from '../../contexts/ThemeContext';
+import BeautifulLoader from '../../components/BeautifulLoader';
 
 const StatCard: React.FC<{ title: string; value: string | number; linkTo: string; bgColor: string; textColor: string }> = ({ title, value, linkTo, bgColor, textColor }) => (
     <Link to={linkTo} className={`block p-6 rounded-xl shadow-md transition-transform hover:-translate-y-1 ${bgColor}`}>
@@ -151,96 +152,48 @@ const StudentDashboardHomePage: React.FC = () => {
 
 
     if (isLoading) {
-        return <div className="p-8 text-center">Loading dashboard...</div>;
+        return (
+            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+                <BeautifulLoader message="Loading dashboard..." size="large" />
+            </div>
+        );
     }
 
     return (
-        <div className="min-h-screen relative overflow-hidden">
-            {/* Animated Background */}
-            <div className="absolute inset-0">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 dark:from-gray-800 dark:via-gray-900 dark:to-indigo-900"></div>
-                
-                {/* Floating Elements */}
-                <motion.div
-                    className="absolute top-20 left-10 w-20 h-20 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full opacity-20"
-                    animate={{
-                        y: [0, -20, 0],
-                        rotate: [0, 180, 360],
-                    }}
-                    transition={{
-                        duration: 8,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                />
-                <motion.div
-                    className="absolute top-40 right-20 w-16 h-16 bg-gradient-to-br from-blue-400 to-indigo-400 rounded-full opacity-20"
-                    animate={{
-                        y: [0, 20, 0],
-                        rotate: [360, 180, 0],
-                    }}
-                    transition={{
-                        duration: 10,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                />
-                <motion.div
-                    className="absolute bottom-20 left-1/4 w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-400 rounded-full opacity-20"
-                    animate={{
-                        y: [0, -30, 0],
-                        x: [0, 20, 0],
-                    }}
-                    transition={{
-                        duration: 12,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                />
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+            {/* Clean Background with Subtle Pattern */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white via-gray-50 to-blue-50/30 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900">
+                {/* Subtle Dance-themed Background Images */}
+                <div className="absolute top-20 right-10 opacity-5 dark:opacity-10">
+                    <img 
+                        src="/danceImages/bharatanatyam1.jpg" 
+                        alt="" 
+                        className="w-40 h-40 object-cover rounded-full"
+                        onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                        }}
+                    />
+                </div>
+                <div className="absolute bottom-20 left-10 opacity-5 dark:opacity-10">
+                    <img 
+                        src="/danceImages/drawing1.jpg" 
+                        alt="" 
+                        className="w-32 h-32 object-cover rounded-full"
+                        onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                        }}
+                    />
+                </div>
             </div>
             
             <div className="relative z-10 p-4 sm:p-6 md:p-8 space-y-8">
-                {/* Header */}
-                <motion.div
-                    ref={heroRef}
-                    initial={{ opacity: 0, y: 50 }}
-                    animate={heroInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 1, ease: "easeOut" }}
-                    className="flex justify-between items-center backdrop-blur-sm bg-white/10 dark:bg-gray-800/20 rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/30"
-                >
-                    <motion.div
-                        initial={{ opacity: 0, x: -30 }}
-                        animate={heroInView ? { opacity: 1, x: 0 } : {}}
-                        transition={{ duration: 1, delay: 0.2 }}
-                    >
-                        <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent">Welcome, {guardianName}!</h1>
-                        <p className={`mt-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{dateString}</p>
-                    </motion.div>
-                    <motion.div
-                        initial={{ opacity: 0, x: 30 }}
-                        animate={heroInView ? { opacity: 1, x: 0 } : {}}
-                        transition={{ duration: 1, delay: 0.4 }}
-                        className="flex items-center space-x-4"
-                    >
-                        <UnifiedNotificationBell user={user} />
-                        <div className="flex items-center space-x-3">
-                            <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{guardianName}</span>
-                            <motion.img
-                                whileHover={{ scale: 1.1 }}
-                                src={user.photoUrl || `https://ui-avatars.com/api/?name=${(guardianName || 'User').replace(/\s/g, '+')}&background=7B61FF&color=fff`}
-                                alt={guardianName || 'User'}
-                                className="w-12 h-12 rounded-full object-cover border-2 border-purple-300 shadow-lg"
-                            />
-                        </div>
-                    </motion.div>
-                </motion.div>
 
                 {/* Student Tabs */}
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     animate={heroInView ? { opacity: 1, y: 0 } : {}}
                     transition={{ duration: 1, delay: 0.6 }}
-                    className="backdrop-blur-sm bg-white/10 dark:bg-gray-800/20 rounded-2xl shadow-lg border border-white/20 dark:border-gray-700/30"
+                    className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/30"
                 >
                     <div className="flex items-center justify-between p-6 pb-0">
                         <h2 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
@@ -294,7 +247,7 @@ const StudentDashboardHomePage: React.FC = () => {
                         initial={{ opacity: 0, y: 30 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8 }}
-                        className="backdrop-blur-sm bg-white/10 dark:bg-gray-800/20 rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/30"
+                        className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/30"
                     >
                         {(() => {
                             const currentStudent = family[activeIdx];
@@ -330,7 +283,7 @@ const StudentDashboardHomePage: React.FC = () => {
                             initial={{ opacity: 0, y: 50 }}
                             animate={coursesInView ? { opacity: 1, y: 0 } : {}}
                             transition={{ duration: 1 }}
-                            className="backdrop-blur-sm bg-white/10 dark:bg-gray-800/20 rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/30"
+                            className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/30"
                         >
                             <div className="flex items-center justify-between mb-6">
                                 <motion.h2
@@ -454,7 +407,7 @@ const StudentDashboardHomePage: React.FC = () => {
                             initial={{ opacity: 0, y: 50 }}
                             animate={coursesInView ? { opacity: 1, y: 0 } : {}}
                             transition={{ duration: 1, delay: 0.4 }}
-                            className="backdrop-blur-sm bg-white/10 dark:bg-gray-800/20 rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/30"
+                            className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/30"
                         >
                             <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Your Teachers</h3>
                             <div className="flex gap-6 flex-wrap">
@@ -520,7 +473,7 @@ const StudentDashboardHomePage: React.FC = () => {
                             initial={{ opacity: 0, y: 50 }}
                             animate={coursesInView ? { opacity: 1, y: 0 } : {}}
                             transition={{ duration: 1, delay: 0.6 }}
-                            className="backdrop-blur-sm bg-white/10 dark:bg-gray-800/20 rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/30"
+                            className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/30"
                         >
                             <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Recent Media</h3>
                             <div className="flex items-center gap-3">
@@ -626,7 +579,7 @@ const StudentDashboardHomePage: React.FC = () => {
                                                 initial={{ opacity: 0, x: 50 }}
                                                 animate={{ opacity: 1, x: 0 }}
                                                 transition={{ duration: 1 }}
-                                                className="backdrop-blur-sm bg-white/10 dark:bg-gray-800/20 rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/30"
+                                                className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/30"
                                             >
                                                 <div className="flex justify-between items-center mb-4">
                                                     <h4 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
@@ -666,7 +619,7 @@ const StudentDashboardHomePage: React.FC = () => {
                                                 initial={{ opacity: 0, x: 50 }}
                                                 animate={{ opacity: 1, x: 0 }}
                                                 transition={{ duration: 1, delay: 0.2 }}
-                                                className="backdrop-blur-sm bg-white/10 dark:bg-gray-800/20 rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/30"
+                                                className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/30"
                                             >
                                                 <div className="flex justify-between items-center mb-4">
                                                     <h4 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
@@ -692,7 +645,7 @@ const StudentDashboardHomePage: React.FC = () => {
                                                 initial={{ opacity: 0, x: 50 }}
                                                 animate={{ opacity: 1, x: 0 }}
                                                 transition={{ duration: 1, delay: 0.4 }}
-                                                className="backdrop-blur-sm bg-white/10 dark:bg-gray-800/20 rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/30"
+                                                className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/30"
                                             >
                                                 <div className="flex justify-between items-center mb-4">
                                                     <h4 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
@@ -732,7 +685,7 @@ const StudentDashboardHomePage: React.FC = () => {
                                                 initial={{ opacity: 0, x: 50 }}
                                                 animate={{ opacity: 1, x: 0 }}
                                                 transition={{ duration: 1, delay: 0.6 }}
-                                                className="backdrop-blur-sm bg-white/10 dark:bg-gray-800/20 rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/30"
+                                                className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/30"
                                             >
                                                 <h4 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                                                     📊 Quick Stats

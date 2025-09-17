@@ -2,12 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import type { Event, User, EventNotification } from '../../types';
 import { getEvents, getFamilyStudents, getStudentEvents, getEventNotifications, markEventNotificationAsRead, getCurrentUser, submitEventResponse, getEventResponse } from '../../api';
-import AccordionItem from '../../components/AccordionItem';
+import { useTheme } from '../../contexts/ThemeContext';
+import BeautifulLoader from '../../components/BeautifulLoader';
 
 const EventsPage: React.FC = () => {
+    const { theme } = useTheme();
+    const [family, setFamily] = useState<User[]>([]);
     const [events, setEvents] = useState<Event[]>([]);
     const [notifications, setNotifications] = useState<EventNotification[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [activeTabIndex, setActiveTabIndex] = useState(0);
     const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('upcoming');
     const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
     const [eventResponses, setEventResponses] = useState<Record<string, {response: string; responseMessage?: string}>>({});
@@ -24,13 +28,15 @@ const EventsPage: React.FC = () => {
                 setCurrentUser(user);
                 
                 if (user?.id) {
-                    const [eventsData, notificationsData] = await Promise.all([
+                    const [eventsData, notificationsData, familyData] = await Promise.all([
                         getStudentEvents(user.id),
-                        getEventNotifications(user.id)
+                        getEventNotifications(user.id),
+                        getFamilyStudents()
                     ]);
                     console.log('Loaded events:', eventsData);
                     setEvents(eventsData);
                     setNotifications(notificationsData);
+                    setFamily(familyData);
                     
                     // Fetch existing responses for all events
                     const responsePromises = eventsData.map(async (event) => {

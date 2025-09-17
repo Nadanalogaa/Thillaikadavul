@@ -6,6 +6,7 @@ import type { User, Event, Notice, Batch } from '../../types';
 import { getEvents, getNotices, getBatches, getAdminUsers } from '../../api';
 import UnifiedNotificationBell from '../../components/UnifiedNotificationBell';
 import { useTheme } from '../../contexts/ThemeContext';
+import BeautifulLoader from '../../components/BeautifulLoader';
 
 const TeacherDashboardHomePage: React.FC = () => {
     const { user } = useOutletContext<{ user: User }>();
@@ -63,91 +64,41 @@ const TeacherDashboardHomePage: React.FC = () => {
     const dateString = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
     if (isLoading) {
-        return <div className="p-8 text-center">Loading dashboard...</div>;
+        return (
+            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+                <BeautifulLoader message="Loading teacher dashboard..." size="large" />
+            </div>
+        );
     }
 
     return (
-        <div className="min-h-screen relative overflow-hidden">
-            {/* Animated Background */}
-            <div className="absolute inset-0">
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-100 via-blue-50 to-purple-100 dark:from-gray-800 dark:via-emerald-900 dark:to-blue-900"></div>
-                
-                {/* Floating Elements */}
-                <motion.div
-                    className="absolute top-20 right-10 w-20 h-20 bg-gradient-to-br from-emerald-400 to-teal-400 rounded-full opacity-20"
-                    animate={{
-                        y: [0, -20, 0],
-                        rotate: [0, 180, 360],
-                    }}
-                    transition={{
-                        duration: 8,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                />
-                <motion.div
-                    className="absolute top-1/3 left-20 w-16 h-16 bg-gradient-to-br from-blue-400 to-indigo-400 rounded-full opacity-20"
-                    animate={{
-                        y: [0, 20, 0],
-                        rotate: [360, 180, 0],
-                    }}
-                    transition={{
-                        duration: 10,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                />
-                <motion.div
-                    className="absolute bottom-20 right-1/4 w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full opacity-20"
-                    animate={{
-                        y: [0, -30, 0],
-                        x: [0, 20, 0],
-                    }}
-                    transition={{
-                        duration: 12,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                />
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+            {/* Clean Background with Subtle Pattern */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white via-gray-50 to-emerald-50/30 dark:from-gray-900 dark:via-gray-800 dark:to-emerald-900">
+                {/* Subtle Dance-themed Background Images */}
+                <div className="absolute top-20 right-10 opacity-5 dark:opacity-10">
+                    <img 
+                        src="/danceImages/vocal1.jpg" 
+                        alt="" 
+                        className="w-40 h-40 object-cover rounded-full"
+                        onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                        }}
+                    />
+                </div>
+                <div className="absolute bottom-20 left-10 opacity-5 dark:opacity-10">
+                    <img 
+                        src="/danceImages/abacus1.jpg" 
+                        alt="" 
+                        className="w-32 h-32 object-cover rounded-full"
+                        onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                        }}
+                    />
+                </div>
             </div>
             
             <div className="relative z-10 p-4 sm:p-6 md:p-8 space-y-8">
-                {/* Header */}
-                <motion.div
-                    ref={heroRef}
-                    initial={{ opacity: 0, y: 50 }}
-                    animate={heroInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 1, ease: "easeOut" }}
-                    className="backdrop-blur-sm bg-white/10 dark:bg-gray-800/20 rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/30"
-                >
-                    <div className="flex justify-between items-center">
-                        <motion.div
-                            initial={{ opacity: 0, x: -30 }}
-                            animate={heroInView ? { opacity: 1, x: 0 } : {}}
-                            transition={{ duration: 1, delay: 0.2 }}
-                        >
-                            <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-600 via-blue-600 to-purple-600 bg-clip-text text-transparent">Welcome, {user.name}!</h1>
-                            <p className={`mt-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{dateString}</p>
-                        </motion.div>
-                        <motion.div
-                            initial={{ opacity: 0, x: 30 }}
-                            animate={heroInView ? { opacity: 1, x: 0 } : {}}
-                            transition={{ duration: 1, delay: 0.4 }}
-                            className="flex items-center space-x-4"
-                        >
-                            <UnifiedNotificationBell user={user} />
-                            <div className="flex items-center space-x-3">
-                                <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{user.name}</span>
-                                <motion.img
-                                    whileHover={{ scale: 1.1 }}
-                                    src={user.photoUrl || `https://ui-avatars.com/api/?name=${(user.name || 'User').replace(/\s/g, '+')}&background=7B61FF&color=fff`}
-                                    alt={user.name || 'User'}
-                                    className="w-12 h-12 rounded-full object-cover border-2 border-emerald-300 shadow-lg"
-                                />
-                            </div>
-                        </motion.div>
-                    </div>
-                </motion.div>
 
                 {/* Stat Cards */}
                 <motion.div
@@ -184,7 +135,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                     initial={{ opacity: 0, y: 50 }}
                     animate={statsInView ? { opacity: 1, y: 0 } : {}}
                     transition={{ duration: 1, delay: 0.2 }}
-                    className="backdrop-blur-sm bg-white/10 dark:bg-gray-800/20 rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/30"
+                    className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/30"
                 >
                     <h3 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Your Classes & Students</h3>
                     
@@ -280,7 +231,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                         initial={{ opacity: 0, x: -50 }}
                         animate={activityInView ? { opacity: 1, x: 0 } : {}}
                         transition={{ duration: 1, delay: 0.2 }}
-                        className="backdrop-blur-sm bg-white/10 dark:bg-gray-800/20 rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/30"
+                        className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/30"
                     >
                         <div className="flex justify-between items-center mb-6">
                             <h3 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Recent Notices</h3>
@@ -320,7 +271,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                         initial={{ opacity: 0, x: 50 }}
                         animate={activityInView ? { opacity: 1, x: 0 } : {}}
                         transition={{ duration: 1, delay: 0.4 }}
-                        className="backdrop-blur-sm bg-white/10 dark:bg-gray-800/20 rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/30"
+                        className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/30"
                     >
                         <div className="flex justify-between items-center mb-6">
                             <h3 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Upcoming Events</h3>
