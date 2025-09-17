@@ -1370,8 +1370,15 @@ export const getStudentEnrollmentsForFamily = async (studentId: string): Promise
           
           const timings = studentSchedules.map(scheduleItem => {
             console.log('DEBUG: Processing schedule item:', scheduleItem);
-            return `${scheduleItem.day}: ${scheduleItem.timeSlot}`;
-          }).filter(timing => !timing.includes('undefined'));
+            // Use the timing property directly if it exists, otherwise try day:timeSlot format
+            if (scheduleItem.timing) {
+              return scheduleItem.timing;
+            } else if (scheduleItem.day && scheduleItem.timeSlot) {
+              return `${scheduleItem.day}: ${scheduleItem.timeSlot}`;
+            } else {
+              return null;
+            }
+          }).filter(timing => timing && !timing.includes('undefined'));
           
           console.log('DEBUG: Final timings:', timings);
           
