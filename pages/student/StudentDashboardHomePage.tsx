@@ -235,70 +235,95 @@ const StudentDashboardHomePage: React.FC = () => {
                     </motion.div>
                 </motion.div>
 
-                {/* Student Tabs Timeline */}
+                {/* Student Tabs */}
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     animate={heroInView ? { opacity: 1, y: 0 } : {}}
                     transition={{ duration: 1, delay: 0.6 }}
-                    className="backdrop-blur-sm bg-white/10 dark:bg-gray-800/20 rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/30"
+                    className="backdrop-blur-sm bg-white/10 dark:bg-gray-800/20 rounded-2xl shadow-lg border border-white/20 dark:border-gray-700/30"
                 >
-                    <div className="flex items-center justify-between mb-4">
-                        <div />
+                    <div className="flex items-center justify-between p-6 pb-0">
+                        <h2 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                            Family Students
+                        </h2>
                         <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                             <Link to="add" className="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all duration-300">
                                 Add Students
                             </Link>
                         </motion.div>
                     </div>
-                    <div className="relative pt-0">
-                        {/* timeline bar */}
-                        <div className="absolute left-0 right-0 top-6 h-2 bg-gradient-to-r from-purple-300 to-blue-300 dark:from-purple-600 dark:to-blue-600 rounded-full opacity-30" />
-                        <div className={`relative z-10 flex ${family.length > 1 ? 'justify-center' : 'justify-start'} gap-10`}>
-                            {family.map((stu, idx) => {
-                                const active = idx === activeIdx;
-                                const name = stu.name || `Student ${idx + 1}`;
-                                return (
-                                    <motion.div
-                                        key={stu.id}
-                                        initial={{ opacity: 0, scale: 0.8 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        transition={{ duration: 0.5, delay: idx * 0.1 }}
-                                        className="flex flex-col items-center"
-                                    >
-                                        <motion.button
-                                            whileHover={{ scale: 1.1 }}
-                                            whileTap={{ scale: 0.9 }}
-                                            className={`rounded-2xl p-1 shadow-lg transition-all duration-300 ${active 
-                                                ? 'bg-gradient-to-br from-purple-500 to-blue-500 shadow-purple-300' 
-                                                : 'bg-white/50 dark:bg-gray-700/50 hover:bg-white/70 dark:hover:bg-gray-600/70'
-                                            }`}
-                                            onClick={() => setActiveIdx(idx)}
-                                            title={name}
-                                        >
-                                            <img
-                                                src={stu.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(stu.name || 'Student')}&background=E5E7EB&color=111827`}
-                                                className={`w-16 h-16 rounded-full object-cover border-4 transition-all duration-300 ${
-                                                    active ? 'border-white shadow-lg' : 'border-purple-300 dark:border-purple-600'
-                                                }`}
-                                                alt={name}
-                                            />
-                                        </motion.button>
-                                        <div className={`mt-2 text-sm font-semibold transition-all duration-300 ${
-                                            active 
-                                                ? 'text-purple-600 dark:text-purple-400' 
-                                                : theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                                        }`}>{name}</div>
-                                    </motion.div>
-                                );
-                            })}
-                        </div>
+                    
+                    {/* Tab Headers */}
+                    <div className="flex border-b border-white/20 dark:border-gray-700/30 overflow-x-auto">
+                        {family.map((stu, idx) => {
+                            const active = idx === activeIdx;
+                            const name = stu.name || `Student ${idx + 1}`;
+                            return (
+                                <motion.button
+                                    key={stu.id}
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    className={`flex items-center space-x-3 px-6 py-4 border-b-2 transition-all duration-300 whitespace-nowrap ${
+                                        active 
+                                            ? 'border-purple-500 bg-purple-50/50 dark:bg-purple-900/20' 
+                                            : 'border-transparent hover:bg-white/20 dark:hover:bg-gray-700/20'
+                                    }`}
+                                    onClick={() => setActiveIdx(idx)}
+                                >
+                                    <img
+                                        src={stu.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(stu.name || 'Student')}&background=E5E7EB&color=111827`}
+                                        className="w-8 h-8 rounded-full object-cover border-2 border-purple-300 dark:border-purple-600"
+                                        alt={name}
+                                    />
+                                    <span className={`font-medium ${
+                                        active 
+                                            ? 'text-purple-600 dark:text-purple-400' 
+                                            : theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                                    }`}>
+                                        {name}
+                                    </span>
+                                </motion.button>
+                            );
+                        })}
                     </div>
                 </motion.div>
 
-                {/* Main content grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    {/* Left content */}
-                    <div className="lg:col-span-8 space-y-8">
+                {/* Tab Content */}
+                {family.length > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8 }}
+                        className="backdrop-blur-sm bg-white/10 dark:bg-gray-800/20 rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/30"
+                    >
+                        {(() => {
+                            const currentStudent = family[activeIdx];
+                            const studentEnrollments = enrollments.get(currentStudent?.id) || [];
+                            const studentName = currentStudent?.name || `Student ${activeIdx + 1}`;
+
+                            return (
+                                <div className="space-y-8">
+                                    {/* Student Header */}
+                                    <div className="flex items-center space-x-4 pb-6 border-b border-white/20 dark:border-gray-700/30">
+                                        <img
+                                            src={currentStudent?.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(studentName)}&background=E5E7EB&color=111827`}
+                                            className="w-16 h-16 rounded-full object-cover border-4 border-purple-300 dark:border-purple-600 shadow-lg"
+                                            alt={studentName}
+                                        />
+                                        <div>
+                                            <h3 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                                {studentName}
+                                            </h3>
+                                            <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                                Student Dashboard
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Content Grid */}
+                                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                                        {/* Left content */}
+                                        <div className="lg:col-span-8 space-y-8">
                         {/* Enrolled Courses */}
                         <motion.div
                             ref={coursesRef}
@@ -330,8 +355,6 @@ const StudentDashboardHomePage: React.FC = () => {
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 {(() => {
-                                    const stu = family[activeIdx];
-                                    const studentEnrollments = enrollments.get(stu?.id) || [];
                                     
                                     if (studentEnrollments.length === 0) {
                                         return (
@@ -355,7 +378,7 @@ const StudentDashboardHomePage: React.FC = () => {
                                         const courseImage = courseData?.image;
 
                                         // Get preferred timings for comparison
-                                        const preferredTimings = groupPreferredByCourse(stu)[enrollment.courseName] || [];
+                                        const preferredTimings = groupPreferredByCourse(currentStudent)[enrollment.courseName] || [];
                                         
                                         return (
                                             <motion.div
@@ -594,9 +617,152 @@ const StudentDashboardHomePage: React.FC = () => {
                                 )}
                             </ul>
                         </motion.div>
-                    </div>
-            </div>
-                {/* Notices & summary can be added back below if needed */}
+                                        </div>
+
+                                        {/* Right content - Student-specific modules */}
+                                        <div className="lg:col-span-4 space-y-6">
+                                            {/* Student Events */}
+                                            <motion.div
+                                                initial={{ opacity: 0, x: 50 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ duration: 1 }}
+                                                className="backdrop-blur-sm bg-white/10 dark:bg-gray-800/20 rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/30"
+                                            >
+                                                <div className="flex justify-between items-center mb-4">
+                                                    <h4 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                                        📅 Upcoming Events
+                                                    </h4>
+                                                    <Link to="events" className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:underline">
+                                                        See all
+                                                    </Link>
+                                                </div>
+                                                <div className="space-y-3">
+                                                    {recentEvents.slice(0, 3).map((event, i) => (
+                                                        <motion.div
+                                                            key={event.id}
+                                                            initial={{ opacity: 0, x: 20 }}
+                                                            animate={{ opacity: 1, x: 0 }}
+                                                            transition={{ delay: i * 0.1 }}
+                                                            className="p-3 rounded-xl bg-gradient-to-r from-purple-100/50 to-blue-100/50 dark:from-purple-900/30 dark:to-blue-900/30 backdrop-blur-sm border border-purple-200/30 dark:border-purple-700/30"
+                                                        >
+                                                            <div className={`font-medium text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                                                {event.title}
+                                                            </div>
+                                                            <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
+                                                                {new Date(event.date).toLocaleDateString()}
+                                                            </div>
+                                                        </motion.div>
+                                                    ))}
+                                                    {recentEvents.length === 0 && (
+                                                        <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} text-center py-4`}>
+                                                            No upcoming events
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </motion.div>
+
+                                            {/* Student Book Materials */}
+                                            <motion.div
+                                                initial={{ opacity: 0, x: 50 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ duration: 1, delay: 0.2 }}
+                                                className="backdrop-blur-sm bg-white/10 dark:bg-gray-800/20 rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/30"
+                                            >
+                                                <div className="flex justify-between items-center mb-4">
+                                                    <h4 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                                        📚 Study Materials
+                                                    </h4>
+                                                    <Link to="book-materials" className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:underline">
+                                                        See all
+                                                    </Link>
+                                                </div>
+                                                <div className="space-y-3">
+                                                    <motion.div
+                                                        className="p-3 rounded-xl bg-gradient-to-r from-green-100/50 to-blue-100/50 dark:from-green-900/30 dark:to-blue-900/30 backdrop-blur-sm border border-green-200/30 dark:border-green-700/30"
+                                                    >
+                                                        <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} text-center py-2`}>
+                                                            Materials specific to {studentName}'s courses will appear here
+                                                        </div>
+                                                    </motion.div>
+                                                </div>
+                                            </motion.div>
+
+                                            {/* Student Notices */}
+                                            <motion.div
+                                                initial={{ opacity: 0, x: 50 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ duration: 1, delay: 0.4 }}
+                                                className="backdrop-blur-sm bg-white/10 dark:bg-gray-800/20 rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/30"
+                                            >
+                                                <div className="flex justify-between items-center mb-4">
+                                                    <h4 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                                        📢 Recent Notices
+                                                    </h4>
+                                                    <Link to="notices" className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:underline">
+                                                        See all
+                                                    </Link>
+                                                </div>
+                                                <div className="space-y-3">
+                                                    {recentNotices.slice(0, 2).map((notice, i) => (
+                                                        <motion.div
+                                                            key={notice.id}
+                                                            initial={{ opacity: 0, x: 20 }}
+                                                            animate={{ opacity: 1, x: 0 }}
+                                                            transition={{ delay: i * 0.1 }}
+                                                            className="p-3 rounded-xl bg-gradient-to-r from-orange-100/50 to-red-100/50 dark:from-orange-900/30 dark:to-red-900/30 backdrop-blur-sm border border-orange-200/30 dark:border-orange-700/30"
+                                                        >
+                                                            <div className={`font-medium text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                                                {notice.title}
+                                                            </div>
+                                                            <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
+                                                                {new Date(notice.createdAt).toLocaleDateString()}
+                                                            </div>
+                                                        </motion.div>
+                                                    ))}
+                                                    {recentNotices.length === 0 && (
+                                                        <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} text-center py-4`}>
+                                                            No recent notices
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </motion.div>
+
+                                            {/* Quick Stats for Student */}
+                                            <motion.div
+                                                initial={{ opacity: 0, x: 50 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ duration: 1, delay: 0.6 }}
+                                                className="backdrop-blur-sm bg-white/10 dark:bg-gray-800/20 rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/30"
+                                            >
+                                                <h4 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                                    📊 Quick Stats
+                                                </h4>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div className="text-center p-3 rounded-lg bg-blue-100/50 dark:bg-blue-900/30">
+                                                        <div className={`text-2xl font-bold text-blue-600 dark:text-blue-400`}>
+                                                            {studentEnrollments.length}
+                                                        </div>
+                                                        <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                                            Courses
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-center p-3 rounded-lg bg-green-100/50 dark:bg-green-900/30">
+                                                        <div className={`text-2xl font-bold text-green-600 dark:text-green-400`}>
+                                                            {recentEvents.length}
+                                                        </div>
+                                                        <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                                            Events
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+                    </motion.div>
+                )}
             </div>
         </div>
     );
