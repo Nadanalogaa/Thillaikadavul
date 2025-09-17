@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getCourses } from '../api';
 
 interface MediaItem {
   type: 'image' | 'video' | 'youtube';
@@ -98,14 +99,8 @@ export const useHomepageData = () => {
         }
 
         try {
-          const coursesResponse = await fetch('/api/courses');
-          const contentType = coursesResponse.headers.get('content-type');
-          
-          if (coursesResponse.ok && contentType?.includes('application/json')) {
-            courses = await coursesResponse.json();
-          } else {
-            throw new Error('API returned HTML instead of JSON - using fallback data');
-          }
+          // Use standardized getCourses function (works on both Vercel and local)
+          courses = await getCourses();
         } catch (error) {
           console.log('Using fallback courses data:', error);
           // Use fallback courses data
