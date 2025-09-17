@@ -4,6 +4,46 @@ import { supabase } from './src/lib/supabase.js';
 // Simple session management
 let currentUser: User | null = null;
 
+// Safe localStorage operations with error handling
+const safeSetLocalStorage = (key: string, value: any) => {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    // Create a minimal version of user data for storage
+    if (key === 'currentUser' && value) {
+      const minimalUser = {
+        id: value.id,
+        name: value.name,
+        email: value.email,
+        role: value.role,
+        classPreference: value.classPreference
+        // Exclude large data like photoUrl, preferredTimings, etc.
+      };
+      localStorage.setItem(key, JSON.stringify(minimalUser));
+    } else {
+      localStorage.setItem(key, JSON.stringify(value));
+    }
+  } catch (error) {
+    console.warn('Failed to save to localStorage:', error);
+    // Try to clear old data and retry
+    try {
+      localStorage.clear();
+      if (key === 'currentUser' && value) {
+        const minimalUser = {
+          id: value.id,
+          name: value.name,
+          email: value.email,
+          role: value.role,
+          classPreference: value.classPreference
+        };
+        localStorage.setItem(key, JSON.stringify(minimalUser));
+      }
+    } catch (retryError) {
+      console.error('localStorage completely full, cannot save user session:', retryError);
+    }
+  }
+};
+
 // Core working functions
 export const checkEmailExists = async (email: string): Promise<{ exists: boolean }> => {
   try {
@@ -42,9 +82,7 @@ export const loginUser = async (email: string, password: string): Promise<User> 
       };
       
       currentUser = adminUser;
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('currentUser', JSON.stringify(adminUser));
-      }
+      safeSetLocalStorage('currentUser', adminUser);
       console.log('Default admin logged in:', adminUser);
       return adminUser;
     }
@@ -92,9 +130,7 @@ export const loginUser = async (email: string, password: string): Promise<User> 
     };
 
     currentUser = userData;
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('currentUser', JSON.stringify(userData));
-    }
+    safeSetLocalStorage('currentUser', userData);
     
     console.log('User logged in from database:', userData);
     return userData;
