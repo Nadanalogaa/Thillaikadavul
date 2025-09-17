@@ -1,5 +1,6 @@
 import type { User, ContactFormData, Course, DashboardStats, Notification, Batch, FeeStructure, Invoice, PaymentDetails, StudentEnrollment, Event, GradeExam, BookMaterial, Notice, Location } from './types';
 import { supabase } from './src/lib/supabase.js';
+import { notificationService } from './services/notificationService';
 
 // Simple session management
 let currentUser: User | null = null;
@@ -364,6 +365,49 @@ export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
 
       console.log('User registered successfully:', data);
       finalUsersData.push(data);
+
+      // Send registration notification for students
+      if (data.role === 'Student') {
+        try {
+          // Get admin users for notification
+          const adminUsers = await notificationService.getAdminUsers();
+          const adminId = adminUsers.length > 0 ? adminUsers[0] : undefined;
+          
+          // Convert database fields to User interface
+          const userForNotification: User = {
+            id: data.id,
+            name: data.name,
+            email: data.email,
+            role: data.role,
+            classPreference: data.class_preference,
+            contactNumber: data.contact_number,
+            address: data.address,
+            country: data.country,
+            state: data.state,
+            city: data.city,
+            postalCode: data.postal_code,
+            fatherName: data.father_name,
+            dob: data.dob,
+            sex: data.sex,
+            schoolName: data.school_name,
+            standard: data.standard,
+            grade: data.grade,
+            photoUrl: data.photo_url,
+            courses: data.courses || [],
+            courseExpertise: data.course_expertise || [],
+            preferredTimings: data.preferred_timings || [],
+            dateOfJoining: data.date_of_joining,
+            schedules: data.schedules || [],
+            documents: data.documents || [],
+            notes: data.notes
+          };
+
+          await notificationService.notifyStudentRegistration(userForNotification, adminId);
+        } catch (notificationError) {
+          console.error('Failed to send registration notification:', notificationError);
+          // Don't fail the registration if notification fails
+        }
+      }
     }
 
     return { message: 'Registration successful', users: finalUsersData };
@@ -656,7 +700,7 @@ export const updateUserByAdmin = async (userId: string, userData: Partial<User>)
     }
 
     // Map database fields back to User interface
-    return {
+    const userResult = {
       id: data.id,
       name: data.name,
       email: data.email,
@@ -701,6 +745,30 @@ export const updateUserByAdmin = async (userId: string, userData: Partial<User>)
       isDeleted: data.is_deleted,
       deletedAt: data.deleted_at
     };
+
+    // Send profile modification notification for students
+    if (data.role === 'Student') {
+      try {
+        // Determine what was modified
+        const modificationType = Object.keys(userData).length === 1 ? 
+          Object.keys(userData)[0] : 'profile information';
+        
+        const modificationDetails = Object.keys(userData).length > 3 ? 
+          'Multiple fields have been updated.' : 
+          `Modified: ${Object.keys(userData).join(', ')}`;
+
+        await notificationService.notifyProfileModification(
+          userId,
+          modificationType,
+          modificationDetails
+        );
+      } catch (notificationError) {
+        console.error('Failed to send profile modification notification:', notificationError);
+        // Don't fail the update if notification fails
+      }
+    }
+
+    return userResult;
   } catch (error) {
     console.error('Error in updateUserByAdmin:', error);
     throw error;
@@ -938,6 +1006,13 @@ export const addBatch = async (batchData: Partial<Batch>): Promise<Batch> => {
 
 export const updateBatch = async (batchId: string, batchData: Partial<Batch>): Promise<Batch> => {
   try {
+    // Get the current batch data to compare changes
+    const { data: currentBatch } = await supabase
+      .from('batches')
+      .select('*, courses(name), users!batches_teacher_id_fkey(name)')
+      .eq('id', batchId)
+      .single();
+
     const { data, error } = await supabase
       .from('batches')
       .update({
@@ -955,7 +1030,7 @@ export const updateBatch = async (batchId: string, batchData: Partial<Batch>): P
         updated_at: new Date().toISOString()
       })
       .eq('id', batchId)
-      .select()
+      .select('*, courses(name), users!batches_teacher_id_fkey(name)')
       .single();
 
     if (error) {
@@ -963,12 +1038,70 @@ export const updateBatch = async (batchId: string, batchData: Partial<Batch>): P
       throw new Error(`Failed to update batch: ${error.message}`);
     }
 
+    // Send batch allocation notifications for newly added students
+    if (batchData.schedule && currentBatch) {
+      try {
+        const currentStudentIds = new Set<string>();
+        const newStudentIds = new Set<string>();
+
+        // Get current student IDs
+        if (currentBatch.schedule && Array.isArray(currentBatch.schedule)) {
+          currentBatch.schedule.forEach((scheduleItem: any) => {
+            if (scheduleItem.studentIds) {
+              scheduleItem.studentIds.forEach((id: string) => currentStudentIds.add(id));
+            }
+          });
+        }
+
+        // Get new student IDs
+        if (Array.isArray(batchData.schedule)) {
+          batchData.schedule.forEach((scheduleItem: any) => {
+            if (scheduleItem.studentIds) {
+              scheduleItem.studentIds.forEach((id: string) => newStudentIds.add(id));
+            }
+          });
+        }
+
+        // Find newly added students
+        const newlyAddedStudents = Array.from(newStudentIds).filter(id => !currentStudentIds.has(id));
+
+        // Send notifications for newly added students
+        for (const studentId of newlyAddedStudents) {
+          const courseName = data.courses?.name || 'Course';
+          const teacherName = data.users?.name || 'Teacher';
+          const batchName = data.name || 'Batch';
+          
+          // Create timing string from schedule
+          let timing = 'Schedule not set';
+          if (Array.isArray(batchData.schedule)) {
+            const studentSchedule = batchData.schedule.find((scheduleItem: any) => 
+              scheduleItem.studentIds && scheduleItem.studentIds.includes(studentId)
+            );
+            if (studentSchedule?.timing) {
+              timing = studentSchedule.timing;
+            }
+          }
+
+          await notificationService.notifyBatchAllocation(
+            studentId,
+            batchName,
+            courseName,
+            teacherName,
+            timing
+          );
+        }
+      } catch (notificationError) {
+        console.error('Failed to send batch allocation notification:', notificationError);
+        // Don't fail the batch update if notification fails
+      }
+    }
+
     return {
       id: data.id,
       name: data.name,
       description: data.description,
       courseId: data.course_id,
-      courseName: '',
+      courseName: data.courses?.name || '',
       teacherId: data.teacher_id,
       schedule: data.schedule || [],
       capacity: data.capacity,
@@ -1811,7 +1944,7 @@ export const addEvent = async (event: Omit<Event, 'id'>): Promise<Event> => {
       throw new Error(`Failed to add event: ${error.message}`);
     }
 
-    return {
+    const eventResult = {
       id: data.id,
       title: data.title,
       description: data.description,
@@ -1826,6 +1959,52 @@ export const addEvent = async (event: Omit<Event, 'id'>): Promise<Event> => {
       eventType: data.event_type,
       createdAt: new Date(data.created_at)
     };
+
+    // Send event notifications to target audience
+    try {
+      let recipientIds: string[] = [];
+
+      // Determine recipients based on target audience
+      if (event.targetAudience && event.targetAudience.length > 0) {
+        for (const audience of event.targetAudience) {
+          switch (audience) {
+            case 'All Students':
+              const allStudents = await notificationService.getAllStudents();
+              recipientIds = [...recipientIds, ...allStudents];
+              break;
+            case 'All Teachers':
+              // Get teachers if needed
+              const { data: teachers } = await supabase
+                .from('users')
+                .select('id')
+                .eq('role', 'Teacher');
+              if (teachers) {
+                recipientIds = [...recipientIds, ...teachers.map(t => t.id)];
+              }
+              break;
+            default:
+              // Handle specific batch/course targeting if needed
+              break;
+          }
+        }
+      } else {
+        // If no specific audience, notify all students
+        const allStudents = await notificationService.getAllStudents();
+        recipientIds = allStudents;
+      }
+
+      // Remove duplicates
+      recipientIds = Array.from(new Set(recipientIds));
+
+      if (recipientIds.length > 0) {
+        await notificationService.notifyEvent(eventResult, recipientIds);
+      }
+    } catch (notificationError) {
+      console.error('Failed to send event notification:', notificationError);
+      // Don't fail the event creation if notification fails
+    }
+
+    return eventResult;
   } catch (error) {
     console.error('Error in addEvent:', error);
     throw error;
@@ -2120,7 +2299,7 @@ export const addBookMaterial = async (material: Omit<BookMaterial, 'id'>): Promi
       throw new Error(`Failed to add book material: ${error.message}`);
     }
 
-    return {
+    const materialResult = {
       id: data.id,
       title: data.title,
       description: data.description,
@@ -2131,6 +2310,28 @@ export const addBookMaterial = async (material: Omit<BookMaterial, 'id'>): Promi
       data: data.data,
       recipientIds: data.recipient_ids || []
     };
+
+    // Send book material notifications
+    try {
+      let recipientIds: string[] = [];
+
+      // Use specific recipient IDs if provided
+      if (material.recipientIds && material.recipientIds.length > 0) {
+        recipientIds = material.recipientIds;
+      } else {
+        // If no specific recipients, notify all students
+        recipientIds = await notificationService.getAllStudents();
+      }
+
+      if (recipientIds.length > 0) {
+        await notificationService.notifyBookMaterial(materialResult, recipientIds);
+      }
+    } catch (notificationError) {
+      console.error('Failed to send book material notification:', notificationError);
+      // Don't fail the material creation if notification fails
+    }
+
+    return materialResult;
   } catch (error) {
     console.error('Error in addBookMaterial:', error);
     throw error;
