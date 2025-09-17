@@ -1357,21 +1357,28 @@ export const getStudentEnrollmentsForFamily = async (studentId: string): Promise
     // Find batches where this student is enrolled
     for (const batch of batches) {
       if (batch.schedule && Array.isArray(batch.schedule)) {
-        for (const scheduleItem of batch.schedule) {
-          if (scheduleItem.studentIds && scheduleItem.studentIds.includes(studentId)) {
-            // Create enrollment object
-            enrollments.push({
-              studentId: studentId,
-              batchName: batch.name,
-              courseName: batch.courseName,
-              timings: [`${scheduleItem.day}: ${scheduleItem.timeSlot}`],
-              teacher: batch.teacherId ? { 
-                id: batch.teacherId, 
-                name: batch.teacherName 
-              } : null,
-              mode: batch.mode
-            });
-          }
+        // Check if student is in ANY schedule of this batch
+        const studentSchedules = batch.schedule.filter(scheduleItem => 
+          scheduleItem.studentIds && scheduleItem.studentIds.includes(studentId)
+        );
+        
+        // If student is in this batch, create ONE enrollment with all timings
+        if (studentSchedules.length > 0) {
+          const timings = studentSchedules.map(scheduleItem => 
+            `${scheduleItem.day}: ${scheduleItem.timeSlot}`
+          ).filter(timing => !timing.includes('undefined'));
+          
+          enrollments.push({
+            studentId: studentId,
+            batchName: batch.name,
+            courseName: batch.courseName,
+            timings: timings.length > 0 ? timings : ['Schedule not set'],
+            teacher: batch.teacherId ? { 
+              id: batch.teacherId, 
+              name: batch.teacherName 
+            } : null,
+            mode: batch.mode
+          });
         }
       }
     }
