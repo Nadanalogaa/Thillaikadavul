@@ -77,6 +77,19 @@ const StudentDashboardHomePage: React.FC = () => {
                 setRecentEvents(eventsData.slice(0, 3));
                 setRecentNotices(noticesData.slice(0, 3));
                 setCourses(coursesData);
+                
+                // Debug: Log family data
+                console.log('Family Students:', familyData);
+                console.log('Family Count:', familyData.length);
+                
+                // For testing: If no family members, add the current user as a student
+                if (familyData.length === 0) {
+                    familyData.push({
+                        ...user,
+                        name: user.name || 'Current User',
+                        id: user.id
+                    });
+                }
 
                 // Fetch enrollments for each family member
                 const enrollmentPromises = familyData.map(student =>
@@ -183,18 +196,28 @@ const StudentDashboardHomePage: React.FC = () => {
                 className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/30"
             >
                     <div className="flex items-center justify-between p-4 pb-0">
-                        <h2 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                            Family Students
-                        </h2>
+                        <div>
+                            <h2 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                Family Students ({family.length})
+                            </h2>
+                            {family.length === 1 && (
+                                <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
+                                    Add more family members to see tabs for each student
+                                </p>
+                            )}
+                        </div>
                         <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                             <Link to="add" className="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all duration-300">
-                                Add Students
+                                + Add Students
                             </Link>
                         </motion.div>
                     </div>
                     
-                    {/* Tab Headers */}
+                    {/* Tab Headers - Always show, highlight when multiple students */}
                     <div className="flex border-b border-white/20 dark:border-gray-700/30 overflow-x-auto">
+                        {family.length > 1 && <div className={`px-2 py-2 text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                            Switch Student:
+                        </div>}
                         {family.map((stu, idx) => {
                             const active = idx === activeIdx;
                             const name = stu.name || `Student ${idx + 1}`;
@@ -205,9 +228,11 @@ const StudentDashboardHomePage: React.FC = () => {
                                     whileTap={{ scale: 0.98 }}
                                     className={`flex items-center space-x-3 px-6 py-4 border-b-2 transition-all duration-300 whitespace-nowrap ${
                                         active 
-                                            ? 'border-purple-500 bg-purple-50/50 dark:bg-purple-900/20' 
-                                            : 'border-transparent hover:bg-white/20 dark:hover:bg-gray-700/20'
-                                    }`}
+                                            ? 'border-purple-500 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/30 dark:to-blue-900/30' 
+                                            : family.length > 1 
+                                                ? 'border-transparent hover:bg-white/20 dark:hover:bg-gray-700/20' 
+                                                : 'border-blue-300 bg-blue-50/30 dark:bg-blue-900/20'
+                                    } ${family.length === 1 ? 'ring-2 ring-blue-200 dark:ring-blue-800' : ''}`}
                                     onClick={() => setActiveIdx(idx)}
                                 >
                                     <img
