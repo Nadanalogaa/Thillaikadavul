@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import type { User, Event, Notice, Batch } from '../../types';
 import { getEvents, getNotices, getBatches, getAdminUsers } from '../../api';
+import UnifiedNotificationBell from '../../components/UnifiedNotificationBell';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const TeacherDashboardHomePage: React.FC = () => {
@@ -15,6 +16,7 @@ const TeacherDashboardHomePage: React.FC = () => {
     const [stats, setStats] = useState({ totalStudents: 0, totalBatches: 0 });
     const [recentEvents, setRecentEvents] = useState<Event[]>([]);
     const [recentNotices, setRecentNotices] = useState<Notice[]>([]);
+    const [teacherBatches, setTeacherBatches] = useState<Batch[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -30,19 +32,20 @@ const TeacherDashboardHomePage: React.FC = () => {
                 ]);
 
                 // Calculate stats
-                const teacherBatches = batchesData.filter(b => {
+                const filteredTeacherBatches = batchesData.filter(b => {
                     const teacherId = typeof b.teacherId === 'string' ? b.teacherId : (b.teacherId as User)?.id;
                     return teacherId === user.id;
                 });
                 
                 const studentIds = new Set<string>();
-                teacherBatches.forEach(batch => {
+                filteredTeacherBatches.forEach(batch => {
                     batch.schedule.forEach(s => s.studentIds.forEach(id => studentIds.add(id)));
                 });
 
+                setTeacherBatches(filteredTeacherBatches);
                 setStats({
                     totalStudents: studentIds.size,
-                    totalBatches: teacherBatches.length
+                    totalBatches: filteredTeacherBatches.length
                 });
 
                 setRecentEvents(eventsData.slice(0, 3));
@@ -130,15 +133,18 @@ const TeacherDashboardHomePage: React.FC = () => {
                             initial={{ opacity: 0, x: 30 }}
                             animate={heroInView ? { opacity: 1, x: 0 } : {}}
                             transition={{ duration: 1, delay: 0.4 }}
-                            className="flex items-center space-x-3"
+                            className="flex items-center space-x-4"
                         >
-                            <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{user.name}</span>
-                            <motion.img
-                                whileHover={{ scale: 1.1 }}
-                                src={user.photoUrl || `https://ui-avatars.com/api/?name=${(user.name || 'User').replace(/\s/g, '+')}&background=7B61FF&color=fff`}
-                                alt={user.name || 'User'}
-                                className="w-12 h-12 rounded-full object-cover border-2 border-emerald-300 shadow-lg"
-                            />
+                            <UnifiedNotificationBell user={user} />
+                            <div className="flex items-center space-x-3">
+                                <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{user.name}</span>
+                                <motion.img
+                                    whileHover={{ scale: 1.1 }}
+                                    src={user.photoUrl || `https://ui-avatars.com/api/?name=${(user.name || 'User').replace(/\s/g, '+')}&background=7B61FF&color=fff`}
+                                    alt={user.name || 'User'}
+                                    className="w-12 h-12 rounded-full object-cover border-2 border-emerald-300 shadow-lg"
+                                />
+                            </div>
                         </motion.div>
                     </div>
                 </motion.div>
@@ -171,6 +177,94 @@ const TeacherDashboardHomePage: React.FC = () => {
                         );
                         return stat.linkTo ? <Link key={index} to={stat.linkTo}>{content}</Link> : <div key={index}>{content}</div>;
                     })}
+                </motion.div>
+
+                {/* Teacher's Batches & Students */}
+                <motion.div
+                    initial={{ opacity: 0, y: 50 }}
+                    animate={statsInView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ duration: 1, delay: 0.2 }}
+                    className="backdrop-blur-sm bg-white/10 dark:bg-gray-800/20 rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/30"
+                >
+                    <h3 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Your Classes & Students</h3>
+                    
+                    {teacherBatches.length === 0 ? (
+                        <div className="text-center py-8">
+                            <div className="text-4xl mb-2">📚</div>
+                            <p className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>No batches assigned yet</p>
+                            <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mt-1`}>Your assigned classes will appear here</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {teacherBatches.slice(0, 6).map((batch, index) => (
+                                <motion.div
+                                    key={batch.id}
+                                    initial={{ opacity: 0, scale: 0.9, y: 30 }}
+                                    animate={statsInView ? { opacity: 1, scale: 1, y: 0 } : {}}
+                                    transition={{ duration: 0.8, delay: 0.3 + index * 0.1 }}
+                                    whileHover={{ scale: 1.05, y: -5 }}
+                                    className="bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/50 dark:to-teal-900/50 rounded-xl p-4 border border-emerald-200 dark:border-emerald-700 shadow-lg hover:shadow-xl transition-all duration-300"
+                                >
+                                    <div className="flex items-start justify-between mb-3">
+                                        <div>
+                                            <h4 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                                {batch.name}
+                                            </h4>
+                                            <p className={`text-sm ${theme === 'dark' ? 'text-emerald-300' : 'text-emerald-700'}`}>
+                                                {batch.courseName}
+                                            </p>
+                                        </div>
+                                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                            batch.mode === 'Online' 
+                                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300' 
+                                                : 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300'
+                                        }`}>
+                                            {batch.mode}
+                                        </span>
+                                    </div>
+                                    
+                                    <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} mb-3`}>
+                                        <div className="flex items-center gap-1 mb-1">
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                            </svg>
+                                            <span>{batch.schedule.reduce((total, schedule) => total + schedule.studentIds.length, 0)} students</span>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                            <span>{batch.schedule.length} time slots</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="space-y-1">
+                                        {batch.schedule.slice(0, 2).map((schedule, idx) => (
+                                            <div key={idx} className={`text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                                                <span className="font-medium">{schedule.day}</span>: {schedule.timeSlot}
+                                            </div>
+                                        ))}
+                                        {batch.schedule.length > 2 && (
+                                            <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                                                +{batch.schedule.length - 2} more slots
+                                            </div>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    )}
+                    
+                    {teacherBatches.length > 6 && (
+                        <div className="text-center mt-6">
+                            <Link 
+                                to="batches" 
+                                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg hover:from-emerald-700 hover:to-teal-700 transition-all duration-300"
+                            >
+                                View All Batches ({teacherBatches.length})
+                            </Link>
+                        </div>
+                    )}
                 </motion.div>
 
                 {/* Recent Activity */}

@@ -2,11 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
-import type { User, Event, Notice, CourseTimingSlot } from '../../types';
-import { getFamilyStudents, getEvents, getNotices, getCourses } from '../../api';
+import type { User, Event, Notice, CourseTimingSlot, StudentEnrollment } from '../../types';
+import { getFamilyStudents, getEvents, getNotices, getCourses, getStudentEnrollmentsForFamily } from '../../api';
 import type { Course } from '../../types';
-import NotificationBell from '../../components/NotificationBell';
-import EventNotificationBell from '../../components/EventNotificationBell';
+import UnifiedNotificationBell from '../../components/UnifiedNotificationBell';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const StatCard: React.FC<{ title: string; value: string | number; linkTo: string; bgColor: string; textColor: string }> = ({ title, value, linkTo, bgColor, textColor }) => (
@@ -58,6 +57,7 @@ const StudentDashboardHomePage: React.FC = () => {
     const [recentEvents, setRecentEvents] = useState<Event[]>([]);
     const [recentNotices, setRecentNotices] = useState<Notice[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
+    const [enrollments, setEnrollments] = useState<Map<string, StudentEnrollment[]>>(new Map());
     const [isLoading, setIsLoading] = useState(true);
     const [activeIdx, setActiveIdx] = useState(0);
     const [mediaIndex, setMediaIndex] = useState(0);
@@ -76,6 +76,18 @@ const StudentDashboardHomePage: React.FC = () => {
                 setRecentEvents(eventsData.slice(0, 3));
                 setRecentNotices(noticesData.slice(0, 3));
                 setCourses(coursesData);
+
+                // Fetch enrollments for each family member
+                const enrollmentPromises = familyData.map(student =>
+                    getStudentEnrollmentsForFamily(student.id).then(data => ({ studentId: student.id, data }))
+                );
+                const enrollmentResults = await Promise.all(enrollmentPromises);
+                
+                const newEnrollments = new Map<string, StudentEnrollment[]>();
+                enrollmentResults.forEach(result => {
+                    newEnrollments.set(result.studentId, result.data);
+                });
+                setEnrollments(newEnrollments);
             } catch (error) {
                 console.error("Failed to fetch dashboard data:", error);
             } finally {
@@ -210,8 +222,7 @@ const StudentDashboardHomePage: React.FC = () => {
                         transition={{ duration: 1, delay: 0.4 }}
                         className="flex items-center space-x-4"
                     >
-                        <NotificationBell user={user} />
-                        <EventNotificationBell />
+                        <UnifiedNotificationBell user={user} />
                         <div className="flex items-center space-x-3">
                             <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{guardianName}</span>
                             <motion.img
@@ -318,64 +329,100 @@ const StudentDashboardHomePage: React.FC = () => {
                                 </motion.div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                {(family[activeIdx]?.courses || []).map((courseName, i) => {
+                                {(() => {
                                     const stu = family[activeIdx];
-                                    const allocatedByCourse = groupAllocatedByCourse(stu)[courseName] || [];
-                                    const preferredByCourse = (groupPreferredByCourse(stu)[courseName] || []).map(s => `${s.day}:  ${s.timeSlot}`);
-                                    const times = allocatedByCourse.length > 0 ? allocatedByCourse : preferredByCourse;
+                                    const studentEnrollments = enrollments.get(stu?.id) || [];
                                     
-                                    // Get course-specific colors matching registration screen
-                                    const colors = getCourseColors(courseName, i);
-                                    
-                                    // Find course data from database for uploaded image
-                                    const courseData = courses.find(c => c.name === courseName);
-                                    const courseImage = courseData?.image;
-                                    
-                                    return (
-                                        <motion.div
-                                            key={courseName}
-                                            initial={{ opacity: 0, scale: 0.9, y: 30 }}
-                                            animate={coursesInView ? { opacity: 1, scale: 1, y: 0 } : {}}
-                                            transition={{ duration: 0.8, delay: i * 0.1 }}
-                                            whileHover={{ scale: 1.05, y: -5 }}
-                                            className={`relative rounded-2xl p-4 border-2 ${colors.border} ${colors.bg} backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300`}
-                                        >
-                                            <div className={`text-lg font-semibold ${colors.text}`}>{courseName}</div>
-                                            <div className={`mt-2 text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                                                {allocatedByCourse.length > 0 ? 'Allocated Times' : 'Preferred Times'}
-                                            </div>
-                                            <div className={`mt-1 space-y-1 text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                                                {times.length > 0 ? times.slice(0, 3).map((t, idx2) => <div key={idx2}>{t}</div>) : 
-                                                    <div className={`${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>No times yet</div>
-                                                }
-                                            </div>
-                                            {courseImage ? (
-                                                <motion.img
-                                                    whileHover={{ scale: 1.1, rotate: 5 }}
-                                                    src={courseImage}
-                                                    alt={courseName}
-                                                    className="absolute right-3 bottom-2 w-20 h-20 object-contain pointer-events-none select-none rounded-lg shadow-sm"
-                                                />
-                                            ) : (
-                                                <div className="absolute right-3 bottom-2 w-20 h-20 flex items-center justify-center bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
-                                                    <svg className={`w-8 h-8 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-                                                    </svg>
+                                    if (studentEnrollments.length === 0) {
+                                        return (
+                                            <motion.div
+                                                initial={{ opacity: 0 }}
+                                                animate={coursesInView ? { opacity: 1 } : {}}
+                                                transition={{ duration: 1, delay: 0.5 }}
+                                                className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} col-span-2 text-center py-8`}
+                                            >
+                                                No courses enrolled yet.
+                                            </motion.div>
+                                        );
+                                    }
+
+                                    return studentEnrollments.map((enrollment, i) => {
+                                        // Get course-specific colors matching registration screen
+                                        const colors = getCourseColors(enrollment.courseName, i);
+                                        
+                                        // Find course data from database for uploaded image
+                                        const courseData = courses.find(c => c.name === enrollment.courseName);
+                                        const courseImage = courseData?.image;
+
+                                        // Get preferred timings for comparison
+                                        const preferredTimings = groupPreferredByCourse(stu)[enrollment.courseName] || [];
+                                        
+                                        return (
+                                            <motion.div
+                                                key={enrollment.batchName}
+                                                initial={{ opacity: 0, scale: 0.9, y: 30 }}
+                                                animate={coursesInView ? { opacity: 1, scale: 1, y: 0 } : {}}
+                                                transition={{ duration: 0.8, delay: i * 0.1 }}
+                                                whileHover={{ scale: 1.05, y: -5 }}
+                                                className={`relative rounded-2xl p-4 border-2 ${colors.border} ${colors.bg} backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300`}
+                                            >
+                                                <div className={`text-lg font-semibold ${colors.text}`}>{enrollment.courseName}</div>
+                                                <div className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} mt-1`}>
+                                                    Batch: {enrollment.batchName}
                                                 </div>
-                                            )}
-                                        </motion.div>
-                                    );
-                                })}
-                                {((family[activeIdx]?.courses || []).length === 0) && (
-                                    <motion.div
-                                        initial={{ opacity: 0 }}
-                                        animate={coursesInView ? { opacity: 1 } : {}}
-                                        transition={{ duration: 1, delay: 0.5 }}
-                                        className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}
-                                    >
-                                        No courses selected yet.
-                                    </motion.div>
-                                )}
+                                                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
+                                                    Teacher: {enrollment.teacher?.name || 'Not Assigned'}
+                                                </div>
+                                                <div className={`mt-2 text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                                                    Batch Timings:
+                                                </div>
+                                                <div className={`mt-1 space-y-1 text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                                    {enrollment.timings.slice(0, 3).map((timing, idx2) => (
+                                                        <div key={idx2} className="flex items-center gap-2">
+                                                            <svg className="w-3 h-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                            </svg>
+                                                            <span className="font-medium">{timing}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                {/* Show mismatched preferred timings */}
+                                                {preferredTimings.length > 0 && (
+                                                    <div className={`mt-3 text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
+                                                        <div className="font-medium">Your preferred times:</div>
+                                                        {preferredTimings.map((pref, idx) => {
+                                                            const prefStr = `${pref.day}: ${pref.timeSlot}`;
+                                                            const isMatched = enrollment.timings.some(t => 
+                                                                t.toLowerCase().includes(pref.day.toLowerCase()) && 
+                                                                t.toLowerCase().includes(pref.timeSlot.toLowerCase())
+                                                            );
+                                                            return (
+                                                                <div key={idx} className={`flex items-center gap-1 ${isMatched ? 'text-green-600' : 'text-gray-400'}`}>
+                                                                    {isMatched ? '✓' : '✗'}
+                                                                    <span className={isMatched ? '' : 'line-through'}>{prefStr}</span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                                {courseImage ? (
+                                                    <motion.img
+                                                        whileHover={{ scale: 1.1, rotate: 5 }}
+                                                        src={courseImage}
+                                                        alt={enrollment.courseName}
+                                                        className="absolute right-3 bottom-2 w-20 h-20 object-contain pointer-events-none select-none rounded-lg shadow-sm"
+                                                    />
+                                                ) : (
+                                                    <div className="absolute right-3 bottom-2 w-20 h-20 flex items-center justify-center bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
+                                                        <svg className={`w-8 h-8 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                                        </svg>
+                                                    </div>
+                                                )}
+                                            </motion.div>
+                                        );
+                                    });
+                                })()}
                             </div>
                         </motion.div>
 
@@ -386,39 +433,62 @@ const StudentDashboardHomePage: React.FC = () => {
                             transition={{ duration: 1, delay: 0.4 }}
                             className="backdrop-blur-sm bg-white/10 dark:bg-gray-800/20 rounded-2xl p-6 shadow-lg border border-white/20 dark:border-gray-700/30"
                         >
-                            <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Course instructors</h3>
+                            <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Your Teachers</h3>
                             <div className="flex gap-6 flex-wrap">
-                                {(Array.isArray(family[activeIdx]?.schedules) ? family[activeIdx]?.schedules : []).slice(0,3).map((s, i) => (
-                                    <motion.div
-                                        key={i}
-                                        initial={{ opacity: 0, scale: 0.8 }}
-                                        animate={coursesInView ? { opacity: 1, scale: 1 } : {}}
-                                        transition={{ duration: 0.6, delay: 0.6 + i * 0.1 }}
-                                        whileHover={{ scale: 1.05, y: -5 }}
-                                        className="flex flex-col items-center p-4 bg-white/20 dark:bg-gray-700/30 rounded-xl backdrop-blur-sm border border-white/30 dark:border-gray-600/30"
-                                    >
-                                        <motion.img
-                                            whileHover={{ rotate: 360 }}
-                                            transition={{ duration: 0.8 }}
-                                            src={`https://ui-avatars.com/api/?name=${encodeURIComponent((s as any).teacherName || 'T')}&background=7B61FF&color=fff`}
-                                            className="w-14 h-14 rounded-full border-4 border-purple-300 shadow-lg"
-                                        />
-                                        <div className={`mt-2 text-sm font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                                            {(s as any).teacherName || 'Unassigned'}
-                                        </div>
-                                        <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>{s.course}</div>
-                                    </motion.div>
-                                ))}
-                                {(!family[activeIdx]?.schedules || family[activeIdx]?.schedules?.length === 0) && (
-                                    <motion.div
-                                        initial={{ opacity: 0 }}
-                                        animate={coursesInView ? { opacity: 1 } : {}}
-                                        transition={{ duration: 1, delay: 0.8 }}
-                                        className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}
-                                    >
-                                        No teachers assigned yet
-                                    </motion.div>
-                                )}
+                                {(() => {
+                                    const stu = family[activeIdx];
+                                    const studentEnrollments = enrollments.get(stu?.id) || [];
+                                    const teachersMap = new Map();
+                                    
+                                    // Get unique teachers from enrollments
+                                    studentEnrollments.forEach(enrollment => {
+                                        if (enrollment.teacher) {
+                                            teachersMap.set(enrollment.teacher.id, {
+                                                ...enrollment.teacher,
+                                                course: enrollment.courseName,
+                                                batch: enrollment.batchName
+                                            });
+                                        }
+                                    });
+                                    
+                                    const teachers = Array.from(teachersMap.values());
+                                    
+                                    if (teachers.length === 0) {
+                                        return (
+                                            <motion.div
+                                                initial={{ opacity: 0 }}
+                                                animate={coursesInView ? { opacity: 1 } : {}}
+                                                transition={{ duration: 1, delay: 0.8 }}
+                                                className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}
+                                            >
+                                                No teachers assigned yet
+                                            </motion.div>
+                                        );
+                                    }
+                                    
+                                    return teachers.slice(0, 3).map((teacher, i) => (
+                                        <motion.div
+                                            key={teacher.id}
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={coursesInView ? { opacity: 1, scale: 1 } : {}}
+                                            transition={{ duration: 0.6, delay: 0.6 + i * 0.1 }}
+                                            whileHover={{ scale: 1.05, y: -5 }}
+                                            className="flex flex-col items-center p-4 bg-white/20 dark:bg-gray-700/30 rounded-xl backdrop-blur-sm border border-white/30 dark:border-gray-600/30"
+                                        >
+                                            <motion.img
+                                                whileHover={{ rotate: 360 }}
+                                                transition={{ duration: 0.8 }}
+                                                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(teacher.name || 'T')}&background=7B61FF&color=fff`}
+                                                className="w-14 h-14 rounded-full border-4 border-purple-300 shadow-lg"
+                                            />
+                                            <div className={`mt-2 text-sm font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                                {teacher.name}
+                                            </div>
+                                            <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>{teacher.course}</div>
+                                            <div className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>{teacher.batch}</div>
+                                        </motion.div>
+                                    ));
+                                })()}
                             </div>
                         </motion.div>
 

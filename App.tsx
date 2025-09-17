@@ -174,13 +174,11 @@ function App() {
   return (
     <ThemeProvider>
       <div className="flex flex-col min-h-screen bg-brand-light/20 dark:bg-gray-900">
-        {!isDashboard && (
-          <Header
-            currentUser={currentUser}
-            onLogout={handleLogout}
-            onLoginClick={() => setLoginModalOpen(true)}
-          />
-        )}
+        <Header
+          currentUser={currentUser}
+          onLogout={handleLogout}
+          onLoginClick={() => setLoginModalOpen(true)}
+        />
         <main className="flex-grow">
           <Routes>
             <Route path="/" element={

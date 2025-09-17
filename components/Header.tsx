@@ -3,7 +3,7 @@ import { NavLink, useLocation, Link } from 'react-router-dom';
 import { NAV_LINKS } from '../constants';
 import type { User } from '../types';
 import { UserRole } from '../types';
-import NotificationBell from './NotificationBell';
+import UnifiedNotificationBell from './UnifiedNotificationBell';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface HeaderProps {
@@ -109,7 +109,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
         <div className="hidden md:flex items-center space-x-4">
           {currentUser ? (
             <>
-              <NotificationBell />
+              <UnifiedNotificationBell user={currentUser} />
               <span className={`${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} ml-2 font-medium`}>Welcome, {displayName.split(' ')[0]}!</span>
               <button 
                 onClick={onLogout} 
@@ -140,7 +140,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
 
         {/* Mobile Menu Button */}
         <div className="md:hidden flex items-center space-x-4">
-            {currentUser && <NotificationBell />}
+            {currentUser && <UnifiedNotificationBell user={currentUser} />}
             <button 
               onClick={() => setIsMenuOpen(!isMenuOpen)} 
               className={`${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400 hover:bg-gray-800' : 'text-gray-700 hover:text-indigo-600 hover:bg-indigo-50'} focus:outline-none p-2 rounded-lg transition-all duration-300`}
