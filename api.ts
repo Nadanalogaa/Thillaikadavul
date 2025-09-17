@@ -1364,9 +1364,16 @@ export const getStudentEnrollmentsForFamily = async (studentId: string): Promise
         
         // If student is in this batch, create ONE enrollment with all timings
         if (studentSchedules.length > 0) {
-          const timings = studentSchedules.map(scheduleItem => 
-            `${scheduleItem.day}: ${scheduleItem.timeSlot}`
-          ).filter(timing => !timing.includes('undefined'));
+          console.log('DEBUG: Batch name:', batch.name);
+          console.log('DEBUG: Batch schedule data:', batch.schedule);
+          console.log('DEBUG: Student schedules found:', studentSchedules);
+          
+          const timings = studentSchedules.map(scheduleItem => {
+            console.log('DEBUG: Processing schedule item:', scheduleItem);
+            return `${scheduleItem.day}: ${scheduleItem.timeSlot}`;
+          }).filter(timing => !timing.includes('undefined'));
+          
+          console.log('DEBUG: Final timings:', timings);
           
           enrollments.push({
             studentId: studentId,
