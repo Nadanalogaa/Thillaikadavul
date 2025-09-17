@@ -173,13 +173,15 @@ const StudentDashboardHomePage: React.FC = () => {
                 />
             </div>
 
+            {/* Main Content */}
+            <div className="space-y-4">
                 {/* Student Tabs */}
-                <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={heroInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 1, delay: 0.6 }}
-                    className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/30"
-                >
+            <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={heroInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 1, delay: 0.6 }}
+                className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/30"
+            >
                     <div className="flex items-center justify-between p-4 pb-0">
                         <h2 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                             Family Students

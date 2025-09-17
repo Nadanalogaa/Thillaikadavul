@@ -95,6 +95,8 @@ const TeacherDashboardHomePage: React.FC = () => {
                     />
                 </div>
 
+            {/* Main Content */}
+            <div className="space-y-6">
                 {/* Stat Cards */}
                 <motion.div
                     ref={statsRef}
