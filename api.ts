@@ -2617,11 +2617,11 @@ export const getUserNotifications = async (userId: string): Promise<any[]> => {
 // Get unread notification count for a user
 export const getUnreadNotificationCount = async (userId: string): Promise<number> => {
   try {
+    // Query for unread notifications for this user
     const { count, error } = await supabase
       .from('notifications')
       .select('*', { count: 'exact', head: true })
-      .or(`user_id.eq.${userId},recipient_id.eq.${userId}`)
-      .or('is_read.eq.false,read.eq.false');
+      .or(`and(user_id.eq.${userId},read.eq.false),and(recipient_id.eq.${userId},read.eq.false)`);
 
     if (error) {
       console.error('Error fetching unread notification count:', error);
