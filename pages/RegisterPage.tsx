@@ -986,7 +986,8 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                 </div>
                             )}
 
-                            {currentStep === 2 && registrationType === 'student' && students[activeStudentIndex] && (
+                            {currentStep === 2 && (
+                                registrationType === 'student' && students[activeStudentIndex] ? (
                                 <div className="space-y-6">
                                     <div className={`flex items-center justify-between border-b pb-2 ${
                                         theme === 'dark' ? 'border-gray-600' : 'border-gray-200'
@@ -1280,9 +1281,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
 
                                 </div>
                                 </div>
-                            )}
-
-                            {currentStep === 2 && registrationType === 'teacher' && (
+                                ) : registrationType === 'teacher' ? (
                                 <div className="space-y-6">
                                     <div className={`flex items-center justify-between border-b pb-2 ${
                                         theme === 'dark' ? 'border-gray-600' : 'border-gray-200'
@@ -1553,6 +1552,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                     </div>
 
                                 </div>
+                                ) : null
                             )}
 
                             {/* Form Actions */}
