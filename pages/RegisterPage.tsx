@@ -80,9 +80,6 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                     getCourses(),
                     getPublicLocations(),
                 ]);
-                console.log('DEBUG: Fetched courses:', fetchedCourses);
-                console.log('DEBUG: Course count:', fetchedCourses.length);
-                console.log('DEBUG: Course names:', fetchedCourses.map(c => c.name));
                 setCourses(fetchedCourses);
                 setLocations(fetchedLocations);
             } catch (err) {
@@ -1180,7 +1177,6 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                     }`}>You can select multiple courses</p>
                                                 </div>
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                                    {console.log('DEBUG: Rendering student courses:', courses.map(c => c.name))}
                                                     {courses.map(course => {
                                                         const courseName = course.name;
                                                         const courseSlots = (Array.isArray(students[activeStudentIndex].preferredTimings)

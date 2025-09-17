@@ -156,7 +156,20 @@ export const getCourses = async (): Promise<Course[]> => {
       return await initializeBasicCourses();
     }
 
-    return data.map(course => ({
+    // Deduplicate courses by name, keeping the one with image if available
+    const uniqueCourses = data.reduce((acc, course) => {
+      const existing = acc.find(c => c.name === course.name);
+      if (!existing) {
+        acc.push(course);
+      } else if (course.image && !existing.image) {
+        // Replace existing with one that has image
+        const index = acc.findIndex(c => c.name === course.name);
+        acc[index] = course;
+      }
+      return acc;
+    }, []);
+
+    return uniqueCourses.map(course => ({
       id: course.id,
       name: course.name,
       description: course.description,
