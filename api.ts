@@ -1231,18 +1231,32 @@ export const getStudentInvoices = async (): Promise<Invoice[]> => {
   return [];
 };
 export const getStudentEnrollments = async (): Promise<StudentEnrollment[]> => {
-  if (typeof window !== 'undefined') {
-    const currentUserData = localStorage.getItem('currentUser');
-    if (currentUserData) {
-      const currentUser = JSON.parse(currentUserData);
-      const enrollments = localStorage.getItem('enrollments');
-      if (enrollments) {
-        const allEnrollments = JSON.parse(enrollments);
-        return allEnrollments.filter((enr: StudentEnrollment) => enr.studentId === currentUser.id);
+  try {
+    // Get current user
+    const currentUser = getCurrentUser();
+    if (!currentUser?.id) {
+      return [];
+    }
+    
+    // Use the family function for the current user
+    return await getStudentEnrollmentsForFamily(currentUser.id);
+  } catch (error) {
+    console.error('Error getting student enrollments:', error);
+    
+    // Fallback to localStorage
+    if (typeof window !== 'undefined') {
+      const currentUserData = localStorage.getItem('currentUser');
+      if (currentUserData) {
+        const currentUser = JSON.parse(currentUserData);
+        const enrollments = localStorage.getItem('enrollments');
+        if (enrollments) {
+          const allEnrollments = JSON.parse(enrollments);
+          return allEnrollments.filter((enr: StudentEnrollment) => enr.studentId === currentUser.id);
+        }
       }
     }
+    return [];
   }
-  return [];
 };
 
 // Family functions
@@ -1335,14 +1349,47 @@ export const getStudentInvoicesForFamily = async (studentId: string): Promise<In
 };
 
 export const getStudentEnrollmentsForFamily = async (studentId: string): Promise<StudentEnrollment[]> => {
-  if (typeof window !== 'undefined') {
-    const enrollments = localStorage.getItem('enrollments');
-    if (enrollments) {
-      const allEnrollments = JSON.parse(enrollments);
-      return allEnrollments.filter((enr: StudentEnrollment) => enr.studentId === studentId);
+  try {
+    // Get all batches from Supabase
+    const batches = await getBatches();
+    const enrollments: StudentEnrollment[] = [];
+    
+    // Find batches where this student is enrolled
+    for (const batch of batches) {
+      if (batch.schedule && Array.isArray(batch.schedule)) {
+        for (const scheduleItem of batch.schedule) {
+          if (scheduleItem.studentIds && scheduleItem.studentIds.includes(studentId)) {
+            // Create enrollment object
+            enrollments.push({
+              studentId: studentId,
+              batchName: batch.name,
+              courseName: batch.courseName,
+              timings: [`${scheduleItem.day}: ${scheduleItem.timeSlot}`],
+              teacher: batch.teacherId ? { 
+                id: batch.teacherId, 
+                name: batch.teacherName 
+              } : null,
+              mode: batch.mode
+            });
+          }
+        }
+      }
     }
+    
+    return enrollments;
+  } catch (error) {
+    console.error('Error getting student enrollments:', error);
+    
+    // Fallback to localStorage if Supabase fails
+    if (typeof window !== 'undefined') {
+      const enrollments = localStorage.getItem('enrollments');
+      if (enrollments) {
+        const allEnrollments = JSON.parse(enrollments);
+        return allEnrollments.filter((enr: StudentEnrollment) => enr.studentId === studentId);
+      }
+    }
+    return [];
   }
-  return [];
 };
 
 // Trash functions
