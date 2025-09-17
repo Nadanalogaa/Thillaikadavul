@@ -2622,7 +2622,7 @@ export const getUnreadNotificationCount = async (userId: string): Promise<number
       .from('notifications')
       .select('*')
       .or(`user_id.eq.${userId},recipient_id.eq.${userId}`)
-      .eq('read', false);
+      .eq('is_read', false);
 
     if (error) {
       console.error('Error fetching unread notification count:', error);
