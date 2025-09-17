@@ -214,8 +214,8 @@ const StudentDashboardHomePage: React.FC = () => {
                     </div>
                     
                     {/* Tab Headers - Always show, highlight when multiple students */}
-                    <div className="flex border-b border-white/20 dark:border-gray-700/30 overflow-x-auto">
-                        {family.length > 1 && <div className={`px-2 py-2 text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    <div className="flex border-b-2 border-gray-200 dark:border-gray-600 overflow-x-auto bg-gray-50/50 dark:bg-gray-700/50">
+                        {family.length > 1 && <div className={`px-4 py-3 text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} flex items-center`}>
                             Switch Student:
                         </div>}
                         {family.map((stu, idx) => {
@@ -226,25 +226,21 @@ const StudentDashboardHomePage: React.FC = () => {
                                     key={stu.id}
                                     whileHover={{ scale: 1.02 }}
                                     whileTap={{ scale: 0.98 }}
-                                    className={`flex items-center space-x-3 px-6 py-4 border-b-2 transition-all duration-300 whitespace-nowrap ${
+                                    className={`flex items-center space-x-3 px-6 py-4 border-b-4 transition-all duration-300 whitespace-nowrap font-medium ${
                                         active 
-                                            ? 'border-purple-500 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/30 dark:to-blue-900/30' 
+                                            ? 'border-purple-500 bg-white dark:bg-gray-800 text-purple-600 dark:text-purple-400 shadow-lg' 
                                             : family.length > 1 
-                                                ? 'border-transparent hover:bg-white/20 dark:hover:bg-gray-700/20' 
-                                                : 'border-blue-300 bg-blue-50/30 dark:bg-blue-900/20'
-                                    } ${family.length === 1 ? 'ring-2 ring-blue-200 dark:ring-blue-800' : ''}`}
+                                                ? 'border-transparent hover:bg-white dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 hover:text-purple-500' 
+                                                : 'border-blue-400 bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-md'
+                                    } ${family.length === 1 ? 'ring-2 ring-blue-300 dark:ring-blue-600' : ''}`}
                                     onClick={() => setActiveIdx(idx)}
                                 >
                                     <img
                                         src={stu.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(stu.name || 'Student')}&background=E5E7EB&color=111827`}
-                                        className="w-8 h-8 rounded-full object-cover border-2 border-purple-300 dark:border-purple-600"
+                                        className="w-10 h-10 rounded-full object-cover border-2 border-gray-300 dark:border-gray-500 shadow-sm"
                                         alt={name}
                                     />
-                                    <span className={`font-medium ${
-                                        active 
-                                            ? 'text-purple-600 dark:text-purple-400' 
-                                            : theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                                    }`}>
+                                    <span className="font-semibold text-inherit">
                                         {name}
                                     </span>
                                 </motion.button>
