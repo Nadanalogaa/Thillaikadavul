@@ -405,7 +405,10 @@ const FamilyProfilePage: React.FC = () => {
     if (isLoading) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 flex items-center justify-center">
-                <BeautifulLoader message="Loading family profiles..." size="large" />
+                <div className="text-center">
+                    <div className="w-8 h-8 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-gray-600 dark:text-gray-400">Loading family profiles...</p>
+                </div>
             </div>
         );
     }
@@ -464,47 +467,6 @@ const FamilyProfilePage: React.FC = () => {
 
             {/* Main Content */}
             <div className="relative z-10 p-6 space-y-8">
-                {/* Hero Section */}
-                <motion.section
-                    ref={heroRef}
-                    initial={{ opacity: 0, y: 50 }}
-                    animate={heroInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 1 }}
-                    className="text-center py-8"
-                >
-                    <div className="flex items-center justify-center space-x-4 mb-6">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={heroInView ? { opacity: 1, scale: 1 } : {}}
-                            transition={{ duration: 1.2, delay: 0.2 }}
-                            className="w-16 h-16 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg"
-                        >
-                            <Users className="w-8 h-8 text-white" />
-                        </motion.div>
-                        <motion.h1
-                            initial={{ opacity: 0, x: 50 }}
-                            animate={heroInView ? { opacity: 1, x: 0 } : {}}
-                            transition={{ duration: 1, delay: 0.3 }}
-                            className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent"
-                        >
-                            Students Profile
-                        </motion.h1>
-                    </div>
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={heroInView ? { opacity: 1, y: 0 } : {}}
-                        transition={{ duration: 1, delay: 0.4 }}
-                        className="flex justify-center"
-                    >
-                        <Link 
-                            to="/dashboard/student/add" 
-                            className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300"
-                        >
-                            <Plus className="w-5 h-5" />
-                            <span>Add New Student</span>
-                        </Link>
-                    </motion.div>
-                </motion.section>
 
                 {family.length > 0 && activeStudent ? (
                     <motion.div
