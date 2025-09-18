@@ -173,7 +173,7 @@ const StudentDashboardHomePage: React.FC = () => {
     }
 
     return (
-        <div className="p-4 space-y-4 bg-transparent">
+        <div className="p-2 space-y-3 bg-transparent">
             {/* Subtle Background Elements */}
             <div className="absolute top-20 right-10 opacity-3 dark:opacity-5 pointer-events-none">
                 <img 
@@ -187,7 +187,7 @@ const StudentDashboardHomePage: React.FC = () => {
             </div>
 
             {/* Main Content */}
-            <div className="space-y-4">
+            <div className="space-y-3">
                 {/* Student Tabs */}
             <motion.div
                 initial={{ opacity: 0, y: 30 }}
@@ -214,9 +214,9 @@ const StudentDashboardHomePage: React.FC = () => {
                     </div>
                     
                     {/* Tab Headers - Always show, highlight when multiple students */}
-                    <div className="flex border-b-2 border-gray-200 dark:border-gray-600 overflow-x-auto bg-gray-50/50 dark:bg-gray-700/50">
-                        {family.length > 1 && <div className={`px-4 py-3 text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} flex items-center`}>
-                            Switch Student:
+                    <div className="flex border-b-2 border-gray-200 dark:border-gray-600 overflow-x-auto bg-gradient-to-r from-blue-50/70 to-purple-50/70 dark:from-gray-700/70 dark:to-gray-600/70 rounded-t-2xl">
+                        {family.length > 1 && <div className={`px-4 py-3 text-sm font-bold ${theme === 'dark' ? 'text-purple-300' : 'text-purple-700'} flex items-center bg-purple-100/50 dark:bg-purple-900/30 rounded-tl-2xl`}>
+                            📚 Switch Student:
                         </div>}
                         {family.map((stu, idx) => {
                             const active = idx === activeIdx;
@@ -226,21 +226,21 @@ const StudentDashboardHomePage: React.FC = () => {
                                     key={stu.id}
                                     whileHover={{ scale: 1.02 }}
                                     whileTap={{ scale: 0.98 }}
-                                    className={`flex items-center space-x-3 px-6 py-4 border-b-4 transition-all duration-300 whitespace-nowrap font-medium ${
+                                    className={`flex items-center space-x-3 px-6 py-4 border-b-4 transition-all duration-300 whitespace-nowrap font-bold text-base min-w-fit ${
                                         active 
-                                            ? 'border-purple-500 bg-white dark:bg-gray-800 text-purple-600 dark:text-purple-400 shadow-lg' 
+                                            ? 'border-purple-500 bg-gradient-to-br from-white to-purple-50 dark:bg-gradient-to-br dark:from-gray-700 dark:to-gray-800 text-purple-700 dark:text-purple-300 shadow-xl ring-2 ring-purple-200 dark:ring-purple-600' 
                                             : family.length > 1 
-                                                ? 'border-transparent hover:bg-white dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 hover:text-purple-500' 
-                                                : 'border-blue-400 bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-md'
-                                    } ${family.length === 1 ? 'ring-2 ring-blue-300 dark:ring-blue-600' : ''}`}
+                                                ? 'border-transparent hover:bg-gradient-to-br hover:from-white hover:to-blue-50 dark:hover:bg-gradient-to-br dark:hover:from-gray-700 dark:hover:to-gray-600 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 hover:shadow-lg' 
+                                                : 'border-blue-500 bg-gradient-to-br from-white to-blue-50 dark:bg-gradient-to-br dark:from-gray-700 dark:to-gray-800 text-blue-700 dark:text-blue-300 shadow-lg ring-2 ring-blue-200 dark:ring-blue-600'
+                                    }`}
                                     onClick={() => setActiveIdx(idx)}
                                 >
                                     <img
-                                        src={stu.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(stu.name || 'Student')}&background=E5E7EB&color=111827`}
-                                        className="w-10 h-10 rounded-full object-cover border-2 border-gray-300 dark:border-gray-500 shadow-sm"
+                                        src={stu.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(stu.name || 'Student')}&background=7B61FF&color=fff`}
+                                        className="w-12 h-12 rounded-full object-cover border-3 border-white dark:border-gray-600 shadow-lg ring-2 ring-purple-200 dark:ring-purple-600"
                                         alt={name}
                                     />
-                                    <span className="font-semibold text-inherit">
+                                    <span className="font-bold text-inherit">
                                         {name}
                                     </span>
                                 </motion.button>
@@ -255,7 +255,7 @@ const StudentDashboardHomePage: React.FC = () => {
                         initial={{ opacity: 0, y: 30 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8 }}
-                        className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/30"
+                        className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-4 shadow-xl border border-gray-200/50 dark:border-gray-700/30"
                     >
                         {(() => {
                             const currentStudent = family[activeIdx];
@@ -263,9 +263,9 @@ const StudentDashboardHomePage: React.FC = () => {
                             const studentName = currentStudent?.name || `Student ${activeIdx + 1}`;
 
                             return (
-                                <div className="space-y-4">
+                                <div className="space-y-3">
                                     {/* Student Header */}
-                                    <div className="flex items-center space-x-4 pb-6 border-b border-white/20 dark:border-gray-700/30">
+                                    <div className="flex items-center space-x-4 pb-3 border-b border-white/20 dark:border-gray-700/30">
                                         <img
                                             src={currentStudent?.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(studentName)}&background=E5E7EB&color=111827`}
                                             className="w-16 h-16 rounded-full object-cover border-4 border-purple-300 dark:border-purple-600 shadow-lg"
@@ -282,9 +282,9 @@ const StudentDashboardHomePage: React.FC = () => {
                                     </div>
 
                                     {/* Horizontal Content Layout */}
-                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                                         {/* Enrolled Courses - Takes 2 columns on desktop */}
-                                        <div className="lg:col-span-2 space-y-4">
+                                        <div className="lg:col-span-2 space-y-3">
                         {/* Enrolled Courses */}
                         <motion.div
                             ref={coursesRef}
