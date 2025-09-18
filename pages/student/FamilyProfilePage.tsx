@@ -1,8 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import type { User, StudentEnrollment, CourseTimingSlot } from '../../types';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useInView } from 'react-intersection-observer';
+import { 
+    User, 
+    Calendar, 
+    MapPin, 
+    School, 
+    Clock, 
+    BookOpen, 
+    GraduationCap,
+    Users,
+    Edit3,
+    Plus,
+    Star,
+    Award,
+    CheckCircle,
+    Sparkles,
+    Heart,
+    Music,
+    Palette,
+    Calculator
+} from 'lucide-react';
+import type { User as UserType, StudentEnrollment, CourseTimingSlot } from '../../types';
 import { getFamilyStudents, getStudentEnrollmentsForFamily } from '../../api';
-import { MapPinIcon } from '../../components/icons';
+import { useTheme } from '../../contexts/ThemeContext';
+import BeautifulLoader from '../../components/BeautifulLoader';
 
 const getGuardianEmail = (email?: string): string => {
     if (!email) return '';
@@ -12,68 +35,205 @@ const getGuardianEmail = (email?: string): string => {
     return `${username}@${parts[1]}`;
 };
 
-const InfoField: React.FC<{ label: string; value?: string | null }> = ({ label, value }) => (
-    <div>
-        <h4 className="text-xs font-medium text-gray-500 uppercase">{label}</h4>
-        <p className="text-gray-800 mt-1 text-sm">{value || <span className="text-gray-400 italic">Not Provided</span>}</p>
-    </div>
-);
-
-const StudentProfileTab: React.FC<{ student: User }> = ({ student }) => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        <InfoField label="Full Name" value={student.name} />
-        <InfoField label="Date of Birth" value={student.dob ? new Date(student.dob).toLocaleDateString() : null} />
-        <InfoField label="Gender" value={student.sex} />
-        <InfoField label="School" value={student.schoolName} />
-        <InfoField label="Standard" value={student.standard} />
-        <InfoField label="Grade" value={student.grade} />
-        <InfoField label="Date of Joining" value={student.dateOfJoining ? new Date(student.dateOfJoining).toLocaleDateString() : null} />
-        <InfoField label="Class Preference" value={student.classPreference} />
-        {student.classPreference === 'Offline' && student.location && (
-            <div>
-                <h4 className="text-xs font-medium text-gray-500 uppercase">Location</h4>
-                <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(student.location.address)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center space-x-1 mt-1 text-purple-700 hover:underline"
-                >
-                    <MapPinIcon className="h-4 w-4" />
-                    <span className="text-sm">{student.location.name}</span>
-                </a>
+const InfoField: React.FC<{ 
+    label: string; 
+    value?: string | null; 
+    icon: React.ElementType;
+    delay: number;
+}> = ({ label, value, icon: Icon, delay }) => {
+    const [fieldRef, fieldInView] = useInView({ threshold: 0.1, triggerOnce: true });
+    const { theme } = useTheme();
+    
+    return (
+        <motion.div
+            ref={fieldRef}
+            initial={{ opacity: 0, y: 20 }}
+            animate={fieldInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.5, delay }}
+            className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gradient-to-br from-purple-50 to-blue-50'} border ${theme === 'dark' ? 'border-gray-600/30' : 'border-purple-200/50'} backdrop-blur-sm group hover:shadow-lg transition-all duration-300`}
+        >
+            <div className="flex items-center space-x-3 mb-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                    <Icon className="w-4 h-4 text-white" />
+                </div>
+                <h4 className={`text-xs font-semibold uppercase tracking-wide ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                    {label}
+                </h4>
             </div>
-        )}
-        <div className="sm:col-span-2 md:col-span-3">
-            <h4 className="text-xs font-medium text-gray-500 uppercase">Enrolled Courses</h4>
-            {student.courses && student.courses.length > 0 ? (
-                <div className="flex flex-wrap gap-2 mt-2">
-                    {student.courses.map(c => <span key={c} className="badge-blue">{c}</span>)}
+            <p className={`${theme === 'dark' ? 'text-white' : 'text-gray-900'} font-medium`}>
+                {value || <span className={`${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'} italic font-normal`}>Not Provided</span>}
+            </p>
+        </motion.div>
+    );
+};
+
+const getCourseIcon = (courseName: string) => {
+    const iconMap: Record<string, React.ElementType> = {
+        'Bharatanatyam': Heart,
+        'Vocal': Music,
+        'Drawing': Palette,
+        'Abacus': Calculator
+    };
+    return iconMap[courseName] || BookOpen;
+};
+
+const StudentProfileTab: React.FC<{ student: UserType }> = ({ student }) => {
+    const [tabRef, tabInView] = useInView({ threshold: 0.1, triggerOnce: true });
+    const { theme } = useTheme();
+    
+    return (
+        <motion.div
+            ref={tabRef}
+            initial={{ opacity: 0, y: 30 }}
+            animate={tabInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.8 }}
+            className="space-y-6"
+        >
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <InfoField label="Full Name" value={student.name} icon={User} delay={0.1} />
+                <InfoField 
+                    label="Date of Birth" 
+                    value={student.dob ? new Date(student.dob).toLocaleDateString() : null} 
+                    icon={Calendar} 
+                    delay={0.2} 
+                />
+                <InfoField label="Gender" value={student.sex} icon={User} delay={0.3} />
+                <InfoField label="School" value={student.schoolName} icon={School} delay={0.4} />
+                <InfoField label="Standard" value={student.standard} icon={GraduationCap} delay={0.5} />
+                <InfoField label="Grade" value={student.grade} icon={Award} delay={0.6} />
+                <InfoField 
+                    label="Date of Joining" 
+                    value={student.dateOfJoining ? new Date(student.dateOfJoining).toLocaleDateString() : null} 
+                    icon={Calendar} 
+                    delay={0.7} 
+                />
+                <InfoField label="Class Preference" value={student.classPreference} icon={Clock} delay={0.8} />
+                
+                {student.classPreference === 'Offline' && student.location && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={tabInView ? { opacity: 1, y: 0 } : {}}
+                        transition={{ duration: 0.5, delay: 0.9 }}
+                        className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gradient-to-br from-green-50 to-emerald-50'} border ${theme === 'dark' ? 'border-gray-600/30' : 'border-green-200/50'} backdrop-blur-sm group hover:shadow-lg transition-all duration-300`}
+                    >
+                        <div className="flex items-center space-x-3 mb-2">
+                            <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
+                                <MapPin className="w-4 h-4 text-white" />
+                            </div>
+                            <h4 className={`text-xs font-semibold uppercase tracking-wide ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                                Location
+                            </h4>
+                        </div>
+                        <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(student.location.address)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`${theme === 'dark' ? 'text-green-400 hover:text-green-300' : 'text-green-600 hover:text-green-700'} font-medium hover:underline transition-colors duration-300`}
+                        >
+                            {student.location.name}
+                        </a>
+                    </motion.div>
+                )}
+            </div>
+
+            {/* Enrolled Courses Section */}
+            <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={tabInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.8, delay: 0.4 }}
+                className={`p-6 rounded-xl ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gradient-to-br from-purple-50 to-blue-50'} border ${theme === 'dark' ? 'border-gray-600/30' : 'border-purple-200/50'} backdrop-blur-sm`}
+            >
+                <div className="flex items-center space-x-3 mb-4">
+                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+                        <BookOpen className="w-5 h-5 text-white" />
+                    </div>
+                    <h3 className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                        Enrolled Courses
+                    </h3>
                 </div>
-            ) : <p className="text-gray-400 italic text-sm mt-1">Not enrolled in any courses.</p>}
-        </div>
-        <div className="sm:col-span-2 md:col-span-3">
-            <h4 className="text-xs font-medium text-gray-500 uppercase">Preferred Timings</h4>
-            {student.preferredTimings && student.preferredTimings.length > 0 ? (
-                <div className="flex flex-wrap gap-2 mt-2">
-                    {student.preferredTimings.map((t: string | CourseTimingSlot, index: number) => {
-                        // Handle both old string format and new CourseTimingSlot object format
-                        if (typeof t === 'string') {
-                            return <span key={t} className="badge-yellow">{t}</span>;
-                        } else if (t && typeof t === 'object' && t.courseName && t.day && t.timeSlot) {
-                            const displayText = `${t.courseName}: ${t.day.substring(0, 3)} ${t.timeSlot}`;
-                            return <span key={t.id || `${t.courseName}-${t.day}-${t.timeSlot}-${index}`} className="badge-yellow">{displayText}</span>;
-                        }
-                        return null;
-                    }).filter(Boolean)}
+                {student.courses && student.courses.length > 0 ? (
+                    <div className="flex flex-wrap gap-3">
+                        {student.courses.map((course, idx) => {
+                            const Icon = getCourseIcon(course);
+                            return (
+                                <motion.div
+                                    key={course}
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={tabInView ? { opacity: 1, scale: 1 } : {}}
+                                    transition={{ duration: 0.5, delay: 0.5 + idx * 0.1 }}
+                                    whileHover={{ scale: 1.05 }}
+                                    className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+                                >
+                                    <Icon className="w-4 h-4" />
+                                    <span className="font-medium text-sm">{course}</span>
+                                </motion.div>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} italic`}>
+                        Not enrolled in any courses.
+                    </p>
+                )}
+            </motion.div>
+
+            {/* Preferred Timings Section */}
+            <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={tabInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.8, delay: 0.6 }}
+                className={`p-6 rounded-xl ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gradient-to-br from-amber-50 to-orange-50'} border ${theme === 'dark' ? 'border-gray-600/30' : 'border-amber-200/50'} backdrop-blur-sm`}
+            >
+                <div className="flex items-center space-x-3 mb-4">
+                    <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center">
+                        <Clock className="w-5 h-5 text-white" />
+                    </div>
+                    <h3 className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                        Preferred Timings
+                    </h3>
                 </div>
-            ) : <p className="text-gray-400 italic text-sm mt-1">No preferred timings set.</p>}
-        </div>
-    </div>
-);
+                {student.preferredTimings && student.preferredTimings.length > 0 ? (
+                    <div className="flex flex-wrap gap-3">
+                        {student.preferredTimings.map((timing: string | CourseTimingSlot, index: number) => {
+                            let displayText = '';
+                            if (typeof timing === 'string') {
+                                displayText = timing;
+                            } else if (timing && typeof timing === 'object' && timing.courseName && timing.day && timing.timeSlot) {
+                                displayText = `${timing.courseName}: ${timing.day.substring(0, 3)} ${timing.timeSlot}`;
+                            }
+                            
+                            if (!displayText) return null;
+                            
+                            return (
+                                <motion.div
+                                    key={timing.id || `${displayText}-${index}`}
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={tabInView ? { opacity: 1, scale: 1 } : {}}
+                                    transition={{ duration: 0.5, delay: 0.7 + index * 0.1 }}
+                                    whileHover={{ scale: 1.05 }}
+                                    className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+                                >
+                                    <Clock className="w-4 h-4" />
+                                    <span className="font-medium text-sm">{displayText}</span>
+                                </motion.div>
+                            );
+                        }).filter(Boolean)}
+                    </div>
+                ) : (
+                    <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} italic`}>
+                        No preferred timings set.
+                    </p>
+                )}
+            </motion.div>
+        </motion.div>
+    );
+};
 
 const StudentScheduleTab: React.FC<{ studentId: string }> = ({ studentId }) => {
     const [enrollments, setEnrollments] = useState<StudentEnrollment[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [tabRef, tabInView] = useInView({ threshold: 0.1, triggerOnce: true });
+    const { theme } = useTheme();
 
     useEffect(() => {
         const fetchEnrollments = async () => {
@@ -90,52 +250,140 @@ const StudentScheduleTab: React.FC<{ studentId: string }> = ({ studentId }) => {
         fetchEnrollments();
     }, [studentId]);
 
-    if (isLoading) return <p>Loading schedule...</p>;
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center py-12">
+                <BeautifulLoader message="Loading schedule..." size="small" />
+            </div>
+        );
+    }
 
     return (
-        <div className="space-y-4">
-            {enrollments.length > 0 ? enrollments.map((enrollment, idx) => (
-                <div key={idx} className="p-4 bg-light-purple/60 rounded-lg border border-brand-purple/20">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <p className="font-semibold text-dark-text">{enrollment.courseName}: <span className="font-normal">in "{enrollment.batchName}"</span></p>
-                            <p className="text-sm text-light-text">Teacher: {enrollment.teacher?.name || 'Not Assigned'}</p>
+        <motion.div
+            ref={tabRef}
+            initial={{ opacity: 0, y: 30 }}
+            animate={tabInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.8 }}
+            className="space-y-6"
+        >
+            {enrollments.length > 0 ? enrollments.map((enrollment, idx) => {
+                const Icon = getCourseIcon(enrollment.courseName);
+                return (
+                    <motion.div
+                        key={idx}
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={tabInView ? { opacity: 1, scale: 1, y: 0 } : {}}
+                        transition={{ duration: 0.6, delay: idx * 0.1 }}
+                        whileHover={{ scale: 1.02, y: -2 }}
+                        className={`p-6 rounded-2xl ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gradient-to-br from-white to-purple-50'} border ${theme === 'dark' ? 'border-gray-600/30' : 'border-purple-200/50'} backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-500 relative overflow-hidden group`}
+                    >
+                        {/* Background decoration */}
+                        <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-purple-400/10 to-pink-400/10 rounded-full -translate-y-6 translate-x-6"></div>
+                        
+                        <div className="relative z-10">
+                            <div className="flex justify-between items-start mb-4">
+                                <div className="flex items-center space-x-4">
+                                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
+                                        <Icon className="w-6 h-6 text-white" />
+                                    </div>
+                                    <div>
+                                        <h3 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-1`}>
+                                            {enrollment.courseName}
+                                        </h3>
+                                        <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} font-medium`}>
+                                            Batch: {enrollment.batchName}
+                                        </p>
+                                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                            Teacher: {enrollment.teacher?.name || 'Not Assigned'}
+                                        </p>
+                                    </div>
+                                </div>
+                                {enrollment.mode && (
+                                    <motion.div
+                                        whileHover={{ scale: 1.05 }}
+                                        className={`px-4 py-2 rounded-full text-sm font-semibold shadow-lg ${
+                                            enrollment.mode === 'Online' 
+                                                ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white' 
+                                                : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                                        }`}
+                                    >
+                                        {enrollment.mode}
+                                    </motion.div>
+                                )}
+                            </div>
+
                             {enrollment.mode === 'Offline' && enrollment.location && (
-                                <a 
+                                <motion.a 
                                     href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enrollment.location.address)}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center space-x-1 text-sm text-purple-700 hover:underline mt-1"
-                                    >
-                                    <MapPinIcon className="h-4 w-4" />
-                                    <span>{enrollment.location.name}</span>
-                                </a>
+                                    className={`flex items-center space-x-2 mb-4 ${theme === 'dark' ? 'text-green-400 hover:text-green-300' : 'text-green-600 hover:text-green-700'} hover:underline transition-colors duration-300`}
+                                    whileHover={{ x: 5 }}
+                                >
+                                    <MapPin className="w-4 h-4" />
+                                    <span className="font-medium">{enrollment.location.name}</span>
+                                </motion.a>
                             )}
+
+                            <div className="space-y-3">
+                                <div className="flex items-center space-x-2 mb-3">
+                                    <Clock className={`w-5 h-5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`} />
+                                    <h4 className={`font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                                        Class Schedule:
+                                    </h4>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {enrollment.timings.map((timing, timingIdx) => (
+                                        <motion.div
+                                            key={timing}
+                                            initial={{ opacity: 0, x: -20 }}
+                                            animate={tabInView ? { opacity: 1, x: 0 } : {}}
+                                            transition={{ duration: 0.5, delay: 0.2 + timingIdx * 0.1 }}
+                                            className={`flex items-center space-x-3 p-3 rounded-lg ${theme === 'dark' ? 'bg-gray-600/50' : 'bg-gradient-to-r from-green-50 to-emerald-50'} border ${theme === 'dark' ? 'border-gray-500/30' : 'border-green-200/50'}`}
+                                        >
+                                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                            <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
+                                                {timing}
+                                            </span>
+                                        </motion.div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
-                        {enrollment.mode && (
-                            <span className={`badge ${enrollment.mode === 'Online' ? 'badge-blue' : 'badge-purple'}`}>{enrollment.mode}</span>
-                        )}
-                    </div>
-                    <ul className="text-sm list-disc list-inside ml-4 mt-2 space-y-1 text-gray-700">
-                        {enrollment.timings.map(t => <li key={t}>{t}</li>)}
-                    </ul>
-                </div>
-            )) : (
-                 <div className="text-center text-sm text-gray-500 py-8 border-2 border-dashed rounded-lg">
-                    <p>This student is not currently assigned to a batch.</p>
-                </div>
+
+                        {/* Hover overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    </motion.div>
+                );
+            }) : (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={tabInView ? { opacity: 1, y: 0 } : {}}
+                    className={`text-center py-12 rounded-2xl ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gradient-to-br from-purple-50 to-blue-50'} border-2 border-dashed ${theme === 'dark' ? 'border-gray-600' : 'border-purple-200'}`}
+                >
+                    <Calendar className={`w-16 h-16 mx-auto mb-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
+                    <h3 className={`text-xl font-semibold mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                        No Schedule Yet
+                    </h3>
+                    <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                        This student is not currently assigned to any batch.
+                    </p>
+                </motion.div>
             )}
-        </div>
+        </motion.div>
     );
 };
 
-
 const FamilyProfilePage: React.FC = () => {
-    const [family, setFamily] = useState<User[]>([]);
+    const [family, setFamily] = useState<UserType[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [activeStudentIndex, setActiveStudentIndex] = useState(0);
     const [activeSubTab, setActiveSubTab] = useState<'profile' | 'schedule'>('profile');
+    const { theme } = useTheme();
+    
+    const [heroRef, heroInView] = useInView({ threshold: 0.1, triggerOnce: true });
+    const [tabsRef, tabsInView] = useInView({ threshold: 0.1, triggerOnce: true });
 
     useEffect(() => {
         const fetchFamily = async () => {
@@ -154,73 +402,277 @@ const FamilyProfilePage: React.FC = () => {
 
     const activeStudent = family[activeStudentIndex];
 
-    if (isLoading) return <div className="p-8 text-center">Loading family profiles...</div>;
-    if (error) return <div className="p-8 text-red-500">{error}</div>;
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 flex items-center justify-center">
+                <BeautifulLoader message="Loading family profiles..." size="large" />
+            </div>
+        );
+    }
+    
+    if (error) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 flex items-center justify-center">
+                <div className="text-center p-8 rounded-2xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                    <div className="text-red-600 dark:text-red-400 text-lg font-semibold">{error}</div>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="p-4 sm:p-6 md:p-8">
-            <style>{`
-                .badge { font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 9999px; }
-                .badge-blue { background-color: #DBEAFE; color: #1E40AF; }
-                .badge-purple { background-color: #EDE9FE; color: #5B21B6; }
-                .badge-yellow { background-color: #FEF3C7; color: #92400E; }
-            `}</style>
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-dark-text">Students Profile</h1>
-                <Link to="/dashboard/student/add" className="bg-brand-purple hover:bg-opacity-90 text-white font-semibold px-4 py-2 rounded-lg shadow-sm transition-colors">
-                    + Add New Student
-                </Link>
+        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 relative overflow-hidden">
+            {/* Animated Background Elements */}
+            <div className="absolute inset-0 pointer-events-none">
+                <motion.div
+                    className="absolute top-20 right-20 w-32 h-32 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full"
+                    animate={{
+                        y: [0, -30, 0],
+                        rotate: [0, 180, 360],
+                    }}
+                    transition={{
+                        duration: 15,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                    }}
+                />
+                <motion.div
+                    className="absolute top-1/3 left-10 w-24 h-24 bg-gradient-to-br from-blue-400/20 to-indigo-400/20 rounded-lg rotate-12"
+                    animate={{
+                        y: [0, 20, 0],
+                        rotate: [12, 25, 12],
+                    }}
+                    transition={{
+                        duration: 12,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                    }}
+                />
+                <motion.div
+                    className="absolute bottom-20 right-1/3 w-20 h-20 bg-gradient-to-br from-green-400/20 to-emerald-400/20 rounded-full"
+                    animate={{
+                        y: [0, -25, 0],
+                        scale: [1, 1.2, 1],
+                    }}
+                    transition={{
+                        duration: 10,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                    }}
+                />
             </div>
 
-            {family.length > 0 && activeStudent ? (
-                <div className="bg-white p-6 rounded-2xl shadow-lg">
-                    {/* Student Tabs */}
-                    <div className="flex items-center border-b border-gray-200 mb-6 space-x-4">
-                        {family.map((student, index) => (
-                            <button
-                                key={student.id}
-                                onClick={() => { setActiveStudentIndex(index); setActiveSubTab('profile'); }}
-                                className={`flex items-center space-x-3 pb-3 border-b-2 transition-colors ${activeStudentIndex === index ? 'border-brand-purple text-brand-purple' : 'border-transparent text-light-text hover:text-dark-text'}`}
-                            >
-                               <img src={student.photoUrl || `https://ui-avatars.com/api/?name=${student.name}&background=e8eaf6&color=1a237e&size=64`} alt={student.name} className="w-8 h-8 rounded-full"/>
-                                <span className="font-medium text-sm">{student.name}</span>
-                            </button>
-                        ))}
+            {/* Main Content */}
+            <div className="relative z-10 p-6 space-y-8">
+                {/* Hero Section */}
+                <motion.section
+                    ref={heroRef}
+                    initial={{ opacity: 0, y: 50 }}
+                    animate={heroInView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ duration: 1 }}
+                    className="text-center py-8"
+                >
+                    <div className="flex items-center justify-center space-x-4 mb-6">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={heroInView ? { opacity: 1, scale: 1 } : {}}
+                            transition={{ duration: 1.2, delay: 0.2 }}
+                            className="w-16 h-16 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg"
+                        >
+                            <Users className="w-8 h-8 text-white" />
+                        </motion.div>
+                        <motion.h1
+                            initial={{ opacity: 0, x: 50 }}
+                            animate={heroInView ? { opacity: 1, x: 0 } : {}}
+                            transition={{ duration: 1, delay: 0.3 }}
+                            className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent"
+                        >
+                            Students Profile
+                        </motion.h1>
                     </div>
-                    
-                    {/* Profile Header for active student */}
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center space-x-4">
-                             <img src={activeStudent.photoUrl || `https://ui-avatars.com/api/?name=${activeStudent.name}&background=7B61FF&color=fff&size=128`} alt={activeStudent.name} className="w-20 h-20 rounded-full object-cover"/>
-                             <div>
-                                <h2 className="text-2xl font-bold text-dark-text">{activeStudent.name}</h2>
-                                <p className="text-light-text">{getGuardianEmail(activeStudent.email)}</p>
-                             </div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={heroInView ? { opacity: 1, y: 0 } : {}}
+                        transition={{ duration: 1, delay: 0.4 }}
+                        className="flex justify-center"
+                    >
+                        <Link 
+                            to="/dashboard/student/add" 
+                            className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300"
+                        >
+                            <Plus className="w-5 h-5" />
+                            <span>Add New Student</span>
+                        </Link>
+                    </motion.div>
+                </motion.section>
+
+                {family.length > 0 && activeStudent ? (
+                    <motion.div
+                        ref={tabsRef}
+                        initial={{ opacity: 0, y: 50 }}
+                        animate={tabsInView ? { opacity: 1, y: 0 } : {}}
+                        transition={{ duration: 1, delay: 0.2 }}
+                        className={`rounded-3xl shadow-2xl border backdrop-blur-sm overflow-hidden ${
+                            theme === 'dark' 
+                                ? 'bg-gray-800/90 border-gray-700/50' 
+                                : 'bg-white/90 border-purple-200/50'
+                        }`}
+                    >
+                        {/* Student Navigation Tabs */}
+                        <div className={`px-6 py-4 border-b ${theme === 'dark' ? 'border-gray-700 bg-gray-700/50' : 'border-purple-200 bg-gradient-to-r from-purple-50/50 to-blue-50/50'}`}>
+                            <div className="flex space-x-2 overflow-x-auto">
+                                {family.map((student, index) => {
+                                    const active = activeStudentIndex === index;
+                                    return (
+                                        <motion.button
+                                            key={student.id}
+                                            whileHover={{ scale: 1.02 }}
+                                            whileTap={{ scale: 0.98 }}
+                                            initial={{ opacity: 0, x: 50 }}
+                                            animate={tabsInView ? { opacity: 1, x: 0 } : {}}
+                                            transition={{ duration: 0.6, delay: index * 0.1 }}
+                                            onClick={() => { setActiveStudentIndex(index); setActiveSubTab('profile'); }}
+                                            className={`flex items-center space-x-3 px-6 py-3 rounded-xl transition-all duration-300 whitespace-nowrap font-semibold min-w-fit ${
+                                                active 
+                                                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg ring-2 ring-purple-300 dark:ring-purple-600 transform scale-105' 
+                                                    : theme === 'dark'
+                                                        ? 'bg-gray-600/50 text-gray-300 hover:bg-gray-500/50 hover:text-white'
+                                                        : 'bg-white/70 text-gray-700 hover:bg-white hover:text-purple-600 border border-gray-200 hover:border-purple-300'
+                                            }`}
+                                        >
+                                            <div className="relative">
+                                                <img 
+                                                    src={student.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(student.name || 'Student')}&background=${active ? 'fff' : '7B61FF'}&color=${active ? '7B61FF' : 'fff'}`} 
+                                                    alt={student.name} 
+                                                    className="w-10 h-10 rounded-full object-cover shadow-md"
+                                                />
+                                                {active && (
+                                                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 border-2 border-white rounded-full"></div>
+                                                )}
+                                            </div>
+                                            <span>{student.name}</span>
+                                            {active && <Star className="w-4 h-4 text-yellow-300" fill="currentColor" />}
+                                        </motion.button>
+                                    );
+                                })}
+                            </div>
                         </div>
-                        <button className="bg-brand-purple hover:bg-opacity-90 text-white font-semibold px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center space-x-2">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                            <span>Edit Profile</span>
-                        </button>
-                    </div>
+                        
+                        {/* Student Header */}
+                        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-4">
+                                    <div className="relative">
+                                        <img 
+                                            src={activeStudent.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeStudent.name || 'Student')}&background=7B61FF&color=fff&size=128`} 
+                                            alt={activeStudent.name} 
+                                            className="w-20 h-20 rounded-full object-cover border-4 border-purple-300 dark:border-purple-600 shadow-lg"
+                                        />
+                                        <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-400 border-3 border-white dark:border-gray-800 rounded-full flex items-center justify-center">
+                                            <CheckCircle className="w-4 h-4 text-white" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h2 className={`text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-1`}>
+                                            {activeStudent.name}
+                                        </h2>
+                                        <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-lg`}>
+                                            {getGuardianEmail(activeStudent.email)}
+                                        </p>
+                                    </div>
+                                </div>
+                                <motion.button 
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all duration-300"
+                                >
+                                    <Edit3 className="w-4 h-4" />
+                                    <span>Edit Profile</span>
+                                </motion.button>
+                            </div>
+                        </div>
 
-                    {/* Sub-tabs for Profile/Schedule */}
-                    <div className="flex space-x-4 border-b border-gray-200 mb-6">
-                         <button onClick={() => setActiveSubTab('profile')} className={`py-2 px-1 border-b-2 text-sm font-medium ${activeSubTab === 'profile' ? 'border-brand-purple text-dark-text' : 'border-transparent text-light-text hover:text-dark-text'}`}>
-                            Profile Details
-                        </button>
-                         <button onClick={() => setActiveSubTab('schedule')} className={`py-2 px-1 border-b-2 text-sm font-medium ${activeSubTab === 'schedule' ? 'border-brand-purple text-dark-text' : 'border-transparent text-light-text hover:text-dark-text'}`}>
-                            Schedule & Batches
-                        </button>
-                    </div>
+                        {/* Sub-tabs */}
+                        <div className={`px-6 py-4 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+                            <div className="flex space-x-8">
+                                <motion.button 
+                                    whileHover={{ scale: 1.05 }}
+                                    onClick={() => setActiveSubTab('profile')} 
+                                    className={`flex items-center space-x-2 py-2 px-1 border-b-2 text-sm font-semibold transition-all duration-300 ${
+                                        activeSubTab === 'profile' 
+                                            ? `border-purple-500 ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}` 
+                                            : `border-transparent ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'}`
+                                    }`}
+                                >
+                                    <User className="w-4 h-4" />
+                                    <span>Profile Details</span>
+                                </motion.button>
+                                <motion.button 
+                                    whileHover={{ scale: 1.05 }}
+                                    onClick={() => setActiveSubTab('schedule')} 
+                                    className={`flex items-center space-x-2 py-2 px-1 border-b-2 text-sm font-semibold transition-all duration-300 ${
+                                        activeSubTab === 'schedule' 
+                                            ? `border-purple-500 ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}` 
+                                            : `border-transparent ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'}`
+                                    }`}
+                                >
+                                    <Calendar className="w-4 h-4" />
+                                    <span>Schedule & Batches</span>
+                                </motion.button>
+                            </div>
+                        </div>
 
-                    {activeSubTab === 'profile' && <StudentProfileTab student={activeStudent} />}
-                    {activeSubTab === 'schedule' && <StudentScheduleTab studentId={activeStudent.id} />}
-                </div>
-            ) : (
-                <p>No students found in this family account.</p>
-            )}
+                        {/* Tab Content */}
+                        <div className="p-6">
+                            <AnimatePresence mode="wait">
+                                {activeSubTab === 'profile' && (
+                                    <motion.div
+                                        key="profile"
+                                        initial={{ opacity: 0, x: 50 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -50 }}
+                                        transition={{ duration: 0.3 }}
+                                    >
+                                        <StudentProfileTab student={activeStudent} />
+                                    </motion.div>
+                                )}
+                                {activeSubTab === 'schedule' && (
+                                    <motion.div
+                                        key="schedule"
+                                        initial={{ opacity: 0, x: 50 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -50 }}
+                                        transition={{ duration: 0.3 }}
+                                    >
+                                        <StudentScheduleTab studentId={activeStudent.id} />
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    </motion.div>
+                ) : (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`text-center py-16 rounded-2xl ${theme === 'dark' ? 'bg-gray-800/50' : 'bg-white/50'} border-2 border-dashed ${theme === 'dark' ? 'border-gray-600' : 'border-purple-200'} backdrop-blur-sm`}
+                    >
+                        <Users className={`w-24 h-24 mx-auto mb-6 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
+                        <h3 className={`text-2xl font-bold mb-4 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                            No Students Found
+                        </h3>
+                        <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mb-6`}>
+                            No students found in this family account.
+                        </p>
+                        <Link 
+                            to="/dashboard/student/add" 
+                            className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300"
+                        >
+                            <Sparkles className="w-4 h-4" />
+                            <span>Add Your First Student</span>
+                        </Link>
+                    </motion.div>
+                )}
+            </div>
         </div>
     );
 };
