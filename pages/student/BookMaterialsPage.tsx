@@ -280,28 +280,6 @@ const BookMaterialsPage: React.FC = () => {
                                 transition={{ duration: 0.3 }}
                                 className="p-6"
                             >
-                                {/* Student Header */}
-                                <div className="flex items-center space-x-4 pb-6 border-b border-gray-200 dark:border-gray-700">
-                                    <div className="relative">
-                                        <img
-                                            src={currentStudent?.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(studentName)}&background=7B61FF&color=fff`}
-                                            className="w-16 h-16 rounded-full object-cover border-4 border-purple-300 dark:border-purple-600 shadow-lg"
-                                            alt={studentName}
-                                        />
-                                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-400 border-3 border-white dark:border-gray-800 rounded-full flex items-center justify-center">
-                                            <CheckCircle className="w-3 h-3 text-white" />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <h3 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-1`}>
-                                            {studentName}'s Materials
-                                        </h3>
-                                        <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} flex items-center space-x-2`}>
-                                            <TrendingUp className="w-4 h-4" />
-                                            <span>{studentMaterials.length} material{studentMaterials.length !== 1 ? 's' : ''} available</span>
-                                        </p>
-                                    </div>
-                                </div>
 
                                 {/* Materials Content */}
                                 <motion.div
@@ -309,7 +287,6 @@ const BookMaterialsPage: React.FC = () => {
                                     initial={{ opacity: 0, y: 30 }}
                                     animate={materialsInView ? { opacity: 1, y: 0 } : {}}
                                     transition={{ duration: 0.8 }}
-                                    className="mt-6"
                                 >
                                     {Object.keys(materialsByCourse).length > 0 ? (
                                         <div className="space-y-8">
