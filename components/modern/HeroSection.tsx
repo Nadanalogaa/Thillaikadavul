@@ -226,12 +226,12 @@ const HeroSection: React.FC<HeroSectionProps> = ({
               </motion.div>
             </motion.div>
           ) : (
-            // Show parallax sliders for authenticated users
+            // Show parallax slider for authenticated users
             <motion.div
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 1, delay: 0.8 }}
-              className="w-full max-w-7xl mx-auto mb-12 space-y-8"
+              className="w-full mb-12"
             >
               <div className="text-center mb-8">
                 <motion.h3
@@ -252,29 +252,17 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                 </motion.p>
               </div>
               
-              {/* First Row - Left to Right */}
+              {/* Full Width Slider - Left to Right */}
               <motion.div
                 initial={{ opacity: 0, x: -100 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 1, delay: 1.4 }}
+                className="w-full"
               >
                 <ParallaxImageSlider 
-                  images={sliderImages1} 
+                  images={[...sliderImages1, ...sliderImages2]} 
                   direction="left-to-right" 
-                  speed={40}
-                />
-              </motion.div>
-              
-              {/* Second Row - Right to Left */}
-              <motion.div
-                initial={{ opacity: 0, x: 100 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 1, delay: 1.6 }}
-              >
-                <ParallaxImageSlider 
-                  images={sliderImages2} 
-                  direction="right-to-left" 
-                  speed={35}
+                  speed={50}
                 />
               </motion.div>
             </motion.div>
