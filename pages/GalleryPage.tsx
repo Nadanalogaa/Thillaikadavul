@@ -145,7 +145,7 @@ const GalleryPage: React.FC = () => {
       <ThemeToggle />
       
       {/* Hero Section with Parallax */}
-      <section className="relative min-h-screen overflow-hidden">
+      <section className="relative min-h-[85vh] overflow-hidden">
         {/* Animated Background */}
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-gradient-to-br from-rose-100 via-purple-50 to-blue-100 dark:from-gray-800 dark:via-purple-900 dark:to-blue-900"></div>
@@ -196,7 +196,7 @@ const GalleryPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="relative z-10 flex items-center justify-center min-h-screen px-6">
+        <div className="relative z-10 flex items-center justify-center min-h-[85vh] px-6">
           <motion.div
             ref={heroRef}
             initial={{ opacity: 0, y: 50 }}
@@ -235,6 +235,24 @@ const GalleryPage: React.FC = () => {
             </motion.div>
           </motion.div>
         </div>
+
+        {/* Scroll Indicator */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={heroInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 1, delay: 1 }}
+          className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10"
+        >
+          <motion.div
+            animate={{ y: [0, 10, 0] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            className="flex flex-col items-center cursor-pointer"
+            onClick={() => window.scrollTo({ top: window.innerHeight * 0.85, behavior: 'smooth' })}
+          >
+            <span className="text-sm text-gray-600 dark:text-gray-300 mb-2">Scroll to explore</span>
+            <ChevronDown className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+          </motion.div>
+        </motion.div>
       </section>
 
       {/* Gallery Section */}
