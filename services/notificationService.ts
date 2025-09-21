@@ -36,14 +36,11 @@ class NotificationService {
       .from('notifications')
       .insert([{
         user_id: data.recipientId,
-        subject: data.title,
+        recipient_id: data.recipientId,
+        title: data.title,
         message: data.message,
-        type: data.type,
-        is_read: false,
-        priority: data.priority || 'medium',
-        related_entity_id: data.relatedEntityId,
-        related_entity_type: data.relatedEntityType,
-        created_at: new Date().toISOString()
+        type: 'Info', // Database only accepts 'Info', 'Warning', 'Success', 'Error'
+        is_read: false
       }]);
 
     if (error) {

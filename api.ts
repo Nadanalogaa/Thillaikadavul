@@ -3273,18 +3273,9 @@ export const createDemoBookingNotification = async (demoBooking: DemoBooking): P
       user_id: admin.id,
       recipient_id: admin.id,
       title: 'New Demo Booking Request',
-      subject: 'New Demo Booking Request',
       message: `${demoBooking.name} has requested a demo class for ${demoBooking.courseName}. Contact: ${demoBooking.email}, ${demoBooking.phoneNumber}`,
-      type: 'demo_booking',
-      is_read: false,
-      read: false,
-      created_at: new Date().toISOString(),
-      metadata: {
-        demo_booking_id: demoBooking.id,
-        source: 'demo_booking',
-        customer_name: demoBooking.name,
-        course_name: demoBooking.courseName
-      }
+      type: 'Info',
+      is_read: false
     }));
 
     const { error: insertError } = await supabase
