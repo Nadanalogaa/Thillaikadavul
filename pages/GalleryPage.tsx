@@ -285,7 +285,13 @@ const GalleryPage: React.FC = () => {
                       whileHover={{ y: -10, scale: 1.02 }}
                       className="group relative overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300"
                     >
-                      <div className="aspect-video overflow-hidden bg-black">
+                      <div 
+                        className="aspect-video overflow-hidden bg-black cursor-pointer"
+                        onClick={() => {
+                          console.log('Video clicked:', video.id);
+                          setSelectedVideo(video.id);
+                        }}
+                      >
                         <img 
                           src={video.thumbnail} 
                           alt={video.title}
@@ -297,8 +303,7 @@ const GalleryPage: React.FC = () => {
                           <motion.div
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
-                            className="bg-red-500 text-white p-4 rounded-full shadow-lg cursor-pointer"
-                            onClick={() => setSelectedVideo(video.id)}
+                            className="bg-red-500 text-white p-4 rounded-full shadow-lg cursor-pointer pointer-events-none"
                           >
                             <Play className="w-8 h-8 ml-1" />
                           </motion.div>
@@ -479,11 +484,12 @@ const GalleryPage: React.FC = () => {
               onClick={(e) => e.stopPropagation()}
             >
               <iframe
-                src={`https://www.youtube.com/embed/${selectedVideo}?autoplay=1&rel=0&modestbranding=1`}
+                src={`https://www.youtube.com/embed/${selectedVideo}?autoplay=1&rel=0&modestbranding=1&showinfo=0&controls=1&enablejsapi=1&origin=${window.location.origin}`}
                 title="YouTube video player"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
                 allowFullScreen
                 className="w-full h-full rounded-2xl shadow-2xl"
+                frameBorder="0"
               />
               <motion.button
                 whileHover={{ scale: 1.1 }}
