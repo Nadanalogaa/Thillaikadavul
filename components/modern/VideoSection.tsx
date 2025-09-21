@@ -101,13 +101,13 @@ const VideoSection: React.FC = () => {
           </p>
         </motion.div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
+        <div className="grid lg:grid-cols-3 gap-8 lg:h-[800px]">
           {/* Main Video Player - Left Side */}
           <motion.div
             initial={{ opacity: 0, x: -50 }}
             animate={inView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.8 }}
-            className="lg:col-span-2"
+            className="lg:col-span-2 flex flex-col h-full"
           >
             {/* YouTube Embed */}
             <div className="aspect-video rounded-2xl overflow-hidden shadow-2xl mb-6 bg-black">
@@ -128,7 +128,7 @@ const VideoSection: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg"
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg flex-1"
             >
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
                 {videos[selectedVideo].title}
@@ -186,40 +186,63 @@ const VideoSection: React.FC = () => {
             initial={{ opacity: 0, x: 50 }}
             animate={inView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="space-y-4"
+            className="flex flex-col h-full"
           >
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">More Videos</h3>
+            <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent space-y-4 pr-2">
             {videos.map((video, index) => (
               <motion.div
                 key={index}
-                initial={{ opacity: 0, y: 30 }}
-                animate={inView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                className={`relative cursor-pointer rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 ${
+                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                animate={inView ? { opacity: 1, y: 0, scale: 1 } : {}}
+                transition={{ 
+                  duration: 0.6, 
+                  delay: index * 0.1,
+                  type: "spring",
+                  stiffness: 100
+                }}
+                whileHover={{ 
+                  scale: 1.02, 
+                  y: -4,
+                  transition: { duration: 0.2 }
+                }}
+                className={`relative cursor-pointer rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform ${
                   selectedVideo === index 
-                    ? 'ring-4 ring-red-500 bg-red-50 dark:bg-red-900/20' 
-                    : 'hover:scale-[1.02]'
+                    ? 'ring-4 ring-red-500 bg-red-50 dark:bg-red-900/20 shadow-red-500/30' 
+                    : 'hover:shadow-purple-500/20'
                 }`}
                 onClick={() => handleVideoSelect(index)}
               >
                 {/* Video Thumbnail */}
-                <div className="flex gap-3 p-3 bg-white dark:bg-gray-800">
+                <motion.div 
+                  className="flex gap-3 p-3 bg-white dark:bg-gray-800"
+                  whileHover={{ backgroundColor: "rgba(139, 69, 19, 0.05)" }}
+                >
                   <div className="relative w-28 h-20 flex-shrink-0 rounded-lg overflow-hidden">
-                    <img
+                    <motion.img
                       src={`https://img.youtube.com/vi/${video.id}/mqdefault.jpg`}
                       alt={video.title}
                       className="w-full h-full object-cover"
+                      whileHover={{ scale: 1.1 }}
+                      transition={{ duration: 0.3 }}
                     />
                     
                     {/* Play Button Overlay */}
-                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center group">
+                    <motion.div 
+                      className="absolute inset-0 bg-black/30 flex items-center justify-center group"
+                      whileHover={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+                    >
                       <motion.div
-                        whileHover={{ scale: 1.1 }}
-                        className="bg-red-500 text-white p-1 rounded-full shadow-lg group-hover:bg-red-600 transition-colors"
+                        whileHover={{ 
+                          scale: 1.2,
+                          boxShadow: "0 0 20px rgba(239, 68, 68, 0.6)"
+                        }}
+                        whileTap={{ scale: 0.9 }}
+                        className="bg-red-500 text-white p-2 rounded-full shadow-lg group-hover:bg-red-600 transition-colors"
                       >
-                        <Play className="w-3 h-3 ml-0.5" />
+                        <Play className="w-4 h-4 ml-0.5" />
                       </motion.div>
-                    </div>
+                    </motion.div>
                     
                     {/* Duration Badge */}
                     <div className="absolute bottom-1 right-1 bg-black/80 text-white px-1 py-0.5 rounded text-xs">
@@ -228,17 +251,26 @@ const VideoSection: React.FC = () => {
                   </div>
 
                   {/* Video Info */}
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-1 line-clamp-2 leading-tight">
+                  <motion.div 
+                    className="flex-1 min-w-0"
+                    initial={{ opacity: 0.8 }}
+                    whileHover={{ opacity: 1 }}
+                  >
+                    <motion.h4 
+                      className="text-sm font-semibold text-gray-900 dark:text-white mb-1 line-clamp-2 leading-tight"
+                      whileHover={{ color: "#ef4444" }}
+                      transition={{ duration: 0.2 }}
+                    >
                       {video.title}
-                    </h4>
+                    </motion.h4>
                     <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
                       {video.description}
                     </p>
-                  </div>
-                </div>
+                  </motion.div>
+                </motion.div>
               </motion.div>
             ))}
+            </div>
           </motion.div>
         </div>
       </div>
