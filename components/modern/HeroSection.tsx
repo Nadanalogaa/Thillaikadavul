@@ -27,34 +27,34 @@ const HeroSection: React.FC<HeroSectionProps> = ({
   const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
 
   const heroImages = [
-    '/danceImages/DSC07521~3.JPG',
-    '/danceImages/EGM_7361_DxO.jpg',
-    '/danceImages/DSC02946~2.JPG',
-    '/danceImages/EGM_7524_DxO.jpg',
-    '/danceImages/PRAP3795_DxO.jpg'
+    '/danceImages/DSC07521~3.webp',
+    '/danceImages/EGM_7361_DxO.webp',
+    '/danceImages/DSC02946~2.webp',
+    '/danceImages/EGM_7524_DxO.webp',
+    '/danceImages/PRAP3795_DxO.webp'
   ];
 
   // Beautiful dance performance images for parallax sliders
   const sliderImages1 = [
-    '/danceImages/EGM_7361_DxO.jpg',
-    '/danceImages/EGM_7524_DxO.jpg',
-    '/danceImages/EGM_7414_DxO.jpg',
-    '/danceImages/EGM_7745_DxO.jpg',
-    '/danceImages/PRAP3795_DxO.jpg',
-    '/danceImages/PRAP3850_DxO.jpg',
-    '/danceImages/DSC03395_DxO.jpg',
-    '/danceImages/EGM_7698_DxO.jpg'
+    '/danceImages/EGM_7361_DxO.webp',
+    '/danceImages/EGM_7524_DxO.webp',
+    '/danceImages/EGM_7414_DxO.webp',
+    '/danceImages/EGM_7745_DxO.webp',
+    '/danceImages/PRAP3795_DxO.webp',
+    '/danceImages/PRAP3850_DxO.webp',
+    '/danceImages/DSC03395_DxO.webp',
+    '/danceImages/EGM_7698_DxO.webp'
   ];
 
   const sliderImages2 = [
-    '/danceImages/PRAP4509_DxO.jpg',
-    '/danceImages/EGM_7783_DxO.jpg',
-    '/danceImages/DSC02946~2.JPG',
-    '/danceImages/EGM_7657_DxO.jpg',
-    '/danceImages/PRAP4418_DxO.jpg',
-    '/danceImages/EGM_7764_DxO.jpg',
-    '/danceImages/DSC03919_DxO.jpg',
-    '/danceImages/EGM_7914_DxO.jpg'
+    '/danceImages/PRAP4509_DxO.webp',
+    '/danceImages/EGM_7783_DxO.webp',
+    '/danceImages/DSC02946~2.webp',
+    '/danceImages/EGM_7657_DxO.webp',
+    '/danceImages/PRAP4418_DxO.webp',
+    '/danceImages/EGM_7764_DxO.webp',
+    '/danceImages/DSC03919_DxO.webp',
+    '/danceImages/EGM_7914_DxO.webp'
   ];
 
   useEffect(() => {

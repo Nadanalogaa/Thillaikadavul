@@ -16,73 +16,73 @@ const GalleryPage: React.FC = () => {
   // Gallery images organized by category
   const galleryData = [
     { 
-      src: '/danceImages/EGM_7361_DxO.jpg', 
+      src: '/danceImages/EGM_7361_DxO.webp', 
       category: 'dance', 
       title: 'Classical Dance Performance',
       description: 'Students showcasing Bharatanatyam excellence'
     },
     { 
-      src: '/danceImages/EGM_7362_DxO.jpg', 
+      src: '/danceImages/EGM_7362_DxO.webp', 
       category: 'dance', 
       title: 'Graceful Movements',
       description: 'The beauty of traditional Indian dance'
     },
     { 
-      src: '/danceImages/EGM_7414_DxO.jpg', 
+      src: '/danceImages/EGM_7414_DxO.webp', 
       category: 'dance', 
       title: 'Cultural Expression',
       description: 'Art in motion'
     },
     { 
-      src: '/danceImages/EGM_7424_DxO.jpg', 
+      src: '/danceImages/EGM_7424_DxO.webp', 
       category: 'performance', 
       title: 'Stage Performance',
       description: 'Students performing on stage'
     },
     { 
-      src: '/danceImages/EGM_7524_DxO.jpg', 
+      src: '/danceImages/EGM_7524_DxO.webp', 
       category: 'dance', 
       title: 'Traditional Costume',
       description: 'Beautiful traditional attire'
     },
     { 
-      src: '/danceImages/EGM_7549_DxO.jpg', 
+      src: '/danceImages/EGM_7549_DxO.webp', 
       category: 'performance', 
       title: 'Group Performance',
       description: 'Synchronized artistry'
     },
     { 
-      src: '/danceImages/EGM_7611_DxO.jpg', 
+      src: '/danceImages/EGM_7611_DxO.webp', 
       category: 'dance', 
       title: 'Dance Postures',
       description: 'Perfect form and technique'
     },
     { 
-      src: '/danceImages/EGM_7623_DxO.jpg', 
+      src: '/danceImages/EGM_7623_DxO.webp', 
       category: 'performance', 
       title: 'Cultural Event',
       description: 'Community celebration through art'
     },
     { 
-      src: '/danceImages/EGM_7634_DxO.jpg', 
+      src: '/danceImages/EGM_7634_DxO.webp', 
       category: 'dance', 
       title: 'Student Achievement',
       description: 'Excellence in motion'
     },
     { 
-      src: '/danceImages/PRAP2427_DxO.jpg', 
+      src: '/danceImages/PRAP2427_DxO.webp', 
       category: 'events', 
       title: 'Annual Function',
       description: 'Celebrating artistic achievements'
     },
     { 
-      src: '/danceImages/PRAP3017_DxO.jpg', 
+      src: '/danceImages/PRAP3017_DxO.webp', 
       category: 'events', 
       title: 'Award Ceremony',
       description: 'Recognizing talent and dedication'
     },
     { 
-      src: '/danceImages/DSC03395_DxO.jpg', 
+      src: '/danceImages/DSC03395_DxO.webp', 
       category: 'students', 
       title: 'Learning Moments',
       description: 'Students in their learning journey'
