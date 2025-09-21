@@ -13,93 +13,126 @@ const GalleryPage: React.FC = () => {
   const [heroRef, heroInView] = useInView({ threshold: 0.1, triggerOnce: true });
   const [galleryRef, galleryInView] = useInView({ threshold: 0.1, triggerOnce: true });
 
-  // Gallery images organized by category
+  // Gallery content organized by category
   const galleryData = [
+    // Bharatanatyam Images
     { 
       src: '/danceImages/responsive/large/EGM_7361_DxO.webp', 
-      category: 'dance', 
+      category: 'bharatanatyam', 
       title: 'Classical Dance Performance',
       description: 'Students showcasing Bharatanatyam excellence'
     },
     { 
       src: '/danceImages/responsive/large/EGM_7362_DxO.webp', 
-      category: 'dance', 
+      category: 'bharatanatyam', 
       title: 'Graceful Movements',
       description: 'The beauty of traditional Indian dance'
     },
     { 
       src: '/danceImages/responsive/large/EGM_7414_DxO.webp', 
-      category: 'dance', 
+      category: 'bharatanatyam', 
       title: 'Cultural Expression',
       description: 'Art in motion'
     },
     { 
-      src: '/danceImages/responsive/large/EGM_7424_DxO.webp', 
-      category: 'performance', 
-      title: 'Stage Performance',
-      description: 'Students performing on stage'
-    },
-    { 
       src: '/danceImages/responsive/large/EGM_7524_DxO.webp', 
-      category: 'dance', 
+      category: 'bharatanatyam', 
       title: 'Traditional Costume',
       description: 'Beautiful traditional attire'
     },
     { 
-      src: '/danceImages/responsive/large/EGM_7549_DxO.webp', 
-      category: 'performance', 
-      title: 'Group Performance',
-      description: 'Synchronized artistry'
-    },
-    { 
       src: '/danceImages/responsive/large/EGM_7611_DxO.webp', 
-      category: 'dance', 
+      category: 'bharatanatyam', 
       title: 'Dance Postures',
       description: 'Perfect form and technique'
     },
     { 
-      src: '/danceImages/responsive/large/EGM_7623_DxO.webp', 
-      category: 'performance', 
-      title: 'Cultural Event',
-      description: 'Community celebration through art'
-    },
-    { 
       src: '/danceImages/responsive/large/EGM_7634_DxO.webp', 
-      category: 'dance', 
+      category: 'bharatanatyam', 
       title: 'Student Achievement',
       description: 'Excellence in motion'
     },
     { 
-      src: '/danceImages/responsive/large/PRAP2427_DxO.webp', 
-      category: 'events', 
-      title: 'Annual Function',
-      description: 'Celebrating artistic achievements'
-    },
-    { 
-      src: '/danceImages/responsive/large/PRAP3017_DxO.webp', 
-      category: 'events', 
-      title: 'Award Ceremony',
-      description: 'Recognizing talent and dedication'
-    },
-    { 
       src: '/danceImages/responsive/large/DSC03395_DxO.webp', 
-      category: 'students', 
+      category: 'bharatanatyam', 
       title: 'Learning Moments',
       description: 'Students in their learning journey'
+    },
+    // Vocal Music Images
+    { 
+      src: '/danceImages/responsive/large/PRAP3795_DxO.webp', 
+      category: 'vocal', 
+      title: 'Vocal Music Class',
+      description: 'Students learning classical music'
+    },
+    { 
+      src: '/danceImages/responsive/large/PRAP2427_DxO.webp', 
+      category: 'vocal', 
+      title: 'Music Performance',
+      description: 'Showcasing vocal talents'
+    },
+    // Drawing Category (placeholder for now)
+    { 
+      src: '/danceImages/responsive/large/PRAP3017_DxO.webp', 
+      category: 'drawing', 
+      title: 'Art Workshop',
+      description: 'Creative expression through drawing'
+    }
+  ];
+
+  // YouTube videos for performances
+  const performanceVideos = [
+    {
+      id: 'Qq8ylYlpDnA',
+      title: 'Classical Dance Performance',
+      description: 'Beautiful classical dance performance showcasing traditional artistry and grace.',
+      thumbnail: `https://img.youtube.com/vi/Qq8ylYlpDnA/maxresdefault.jpg`,
+      duration: '5:30'
+    },
+    {
+      id: 'RHpD9_TFg-0',
+      title: 'Student Showcase Performance',
+      description: 'Our talented students demonstrating their skills in this captivating performance.',
+      thumbnail: `https://img.youtube.com/vi/RHpD9_TFg-0/maxresdefault.jpg`,
+      duration: '6:45'
+    },
+    {
+      id: 'kWNR1R2fZkU',
+      title: 'Traditional Dance Ensemble',
+      description: 'A mesmerizing ensemble performance highlighting the beauty of classical Indian dance.',
+      thumbnail: `https://img.youtube.com/vi/kWNR1R2fZkU/maxresdefault.jpg`,
+      duration: '8:20'
+    },
+    {
+      id: 'dNpgLtW1hag',
+      title: 'Cultural Heritage Performance',
+      description: 'Celebrating our rich cultural heritage through expressive dance and storytelling.',
+      thumbnail: `https://img.youtube.com/vi/dNpgLtW1hag/maxresdefault.jpg`,
+      duration: '7:15'
+    },
+    {
+      id: 'B64PzE_R5sI',
+      title: 'Manikkavasagar Thiruvembavai - Margazhi Special',
+      description: 'A soulful performance during the auspicious month of Margazhi, dedicated to Lord Shiva.',
+      thumbnail: `https://img.youtube.com/vi/B64PzE_R5sI/maxresdefault.jpg`,
+      duration: '5:38'
     }
   ];
 
   const categories = [
     { id: 'all', name: 'All', icon: Sparkles },
-    { id: 'dance', name: 'Dance', icon: Music },
-    { id: 'performance', name: 'Performances', icon: Play },
-    { id: 'events', name: 'Events', icon: ImageIcon },
-    { id: 'students', name: 'Students', icon: Palette }
+    { id: 'bharatanatyam', name: 'Bharatanatyam', icon: Music },
+    { id: 'vocal', name: 'Vocal', icon: ImageIcon },
+    { id: 'drawing', name: 'Drawing', icon: Palette },
+    { id: 'performances', name: 'Performances', icon: Play }
   ];
 
   const filteredImages = selectedCategory === 'all' 
     ? galleryData 
     : galleryData.filter(img => img.category === selectedCategory);
+
+  const isPerformancesCategory = selectedCategory === 'performances';
+  const hasContent = filteredImages.length > 0 || isPerformancesCategory;
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
@@ -237,41 +270,93 @@ const GalleryPage: React.FC = () => {
             initial={{ opacity: 0, y: 50 }}
             animate={galleryInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 1, delay: 0.3 }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
           >
             <AnimatePresence>
-              {filteredImages.map((image, index) => (
-                <motion.div
-                  key={`${selectedCategory}-${index}`}
-                  layout
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  transition={{ duration: 0.5, delay: index * 0.05 }}
-                  whileHover={{ y: -10, scale: 1.02 }}
-                  className="group relative overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer"
-                  onClick={() => setSelectedImage(image.src)}
-                >
-                  <div className="aspect-square overflow-hidden">
-                    <img 
-                      src={image.src} 
-                      alt={image.title}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                    />
-                  </div>
-                  
-                  {/* Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
-                      <h3 className="font-bold text-lg mb-1">{image.title}</h3>
-                      <p className="text-sm text-gray-200">{image.description}</p>
-                    </div>
-                  </div>
-                  
-                  {/* Hover Effect Glow */}
-                  <div className="absolute -inset-1 bg-gradient-to-r from-pink-500 to-purple-500 rounded-2xl opacity-0 group-hover:opacity-20 blur transition-opacity duration-300"></div>
-                </motion.div>
-              ))}
+              {isPerformancesCategory ? (
+                // YouTube Videos for Performances
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {performanceVideos.map((video, index) => (
+                    <motion.div
+                      key={`video-${video.id}`}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.5, delay: index * 0.1 }}
+                      whileHover={{ y: -10, scale: 1.02 }}
+                      className="group relative overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300"
+                    >
+                      <div className="aspect-video overflow-hidden bg-black">
+                        <img 
+                          src={video.thumbnail} 
+                          alt={video.title}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        />
+                        
+                        {/* Play Button Overlay */}
+                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                          <motion.div
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            className="bg-red-500 text-white p-4 rounded-full shadow-lg cursor-pointer"
+                            onClick={() => window.open(`https://www.youtube.com/watch?v=${video.id}`, '_blank')}
+                          >
+                            <Play className="w-8 h-8 ml-1" />
+                          </motion.div>
+                        </div>
+                        
+                        {/* Duration Badge */}
+                        <div className="absolute bottom-2 right-2 bg-black/80 text-white px-2 py-1 rounded text-sm">
+                          {video.duration}
+                        </div>
+                      </div>
+                      
+                      {/* Video Info */}
+                      <div className="p-4 bg-white dark:bg-gray-800">
+                        <h3 className="font-bold text-lg mb-2 text-gray-900 dark:text-white">{video.title}</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{video.description}</p>
+                      </div>
+                      
+                      {/* Hover Effect Glow */}
+                      <div className="absolute -inset-1 bg-gradient-to-r from-red-500 to-pink-500 rounded-2xl opacity-0 group-hover:opacity-20 blur transition-opacity duration-300"></div>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                // Images for other categories  
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {filteredImages.map((image, index) => (
+                    <motion.div
+                      key={`${selectedCategory}-${index}`}
+                      layout
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      transition={{ duration: 0.5, delay: index * 0.05 }}
+                      whileHover={{ y: -10, scale: 1.02 }}
+                      className="group relative overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer"
+                      onClick={() => setSelectedImage(image.src)}
+                    >
+                      <div className="aspect-square overflow-hidden">
+                        <img 
+                          src={image.src} 
+                          alt={image.title}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        />
+                      </div>
+                      
+                      {/* Overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+                          <h3 className="font-bold text-lg mb-1">{image.title}</h3>
+                          <p className="text-sm text-gray-200">{image.description}</p>
+                        </div>
+                      </div>
+                      
+                      {/* Hover Effect Glow */}
+                      <div className="absolute -inset-1 bg-gradient-to-r from-pink-500 to-purple-500 rounded-2xl opacity-0 group-hover:opacity-20 blur transition-opacity duration-300"></div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
             </AnimatePresence>
           </motion.div>
 
