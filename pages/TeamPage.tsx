@@ -1,16 +1,14 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
-import { ChevronDown, Mail, Phone, MapPin, Calendar, GraduationCap } from 'lucide-react';
+import { ChevronDown, GraduationCap } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import ThemeToggle from '../components/ThemeToggle';
 
 interface Teacher {
   name: string;
   qualification: string;
-  dob: string;
-  address: string;
-  phone: string;
+  course: string;
   image: string;
   category: string;
 }
@@ -97,29 +95,15 @@ const TeacherCard: React.FC<TeacherCardProps> = ({ teacher, index, inView, theme
       
       <div className="flex items-center justify-center space-x-2">
         <GraduationCap className={`w-4 h-4 ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`} />
-        <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} leading-relaxed`}>
+        <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} leading-relaxed text-center`}>
           {teacher.qualification}
         </p>
       </div>
 
       <div className="flex items-center justify-center space-x-2">
-        <Calendar className={`w-4 h-4 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`} />
-        <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-          DOB: {teacher.dob}
-        </p>
-      </div>
-
-      <div className="flex items-start justify-center space-x-2">
-        <MapPin className={`w-4 h-4 mt-1 ${theme === 'dark' ? 'text-green-400' : 'text-green-600'} flex-shrink-0`} />
-        <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} leading-relaxed text-left`}>
-          {teacher.address}
-        </p>
-      </div>
-
-      <div className="flex items-center justify-center space-x-2">
-        <Phone className={`w-4 h-4 ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`} />
+        <span className="text-lg">{getCategoryIcon(teacher.category)}</span>
         <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} font-medium`}>
-          {teacher.phone}
+          {teacher.course}
         </p>
       </div>
     </div>
@@ -205,18 +189,14 @@ const TeamPage: React.FC = () => {
     {
       name: "R. Aiswarya",
       qualification: "BA (Vocal), DMT (Diploma in Music Teaching)",
-      dob: "03-04-1996",
-      address: "Plot No:1, 1st Cross Street, 10th Street Eswaran Nagar, Krish Nagar, Pammal – 600075",
-      phone: "9962488730",
+      course: "Carnatic Vocal Music",
       image: "https://images.unsplash.com/photo-1494790108755-2616b332c2cd?w=400&h=400&fit=crop&crop=face&auto=format&q=80",
       category: "Vocal"
     },
     {
       name: "S. Revathi",
       qualification: "B.Com, MSc (Yoga), Abacus, Phonics, Vedic Maths, Mid Brain Activation",
-      dob: "28-05-1984",
-      address: "No.8, 2nd Floor, Vasantham Nagar, Bhavananthiyar 4th Street, Kamarajapuram, Chennai – 600073",
-      phone: "8695311761",
+      course: "Vocal Music & Comprehensive Skills",
       image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&h=400&fit=crop&crop=face&auto=format&q=80",
       category: "Vocal"
     },
@@ -224,27 +204,21 @@ const TeamPage: React.FC = () => {
     {
       name: "B. Geetha",
       qualification: "BFA, MA Bharathanatyam",
-      dob: "08-11-1997",
-      address: "D.No 9/905A, Rahanatha Enclave, Golden Avenue, Sivagami Nagar, 3rd Street Extension, Medavakkam, Chennai – 600100",
-      phone: "8220949089",
+      course: "Classical Bharathanatyam",
       image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop&crop=face&auto=format&q=80",
       category: "Bharathanatyam"
     },
     {
       name: "Reshma A.V",
       qualification: "M.Com",
-      dob: "10-01-1983",
-      address: "Plot No.12, D.No 16, 1st Street, Tharakeshwari Nagar, Sembakkam, Chennai – 600073",
-      phone: "9444956359",
+      course: "Bharathanatyam Dance",
       image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop&crop=face&auto=format&q=80",
       category: "Bharathanatyam"
     },
     {
       name: "M. Subashini",
       qualification: "M.Com",
-      dob: "09-09-1986",
-      address: "C2, 13th Street Extension, Thirumalai Nagar, Hasthinapuram, Chennai – 600067",
-      phone: "9962516833",
+      course: "Bharathanatyam Dance",
       image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=face&auto=format&q=80",
       category: "Bharathanatyam"
     },
@@ -252,18 +226,14 @@ const TeamPage: React.FC = () => {
     {
       name: "K. Suganya",
       qualification: "Diploma in Computer Engineering, BCA",
-      dob: "14-04-1993",
-      address: "Anika Apartment, G1, 13th Street, 4th Cross, Thirumalai Nagar, Sembakkam – 600073",
-      phone: "7708995854",
+      course: "Administration & Technical Support",
       image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&h=400&fit=crop&crop=face&auto=format&q=80",
       category: "Admin"
     },
     {
       name: "Sivakami Kailasam",
       qualification: "M.Com",
-      dob: "23-02-1993",
-      address: "No.4, 2nd Main Road, Ayyappa Nagar, Kamarajapuram, Sembakkam, Chennai – 600073",
-      phone: "8344018615",
+      course: "Administrative Operations",
       image: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=400&h=400&fit=crop&crop=face&auto=format&q=80",
       category: "Admin"
     },
@@ -271,9 +241,7 @@ const TeamPage: React.FC = () => {
     {
       name: "R. Vanitha",
       qualification: "B.Com, DAMT",
-      dob: "17-06-1985",
-      address: "Plot No.6D, Thangam Nagar, Vengai Vasal – 600126",
-      phone: "9884793762",
+      course: "Mental Arithmetic & Abacus",
       image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=face&auto=format&q=80",
       category: "Abacus"
     }
@@ -380,17 +348,6 @@ const TeamPage: React.FC = () => {
         </motion.div>
       </section>
 
-      {/* Vocal Teachers Section */}
-      <CategorySection
-        title="Vocal Teachers"
-        emoji="🎵"
-        teachers={teachers.filter(t => t.category === 'Vocal')}
-        sectionRef={vocalRef}
-        inView={vocalInView}
-        gradientColor="from-purple-500 to-pink-500"
-        theme={theme}
-      />
-
       {/* Bharathanatyam Teachers Section */}
       <CategorySection
         title="Bharathanatyam Teachers"
@@ -399,6 +356,17 @@ const TeamPage: React.FC = () => {
         sectionRef={bharatanatyamRef}
         inView={bharatanatyamInView}
         gradientColor="from-orange-500 to-red-500"
+        theme={theme}
+      />
+
+      {/* Vocal Teachers Section */}
+      <CategorySection
+        title="Vocal Teachers"
+        emoji="🎵"
+        teachers={teachers.filter(t => t.category === 'Vocal')}
+        sectionRef={vocalRef}
+        inView={vocalInView}
+        gradientColor="from-purple-500 to-pink-500"
         theme={theme}
       />
 
