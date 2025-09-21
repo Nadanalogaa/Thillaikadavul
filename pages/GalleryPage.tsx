@@ -14,6 +14,11 @@ const GalleryPage: React.FC = () => {
   const [heroRef, heroInView] = useInView({ threshold: 0.1, triggerOnce: true });
   const [galleryRef, galleryInView] = useInView({ threshold: 0.1, triggerOnce: true });
 
+  // Debug video selection
+  React.useEffect(() => {
+    console.log('selectedVideo changed:', selectedVideo);
+  }, [selectedVideo]);
+
   // Gallery content organized by category
   const galleryData = [
     // Bharatanatyam Images
@@ -287,9 +292,13 @@ const GalleryPage: React.FC = () => {
                     >
                       <div 
                         className="aspect-video overflow-hidden bg-black cursor-pointer"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
                           console.log('Video clicked:', video.id);
+                          console.log('Current selectedVideo state:', selectedVideo);
                           setSelectedVideo(video.id);
+                          console.log('setSelectedVideo called with:', video.id);
                         }}
                       >
                         <img 
