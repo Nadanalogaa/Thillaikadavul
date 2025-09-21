@@ -135,31 +135,19 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
           )}
           
           {/* Social Media Icons - Desktop */}
-          <div className="hidden md:flex items-center space-x-3 ml-6">
-            {socialLinks.map((social, index) => (
+          <div className="hidden md:flex items-center space-x-2 ml-4">
+            {socialLinks.map((social) => (
               <motion.a
                 key={social.name}
                 href={social.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="relative group"
-                whileHover={{ scale: 1.1, y: -2 }}
-                whileTap={{ scale: 0.95 }}
-                animate={{
-                  y: [0, -3, 0],
-                  rotateZ: [0, 2, -2, 0],
-                }}
-                transition={{
-                  duration: 3 + index * 0.5,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: index * 0.2
-                }}
+                whileHover={{ scale: 1.2 }}
+                whileTap={{ scale: 0.9 }}
               >
-                <div className={`p-2.5 rounded-xl bg-gradient-to-br ${social.color} opacity-90 hover:opacity-100 transition-all duration-300 shadow-lg hover:shadow-xl`}>
-                  <social.icon className="w-4 h-4 text-white" />
-                </div>
-                <div className={`absolute -bottom-8 left-1/2 transform -translate-x-1/2 px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap z-50`}>
+                <social.icon className={`w-5 h-5 ${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'} transition-colors duration-300`} />
+                <div className={`absolute -bottom-8 left-1/2 transform -translate-x-1/2 px-2 py-1 ${theme === 'dark' ? 'bg-gray-800' : 'bg-black'} text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap z-50`}>
                   {social.name}
                 </div>
               </motion.a>
@@ -262,30 +250,17 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
             
             {/* Social Media Icons - Mobile */}
             <div className={`pt-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-indigo-100'}`}>
-              <h4 className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-3 px-4`}>Follow Us</h4>
-              <div className="flex items-center justify-center space-x-4 mb-4">
-                {socialLinks.map((social, index) => (
+              <div className="flex items-center justify-center space-x-6 mb-4">
+                {socialLinks.map((social) => (
                   <motion.a
                     key={social.name}
                     href={social.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="relative group"
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
-                    animate={{
-                      y: [0, -2, 0],
-                    }}
-                    transition={{
-                      duration: 2 + index * 0.3,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                      delay: index * 0.1
-                    }}
+                    whileHover={{ scale: 1.2 }}
+                    whileTap={{ scale: 0.9 }}
                   >
-                    <div className={`p-3 rounded-xl bg-gradient-to-br ${social.color} opacity-90 hover:opacity-100 transition-all duration-300 shadow-lg hover:shadow-xl`}>
-                      <social.icon className="w-5 h-5 text-white" />
-                    </div>
+                    <social.icon className={`w-6 h-6 ${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'} transition-colors duration-300`} />
                   </motion.a>
                 ))}
               </div>
