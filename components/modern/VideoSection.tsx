@@ -81,7 +81,7 @@ const VideoSection: React.FC = () => {
   };
 
   return (
-    <section className="py-20 bg-gradient-to-br from-gray-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900" ref={ref}>
+    <section className="py-16 bg-gradient-to-br from-gray-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900" ref={ref}>
       <div className="container mx-auto px-4">
         {/* Section Header */}
         <motion.div
@@ -101,7 +101,7 @@ const VideoSection: React.FC = () => {
           </p>
         </motion.div>
 
-        <div className="grid lg:grid-cols-3 gap-8 lg:h-[800px]">
+        <div className="grid lg:grid-cols-3 gap-8 lg:h-[600px]">
           {/* Main Video Player - Left Side */}
           <motion.div
             initial={{ opacity: 0, x: -50 }}
