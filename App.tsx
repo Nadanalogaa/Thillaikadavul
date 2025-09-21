@@ -79,6 +79,11 @@ function App() {
     fetchUserSession();
   }, []);
 
+  // Scroll to top when route changes
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   const handleLoginSuccess = (user: User) => {
     setCurrentUser(user);
     setLoginModalOpen(false);

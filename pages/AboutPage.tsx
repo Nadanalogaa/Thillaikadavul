@@ -128,11 +128,11 @@ const AboutPage: React.FC = () => {
           <motion.div
             animate={{ y: [0, 10, 0] }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            className="flex flex-col items-center cursor-pointer"
+            className="flex flex-col items-center justify-center text-center cursor-pointer"
             onClick={() => window.scrollTo({ top: window.innerHeight * 0.85, behavior: 'smooth' })}
           >
-            <span className="text-sm text-gray-600 dark:text-gray-300 mb-2">Scroll to explore</span>
-            <ChevronDown className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+            <span className="text-sm text-gray-600 dark:text-gray-300 mb-2 whitespace-nowrap">Scroll to explore</span>
+            <ChevronDown className="w-6 h-6 text-purple-600 dark:text-purple-400 mx-auto" />
           </motion.div>
         </motion.div>
       </section>
