@@ -81,7 +81,7 @@ const VideoSection: React.FC = () => {
   };
 
   return (
-    <section className="py-16 bg-gradient-to-br from-gray-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900" ref={ref}>
+    <section className="py-12 bg-gradient-to-br from-gray-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900" ref={ref}>
       <div className="container mx-auto px-4">
         {/* Section Header */}
         <motion.div
@@ -101,13 +101,13 @@ const VideoSection: React.FC = () => {
           </p>
         </motion.div>
 
-        <div className="grid lg:grid-cols-3 gap-8 lg:h-[600px]">
+        <div className="grid lg:grid-cols-3 gap-8">
           {/* Main Video Player - Left Side */}
           <motion.div
             initial={{ opacity: 0, x: -50 }}
             animate={inView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.8 }}
-            className="lg:col-span-2 flex flex-col h-full"
+            className="lg:col-span-2"
           >
             {/* YouTube Embed */}
             <div className="aspect-video rounded-2xl overflow-hidden shadow-2xl mb-6 bg-black">
@@ -128,7 +128,7 @@ const VideoSection: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg flex-1"
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg"
             >
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
                 {videos[selectedVideo].title}
@@ -186,10 +186,10 @@ const VideoSection: React.FC = () => {
             initial={{ opacity: 0, x: 50 }}
             animate={inView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="flex flex-col h-full"
+            className="space-y-4"
           >
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">More Videos</h3>
-            <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent space-y-4 pr-2">
+            <div className="max-h-[480px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent space-y-4 pr-2">
             {videos.map((video, index) => (
               <motion.div
                 key={index}
