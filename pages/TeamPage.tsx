@@ -15,6 +15,182 @@ interface Teacher {
   category: string;
 }
 
+interface TeacherCardProps {
+  teacher: Teacher;
+  index: number;
+  inView: boolean;
+  theme: string;
+}
+
+interface CategorySectionProps {
+  title: string;
+  emoji: string;
+  teachers: Teacher[];
+  sectionRef: (node?: Element | null) => void;
+  inView: boolean;
+  gradientColor: string;
+  theme: string;
+}
+
+const getCategoryIcon = (category: string) => {
+  switch (category) {
+    case 'Vocal':
+      return '🎵';
+    case 'Bharathanatyam':
+      return '💃';
+    case 'Admin':
+      return '🖥️';
+    case 'Abacus':
+      return '🧮';
+    default:
+      return '👥';
+  }
+};
+
+const getCategoryColor = (category: string) => {
+  switch (category) {
+    case 'Vocal':
+      return 'from-purple-500 to-pink-500';
+    case 'Bharathanatyam':
+      return 'from-orange-500 to-red-500';
+    case 'Admin':
+      return 'from-blue-500 to-indigo-500';
+    case 'Abacus':
+      return 'from-green-500 to-teal-500';
+    default:
+      return 'from-gray-500 to-gray-600';
+  }
+};
+
+const TeacherCard: React.FC<TeacherCardProps> = ({ teacher, index, inView, theme }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 50, scale: 0.9 }}
+    animate={inView ? { opacity: 1, y: 0, scale: 1 } : {}}
+    transition={{ duration: 0.8, delay: index * 0.1 }}
+    whileHover={{ scale: 1.02, y: -5 }}
+    className={`relative p-8 rounded-3xl ${theme === 'dark' ? 'bg-gray-800/80 border-gray-700' : 'bg-white/80 border-purple-200'} border-2 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden`}
+  >
+    {/* Background gradient */}
+    <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${getCategoryColor(teacher.category)} opacity-10 rounded-full -translate-y-8 translate-x-8`}></div>
+    
+    {/* Profile Image */}
+    <motion.div
+      whileHover={{ scale: 1.1 }}
+      transition={{ duration: 0.3 }}
+      className="relative w-32 h-32 mx-auto mb-6"
+    >
+      <img
+        src={teacher.image}
+        alt={teacher.name}
+        className="w-full h-full rounded-full object-cover border-4 border-white shadow-lg"
+      />
+      <div className={`absolute -bottom-2 -right-2 w-10 h-10 bg-gradient-to-br ${getCategoryColor(teacher.category)} rounded-full flex items-center justify-center shadow-lg`}>
+        <span className="text-white text-lg">{getCategoryIcon(teacher.category)}</span>
+      </div>
+    </motion.div>
+
+    {/* Teacher Info */}
+    <div className="text-center space-y-4">
+      <h3 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+        {teacher.name}
+      </h3>
+      
+      <div className="flex items-center justify-center space-x-2">
+        <GraduationCap className={`w-4 h-4 ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`} />
+        <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} leading-relaxed`}>
+          {teacher.qualification}
+        </p>
+      </div>
+
+      <div className="flex items-center justify-center space-x-2">
+        <Calendar className={`w-4 h-4 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`} />
+        <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+          DOB: {teacher.dob}
+        </p>
+      </div>
+
+      <div className="flex items-start justify-center space-x-2">
+        <MapPin className={`w-4 h-4 mt-1 ${theme === 'dark' ? 'text-green-400' : 'text-green-600'} flex-shrink-0`} />
+        <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} leading-relaxed text-left`}>
+          {teacher.address}
+        </p>
+      </div>
+
+      <div className="flex items-center justify-center space-x-2">
+        <Phone className={`w-4 h-4 ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`} />
+        <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} font-medium`}>
+          {teacher.phone}
+        </p>
+      </div>
+    </div>
+
+    {/* Decorative corner elements */}
+    <div className={`absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-opacity-30 ${getCategoryColor(teacher.category).includes('purple') ? 'border-purple-300' : getCategoryColor(teacher.category).includes('orange') ? 'border-orange-300' : getCategoryColor(teacher.category).includes('blue') ? 'border-blue-300' : 'border-green-300'} dark:border-opacity-60`}></div>
+    <div className={`absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-opacity-30 ${getCategoryColor(teacher.category).includes('purple') ? 'border-purple-300' : getCategoryColor(teacher.category).includes('orange') ? 'border-orange-300' : getCategoryColor(teacher.category).includes('blue') ? 'border-blue-300' : 'border-green-300'} dark:border-opacity-60`}></div>
+  </motion.div>
+);
+
+const CategorySection: React.FC<CategorySectionProps> = ({ title, emoji, teachers, sectionRef, inView, gradientColor, theme }) => (
+  <section className="py-20 relative overflow-hidden" ref={sectionRef}>
+    <div className="absolute inset-0">
+      <div className={`absolute inset-0 bg-gradient-to-br ${gradientColor} opacity-5`}></div>
+      
+      {/* Floating decorative elements */}
+      <motion.div
+        animate={{
+          y: [0, -20, 0],
+          rotate: [0, 5, 0],
+        }}
+        transition={{
+          duration: 6,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+        className={`absolute top-20 right-20 w-16 h-16 bg-gradient-to-br ${gradientColor} rounded-full opacity-20`}
+      />
+      <motion.div
+        animate={{
+          y: [0, 15, 0],
+          rotate: [0, -5, 0],
+        }}
+        transition={{
+          duration: 8,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+        className={`absolute bottom-20 left-20 w-12 h-12 bg-gradient-to-br ${gradientColor} rounded-full opacity-20`}
+      />
+    </div>
+
+    <div className="container mx-auto px-6 relative z-10">
+      <motion.div
+        initial={{ opacity: 0, y: 50 }}
+        animate={inView ? { opacity: 1, y: 0 } : {}}
+        transition={{ duration: 1 }}
+        className="text-center max-w-3xl mx-auto mb-16"
+      >
+        <h2 className={`text-4xl md:text-5xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6 flex items-center justify-center gap-4`}>
+          <span className="text-5xl">{emoji}</span>
+          {title}
+        </h2>
+        <div className={`w-24 h-1 bg-gradient-to-r ${gradientColor} mx-auto rounded-full`} />
+      </motion.div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {teachers.map((teacher, index) => (
+          <TeacherCard
+            key={teacher.name}
+            teacher={teacher}
+            index={index}
+            inView={inView}
+            theme={theme}
+          />
+        ))}
+      </div>
+    </div>
+  </section>
+);
+
 const TeamPage: React.FC = () => {
   const { theme } = useTheme();
   
@@ -102,171 +278,6 @@ const TeamPage: React.FC = () => {
       category: "Abacus"
     }
   ];
-
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'Vocal':
-        return '🎵';
-      case 'Bharathanatyam':
-        return '💃';
-      case 'Admin':
-        return '🖥️';
-      case 'Abacus':
-        return '🧮';
-      default:
-        return '👥';
-    }
-  };
-
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'Vocal':
-        return 'from-purple-500 to-pink-500';
-      case 'Bharathanatyam':
-        return 'from-orange-500 to-red-500';
-      case 'Admin':
-        return 'from-blue-500 to-indigo-500';
-      case 'Abacus':
-        return 'from-green-500 to-teal-500';
-      default:
-        return 'from-gray-500 to-gray-600';
-    }
-  };
-
-  const TeacherCard: React.FC<{ teacher: Teacher; index: number; inView: boolean }> = ({ teacher, index, inView }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 50, scale: 0.9 }}
-      animate={inView ? { opacity: 1, y: 0, scale: 1 } : {}}
-      transition={{ duration: 0.8, delay: index * 0.1 }}
-      whileHover={{ scale: 1.02, y: -5 }}
-      className={`relative p-8 rounded-3xl ${theme === 'dark' ? 'bg-gray-800/80 border-gray-700' : 'bg-white/80 border-purple-200'} border-2 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden`}
-    >
-      {/* Background gradient */}
-      <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${getCategoryColor(teacher.category)} opacity-10 rounded-full -translate-y-8 translate-x-8`}></div>
-      
-      {/* Profile Image */}
-      <motion.div
-        whileHover={{ scale: 1.1 }}
-        transition={{ duration: 0.3 }}
-        className="relative w-32 h-32 mx-auto mb-6"
-      >
-        <img
-          src={teacher.image}
-          alt={teacher.name}
-          className="w-full h-full rounded-full object-cover border-4 border-white shadow-lg"
-        />
-        <div className={`absolute -bottom-2 -right-2 w-10 h-10 bg-gradient-to-br ${getCategoryColor(teacher.category)} rounded-full flex items-center justify-center shadow-lg`}>
-          <span className="text-white text-lg">{getCategoryIcon(teacher.category)}</span>
-        </div>
-      </motion.div>
-
-      {/* Teacher Info */}
-      <div className="text-center space-y-4">
-        <h3 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-          {teacher.name}
-        </h3>
-        
-        <div className="flex items-center justify-center space-x-2">
-          <GraduationCap className={`w-4 h-4 ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`} />
-          <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} leading-relaxed`}>
-            {teacher.qualification}
-          </p>
-        </div>
-
-        <div className="flex items-center justify-center space-x-2">
-          <Calendar className={`w-4 h-4 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`} />
-          <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-            DOB: {teacher.dob}
-          </p>
-        </div>
-
-        <div className="flex items-start justify-center space-x-2">
-          <MapPin className={`w-4 h-4 mt-1 ${theme === 'dark' ? 'text-green-400' : 'text-green-600'} flex-shrink-0`} />
-          <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} leading-relaxed text-left`}>
-            {teacher.address}
-          </p>
-        </div>
-
-        <div className="flex items-center justify-center space-x-2">
-          <Phone className={`w-4 h-4 ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`} />
-          <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} font-medium`}>
-            {teacher.phone}
-          </p>
-        </div>
-      </div>
-
-      {/* Decorative corner elements */}
-      <div className={`absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-opacity-30 ${getCategoryColor(teacher.category).includes('purple') ? 'border-purple-300' : getCategoryColor(teacher.category).includes('orange') ? 'border-orange-300' : getCategoryColor(teacher.category).includes('blue') ? 'border-blue-300' : 'border-green-300'} dark:border-opacity-60`}></div>
-      <div className={`absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-opacity-30 ${getCategoryColor(teacher.category).includes('purple') ? 'border-purple-300' : getCategoryColor(teacher.category).includes('orange') ? 'border-orange-300' : getCategoryColor(teacher.category).includes('blue') ? 'border-blue-300' : 'border-green-300'} dark:border-opacity-60`}></div>
-    </motion.div>
-  );
-
-  const CategorySection: React.FC<{ 
-    title: string; 
-    emoji: string; 
-    teachers: Teacher[]; 
-    sectionRef: (node?: Element | null) => void; 
-    inView: boolean;
-    gradientColor: string;
-  }> = ({ title, emoji, teachers, sectionRef, inView, gradientColor }) => (
-    <section className="py-20 relative overflow-hidden" ref={sectionRef}>
-      <div className="absolute inset-0">
-        <div className={`absolute inset-0 bg-gradient-to-br ${gradientColor} opacity-5`}></div>
-        
-        {/* Floating decorative elements */}
-        <motion.div
-          animate={{
-            y: [0, -20, 0],
-            rotate: [0, 5, 0],
-          }}
-          transition={{
-            duration: 6,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-          className={`absolute top-20 right-20 w-16 h-16 bg-gradient-to-br ${gradientColor} rounded-full opacity-20`}
-        />
-        <motion.div
-          animate={{
-            y: [0, 15, 0],
-            rotate: [0, -5, 0],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-          className={`absolute bottom-20 left-20 w-12 h-12 bg-gradient-to-br ${gradientColor} rounded-full opacity-20`}
-        />
-      </div>
-
-      <div className="container mx-auto px-6 relative z-10">
-        <motion.div
-          initial={{ opacity: 0, y: 50 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 1 }}
-          className="text-center max-w-3xl mx-auto mb-16"
-        >
-          <h2 className={`text-4xl md:text-5xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6 flex items-center justify-center gap-4`}>
-            <span className="text-5xl">{emoji}</span>
-            {title}
-          </h2>
-          <div className={`w-24 h-1 bg-gradient-to-r ${gradientColor} mx-auto rounded-full`} />
-        </motion.div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {teachers.map((teacher, index) => (
-            <TeacherCard
-              key={teacher.name}
-              teacher={teacher}
-              index={index}
-              inView={inView}
-            />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
@@ -377,6 +388,7 @@ const TeamPage: React.FC = () => {
         sectionRef={vocalRef}
         inView={vocalInView}
         gradientColor="from-purple-500 to-pink-500"
+        theme={theme}
       />
 
       {/* Bharathanatyam Teachers Section */}
@@ -387,6 +399,7 @@ const TeamPage: React.FC = () => {
         sectionRef={bharatanatyamRef}
         inView={bharatanatyamInView}
         gradientColor="from-orange-500 to-red-500"
+        theme={theme}
       />
 
       {/* Admin Staff Section */}
@@ -397,6 +410,7 @@ const TeamPage: React.FC = () => {
         sectionRef={adminRef}
         inView={adminInView}
         gradientColor="from-blue-500 to-indigo-500"
+        theme={theme}
       />
 
       {/* Abacus Teachers Section */}
@@ -407,6 +421,7 @@ const TeamPage: React.FC = () => {
         sectionRef={abacusRef}
         inView={abacusInView}
         gradientColor="from-green-500 to-teal-500"
+        theme={theme}
       />
     </div>
   );
