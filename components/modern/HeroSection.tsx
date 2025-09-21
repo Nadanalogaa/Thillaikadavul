@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { ChevronDown, Play, Calendar, UserPlus, LogIn, BookOpen } from 'lucide-react';
+import { ChevronDown, Calendar, UserPlus, LogIn, BookOpen } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import ParallaxImageSlider from './ParallaxImageSlider';
 
@@ -233,31 +233,12 @@ const HeroSection: React.FC<HeroSectionProps> = ({
               transition={{ duration: 1, delay: 0.8 }}
               className="w-full mb-12"
             >
-              <div className="text-center mb-8">
-                <motion.h3
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: 1 }}
-                  className="text-2xl md:text-3xl font-bold text-white mb-2"
-                >
-                  Welcome back, {currentUser.name}!
-                </motion.h3>
-                <motion.p
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: 1.2 }}
-                  className="text-gray-200"
-                >
-                  Explore our latest performances and student achievements
-                </motion.p>
-              </div>
-              
               {/* Full Width Slider - Left to Right */}
               <motion.div
                 initial={{ opacity: 0, x: -100 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 1, delay: 1.4 }}
-                className="w-full"
+                transition={{ duration: 1, delay: 1 }}
+                className="w-full mb-8"
               >
                 <ParallaxImageSlider 
                   images={[...sliderImages1, ...sliderImages2]} 
@@ -265,25 +246,35 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                   speed={50}
                 />
               </motion.div>
+
+              {/* Explore Dashboard Button */}
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 1, delay: 1.3 }}
+                className="flex justify-center"
+              >
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    if (currentUser.role === 'Student') {
+                      window.location.href = '/dashboard/student';
+                    } else if (currentUser.role === 'Teacher') {
+                      window.location.href = '/dashboard/teacher';
+                    } else if (currentUser.role === 'Admin') {
+                      window.location.href = '/admin/dashboard';
+                    }
+                  }}
+                  className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-8 py-4 rounded-full text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2"
+                >
+                  <UserPlus className="w-5 h-5" />
+                  Explore your Dashboard
+                </motion.button>
+              </motion.div>
             </motion.div>
           )}
 
-          {/* Watch Performances Button */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 1.1 }}
-            className="flex justify-center"
-          >
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="border-2 border-white text-white px-8 py-4 rounded-full text-lg font-semibold backdrop-blur-sm bg-white/10 hover:bg-white/20 transition-all duration-300 flex items-center gap-2"
-            >
-              <Play className="w-5 h-5" />
-              Watch Performances
-            </motion.button>
-          </motion.div>
         </div>
       </motion.div>
 
