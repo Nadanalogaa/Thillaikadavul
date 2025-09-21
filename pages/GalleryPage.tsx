@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
-import { X, Play, Image as ImageIcon, Music, Palette, Sparkles } from 'lucide-react';
+import { X, Play, Image as ImageIcon, Music, Palette, Sparkles, ChevronDown } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import ThemeToggle from '../components/ThemeToggle';
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
-import { Plus, Minus, HelpCircle, Search, BookOpen, Users, Clock, Award } from 'lucide-react';
+import { Plus, Minus, HelpCircle, Search, BookOpen, Users, Clock, Award, ChevronDown } from 'lucide-react';
 import { FAQ_DATA } from '../constants';
 import type { FAQItem } from '../types';
 import { useTheme } from '../contexts/ThemeContext';

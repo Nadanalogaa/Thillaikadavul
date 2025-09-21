@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
-import { Mail, Phone, MapPin, Clock, Send, MessageCircle, Star, CheckCircle } from 'lucide-react';
+import { Mail, Phone, MapPin, Clock, Send, MessageCircle, Star, CheckCircle, ChevronDown } from 'lucide-react';
 import { submitContactForm } from '../api';
 import { useTheme } from '../contexts/ThemeContext';
 import ThemeToggle from '../components/ThemeToggle';
