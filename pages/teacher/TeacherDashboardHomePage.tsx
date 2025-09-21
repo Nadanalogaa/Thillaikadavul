@@ -1,19 +1,72 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
+import { 
+    GraduationCap, 
+    Users, 
+    Calendar, 
+    Bell, 
+    Award, 
+    BookOpen,
+    ChevronRight,
+    Star,
+    Clock,
+    User,
+    TrendingUp,
+    Sparkles,
+    MapPin,
+    UserCheck
+} from 'lucide-react';
 import type { User, Event, Notice, Batch } from '../../types';
-import { getEvents, getNotices, getBatches, getAdminUsers } from '../../api';
-import UnifiedNotificationBell from '../../components/UnifiedNotificationBell';
+import { getEvents, getNotices, getBatches } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
-import BeautifulLoader from '../../components/BeautifulLoader';
+
+const StatCard: React.FC<{ 
+    title: string; 
+    value: string | number; 
+    linkTo?: string; 
+    icon: React.ElementType;
+    gradient: string;
+    delay: number;
+}> = ({ title, value, linkTo, icon: Icon, gradient, delay }) => {
+    const [cardRef, cardInView] = useInView({ threshold: 0.1, triggerOnce: true });
+    
+    const card = (
+        <motion.div
+            ref={cardRef}
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={cardInView ? { opacity: 1, y: 0, scale: 1 } : {}}
+            transition={{ duration: 0.8, delay }}
+            whileHover={{ scale: 1.05, y: -5 }}
+            className="group"
+        >
+            <div className={`block p-6 rounded-2xl ${gradient} shadow-lg hover:shadow-2xl transition-all duration-500 border border-white/20 backdrop-blur-sm relative overflow-hidden`}>
+                <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-6 translate-x-6"></div>
+                <div className="relative z-10">
+                    <div className="flex items-center justify-between mb-3">
+                        <Icon className="w-8 h-8 text-white/90" />
+                        {linkTo && <ChevronRight className="w-5 h-5 text-white/60 group-hover:translate-x-1 transition-transform duration-300" />}
+                    </div>
+                    <h4 className="text-sm font-semibold uppercase text-white/80 tracking-wide mb-1">{title}</h4>
+                    <p className="text-3xl font-bold text-white mb-2">{value}</p>
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            </div>
+        </motion.div>
+    );
+
+    return linkTo ? <Link to={linkTo}>{card}</Link> : card;
+};
 
 const TeacherDashboardHomePage: React.FC = () => {
     const { user } = useOutletContext<{ user: User }>();
     const { theme } = useTheme();
     const [heroRef, heroInView] = useInView({ threshold: 0.1, triggerOnce: true });
     const [statsRef, statsInView] = useInView({ threshold: 0.1, triggerOnce: true });
+    const [batchesRef, batchesInView] = useInView({ threshold: 0.1, triggerOnce: true });
     const [activityRef, activityInView] = useInView({ threshold: 0.1, triggerOnce: true });
+    
     const [stats, setStats] = useState({ totalStudents: 0, totalBatches: 0 });
     const [recentEvents, setRecentEvents] = useState<Event[]>([]);
     const [recentNotices, setRecentNotices] = useState<Notice[]>([]);
@@ -25,11 +78,10 @@ const TeacherDashboardHomePage: React.FC = () => {
             if (!user) return;
             try {
                 setIsLoading(true);
-                const [eventsData, noticesData, batchesData, allUsers] = await Promise.all([
+                const [eventsData, noticesData, batchesData] = await Promise.all([
                     getEvents(),
                     getNotices(),
                     getBatches(),
-                    getAdminUsers()
                 ]);
 
                 // Calculate stats
@@ -65,158 +117,284 @@ const TeacherDashboardHomePage: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-                <BeautifulLoader message="Loading teacher dashboard..." size="large" />
+            <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="w-8 h-8 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-gray-600 dark:text-gray-400">Loading teacher dashboard...</p>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="p-4 space-y-4 bg-transparent">
-            {/* Subtle Dance-themed Background Images */}
-            <div className="absolute top-20 right-10 opacity-3 dark:opacity-5 pointer-events-none">
-                <img 
-                    src="/danceImages/vocal1.jpg" 
-                    alt="" 
-                    className="w-24 h-24 object-cover rounded-full"
-                    onError={(e) => {
-                        e.currentTarget.style.display = 'none';
+        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 relative overflow-hidden">
+            {/* Animated Background Elements */}
+            <div className="absolute inset-0 pointer-events-none">
+                <motion.div
+                    className="absolute top-20 right-20 w-32 h-32 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full"
+                    animate={{
+                        y: [0, -30, 0],
+                        rotate: [0, 180, 360],
+                    }}
+                    transition={{
+                        duration: 15,
+                        repeat: Infinity,
+                        ease: "easeInOut"
                     }}
                 />
-            </div>
-            <div className="absolute bottom-20 left-10 opacity-3 dark:opacity-5 pointer-events-none">
-                    <img 
-                        src="/danceImages/abacus1.jpg" 
-                        alt="" 
-                        className="w-24 h-24 object-cover rounded-full"
-                        onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                        }}
-                    />
+                <motion.div
+                    className="absolute top-1/3 left-10 w-24 h-24 bg-gradient-to-br from-blue-400/20 to-indigo-400/20 rounded-lg rotate-12"
+                    animate={{
+                        y: [0, 20, 0],
+                        rotate: [12, 25, 12],
+                    }}
+                    transition={{
+                        duration: 12,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                    }}
+                />
+                <motion.div
+                    className="absolute bottom-20 right-1/3 w-20 h-20 bg-gradient-to-br from-green-400/20 to-emerald-400/20 rounded-full"
+                    animate={{
+                        y: [0, -25, 0],
+                        scale: [1, 1.2, 1],
+                    }}
+                    transition={{
+                        duration: 10,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                    }}
+                />
+                
+                {/* Background Pattern Dots */}
+                <div className="absolute inset-0">
+                    <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-purple-300/40 dark:bg-purple-600/40 rounded-full"></div>
+                    <div className="absolute top-1/3 right-1/3 w-3 h-3 bg-pink-300/40 dark:bg-pink-600/40 rounded-full"></div>
+                    <div className="absolute bottom-1/4 left-1/2 w-2 h-2 bg-blue-300/40 dark:bg-blue-600/40 rounded-full"></div>
+                    <div className="absolute top-2/3 left-1/5 w-2 h-2 bg-indigo-300/40 dark:bg-indigo-600/40 rounded-full"></div>
                 </div>
+            </div>
 
             {/* Main Content */}
-            <div className="space-y-6">
-                {/* Stat Cards */}
-                <motion.div
-                    ref={statsRef}
+            <div className="relative z-10 p-6 space-y-8">
+                {/* Hero Section */}
+                <motion.section
+                    ref={heroRef}
                     initial={{ opacity: 0, y: 50 }}
-                    animate={statsInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 1 }}
-                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+                    animate={heroInView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ duration: 1, ease: "easeOut" }}
+                    className="text-center py-12"
                 >
-                    {[
-                        { title: "Total Students", value: stats.totalStudents, bgColor: "bg-gradient-to-br from-purple-100 to-indigo-100 dark:from-purple-900/50 dark:to-indigo-900/50", textColor: "text-purple-800 dark:text-purple-300" },
-                        { title: "Total Batches", value: stats.totalBatches, bgColor: "bg-gradient-to-br from-yellow-100 to-orange-100 dark:from-yellow-900/50 dark:to-orange-900/50", textColor: "text-yellow-800 dark:text-yellow-300" },
-                        { title: "Your Courses", value: (user.courseExpertise || []).length, linkTo: "courses", bgColor: "bg-gradient-to-br from-blue-100 to-cyan-100 dark:from-blue-900/50 dark:to-cyan-900/50", textColor: "text-blue-800 dark:text-blue-300" },
-                        { title: "Payment History", value: "View", linkTo: "payment-history", bgColor: "bg-gradient-to-br from-green-100 to-emerald-100 dark:from-green-900/50 dark:to-emerald-900/50", textColor: "text-green-800 dark:text-green-300" }
-                    ].map((stat, index) => {
-                        const content = (
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.9, y: 30 }}
-                                animate={statsInView ? { opacity: 1, scale: 1, y: 0 } : {}}
-                                transition={{ duration: 0.8, delay: index * 0.1 }}
-                                whileHover={{ scale: 1.05, y: -5 }}
-                                className={`block p-6 rounded-2xl shadow-lg ${stat.linkTo ? 'transition-all hover:shadow-xl cursor-pointer' : ''} ${stat.bgColor} backdrop-blur-sm border border-white/20 dark:border-gray-700/30`}
-                            >
-                                <h4 className={`text-sm font-medium uppercase ${stat.textColor} opacity-80`}>{stat.title}</h4>
-                                <p className={`text-3xl font-bold mt-2 ${stat.textColor}`}>{stat.value}</p>
-                            </motion.div>
-                        );
-                        return stat.linkTo ? <Link key={index} to={stat.linkTo}>{content}</Link> : <div key={index}>{content}</div>;
-                    })}
-                </motion.div>
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={heroInView ? { opacity: 1, scale: 1 } : {}}
+                        transition={{ duration: 1.2, delay: 0.2 }}
+                        className="mb-8"
+                    >
+                        <GraduationCap className="w-16 h-16 mx-auto mb-6 text-purple-600 dark:text-purple-400" />
+                        <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent mb-4">
+                            Welcome back, {user.name?.split(' ')[0]}!
+                        </h1>
+                        <p className={`text-lg md:text-xl ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-2`}>
+                            {dateString}
+                        </p>
+                    </motion.div>
+                    
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={heroInView ? { opacity: 1, scale: 1 } : {}}
+                        transition={{ duration: 1, delay: 0.4 }}
+                        className="flex justify-center space-x-3"
+                    >
+                        <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
+                        <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
+                        <div className="w-3 h-3 bg-indigo-500 rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></div>
+                    </motion.div>
+                </motion.section>
 
-                {/* Teacher's Batches & Students */}
-                <motion.div
-                    initial={{ opacity: 0, y: 50 }}
-                    animate={statsInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 1, delay: 0.2 }}
-                    className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/30"
+                {/* Quick Stats */}
+                <motion.section
+                    ref={statsRef}
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
                 >
-                    <h3 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>Your Classes & Students</h3>
-                    
-                    {teacherBatches.length === 0 ? (
-                        <div className="text-center py-8">
-                            <div className="text-4xl mb-2">📚</div>
-                            <p className={`font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>No batches assigned yet</p>
-                            <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mt-1`}>Your assigned classes will appear here</p>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {teacherBatches.slice(0, 6).map((batch, index) => (
-                                <motion.div
-                                    key={batch.id}
-                                    initial={{ opacity: 0, scale: 0.9, y: 30 }}
-                                    animate={statsInView ? { opacity: 1, scale: 1, y: 0 } : {}}
-                                    transition={{ duration: 0.8, delay: 0.3 + index * 0.1 }}
-                                    whileHover={{ scale: 1.05, y: -5 }}
-                                    className="bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/50 dark:to-teal-900/50 rounded-xl p-4 border border-emerald-200 dark:border-emerald-700 shadow-lg hover:shadow-xl transition-all duration-300"
-                                >
-                                    <div className="flex items-start justify-between mb-3">
-                                        <div>
-                                            <h4 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                                                {batch.name}
-                                            </h4>
-                                            <p className={`text-sm ${theme === 'dark' ? 'text-emerald-300' : 'text-emerald-700'}`}>
-                                                {batch.courseName}
-                                            </p>
-                                        </div>
-                                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                            batch.mode === 'Online' 
-                                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300' 
-                                                : 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300'
-                                        }`}>
-                                            {batch.mode}
-                                        </span>
-                                    </div>
-                                    
-                                    <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} mb-3`}>
-                                        <div className="flex items-center gap-1 mb-1">
-                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                                            </svg>
-                                            <span>{batch.schedule.reduce((total, schedule) => total + schedule.studentIds.length, 0)} students</span>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                            </svg>
-                                            <span>{batch.schedule.length} time slots</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="space-y-1">
-                                        {batch.schedule.slice(0, 2).map((schedule, idx) => (
-                                            <div key={idx} className={`text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                                                <span className="font-medium">{schedule.day}</span>: {schedule.timeSlot}
-                                            </div>
-                                        ))}
-                                        {batch.schedule.length > 2 && (
-                                            <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                                                +{batch.schedule.length - 2} more slots
-                                            </div>
-                                        )}
-                                    </div>
+                    <StatCard
+                        title="Total Students"
+                        value={stats.totalStudents}
+                        icon={Users}
+                        gradient="bg-gradient-to-br from-purple-500 to-pink-500"
+                        delay={0.1}
+                    />
+                    <StatCard
+                        title="Your Batches"
+                        value={stats.totalBatches}
+                        icon={BookOpen}
+                        gradient="bg-gradient-to-br from-blue-500 to-indigo-500"
+                        delay={0.2}
+                    />
+                    <StatCard
+                        title="Course Expertise"
+                        value={(user.courseExpertise || []).length}
+                        icon={Award}
+                        gradient="bg-gradient-to-br from-green-500 to-emerald-500"
+                        delay={0.3}
+                    />
+                    <StatCard
+                        title="Recent Events"
+                        value={recentEvents.length}
+                        linkTo="events"
+                        icon={Calendar}
+                        gradient="bg-gradient-to-br from-orange-500 to-amber-500"
+                        delay={0.4}
+                    />
+                </motion.section>
+
+                {/* Teacher's Classes */}
+                <motion.section
+                    ref={batchesRef}
+                    initial={{ opacity: 0, y: 50 }}
+                    animate={batchesInView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ duration: 1, delay: 0.2 }}
+                    className={`rounded-3xl shadow-2xl border backdrop-blur-sm overflow-hidden ${
+                        theme === 'dark' 
+                            ? 'bg-gray-800/90 border-gray-700/50' 
+                            : 'bg-white/90 border-purple-200/50'
+                    }`}
+                >
+                    {/* Header */}
+                    <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-purple-200'}`}>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+                                    <Users className="w-6 h-6 text-white" />
+                                </div>
+                                <div>
+                                    <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                        Your Classes ({stats.totalBatches})
+                                    </h2>
+                                    <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                        Manage your batches and students
+                                    </p>
+                                </div>
+                            </div>
+                            {teacherBatches.length > 6 && (
+                                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                    <Link 
+                                        to="batches" 
+                                        className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all duration-300"
+                                    >
+                                        <Sparkles className="w-4 h-4" />
+                                        <span>View All Batches</span>
+                                    </Link>
                                 </motion.div>
-                            ))}
+                            )}
                         </div>
-                    )}
-                    
-                    {teacherBatches.length > 6 && (
-                        <div className="text-center mt-6">
-                            <Link 
-                                to="batches" 
-                                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg hover:from-emerald-700 hover:to-teal-700 transition-all duration-300"
+                    </div>
+
+                    {/* Batches Content */}
+                    <div className="p-6">
+                        {teacherBatches.length === 0 ? (
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={batchesInView ? { opacity: 1, y: 0 } : {}}
+                                className={`text-center py-16 rounded-2xl ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gradient-to-br from-purple-50 to-blue-50'} border-2 border-dashed ${theme === 'dark' ? 'border-gray-600' : 'border-purple-200'}`}
                             >
-                                View All Batches ({teacherBatches.length})
-                            </Link>
-                        </div>
-                    )}
-                </motion.div>
+                                <BookOpen className={`w-16 h-16 mx-auto mb-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
+                                <h3 className={`text-xl font-semibold mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                                    No Batches Assigned Yet
+                                </h3>
+                                <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                                    Your assigned classes will appear here once they're created by the admin.
+                                </p>
+                            </motion.div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {teacherBatches.slice(0, 6).map((batch, index) => (
+                                    <motion.div
+                                        key={batch.id}
+                                        initial={{ opacity: 0, scale: 0.9, y: 30 }}
+                                        animate={batchesInView ? { opacity: 1, scale: 1, y: 0 } : {}}
+                                        transition={{ duration: 0.6, delay: index * 0.1 }}
+                                        whileHover={{ scale: 1.02, y: -5 }}
+                                        className={`rounded-2xl p-6 border backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-500 relative overflow-hidden group ${
+                                            theme === 'dark' 
+                                                ? 'bg-gray-700/50 border-gray-600/30' 
+                                                : 'bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-200/50'
+                                        }`}
+                                    >
+                                        {/* Background decoration */}
+                                        <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-emerald-400/10 to-teal-400/10 rounded-full -translate-y-6 translate-x-6"></div>
+                                        
+                                        <div className="relative z-10">
+                                            <div className="flex items-start justify-between mb-4">
+                                                <div className="flex items-center space-x-3">
+                                                    <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg">
+                                                        <GraduationCap className="w-5 h-5 text-white" />
+                                                    </div>
+                                                    <div>
+                                                        <h4 className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-1`}>
+                                                            {batch.name}
+                                                        </h4>
+                                                        <p className={`text-sm ${theme === 'dark' ? 'text-emerald-300' : 'text-emerald-700'} font-medium`}>
+                                                            {batch.courseName}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <span className={`px-3 py-1 text-xs font-semibold rounded-full shadow-lg ${
+                                                    batch.mode === 'Online' 
+                                                        ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white' 
+                                                        : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                                                }`}>
+                                                    {batch.mode}
+                                                </span>
+                                            </div>
+                                            
+                                            <div className="space-y-3 mb-4">
+                                                <div className="flex items-center space-x-2">
+                                                    <UserCheck className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`} />
+                                                    <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                                                        {batch.schedule.reduce((total, schedule) => total + schedule.studentIds.length, 0)} students enrolled
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                    <Clock className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`} />
+                                                    <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                                                        {batch.schedule.length} time slot{batch.schedule.length !== 1 ? 's' : ''}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <h5 className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
+                                                    Schedule:
+                                                </h5>
+                                                {batch.schedule.slice(0, 2).map((schedule, idx) => (
+                                                    <div key={idx} className={`flex items-center space-x-2 p-2 rounded-lg ${theme === 'dark' ? 'bg-gray-600/50' : 'bg-white/70'}`}>
+                                                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                                                        <span className={`text-xs font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
+                                                            {schedule.day}: {schedule.timeSlot}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                                {batch.schedule.length > 2 && (
+                                                    <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} text-center py-1`}>
+                                                        +{batch.schedule.length - 2} more slots
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Hover overlay */}
+                                        <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </motion.section>
 
                 {/* Recent Activity */}
-                <motion.div
+                <motion.section
                     ref={activityRef}
                     initial={{ opacity: 0, y: 50 }}
                     animate={activityInView ? { opacity: 1, y: 0 } : {}}
@@ -228,39 +406,66 @@ const TeacherDashboardHomePage: React.FC = () => {
                         initial={{ opacity: 0, x: -50 }}
                         animate={activityInView ? { opacity: 1, x: 0 } : {}}
                         transition={{ duration: 1, delay: 0.2 }}
-                        className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/30"
+                        className={`rounded-3xl shadow-2xl border backdrop-blur-sm overflow-hidden ${
+                            theme === 'dark' 
+                                ? 'bg-gray-800/90 border-gray-700/50' 
+                                : 'bg-white/90 border-purple-200/50'
+                        }`}
                     >
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Recent Notices</h3>
-                            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                                <Link to="notice" className="text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:underline transition-colors duration-300">View All</Link>
-                            </motion.div>
+                        <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-purple-200'}`}>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+                                        <Bell className="w-5 h-5 text-white" />
+                                    </div>
+                                    <h3 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                        Recent Notices
+                                    </h3>
+                                </div>
+                                <Link to="notice" className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:underline">
+                                    View All
+                                </Link>
+                            </div>
                         </div>
-                        <ul className="space-y-4">
-                            {recentNotices.map((notice, i) => (
-                                <motion.li
-                                    key={notice.id}
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={activityInView ? { opacity: 1, x: 0 } : {}}
-                                    transition={{ duration: 0.8, delay: 0.3 + i * 0.1 }}
-                                    whileHover={{ scale: 1.02, x: 5 }}
-                                    className="p-4 bg-gradient-to-r from-purple-100/50 to-blue-100/50 dark:from-purple-900/30 dark:to-blue-900/30 rounded-xl backdrop-blur-sm border border-purple-200/30 dark:border-purple-700/30 hover:shadow-lg transition-all duration-300"
-                                >
-                                    <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{notice.title}</p>
-                                    <p className={`text-xs mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>{new Date(notice.issuedAt).toLocaleDateString()}</p>
-                                </motion.li>
-                            ))}
-                            {recentNotices.length === 0 && (
-                                <motion.p
+                        <div className="p-6">
+                            {recentNotices.length > 0 ? (
+                                <div className="space-y-4">
+                                    {recentNotices.map((notice, i) => (
+                                        <motion.div
+                                            key={notice.id}
+                                            initial={{ opacity: 0, x: -20 }}
+                                            animate={activityInView ? { opacity: 1, x: 0 } : {}}
+                                            transition={{ duration: 0.8, delay: 0.3 + i * 0.1 }}
+                                            whileHover={{ scale: 1.02, x: 5 }}
+                                            className={`p-4 rounded-xl border backdrop-blur-sm hover:shadow-lg transition-all duration-300 ${
+                                                theme === 'dark' 
+                                                    ? 'bg-gray-700/50 border-gray-600/30' 
+                                                    : 'bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200/50'
+                                            }`}
+                                        >
+                                            <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-2`}>
+                                                {notice.title}
+                                            </p>
+                                            <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                                {new Date(notice.issuedAt).toLocaleDateString()}
+                                            </p>
+                                        </motion.div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <motion.div
                                     initial={{ opacity: 0 }}
                                     animate={activityInView ? { opacity: 1 } : {}}
                                     transition={{ duration: 1, delay: 0.5 }}
-                                    className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} text-center py-8`}
+                                    className="text-center py-8"
                                 >
-                                    No recent notices.
-                                </motion.p>
+                                    <Bell className={`w-12 h-12 mx-auto mb-3 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
+                                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                                        No recent notices.
+                                    </p>
+                                </motion.div>
                             )}
-                        </ul>
+                        </div>
                     </motion.div>
                     
                     {/* Upcoming Events */}
@@ -268,41 +473,68 @@ const TeacherDashboardHomePage: React.FC = () => {
                         initial={{ opacity: 0, x: 50 }}
                         animate={activityInView ? { opacity: 1, x: 0 } : {}}
                         transition={{ duration: 1, delay: 0.4 }}
-                        className="bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200/50 dark:border-gray-700/30"
+                        className={`rounded-3xl shadow-2xl border backdrop-blur-sm overflow-hidden ${
+                            theme === 'dark' 
+                                ? 'bg-gray-800/90 border-gray-700/50' 
+                                : 'bg-white/90 border-purple-200/50'
+                        }`}
                     >
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Upcoming Events</h3>
-                            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                                <Link to="events" className="text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:underline transition-colors duration-300">View All</Link>
-                            </motion.div>
+                        <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-purple-200'}`}>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                    <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center">
+                                        <Calendar className="w-5 h-5 text-white" />
+                                    </div>
+                                    <h3 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                        Upcoming Events
+                                    </h3>
+                                </div>
+                                <Link to="events" className="text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:underline">
+                                    View All
+                                </Link>
+                            </div>
                         </div>
-                        <ul className="space-y-4">
-                            {recentEvents.map((event, i) => (
-                                <motion.li
-                                    key={event.id}
-                                    initial={{ opacity: 0, x: 20 }}
-                                    animate={activityInView ? { opacity: 1, x: 0 } : {}}
-                                    transition={{ duration: 0.8, delay: 0.5 + i * 0.1 }}
-                                    whileHover={{ scale: 1.02, x: -5 }}
-                                    className="p-4 bg-gradient-to-r from-emerald-100/50 to-cyan-100/50 dark:from-emerald-900/30 dark:to-cyan-900/30 rounded-xl backdrop-blur-sm border border-emerald-200/30 dark:border-emerald-700/30 hover:shadow-lg transition-all duration-300"
-                                >
-                                    <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{event.title}</p>
-                                    <p className={`text-xs mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>{new Date(event.date).toLocaleString()}</p>
-                                </motion.li>
-                            ))}
-                            {recentEvents.length === 0 && (
-                                <motion.p
+                        <div className="p-6">
+                            {recentEvents.length > 0 ? (
+                                <div className="space-y-4">
+                                    {recentEvents.map((event, i) => (
+                                        <motion.div
+                                            key={event.id}
+                                            initial={{ opacity: 0, x: 20 }}
+                                            animate={activityInView ? { opacity: 1, x: 0 } : {}}
+                                            transition={{ duration: 0.8, delay: 0.5 + i * 0.1 }}
+                                            whileHover={{ scale: 1.02, x: -5 }}
+                                            className={`p-4 rounded-xl border backdrop-blur-sm hover:shadow-lg transition-all duration-300 ${
+                                                theme === 'dark' 
+                                                    ? 'bg-gray-700/50 border-gray-600/30' 
+                                                    : 'bg-gradient-to-r from-emerald-50 to-cyan-50 border-emerald-200/50'
+                                            }`}
+                                        >
+                                            <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-2`}>
+                                                {event.title}
+                                            </p>
+                                            <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                                {new Date(event.date).toLocaleString()}
+                                            </p>
+                                        </motion.div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <motion.div
                                     initial={{ opacity: 0 }}
                                     animate={activityInView ? { opacity: 1 } : {}}
                                     transition={{ duration: 1, delay: 0.7 }}
-                                    className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} text-center py-8`}
+                                    className="text-center py-8"
                                 >
-                                    No upcoming events.
-                                </motion.p>
+                                    <Calendar className={`w-12 h-12 mx-auto mb-3 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
+                                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                                        No upcoming events.
+                                    </p>
+                                </motion.div>
                             )}
-                        </ul>
+                        </div>
                     </motion.div>
-                </motion.div>
+                </motion.section>
             </div>
         </div>
     );

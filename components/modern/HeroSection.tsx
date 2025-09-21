@@ -2,17 +2,20 @@ import React, { useEffect, useState } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { ChevronDown, Play, Calendar, UserPlus, LogIn, BookOpen } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import ParallaxImageSlider from './ParallaxImageSlider';
 
 interface HeroSectionProps {
   onLoginClick?: () => void;
   onRegisterClick?: () => void;
   onBookDemoClick?: () => void;
+  currentUser?: any;
 }
 
 const HeroSection: React.FC<HeroSectionProps> = ({ 
   onLoginClick, 
   onRegisterClick, 
-  onBookDemoClick 
+  onBookDemoClick,
+  currentUser 
 }) => {
   const { theme } = useTheme();
   const { scrollY } = useScroll();
@@ -26,6 +29,29 @@ const HeroSection: React.FC<HeroSectionProps> = ({
     '/danceImages/DSC02946~2.JPG',
     '/danceImages/EGM_7524_DxO.jpg',
     '/danceImages/PRAP3795_DxO.jpg'
+  ];
+
+  // Beautiful dance performance images for parallax sliders
+  const sliderImages1 = [
+    '/danceImages/EGM_7361_DxO.jpg',
+    '/danceImages/EGM_7524_DxO.jpg',
+    '/danceImages/EGM_7414_DxO.jpg',
+    '/danceImages/EGM_7745_DxO.jpg',
+    '/danceImages/PRAP3795_DxO.jpg',
+    '/danceImages/PRAP3850_DxO.jpg',
+    '/danceImages/DSC03395_DxO.jpg',
+    '/danceImages/EGM_7698_DxO.jpg'
+  ];
+
+  const sliderImages2 = [
+    '/danceImages/PRAP4509_DxO.jpg',
+    '/danceImages/EGM_7783_DxO.jpg',
+    '/danceImages/DSC02946~2.JPG',
+    '/danceImages/EGM_7657_DxO.jpg',
+    '/danceImages/PRAP4418_DxO.jpg',
+    '/danceImages/EGM_7764_DxO.jpg',
+    '/danceImages/DSC03919_DxO.jpg',
+    '/danceImages/EGM_7914_DxO.jpg'
   ];
 
   useEffect(() => {
@@ -127,76 +153,132 @@ const HeroSection: React.FC<HeroSectionProps> = ({
             Where Tradition Meets Innovation in Classical Dance & Arts
           </motion.p>
 
-          {/* Action Cards */}
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.8 }}
-            className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-12"
-          >
-            {/* Book Demo Class Card */}
+          {/* Conditional Content based on Authentication */}
+          {!currentUser ? (
+            // Show login/register cards for non-authenticated users
             <motion.div
-              whileHover={{ scale: 1.03, y: -5 }}
-              whileTap={{ scale: 0.98 }}
-              className={`rounded-2xl p-8 backdrop-blur-lg border transition-all duration-300 cursor-pointer ${
-                theme === 'dark'
-                  ? 'bg-white/10 border-white/20 hover:bg-white/15'
-                  : 'bg-white/15 border-white/30 hover:bg-white/20'
-              }`}
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 1, delay: 0.8 }}
+              className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-12"
             >
-              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-orange-400 to-pink-500 rounded-2xl">
-                <Calendar className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-2xl font-bold mb-3 text-white">Book Demo Class</h3>
-              <p className="text-gray-200 mb-6">Experience our teaching methodology with a free demo class</p>
-              <motion.button
-                onClick={onBookDemoClick}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="w-full bg-gradient-to-r from-orange-400 to-pink-500 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2"
+              {/* Book Demo Class Card */}
+              <motion.div
+                whileHover={{ scale: 1.03, y: -5 }}
+                whileTap={{ scale: 0.98 }}
+                className={`rounded-2xl p-8 backdrop-blur-lg border transition-all duration-300 cursor-pointer ${
+                  theme === 'dark'
+                    ? 'bg-white/10 border-white/20 hover:bg-white/15'
+                    : 'bg-white/15 border-white/30 hover:bg-white/20'
+                }`}
               >
-                <BookOpen className="w-5 h-5" />
-                Book Now
-              </motion.button>
-            </motion.div>
+                <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-orange-400 to-pink-500 rounded-2xl">
+                  <Calendar className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold mb-3 text-white">Book Demo Class</h3>
+                <p className="text-gray-200 mb-6">Experience our teaching methodology with a free demo class</p>
+                <motion.button
+                  onClick={onBookDemoClick}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="w-full bg-gradient-to-r from-orange-400 to-pink-500 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2"
+                >
+                  <BookOpen className="w-5 h-5" />
+                  Book Now
+                </motion.button>
+              </motion.div>
 
-            {/* Login/Register Card */}
-            <motion.div
-              whileHover={{ scale: 1.03, y: -5 }}
-              whileTap={{ scale: 0.98 }}
-              className={`rounded-2xl p-8 backdrop-blur-lg border transition-all duration-300 cursor-pointer ${
-                theme === 'dark'
-                  ? 'bg-white/10 border-white/20 hover:bg-white/15'
-                  : 'bg-white/15 border-white/30 hover:bg-white/20'
-              }`}
-            >
-              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-blue-400 to-purple-500 rounded-2xl">
-                <UserPlus className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-2xl font-bold mb-3 text-white">Join Our Community</h3>
-              <p className="text-gray-200 mb-6">Login to your account or register as a new student</p>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <motion.button
-                  onClick={onLoginClick}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="flex-1 bg-gradient-to-r from-blue-400 to-purple-500 text-white px-4 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2"
-                >
-                  <LogIn className="w-4 h-4" />
-                  Login
-                </motion.button>
-                <motion.button
-                  onClick={onRegisterClick}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="flex-1 border-2 border-white text-white px-4 py-3 rounded-xl font-semibold backdrop-blur-sm bg-white/10 hover:bg-white/20 transition-all duration-300 flex items-center justify-center gap-2"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  Register
-                </motion.button>
-              </div>
+              {/* Login/Register Card */}
+              <motion.div
+                whileHover={{ scale: 1.03, y: -5 }}
+                whileTap={{ scale: 0.98 }}
+                className={`rounded-2xl p-8 backdrop-blur-lg border transition-all duration-300 cursor-pointer ${
+                  theme === 'dark'
+                    ? 'bg-white/10 border-white/20 hover:bg-white/15'
+                    : 'bg-white/15 border-white/30 hover:bg-white/20'
+                }`}
+              >
+                <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-blue-400 to-purple-500 rounded-2xl">
+                  <UserPlus className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold mb-3 text-white">Join Our Community</h3>
+                <p className="text-gray-200 mb-6">Login to your account or register as a new student</p>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <motion.button
+                    onClick={onLoginClick}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="flex-1 bg-gradient-to-r from-blue-400 to-purple-500 text-white px-4 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    Login
+                  </motion.button>
+                  <motion.button
+                    onClick={onRegisterClick}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="flex-1 border-2 border-white text-white px-4 py-3 rounded-xl font-semibold backdrop-blur-sm bg-white/10 hover:bg-white/20 transition-all duration-300 flex items-center justify-center gap-2"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    Register
+                  </motion.button>
+                </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
+          ) : (
+            // Show parallax sliders for authenticated users
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 1, delay: 0.8 }}
+              className="w-full max-w-7xl mx-auto mb-12 space-y-8"
+            >
+              <div className="text-center mb-8">
+                <motion.h3
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 1 }}
+                  className="text-2xl md:text-3xl font-bold text-white mb-2"
+                >
+                  Welcome back, {currentUser.name}!
+                </motion.h3>
+                <motion.p
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 1.2 }}
+                  className="text-gray-200"
+                >
+                  Explore our latest performances and student achievements
+                </motion.p>
+              </div>
+              
+              {/* First Row - Left to Right */}
+              <motion.div
+                initial={{ opacity: 0, x: -100 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 1, delay: 1.4 }}
+              >
+                <ParallaxImageSlider 
+                  images={sliderImages1} 
+                  direction="left-to-right" 
+                  speed={40}
+                />
+              </motion.div>
+              
+              {/* Second Row - Right to Left */}
+              <motion.div
+                initial={{ opacity: 0, x: 100 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 1, delay: 1.6 }}
+              >
+                <ParallaxImageSlider 
+                  images={sliderImages2} 
+                  direction="right-to-left" 
+                  speed={35}
+                />
+              </motion.div>
+            </motion.div>
+          )}
 
           {/* Watch Performances Button */}
           <motion.div

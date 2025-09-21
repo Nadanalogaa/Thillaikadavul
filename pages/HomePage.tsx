@@ -13,12 +13,14 @@ interface HomePageProps {
   onLoginClick: () => void;
   onRegisterClick?: () => void;
   onBookDemoClick?: () => void;
+  currentUser?: any; // Add current user prop
 }
 
 const HomePage: React.FC<HomePageProps> = ({ 
   onLoginClick, 
   onRegisterClick, 
-  onBookDemoClick 
+  onBookDemoClick,
+  currentUser 
 }) => {
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
@@ -30,6 +32,7 @@ const HomePage: React.FC<HomePageProps> = ({
         onLoginClick={onLoginClick}
         onRegisterClick={onRegisterClick}
         onBookDemoClick={onBookDemoClick}
+        currentUser={currentUser}
       />
       
       {/* About Us Section */}

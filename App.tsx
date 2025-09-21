@@ -189,6 +189,7 @@ function App() {
                   // TODO: Implement book demo functionality
                   console.log('Book demo clicked');
                 }}
+                currentUser={currentUser}
               />
             } />
             <Route path="/about" element={<AboutPage />} />
