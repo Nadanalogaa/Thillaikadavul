@@ -27,25 +27,29 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
       name: 'Instagram',
       url: 'https://www.instagram.com/nadanaloga_chennai/',
       icon: Instagram,
-      color: 'from-pink-500 to-purple-600'
+      color: 'from-pink-500 to-purple-600',
+      brandColor: 'text-pink-500 hover:text-pink-600'
     },
     {
       name: 'Facebook',
       url: 'https://www.facebook.com/bharathanaatiyam',
       icon: Facebook,
-      color: 'from-blue-600 to-blue-700'
+      color: 'from-blue-600 to-blue-700',
+      brandColor: 'text-blue-600 hover:text-blue-700'
     },
     {
       name: 'YouTube',
       url: 'https://www.youtube.com/@Nadanaloga',
       icon: Youtube,
-      color: 'from-red-600 to-red-700'
+      color: 'from-red-600 to-red-700',
+      brandColor: 'text-red-500 hover:text-red-600'
     },
     {
       name: 'LinkedIn',
       url: 'https://www.linkedin.com/in/nadanaloga-fine-arts-school-0431b6324/',
       icon: Linkedin,
-      color: 'from-blue-700 to-blue-800'
+      color: 'from-blue-700 to-blue-800',
+      brandColor: 'text-blue-700 hover:text-blue-800'
     }
   ];
 
@@ -146,7 +150,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                 whileHover={{ scale: 1.2 }}
                 whileTap={{ scale: 0.9 }}
               >
-                <social.icon className={`w-5 h-5 ${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'} transition-colors duration-300`} />
+                <social.icon className={`w-5 h-5 ${social.brandColor} transition-colors duration-300`} strokeWidth={1.5} />
                 <div className={`absolute -bottom-8 left-1/2 transform -translate-x-1/2 px-2 py-1 ${theme === 'dark' ? 'bg-gray-800' : 'bg-black'} text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap z-50`}>
                   {social.name}
                 </div>
@@ -260,7 +264,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                     whileHover={{ scale: 1.2 }}
                     whileTap={{ scale: 0.9 }}
                   >
-                    <social.icon className={`w-6 h-6 ${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'} transition-colors duration-300`} />
+                    <social.icon className={`w-6 h-6 ${social.brandColor} transition-colors duration-300`} strokeWidth={1.5} />
                   </motion.a>
                 ))}
               </div>
