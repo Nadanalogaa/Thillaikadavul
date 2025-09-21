@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Instagram, Facebook, Youtube, Linkedin } from 'lucide-react';
 import { NAV_LINKS } from '../constants';
 import type { User } from '../types';
 import { UserRole } from '../types';
@@ -19,6 +21,33 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
   const { theme } = useTheme();
 
   const visibleNavLinks = NAV_LINKS.filter(link => !isAdminPage);
+
+  const socialLinks = [
+    {
+      name: 'Instagram',
+      url: 'https://www.instagram.com/nadanaloga_chennai/',
+      icon: Instagram,
+      color: 'from-pink-500 to-purple-600'
+    },
+    {
+      name: 'Facebook',
+      url: 'https://www.facebook.com/bharathanaatiyam',
+      icon: Facebook,
+      color: 'from-blue-600 to-blue-700'
+    },
+    {
+      name: 'YouTube',
+      url: 'https://www.youtube.com/@Nadanaloga',
+      icon: Youtube,
+      color: 'from-red-600 to-red-700'
+    },
+    {
+      name: 'LinkedIn',
+      url: 'https://www.linkedin.com/in/nadanaloga-fine-arts-school-0431b6324/',
+      icon: Linkedin,
+      color: 'from-blue-700 to-blue-800'
+    }
+  ];
 
   const getDashboardPath = () => {
     if (!currentUser) return "/";
@@ -104,6 +133,38 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
               Dashboard
             </NavLink>
           )}
+          
+          {/* Social Media Icons - Desktop */}
+          <div className="hidden md:flex items-center space-x-3 ml-6">
+            {socialLinks.map((social, index) => (
+              <motion.a
+                key={social.name}
+                href={social.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="relative group"
+                whileHover={{ scale: 1.1, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                animate={{
+                  y: [0, -3, 0],
+                  rotateZ: [0, 2, -2, 0],
+                }}
+                transition={{
+                  duration: 3 + index * 0.5,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: index * 0.2
+                }}
+              >
+                <div className={`p-2.5 rounded-xl bg-gradient-to-br ${social.color} opacity-90 hover:opacity-100 transition-all duration-300 shadow-lg hover:shadow-xl`}>
+                  <social.icon className="w-4 h-4 text-white" />
+                </div>
+                <div className={`absolute -bottom-8 left-1/2 transform -translate-x-1/2 px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap z-50`}>
+                  {social.name}
+                </div>
+              </motion.a>
+            ))}
+          </div>
         </div>
 
         <div className="hidden md:flex items-center space-x-4">
@@ -198,6 +259,38 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                   Dashboard
                 </NavLink>
              )}
+            
+            {/* Social Media Icons - Mobile */}
+            <div className={`pt-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-indigo-100'}`}>
+              <h4 className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-3 px-4`}>Follow Us</h4>
+              <div className="flex items-center justify-center space-x-4 mb-4">
+                {socialLinks.map((social, index) => (
+                  <motion.a
+                    key={social.name}
+                    href={social.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="relative group"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
+                    animate={{
+                      y: [0, -2, 0],
+                    }}
+                    transition={{
+                      duration: 2 + index * 0.3,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                      delay: index * 0.1
+                    }}
+                  >
+                    <div className={`p-3 rounded-xl bg-gradient-to-br ${social.color} opacity-90 hover:opacity-100 transition-all duration-300 shadow-lg hover:shadow-xl`}>
+                      <social.icon className="w-5 h-5 text-white" />
+                    </div>
+                  </motion.a>
+                ))}
+              </div>
+            </div>
+            
             <div className={`flex flex-col space-y-4 pt-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-indigo-100'}`}>
               {currentUser ? (
                 <>
