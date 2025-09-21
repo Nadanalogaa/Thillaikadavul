@@ -46,11 +46,32 @@ const VideoSection: React.FC = () => {
       duration: '5:38'
     },
     {
-      id: 'bkV9veM2w3M', // Additional Nadanaloga video
-      title: 'Classical Dance Masterpiece',
-      description: 'Experience the elegance and grace of classical Indian dance through this mesmerizing performance.',
+      id: 'Qq8ylYlpDnA', // New Nadanaloga video
+      title: 'Classical Dance Performance',
+      description: 'Beautiful classical dance performance showcasing traditional artistry and grace.',
       thumbnail: '/danceImages/responsive/large/EGM_7745_DxO.webp',
-      duration: '7:52'
+      duration: '5:30'
+    },
+    {
+      id: 'RHpD9_TFg-0', // New Nadanaloga video
+      title: 'Student Showcase Performance',
+      description: 'Our talented students demonstrating their skills in this captivating performance.',
+      thumbnail: '/danceImages/responsive/large/EGM_7611_DxO.webp',
+      duration: '6:45'
+    },
+    {
+      id: 'kWNR1R2fZkU', // New Nadanaloga video
+      title: 'Traditional Dance Ensemble',
+      description: 'A mesmerizing ensemble performance highlighting the beauty of classical Indian dance.',
+      thumbnail: '/danceImages/responsive/large/EGM_7634_DxO.webp',
+      duration: '8:20'
+    },
+    {
+      id: 'dNpgLtW1hag', // New Nadanaloga video
+      title: 'Cultural Heritage Performance',
+      description: 'Celebrating our rich cultural heritage through expressive dance and storytelling.',
+      thumbnail: '/danceImages/responsive/large/PRAP2427_DxO.webp',
+      duration: '7:15'
     }
   ];
 
