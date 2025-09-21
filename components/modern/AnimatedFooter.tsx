@@ -123,7 +123,7 @@ const AnimatedFooter: React.FC = () => {
               className="flex justify-center mb-6"
             >
               <img
-                src="/danceImages/Logo.png"
+                src="/danceImages/responsive/large/Logo.webp"
                 alt="Nadanaloga Academy"
                 className="h-16 w-auto animate-float"
               />

@@ -68,7 +68,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
       <nav className="container mx-auto px-6 py-4 flex justify-between items-center">
         <NavLink to="/" className="flex items-center space-x-3 hover:scale-105 transition-transform duration-300">
           <img
-            src="/danceImages/Logo.png"
+            src="/danceImages/responsive/large/Logo.webp"
             alt="Nadanaloga Academy"
             className="h-12 w-auto"
           />

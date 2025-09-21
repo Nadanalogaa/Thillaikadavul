@@ -14,42 +14,42 @@ const VideoSection: React.FC = () => {
       id: '2AF-8tmMIbM', // Nadanaloga Salaingai Pooja 2025
       title: 'Nadanaloga Salaingai Pooja 2025',
       description: 'A sacred ceremony marking the beginning of dance training, celebrating the divine bond between student and art.',
-      thumbnail: '/danceImages/EGM_7361_DxO.jpg',
+      thumbnail: '/danceImages/responsive/large/EGM_7361_DxO.webp',
       duration: '8:45'
     },
     {
       id: '5ur6tleXvxU', // Bharathanatya Arangetram highlights
       title: 'Bharatanatyam Arangetram Highlights Sep 2024',
       description: 'Spectacular highlights from our student\'s debut solo performance, showcasing years of dedicated training.',
-      thumbnail: '/danceImages/DSC02946~2.JPG',
+      thumbnail: '/danceImages/responsive/large/DSC02946~2.webp',
       duration: '12:30'
     },
     {
       id: '72RndUdKpcM', // Salangai pooja 2024 highlights
       title: 'Salangai Pooja 2024 Highlights',
       description: 'Beautiful moments from our annual Salangai Pooja ceremony, a milestone in every dancer\'s journey.',
-      thumbnail: '/danceImages/EGM_7524_DxO.jpg',
+      thumbnail: '/danceImages/responsive/large/EGM_7524_DxO.webp',
       duration: '6:22'
     },
     {
       id: '8_CXrWRvti8', // Thiruppavai pasuram
       title: 'Thiruppavai Pasuram by Dhivyasri',
       description: 'A devotional performance of Thiruppavai, beautifully rendered by our talented student Dhivyasri.',
-      thumbnail: '/danceImages/PRAP3795_DxO.jpg',
+      thumbnail: '/danceImages/responsive/large/PRAP3795_DxO.webp',
       duration: '4:15'
     },
     {
       id: 'B64PzE_R5sI', // Manikkavasagar thiruvembavai
       title: 'Manikkavasagar Thiruvembavai - Margazhi Special',
       description: 'A soulful performance during the auspicious month of Margazhi, dedicated to Lord Shiva.',
-      thumbnail: '/danceImages/EGM_7698_DxO.jpg',
+      thumbnail: '/danceImages/responsive/large/EGM_7698_DxO.webp',
       duration: '5:38'
     },
     {
       id: 'bkV9veM2w3M', // Additional Nadanaloga video
       title: 'Classical Dance Masterpiece',
       description: 'Experience the elegance and grace of classical Indian dance through this mesmerizing performance.',
-      thumbnail: '/danceImages/EGM_7745_DxO.jpg',
+      thumbnail: '/danceImages/responsive/large/EGM_7745_DxO.webp',
       duration: '7:52'
     }
   ];

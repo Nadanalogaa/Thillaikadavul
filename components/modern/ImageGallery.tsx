@@ -9,24 +9,24 @@ const ImageGallery: React.FC = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const galleryImages = [
-    '/danceImages/DSC00609~3.webp',
-    '/danceImages/DSC00617~2.webp',
-    '/danceImages/DSC02648~2.webp',
-    '/danceImages/DSC03395_DxO.webp',
-    '/danceImages/DSC03919_DxO.webp',
-    '/danceImages/DSC07864~2.webp',
-    '/danceImages/DSC07875~2.webp',
-    '/danceImages/DSC07882~2.webp',
-    '/danceImages/EGM_7362_DxO.webp',
-    '/danceImages/EGM_7414_DxO.webp',
-    '/danceImages/EGM_7549_DxO.webp',
-    '/danceImages/EGM_7611_DxO.webp',
-    '/danceImages/EGM_7634_DxO.webp',
-    '/danceImages/EGM_7698_DxO.webp',
-    '/danceImages/EGM_7745_DxO.webp',
-    '/danceImages/PRAP2427_DxO.webp',
-    '/danceImages/PRAP3017_DxO.webp',
-    '/danceImages/PRAP4418_DxO.webp'
+    '/danceImages/responsive/large/DSC00609~3.webp',
+    '/danceImages/responsive/large/DSC00617~2.webp',
+    '/danceImages/responsive/large/DSC02648~2.webp',
+    '/danceImages/responsive/large/DSC03395_DxO.webp',
+    '/danceImages/responsive/large/DSC03919_DxO.webp',
+    '/danceImages/responsive/large/DSC07864~2.webp',
+    '/danceImages/responsive/large/DSC07875~2.webp',
+    '/danceImages/responsive/large/DSC07882~2.webp',
+    '/danceImages/responsive/large/EGM_7362_DxO.webp',
+    '/danceImages/responsive/large/EGM_7414_DxO.webp',
+    '/danceImages/responsive/large/EGM_7549_DxO.webp',
+    '/danceImages/responsive/large/EGM_7611_DxO.webp',
+    '/danceImages/responsive/large/EGM_7634_DxO.webp',
+    '/danceImages/responsive/large/EGM_7698_DxO.webp',
+    '/danceImages/responsive/large/EGM_7745_DxO.webp',
+    '/danceImages/responsive/large/PRAP2427_DxO.webp',
+    '/danceImages/responsive/large/PRAP3017_DxO.webp',
+    '/danceImages/responsive/large/PRAP4418_DxO.webp'
   ];
 
   const imagesPerSlide = 6;

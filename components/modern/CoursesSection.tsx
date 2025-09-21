@@ -10,7 +10,7 @@ const CoursesSection: React.FC = () => {
     {
       title: 'Bharatanatyam Fundamentals',
       description: 'Learn the basic postures, hand gestures, and movements of this classical dance form',
-      image: '/danceImages/DSC03395_DxO.jpg',
+      image: '/danceImages/responsive/large/DSC03395_DxO.webp',
       duration: '3 Months',
       students: '25',
       level: 'Beginner',
@@ -21,7 +21,7 @@ const CoursesSection: React.FC = () => {
     {
       title: 'Advanced Bharatanatyam',
       description: 'Master complex choreographies and expressive storytelling through dance',
-      image: '/danceImages/EGM_7524_DxO.jpg',
+      image: '/danceImages/responsive/large/EGM_7524_DxO.webp',
       duration: '6 Months',
       students: '15',
       level: 'Advanced',
@@ -32,7 +32,7 @@ const CoursesSection: React.FC = () => {
     {
       title: 'Kuchipudi Dance',
       description: 'Explore this graceful dance form known for its fluid movements and dramatic expressions',
-      image: '/danceImages/EGM_7698_DxO.jpg',
+      image: '/danceImages/responsive/large/EGM_7698_DxO.webp',
       duration: '4 Months',
       students: '18',
       level: 'Intermediate',
@@ -43,7 +43,7 @@ const CoursesSection: React.FC = () => {
     {
       title: 'Vocal Music Classes',
       description: 'Learn classical Carnatic music to complement your dance training',
-      image: '/danceImages/PRAP3795_DxO.jpg',
+      image: '/danceImages/responsive/large/PRAP3795_DxO.webp',
       duration: '6 Months',
       students: '20',
       level: 'All Levels',
@@ -54,7 +54,7 @@ const CoursesSection: React.FC = () => {
     {
       title: 'Kids Dance Program',
       description: 'Fun and engaging introduction to classical dance for children ages 5-12',
-      image: '/danceImages/DSC07875~2.JPG',
+      image: '/danceImages/responsive/large/DSC07875~2.webp',
       duration: '2 Months',
       students: '30',
       level: 'Kids',
@@ -65,7 +65,7 @@ const CoursesSection: React.FC = () => {
     {
       title: 'Performance Workshop',
       description: 'Intensive workshop preparing students for stage performances and competitions',
-      image: '/danceImages/EGM_7745_DxO.jpg',
+      image: '/danceImages/responsive/large/EGM_7745_DxO.webp',
       duration: '1 Month',
       students: '12',
       level: 'Advanced',
