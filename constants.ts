@@ -5,6 +5,7 @@ import { Grade } from './types';
 export const NAV_LINKS = [
   { name: 'Home', path: '/' },
   { name: 'About Us', path: '/about' },
+  { name: 'Meet Our Team', path: '/team' },
   { name: 'Gallery', path: '/gallery' },
   { name: 'FAQ', path: '/faq' },
   { name: 'Contact', path: '/contact' },
