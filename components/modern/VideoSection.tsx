@@ -189,7 +189,7 @@ const VideoSection: React.FC = () => {
             className="space-y-4"
           >
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">More Videos</h3>
-            <div className="max-h-[480px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent space-y-4 pr-2">
+            <div className="max-h-[650px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent space-y-4 pr-2">
             {videos.map((video, index) => (
               <motion.div
                 key={index}
