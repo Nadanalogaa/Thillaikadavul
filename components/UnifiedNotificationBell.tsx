@@ -156,6 +156,7 @@ const UnifiedNotificationBell: React.FC<NotificationBellProps> = ({ user }) => {
       }
     } else {
       switch (notification.type) {
+        case 'demo_booking': return '🎯';
         case 'Success': return '✅';
         case 'Warning': return '⚠️';
         case 'Error': return '❌';
@@ -274,7 +275,9 @@ const UnifiedNotificationBell: React.FC<NotificationBellProps> = ({ user }) => {
                         ? 'bg-white border-l-gray-200' 
                         : notification.source === 'event'
                           ? 'bg-purple-50 border-l-purple-500'
-                          : 'bg-blue-50 border-l-blue-500'
+                          : notification.type === 'demo_booking'
+                            ? 'bg-orange-50 border-l-orange-500'
+                            : 'bg-blue-50 border-l-blue-500'
                     }`}
                     onClick={() => !notification.read && handleMarkAsRead(notification)}
                   >
@@ -304,6 +307,13 @@ const UnifiedNotificationBell: React.FC<NotificationBellProps> = ({ user }) => {
                             </div>
                           )}
                           
+                          {notification.type === 'demo_booking' && (
+                            <div className="flex items-center mt-1 text-xs text-gray-600">
+                              <span>🎯 Demo Class Request</span>
+                              <span className="ml-2">📧 Action Required</span>
+                            </div>
+                          )}
+                          
                           <p className="text-gray-600 text-sm mt-1 line-clamp-2">
                             {notification.message}
                           </p>
@@ -311,9 +321,17 @@ const UnifiedNotificationBell: React.FC<NotificationBellProps> = ({ user }) => {
                           <div className="flex items-center justify-between mt-2">
                             <div className="flex space-x-2">
                               <span className={`px-2 py-1 text-xs rounded-full ${
-                                notification.source === 'event' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                                notification.source === 'event' 
+                                  ? 'bg-purple-100 text-purple-700' 
+                                  : notification.type === 'demo_booking'
+                                    ? 'bg-orange-100 text-orange-700'
+                                    : 'bg-blue-100 text-blue-700'
                               }`}>
-                                {notification.source === 'event' ? 'Event' : 'General'}
+                                {notification.source === 'event' 
+                                  ? 'Event' 
+                                  : notification.type === 'demo_booking'
+                                    ? 'Demo Request'
+                                    : 'General'}
                               </span>
                               {notification.source === 'event' && notification.eventData?.priority && (
                                 <span className={`px-2 py-1 text-xs rounded-full ${

@@ -3,6 +3,8 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { ChevronDown, Calendar, UserPlus, LogIn, BookOpen } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import ParallaxImageSlider from './ParallaxImageSlider';
+import DemoBookingModal, { type DemoBookingData } from '../DemoBookingModal';
+import { createDemoBooking } from '../../api';
 
 interface HeroSectionProps {
   onLoginClick?: () => void;
@@ -22,6 +24,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
   const y = useTransform(scrollY, [0, 500], [0, 150]);
   const opacity = useTransform(scrollY, [0, 300], [1, 0]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
 
   const heroImages = [
     '/danceImages/DSC07521~3.JPG',
@@ -60,6 +63,16 @@ const HeroSection: React.FC<HeroSectionProps> = ({
     }, 4000);
     return () => clearInterval(interval);
   }, [heroImages.length]);
+
+  const handleDemoBooking = async (bookingData: DemoBookingData) => {
+    try {
+      await createDemoBooking(bookingData);
+      // Success is handled by the modal component
+    } catch (error) {
+      console.error('Demo booking error:', error);
+      throw error; // Re-throw to let modal handle the error
+    }
+  };
 
   return (
     <div className="relative h-screen overflow-hidden bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 dark:from-gray-900 dark:via-gray-800 dark:to-black">
@@ -178,7 +191,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                 <h3 className="text-2xl font-bold mb-3 text-white">Book Demo Class</h3>
                 <p className="text-gray-200 mb-6">Experience our teaching methodology with a free demo class</p>
                 <motion.button
-                  onClick={onBookDemoClick}
+                  onClick={() => setIsDemoModalOpen(true)}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   className="w-full bg-gradient-to-r from-orange-400 to-pink-500 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2"
@@ -293,6 +306,13 @@ const HeroSection: React.FC<HeroSectionProps> = ({
         </motion.div>
         <p className="text-sm mt-2">Scroll to explore</p>
       </motion.div>
+
+      {/* Demo Booking Modal */}
+      <DemoBookingModal
+        isOpen={isDemoModalOpen}
+        onClose={() => setIsDemoModalOpen(false)}
+        onSubmit={handleDemoBooking}
+      />
     </div>
   );
 };

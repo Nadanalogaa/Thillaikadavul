@@ -1,4 +1,4 @@
-import type { User, ContactFormData, Course, DashboardStats, Notification, Batch, FeeStructure, Invoice, PaymentDetails, StudentEnrollment, Event, GradeExam, BookMaterial, Notice, Location } from './types';
+import type { User, ContactFormData, Course, DashboardStats, Notification, Batch, FeeStructure, Invoice, PaymentDetails, StudentEnrollment, Event, GradeExam, BookMaterial, Notice, Location, DemoBooking } from './types';
 import { supabase } from './src/lib/supabase.js';
 import { notificationService } from './services/notificationService';
 
@@ -3020,5 +3020,283 @@ export const getEventResponseStats = async (eventId: string): Promise<{
       declinedUsers: [],
       maybeUsers: []
     };
+  }
+};
+
+// ===================================
+// DEMO BOOKINGS API FUNCTIONS
+// ===================================
+
+export const createDemoBooking = async (bookingData: {
+  name: string;
+  email: string;
+  phoneNumber: string;
+  country: string;
+  courseName: string;
+  courseId?: string;
+  message?: string;
+}): Promise<DemoBooking> => {
+  try {
+    const { data, error } = await supabase
+      .from('demo_bookings')
+      .insert([{
+        name: bookingData.name,
+        email: bookingData.email.toLowerCase().trim(),
+        phone_number: bookingData.phoneNumber,
+        country: bookingData.country,
+        course_name: bookingData.courseName,
+        course_id: bookingData.courseId || null,
+        message: bookingData.message || null,
+        status: 'pending',
+        source: 'website',
+        preferred_contact_method: 'email'
+      }])
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('Error creating demo booking:', error);
+      throw new Error('Failed to submit demo booking. Please try again.');
+    }
+
+    const demoBooking: DemoBooking = {
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      phoneNumber: data.phone_number,
+      country: data.country,
+      courseName: data.course_name,
+      courseId: data.course_id,
+      status: data.status,
+      message: data.message,
+      adminNotes: data.admin_notes,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+      contactedAt: data.contacted_at,
+      demoScheduledAt: data.demo_scheduled_at,
+      preferredContactMethod: data.preferred_contact_method,
+      source: data.source
+    };
+
+    // Send notifications
+    await notificationService.notifyDemoBooking(demoBooking);
+    
+    // Create admin notifications in the database
+    await createDemoBookingNotification(demoBooking);
+
+    return demoBooking;
+  } catch (error) {
+    console.error('Error in createDemoBooking:', error);
+    throw error;
+  }
+};
+
+export const getDemoBookings = async (): Promise<DemoBooking[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('demo_bookings')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching demo bookings:', error);
+      throw new Error('Failed to fetch demo bookings');
+    }
+
+    return (data || []).map(booking => ({
+      id: booking.id,
+      name: booking.name,
+      email: booking.email,
+      phoneNumber: booking.phone_number,
+      country: booking.country,
+      courseName: booking.course_name,
+      courseId: booking.course_id,
+      status: booking.status,
+      message: booking.message,
+      adminNotes: booking.admin_notes,
+      createdAt: booking.created_at,
+      updatedAt: booking.updated_at,
+      contactedAt: booking.contacted_at,
+      demoScheduledAt: booking.demo_scheduled_at,
+      preferredContactMethod: booking.preferred_contact_method,
+      source: booking.source
+    }));
+  } catch (error) {
+    console.error('Error in getDemoBookings:', error);
+    throw error;
+  }
+};
+
+export const updateDemoBookingStatus = async (
+  bookingId: string, 
+  status: DemoBooking['status'],
+  adminNotes?: string,
+  demoScheduledAt?: string
+): Promise<DemoBooking> => {
+  try {
+    const updateData: any = {
+      status,
+      updated_at: new Date().toISOString()
+    };
+
+    if (adminNotes) {
+      updateData.admin_notes = adminNotes;
+    }
+
+    if (status === 'confirmed' && !demoScheduledAt) {
+      updateData.contacted_at = new Date().toISOString();
+    }
+
+    if (demoScheduledAt) {
+      updateData.demo_scheduled_at = demoScheduledAt;
+    }
+
+    const { data, error } = await supabase
+      .from('demo_bookings')
+      .update(updateData)
+      .eq('id', bookingId)
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('Error updating demo booking:', error);
+      throw new Error('Failed to update demo booking');
+    }
+
+    return {
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      phoneNumber: data.phone_number,
+      country: data.country,
+      courseName: data.course_name,
+      courseId: data.course_id,
+      status: data.status,
+      message: data.message,
+      adminNotes: data.admin_notes,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+      contactedAt: data.contacted_at,
+      demoScheduledAt: data.demo_scheduled_at,
+      preferredContactMethod: data.preferred_contact_method,
+      source: data.source
+    };
+  } catch (error) {
+    console.error('Error in updateDemoBookingStatus:', error);
+    throw error;
+  }
+};
+
+export const deleteDemoBooking = async (bookingId: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('demo_bookings')
+      .delete()
+      .eq('id', bookingId);
+
+    if (error) {
+      console.error('Error deleting demo booking:', error);
+      throw new Error('Failed to delete demo booking');
+    }
+  } catch (error) {
+    console.error('Error in deleteDemoBooking:', error);
+    throw error;
+  }
+};
+
+export const getDemoBookingStats = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('demo_bookings')
+      .select('status, created_at');
+
+    if (error) {
+      console.error('Error fetching demo booking stats:', error);
+      return {
+        total: 0,
+        pending: 0,
+        confirmed: 0,
+        completed: 0,
+        cancelled: 0,
+        thisMonth: 0
+      };
+    }
+
+    const now = new Date();
+    const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const stats = {
+      total: data.length,
+      pending: data.filter(b => b.status === 'pending').length,
+      confirmed: data.filter(b => b.status === 'confirmed').length,
+      completed: data.filter(b => b.status === 'completed').length,
+      cancelled: data.filter(b => b.status === 'cancelled').length,
+      thisMonth: data.filter(b => new Date(b.created_at) >= thisMonth).length
+    };
+
+    return stats;
+  } catch (error) {
+    console.error('Error in getDemoBookingStats:', error);
+    return {
+      total: 0,
+      pending: 0,
+      confirmed: 0,
+      completed: 0,
+      cancelled: 0,
+      thisMonth: 0
+    };
+  }
+};
+
+
+// Create notification for admin users about new demo booking
+export const createDemoBookingNotification = async (demoBooking: DemoBooking): Promise<void> => {
+  try {
+    // Get all admin users
+    const { data: adminUsers, error: adminError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('role', 'Admin');
+
+    if (adminError) {
+      console.error('Error fetching admin users:', adminError);
+      return;
+    }
+
+    if (!adminUsers || adminUsers.length === 0) {
+      console.log('No admin users found to notify');
+      return;
+    }
+
+    // Create notifications for each admin
+    const notifications = adminUsers.map(admin => ({
+      user_id: admin.id,
+      recipient_id: admin.id,
+      title: 'New Demo Booking Request',
+      subject: 'New Demo Booking Request',
+      message: `${demoBooking.name} has requested a demo class for ${demoBooking.courseName}. Contact: ${demoBooking.email}, ${demoBooking.phoneNumber}`,
+      type: 'demo_booking',
+      is_read: false,
+      read: false,
+      created_at: new Date().toISOString(),
+      metadata: {
+        demo_booking_id: demoBooking.id,
+        source: 'demo_booking',
+        customer_name: demoBooking.name,
+        course_name: demoBooking.courseName
+      }
+    }));
+
+    const { error: insertError } = await supabase
+      .from('notifications')
+      .insert(notifications);
+
+    if (insertError) {
+      console.error('Error creating demo booking notifications:', insertError);
+    } else {
+      console.log(`Created ${notifications.length} admin notifications for demo booking`);
+    }
+  } catch (error) {
+    console.error('Error in createDemoBookingNotification:', error);
   }
 };

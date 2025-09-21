@@ -2,12 +2,12 @@ import { supabase } from '../src/lib/supabase.js';
 import type { User } from '../types';
 
 export interface NotificationData {
-  type: 'registration' | 'batch_allocation' | 'event' | 'material' | 'modification' | 'general';
+  type: 'registration' | 'batch_allocation' | 'event' | 'material' | 'modification' | 'general' | 'demo_booking';
   title: string;
   message: string;
   recipientId: string;
   relatedEntityId?: string;
-  relatedEntityType?: 'batch' | 'event' | 'material' | 'user';
+  relatedEntityType?: 'batch' | 'event' | 'material' | 'user' | 'demo_booking';
   priority?: 'low' | 'medium' | 'high';
   emailRequired?: boolean;
 }
@@ -259,6 +259,109 @@ class NotificationService {
     } catch (error) {
       console.error('Error getting students in batch:', error);
       return [];
+    }
+  }
+
+  // Demo Booking Notifications
+  async notifyDemoBooking(demoBookingData: any): Promise<void> {
+    try {
+      // Get admin users to notify
+      const adminIds = await this.getAdminUsers();
+
+      const notifications: NotificationData[] = [];
+
+      // Notify all admins about new demo booking
+      adminIds.forEach(adminId => {
+        notifications.push({
+          type: 'demo_booking',
+          title: 'New Demo Class Booking',
+          message: `${demoBookingData.name} has requested a demo class for ${demoBookingData.courseName}. Email: ${demoBookingData.email}, Phone: ${demoBookingData.phoneNumber}`,
+          recipientId: adminId,
+          relatedEntityId: demoBookingData.id,
+          relatedEntityType: 'demo_booking',
+          emailRequired: true,
+          priority: 'high'
+        });
+      });
+
+      // Send confirmation email to customer (create a special notification for email service)
+      // We'll use a dummy admin ID for the customer notification to trigger email
+      if (adminIds.length > 0) {
+        // Store customer email data in a special format for email service
+        const customerEmailData = {
+          type: 'demo_booking' as const,
+          title: 'Demo Class Booking Confirmation',
+          message: `Thank you ${demoBookingData.name}! We have received your demo class booking request for ${demoBookingData.courseName}. Our team will contact you within 24 hours to schedule your demo class.`,
+          recipientId: 'customer-email-' + demoBookingData.id, // Special ID for customer emails
+          relatedEntityId: demoBookingData.id,
+          relatedEntityType: 'demo_booking' as const,
+          emailRequired: true,
+          priority: 'medium' as const,
+          // Add customer email data for email service
+          customerEmail: demoBookingData.email,
+          customerName: demoBookingData.name
+        };
+
+        // Override email sending for customer notification
+        await this.sendCustomerDemoBookingEmail(customerEmailData, demoBookingData);
+      }
+
+      // Send all admin notifications
+      for (const notification of notifications) {
+        await this.sendNotification(notification);
+      }
+
+      console.log('Demo booking notifications sent successfully');
+    } catch (error) {
+      console.error('Error sending demo booking notifications:', error);
+    }
+  }
+
+  // Special email handler for demo booking customer confirmation
+  private async sendCustomerDemoBookingEmail(notificationData: any, demoBookingData: any): Promise<void> {
+    try {
+      // Create a notification record for tracking (optional)
+      console.log('CUSTOMER DEMO BOOKING EMAIL:', {
+        to: demoBookingData.email,
+        subject: 'Demo Class Booking Confirmation - Nadanaloga Academy',
+        body: `Dear ${demoBookingData.name},
+
+Thank you for your interest in Nadanaloga Academy!
+
+We have successfully received your demo class booking request with the following details:
+
+📚 Course: ${demoBookingData.courseName}
+👤 Name: ${demoBookingData.name}
+📧 Email: ${demoBookingData.email}
+📞 Phone: ${demoBookingData.phoneNumber}
+🌍 Country: ${demoBookingData.country}
+${demoBookingData.message ? `💬 Message: ${demoBookingData.message}` : ''}
+
+What happens next?
+✅ Our team will review your request
+✅ We'll contact you within 24 hours to schedule your demo class
+✅ You'll receive a calendar invitation with demo class details
+
+If you have any questions in the meantime, feel free to contact us:
+📧 Email: nadanalogaa@gmail.com
+📞 Phone: [Your phone number]
+
+We look forward to introducing you to the beautiful world of classical dance and arts!
+
+Best regards,
+Nadanaloga Academy Team
+
+---
+Where Tradition Meets Innovation in Classical Dance & Arts`,
+        recipientName: demoBookingData.name,
+        bookingDetails: demoBookingData
+      });
+
+      // TODO: Integrate with actual email service
+      // This will be implemented when email service is connected
+      
+    } catch (error) {
+      console.error('Error sending customer demo booking email:', error);
     }
   }
 }

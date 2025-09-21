@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
     DashboardIcon, UsersIcon, BatchesIcon, MapPinIcon, FeesIcon, CalendarIcon, 
-    CertificateIcon, BookIcon, MegaphoneIcon, TrashIcon, MenuIcon, XIcon 
+    CertificateIcon, BookIcon, MegaphoneIcon, TrashIcon, MenuIcon, XIcon, DemoClassIcon 
 } from '../icons';
 
 const AdminNav: React.FC = () => {
@@ -16,6 +16,7 @@ const AdminNav: React.FC = () => {
         { name: 'Batches', path: '/admin/batches', icon: BatchesIcon },
         { name: 'Locations', path: '/admin/locations', icon: MapPinIcon },
         { name: 'Fees', path: '/admin/fees', icon: FeesIcon },
+        { name: 'Demo Bookings', path: '/admin/demo-bookings', icon: DemoClassIcon },
         { name: 'Events', path: '/admin/events', icon: CalendarIcon },
         { name: 'Grade Exams', path: '/admin/grade-exams', icon: CertificateIcon },
         { name: 'Book Materials', path: '/admin/book-materials', icon: BookIcon },

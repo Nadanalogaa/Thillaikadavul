@@ -33,6 +33,7 @@ import GradeExamsManagementPage from './pages/admin/GradeExamsManagementPage';
 import BookMaterialsManagementPage from './pages/admin/BookMaterialsManagementPage';
 import NoticesManagementPage from './pages/admin/NoticesManagementPage';
 import LocationsManagementPage from './pages/admin/LocationsManagementPage';
+import DemoBookingsManagementPage from './pages/admin/DemoBookingsManagementPage';
 
 // New Student Pages
 import StudentDashboardHomePage from './pages/student/StudentDashboardHomePage';
@@ -208,6 +209,7 @@ function App() {
             <Route path="/admin/batches" element={<AdminProtectedRoute><BatchesPage /></AdminProtectedRoute>} />
             <Route path="/admin/locations" element={<AdminProtectedRoute><LocationsManagementPage /></AdminProtectedRoute>} />
             <Route path="/admin/fees" element={<AdminProtectedRoute><FeeManagementPage /></AdminProtectedRoute>} />
+            <Route path="/admin/demo-bookings" element={<AdminProtectedRoute><DemoBookingsManagementPage /></AdminProtectedRoute>} />
             <Route path="/admin/events" element={<AdminProtectedRoute><EventsManagementPage /></AdminProtectedRoute>} />
             <Route path="/admin/grade-exams" element={<AdminProtectedRoute><GradeExamsManagementPage /></AdminProtectedRoute>} />
             <Route path="/admin/book-materials" element={<AdminProtectedRoute><BookMaterialsManagementPage /></AdminProtectedRoute>} />
