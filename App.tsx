@@ -51,6 +51,7 @@ import PaymentHistoryPage from './pages/student/PaymentHistoryPage';
 // New Teacher Pages
 import TeacherDashboardHomePage from './pages/teacher/TeacherDashboardHomePage';
 import TeacherProfilePage from './pages/teacher/TeacherProfilePage';
+import TeacherCoursesPage from './pages/teacher/TeacherCoursesPage';
 
 const TeacherContentPlaceholder = ({ title }: { title: string }) => (
     <div className="p-4 sm:p-6 md:p-8">
@@ -254,7 +255,7 @@ function App() {
             >
               <Route index element={<TeacherDashboardHomePage />} />
               <Route path="profile" element={<TeacherProfilePage />} />
-              <Route path="courses" element={<TeacherContentPlaceholder title="Your Courses" />} />
+              <Route path="courses" element={<TeacherCoursesPage />} />
               <Route path="book-materials" element={<TeacherContentPlaceholder title="Book Materials" />} />
               <Route path="events" element={<TeacherContentPlaceholder title="Events" />} />
               <Route path="notice" element={<TeacherContentPlaceholder title="Notice" />} />
