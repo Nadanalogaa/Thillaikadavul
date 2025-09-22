@@ -180,6 +180,77 @@ export const getCurrentUser = async (): Promise<User | null> => {
   return currentUser;
 };
 
+// Function to refresh current user data from database
+export const refreshCurrentUser = async (): Promise<User | null> => {
+  if (!currentUser?.id) {
+    console.log('No current user to refresh');
+    return null;
+  }
+
+  try {
+    console.log('Refreshing user data from database for:', currentUser.email);
+    
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', currentUser.id);
+
+    if (error) {
+      console.error('Error refreshing user data:', error);
+      return currentUser; // Return cached data if refresh fails
+    }
+
+    if (!users || users.length === 0) {
+      console.warn('User not found in database during refresh');
+      return currentUser; // Return cached data if user not found
+    }
+
+    const user = users[0];
+    console.log('Raw user data from database:', user);
+    
+    const userData: User = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      classPreference: user.class_preference || 'Online',
+      contactNumber: user.contact_number,
+      address: user.address,
+      country: user.country,
+      state: user.state,
+      city: user.city,
+      postalCode: user.postal_code,
+      fatherName: user.father_name,
+      dob: user.dob,
+      sex: user.sex,
+      schoolName: user.school_name,
+      standard: user.standard,
+      grade: user.grade,
+      photoUrl: user.photo_url,
+      courses: user.courses || [],
+      courseExpertise: user.course_expertise || [],
+      preferredTimings: user.preferred_timings || [],
+      availableTimeSlots: user.available_time_slots || [],
+      educationalQualifications: user.educational_qualifications,
+      employmentType: user.employment_type,
+      yearsOfExperience: user.years_of_experience,
+      dateOfJoining: user.date_of_joining
+    };
+
+    console.log('Mapped user data:', userData);
+    
+    currentUser = userData;
+    safeSetLocalStorage('currentUser', userData);
+    
+    console.log('User data refreshed successfully:', userData);
+    return userData;
+
+  } catch (error) {
+    console.error('Error refreshing current user:', error);
+    return currentUser; // Return cached data if refresh fails
+  }
+};
+
 export const logout = async (): Promise<void> => {
   currentUser = null;
   // Clear localStorage
