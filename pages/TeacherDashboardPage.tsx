@@ -43,13 +43,26 @@ const Sidebar: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                 ? 'bg-gray-800/90 backdrop-blur-sm border-r border-gray-700/50' 
                 : 'bg-white/90 backdrop-blur-sm border-r border-gray-200/50'
         }`}>
-            <div className="px-8 py-6">
-                <h1 className={`text-3xl font-bold tangerine-title transition-colors duration-300 ${
-                    theme === 'dark' ? 'text-emerald-400' : 'text-brand-primary'
-                }`}>Nadanaloga</h1>
+            {/* Logo Section - Compact */}
+            <div className="px-6 py-4 border-b border-opacity-20 border-gray-300 dark:border-gray-600">
+                <div className="flex items-center space-x-2">
+                    <img
+                        src="/danceImages/responsive/large/Logo.webp"
+                        alt="Nadanaloga Academy"
+                        className="h-8 w-auto"
+                    />
+                    <span className={`text-lg font-bold transition-colors duration-300 ${
+                        theme === 'dark' ? 'text-emerald-400' : 'text-brand-primary'
+                    }`} style={{
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        backgroundClip: 'text'
+                    }}>Nadanaloga</span>
+                </div>
             </div>
-            <nav className="flex-grow px-4">
-                <ul>
+            <nav className="flex-grow px-4 py-2">
+                <ul className="space-y-1">
                     {NAV_ITEMS.map(item => (
                         <li key={item.name}>
                             <NavLink 
@@ -57,47 +70,47 @@ const Sidebar: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                                 end={item.end}
                                 className={({isActive}) => {
                                     if (isActive) {
-                                        return `flex items-center space-x-3 px-4 py-3 my-1 rounded-lg transition-all duration-300 ${
+                                        return `flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-300 text-sm font-medium ${
                                             theme === 'dark' 
                                                 ? 'bg-gradient-to-r from-emerald-600 to-blue-600 text-white shadow-lg'
-                                                : 'bg-brand-purple text-white shadow-lg'
+                                                : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg'
                                         }`;
                                     }
-                                    return `flex items-center space-x-3 px-4 py-3 my-1 rounded-lg transition-all duration-300 ${
+                                    return `flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-300 text-sm font-medium ${
                                         theme === 'dark'
                                             ? 'text-gray-300 hover:bg-emerald-900/30 hover:text-white'
-                                            : 'text-light-text hover:bg-light-purple hover:text-dark-text'
+                                            : 'text-gray-700 hover:bg-emerald-50 hover:text-emerald-600'
                                     }`;
                                 }}
                             >
                                 <item.icon />
-                                <span className="font-medium">{item.name}</span>
+                                <span>{item.name}</span>
                             </NavLink>
                         </li>
                     ))}
                 </ul>
             </nav>
             
-            {/* Theme Toggle */}
-            <div className="px-4 py-2">
-                <div className={`p-3 rounded-lg ${
+            {/* Footer Section */}
+            <div className="px-4 py-3 border-t border-opacity-20 border-gray-300 dark:border-gray-600 space-y-2">
+                {/* Theme Toggle */}
+                <div className={`p-2 rounded-lg ${
                     theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-100'
                 }`}>
                     <ThemeToggle />
                 </div>
-            </div>
-            
-            <div className="p-4">
+                
+                {/* Logout Button */}
                 <button 
                     onClick={onLogout} 
-                    className={`flex items-center w-full space-x-3 px-4 py-3 rounded-lg transition-all duration-300 ${
+                    className={`flex items-center w-full space-x-3 px-3 py-2.5 rounded-lg transition-all duration-300 text-sm font-medium ${
                         theme === 'dark'
                             ? 'text-gray-300 hover:bg-red-900/30 hover:text-red-400'
-                            : 'text-light-text hover:bg-red-100 hover:text-red-600'
+                            : 'text-gray-700 hover:bg-red-100 hover:text-red-600'
                     }`}
                 >
                     <LogoutIcon />
-                    <span className="font-medium">Logout</span>
+                    <span>Logout</span>
                 </button>
             </div>
         </aside>
