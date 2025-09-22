@@ -98,116 +98,135 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
 
   return (
     <header style={headerStyle} className="sticky top-0 z-40 border-0">
-      <nav className="container mx-auto px-6 py-4 flex justify-between items-center">
-        <NavLink to="/" className="flex items-center space-x-3 hover:scale-105 transition-transform duration-300">
-          <img
-            src="/danceImages/responsive/large/Logo.webp"
-            alt="Nadanaloga Academy"
-            className="h-12 w-auto"
-          />
-          <span style={logoStyle} className="text-2xl font-bold">
-            Nadanaloga
-          </span>
-        </NavLink>
+      {/* Row 1: Brand and User Info */}
+      <div className="container mx-auto px-6 py-2">
+        <div className="flex justify-between items-center">
+          {/* Logo and Brand */}
+          <NavLink to="/" className="flex items-center space-x-2 hover:scale-105 transition-transform duration-300">
+            <img
+              src="/danceImages/responsive/large/Logo.webp"
+              alt="Nadanaloga Academy"
+              className="h-8 w-auto"
+            />
+            <span style={logoStyle} className="text-lg font-bold">
+              Nadanaloga
+            </span>
+          </NavLink>
 
-        {/* Desktop Menu */}
-        <div className="hidden md:flex items-center space-x-8">
-          {visibleNavLinks.map((link) => (
-            <NavLink
-              key={link.name}
-              to={link.path}
-              className={({ isActive }) =>
-                `${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400' : 'text-gray-700 hover:text-indigo-600'} transition-all duration-300 font-medium relative ${
-                  isActive ? `${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'} after:absolute after:bottom-[-4px] after:left-0 after:right-0 after:h-0.5 after:bg-gradient-to-r after:from-indigo-600 after:to-purple-600` : ''
-                }`
-              }
-            >
-              {link.name}
-            </NavLink>
-          ))}
-           {currentUser && (
-            <NavLink
-              to={getDashboardPath()}
-              className={({ isActive }) =>
-                `${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400' : 'text-gray-700 hover:text-indigo-600'} transition-all duration-300 font-medium relative ${
-                  isActive ? `${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'} after:absolute after:bottom-[-4px] after:left-0 after:right-0 after:h-0.5 after:bg-gradient-to-r after:from-indigo-600 after:to-purple-600` : ''
-                }`
-              }
-            >
-              Dashboard
-            </NavLink>
-          )}
-          
-          {/* Social Media Icons - Desktop */}
-          <div className="hidden md:flex items-center space-x-2 ml-4">
-            {socialLinks.map((social) => (
-              <motion.a
-                key={social.name}
-                href={social.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="relative group"
-                whileHover={{ scale: 1.2 }}
-                whileTap={{ scale: 0.9 }}
-              >
-                <social.icon className={`w-5 h-5 ${social.brandColor} transition-colors duration-300`} strokeWidth={1.5} />
-                <div className={`absolute -bottom-8 left-1/2 transform -translate-x-1/2 px-2 py-1 ${theme === 'dark' ? 'bg-gray-800' : 'bg-black'} text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap z-50`}>
-                  {social.name}
-                </div>
-              </motion.a>
-            ))}
+          {/* User Info and Social - Desktop Only */}
+          <div className="hidden md:flex items-center space-x-4">
+            {/* Social Media Icons */}
+            <div className="flex items-center space-x-2">
+              {socialLinks.map((social) => (
+                <motion.a
+                  key={social.name}
+                  href={social.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="relative group"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                >
+                  <social.icon className={`w-4 h-4 ${social.brandColor} transition-colors duration-300`} strokeWidth={1.5} />
+                  <div className={`absolute -bottom-6 left-1/2 transform -translate-x-1/2 px-2 py-1 ${theme === 'dark' ? 'bg-gray-800' : 'bg-black'} text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap z-50`}>
+                    {social.name}
+                  </div>
+                </motion.a>
+              ))}
+            </div>
+
+            {/* User Actions */}
+            {currentUser ? (
+              <div className="flex items-center space-x-3">
+                <UnifiedNotificationBell user={currentUser} />
+                <span className={`${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} text-sm font-medium`}>
+                  Welcome, {displayName.split(' ')[0]}!
+                </span>
+                <button 
+                  onClick={onLogout} 
+                  style={outlineButtonStyle}
+                  className="text-indigo-600 font-semibold px-4 py-1.5 text-sm rounded-lg hover:bg-gradient-to-r hover:from-indigo-600 hover:to-purple-600 hover:text-white hover:shadow-lg hover:-translate-y-0.5"
+                >
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-3">
+                <button 
+                  onClick={onLoginClick} 
+                  className={`px-4 py-1.5 text-sm ${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400' : 'text-gray-700 hover:text-indigo-600'} transition-colors duration-300 font-medium`}
+                >
+                  Login
+                </button>
+                <Link 
+                  to="/register" 
+                  style={buttonStyle}
+                  className="text-white font-semibold px-4 py-1.5 text-sm rounded-lg hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
+                >
+                  Register
+                </Link>
+              </div>
+            )}
           </div>
-        </div>
 
-        <div className="hidden md:flex items-center space-x-4">
-          {currentUser ? (
-            <>
-              <UnifiedNotificationBell user={currentUser} />
-              <span className={`${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} ml-2 font-medium`}>Welcome, {displayName.split(' ')[0]}!</span>
-              <button 
-                onClick={onLogout} 
-                style={outlineButtonStyle}
-                className="text-indigo-600 font-semibold px-6 py-2.5 rounded-xl hover:bg-gradient-to-r hover:from-indigo-600 hover:to-purple-600 hover:text-white hover:shadow-lg hover:-translate-y-0.5"
-              >
-                Logout
-              </button>
-            </>
-          ) : (
-            <>
-              <button 
-                onClick={onLoginClick} 
-                className={`px-6 py-2.5 ${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400' : 'text-gray-700 hover:text-indigo-600'} transition-colors duration-300 font-medium`}
-              >
-                Login
-              </button>
-              <Link 
-                to="/register" 
-                style={buttonStyle}
-                className="text-white font-semibold px-6 py-2.5 rounded-xl hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
-              >
-                Register
-              </Link>
-            </>
-          )}
-        </div>
-
-        {/* Mobile Menu Button */}
-        <div className="md:hidden flex items-center space-x-4">
-            {currentUser && <UnifiedNotificationBell user={currentUser} />}
+          {/* Mobile: User Info Only */}
+          <div className="md:hidden flex items-center space-x-3">
+            {currentUser && (
+              <>
+                <UnifiedNotificationBell user={currentUser} />
+                <span className={`${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} text-sm font-medium`}>
+                  {displayName.split(' ')[0]}
+                </span>
+              </>
+            )}
             <button 
               onClick={() => setIsMenuOpen(!isMenuOpen)} 
               className={`${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400 hover:bg-gray-800' : 'text-gray-700 hover:text-indigo-600 hover:bg-indigo-50'} focus:outline-none p-2 rounded-lg transition-all duration-300`}
             >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 {isMenuOpen ? (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                 ) : (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7" />
                 )}
-                </svg>
+              </svg>
             </button>
+          </div>
         </div>
-      </nav>
+      </div>
+
+      {/* Row 2: Navigation - Desktop Only */}
+      <div className="hidden md:block border-t border-opacity-20 border-gray-300 dark:border-gray-600">
+        <nav className="container mx-auto px-6 py-2">
+          <div className="flex justify-center items-center space-x-8">
+            {visibleNavLinks.map((link) => (
+              <NavLink
+                key={link.name}
+                to={link.path}
+                className={({ isActive }) =>
+                  `${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400' : 'text-gray-700 hover:text-indigo-600'} transition-all duration-300 font-medium text-sm relative ${
+                    isActive ? `${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'} after:absolute after:bottom-[-8px] after:left-0 after:right-0 after:h-0.5 after:bg-gradient-to-r after:from-indigo-600 after:to-purple-600` : ''
+                  }`
+                }
+              >
+                {link.name}
+              </NavLink>
+            ))}
+            {currentUser && (
+              <NavLink
+                to={getDashboardPath()}
+                className={({ isActive }) =>
+                  `${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400' : 'text-gray-700 hover:text-indigo-600'} transition-all duration-300 font-medium text-sm relative ${
+                    isActive ? `${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'} after:absolute after:bottom-[-8px] after:left-0 after:right-0 after:h-0.5 after:bg-gradient-to-r after:from-indigo-600 after:to-purple-600` : ''
+                  }`
+                }
+              >
+                Dashboard
+              </NavLink>
+            )}
+          </div>
+        </nav>
+      </div>
 
       {/* Mobile Menu */}
       {isMenuOpen && (
