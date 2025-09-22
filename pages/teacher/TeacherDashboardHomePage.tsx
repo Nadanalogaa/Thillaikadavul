@@ -60,13 +60,14 @@ const getCourseTheme = (courseName: string, index: number) => {
 };
 
 const TeacherDashboardHomePage: React.FC = () => {
-    const { user } = useOutletContext<{ user: User }>();
+    const { user: contextUser } = useOutletContext<{ user: User }>();
     const { theme } = useTheme();
     const [heroRef, heroInView] = useInView({ threshold: 0.1, triggerOnce: true });
     const [statsRef, statsInView] = useInView({ threshold: 0.1, triggerOnce: true });
     const [batchesRef, batchesInView] = useInView({ threshold: 0.1, triggerOnce: true });
     const [activityRef, activityInView] = useInView({ threshold: 0.1, triggerOnce: true });
     
+    const [user, setUser] = useState<User>(contextUser);
     const [stats, setStats] = useState({ totalStudents: 0, totalBatches: 0 });
     const [recentEvents, setRecentEvents] = useState<Event[]>([]);
     const [recentNotices, setRecentNotices] = useState<Notice[]>([]);
@@ -81,7 +82,11 @@ const TeacherDashboardHomePage: React.FC = () => {
                 
                 // Refresh user data to ensure we have latest from database
                 console.log('Refreshing user data on dashboard load...');
-                await refreshCurrentUser();
+                const refreshedUser = await refreshCurrentUser();
+                if (refreshedUser) {
+                    setUser(refreshedUser);
+                    console.log('Dashboard user state updated with refreshed data');
+                }
                 
                 const [eventsData, noticesData, batchesData] = await Promise.all([
                     getEvents(5), // Limit to 5 recent events for dashboard
