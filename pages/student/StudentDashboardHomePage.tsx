@@ -419,103 +419,180 @@ const StudentDashboardHomePage: React.FC = () => {
                                 transition={{ duration: 0.8 }}
                                 className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-6"
                             >
-                                {studentEnrollments.length === 0 ? (
-                                    <motion.div
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        className={`col-span-full text-center py-12 rounded-2xl ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gradient-to-br from-purple-50 to-blue-50'} border-2 border-dashed ${theme === 'dark' ? 'border-gray-600' : 'border-purple-200'}`}
-                                    >
-                                        <BookOpen className={`w-16 h-16 mx-auto mb-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
-                                        <h4 className={`text-xl font-semibold mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                                            No courses enrolled yet
-                                        </h4>
-                                        <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mb-4`}>
-                                            Start {studentName}'s learning journey today
-                                        </p>
-                                        <Link to="courses" className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all duration-300">
-                                            <Sparkles className="w-4 h-4" />
-                                            <span>Browse Courses</span>
-                                        </Link>
-                                    </motion.div>
-                                ) : (
-                                    studentEnrollments.map((enrollment, i) => {
-                                        const courseTheme = getCourseTheme(enrollment.courseName, i);
-                                        const Icon = courseTheme.icon;
-                                        
-                                        return (
-                                            <motion.div
-                                                key={enrollment.batchName}
-                                                initial={{ opacity: 0, scale: 0.9, y: 30 }}
-                                                animate={coursesInView ? { opacity: 1, scale: 1, y: 0 } : {}}
-                                                transition={{ duration: 0.6, delay: i * 0.1 }}
-                                                whileHover={{ scale: 1.02, y: -5 }}
-                                                className={`relative rounded-2xl p-6 ${courseTheme.bgGradient} border ${theme === 'dark' ? 'border-gray-600/30' : 'border-white/50'} backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-500 overflow-hidden group`}
-                                            >
-                                                {/* Background decoration */}
-                                                <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-6 translate-x-6"></div>
-                                                <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-4 -translate-x-4"></div>
-                                                
-                                                <div className="relative z-10">
-                                                    <div className="flex items-center justify-between mb-4">
-                                                        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${courseTheme.gradient} flex items-center justify-center shadow-lg`}>
-                                                            <Icon className="w-6 h-6 text-white" />
-                                                        </div>
-                                                        <div className="flex items-center space-x-1">
-                                                            <Star className="w-4 h-4 text-yellow-500" fill="currentColor" />
-                                                            <Star className="w-4 h-4 text-yellow-500" fill="currentColor" />
-                                                            <Star className="w-4 h-4 text-yellow-500" fill="currentColor" />
-                                                            <Star className="w-4 h-4 text-yellow-500" fill="currentColor" />
-                                                            <Star className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-                                                        </div>
-                                                    </div>
+                                {/* Show preferred courses first, then enrolled courses */}
+                                {(() => {
+                                    const studentCourses = currentStudent?.courses || [];
+                                    const studentPreferredTimings = currentStudent?.preferredTimings || [];
+                                    
+                                    // If student has preferred courses, show them with status
+                                    if (studentCourses.length > 0) {
+                                        return studentCourses.map((courseName, i) => {
+                                            const courseTheme = getCourseTheme(courseName, i);
+                                            const Icon = courseTheme.icon;
+                                            
+                                            // Find enrollment for this course (if allocated by admin)
+                                            const enrollment = studentEnrollments.find(e => e.courseName === courseName);
+                                            
+                                            // Find preferred timings for this course
+                                            const preferredTimings = Array.isArray(studentPreferredTimings) 
+                                                ? studentPreferredTimings.filter(t => t && typeof t === 'object' && t.courseName === courseName)
+                                                : [];
+                                            
+                                            const isAllocated = !!enrollment;
+                                            
+                                            return (
+                                                <motion.div
+                                                    key={courseName}
+                                                    initial={{ opacity: 0, scale: 0.9, y: 30 }}
+                                                    animate={coursesInView ? { opacity: 1, scale: 1, y: 0 } : {}}
+                                                    transition={{ duration: 0.6, delay: i * 0.1 }}
+                                                    whileHover={{ scale: 1.02, y: -5 }}
+                                                    className={`relative rounded-2xl p-6 ${courseTheme.bgGradient} border ${theme === 'dark' ? 'border-gray-600/30' : 'border-white/50'} backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-500 overflow-hidden group`}
+                                                >
+                                                    {/* Background decoration */}
+                                                    <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-6 translate-x-6"></div>
+                                                    <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-4 -translate-x-4"></div>
                                                     
-                                                    <h4 className={`text-xl font-bold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                                                        {enrollment.courseName}
-                                                    </h4>
-                                                    <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} mb-3`}>
-                                                        Batch: {enrollment.batchName}
-                                                    </p>
-                                                    
-                                                    {enrollment.teacher && (
-                                                        <div className="flex items-center space-x-2 mb-4">
-                                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                                                                <User className="w-4 h-4 text-white" />
+                                                    <div className="relative z-10">
+                                                        <div className="flex items-center justify-between mb-4">
+                                                            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${courseTheme.gradient} flex items-center justify-center shadow-lg`}>
+                                                                <Icon className="w-6 h-6 text-white" />
                                                             </div>
-                                                            <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                                                                {enrollment.teacher.name}
-                                                            </span>
+                                                            <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                                                isAllocated 
+                                                                    ? 'bg-green-500/20 text-green-700 dark:text-green-400 border border-green-500/30'
+                                                                    : 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border border-yellow-500/30'
+                                                            }`}>
+                                                                {isAllocated ? '✓ Allocated' : '⏳ Pending'}
+                                                            </div>
                                                         </div>
-                                                    )}
-                                                    
-                                                    <div className="space-y-2">
-                                                        <div className="flex items-center space-x-2">
-                                                            <Clock className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`} />
-                                                            <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                                                                Class Schedule:
-                                                            </span>
-                                                        </div>
-                                                        <div className="space-y-1">
-                                                            {enrollment.timings.slice(0, 2).map((timing, idx) => (
-                                                                <div key={idx} className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} flex items-center space-x-2`}>
-                                                                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                                                    <span>{timing}</span>
+                                                        
+                                                        <h4 className={`text-xl font-bold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                                            {courseName}
+                                                        </h4>
+                                                        
+                                                        {isAllocated ? (
+                                                            // Show batch info if allocated
+                                                            <>
+                                                                <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} mb-3`}>
+                                                                    Batch: {enrollment.batchName}
+                                                                </p>
+                                                                
+                                                                {enrollment.teacher && (
+                                                                    <div className="flex items-center space-x-2 mb-4">
+                                                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                                                                            <User className="w-4 h-4 text-white" />
+                                                                        </div>
+                                                                        <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                                                            Teacher: {enrollment.teacher.name}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} mb-4`}>
+                                                                Waiting for admin to assign batch and teacher
+                                                            </p>
+                                                        )}
+                                                        
+                                                        {/* Timing Information */}
+                                                        <div className="space-y-3">
+                                                            {/* Preferred Timings */}
+                                                            {preferredTimings.length > 0 && (
+                                                                <div>
+                                                                    <div className="flex items-center space-x-2 mb-2">
+                                                                        <Clock className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`} />
+                                                                        <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                                                                            Your Preferred Times:
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        {preferredTimings.map((timing, idx) => {
+                                                                            const timingStr = `${timing.day}: ${timing.timeSlot}`;
+                                                                            const isMatched = isAllocated && enrollment.timings.some(allocated => 
+                                                                                allocated.toLowerCase().includes(timing.day.toLowerCase()) &&
+                                                                                allocated.toLowerCase().includes(timing.timeSlot.toLowerCase())
+                                                                            );
+                                                                            
+                                                                            return (
+                                                                                <div key={idx} className={`text-sm flex items-center space-x-2 ${
+                                                                                    isMatched 
+                                                                                        ? 'text-green-600 dark:text-green-400' 
+                                                                                        : isAllocated 
+                                                                                            ? 'text-gray-400 line-through decoration-2' 
+                                                                                            : 'text-blue-600 dark:text-blue-400'
+                                                                                }`}>
+                                                                                    <div className={`w-2 h-2 rounded-full ${
+                                                                                        isMatched 
+                                                                                            ? 'bg-green-500' 
+                                                                                            : isAllocated 
+                                                                                                ? 'bg-gray-400' 
+                                                                                                : 'bg-blue-500'
+                                                                                    }`}></div>
+                                                                                    <span className={isMatched ? 'font-medium' : ''}>{timingStr}</span>
+                                                                                    {isMatched && <span className="text-xs">✓ Matched</span>}
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
                                                                 </div>
-                                                            ))}
-                                                            {enrollment.timings.length > 2 && (
-                                                                <div className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
-                                                                    +{enrollment.timings.length - 2} more sessions
+                                                            )}
+                                                            
+                                                            {/* Allocated Timings */}
+                                                            {isAllocated && (
+                                                                <div>
+                                                                    <div className="flex items-center space-x-2 mb-2">
+                                                                        <Calendar className={`w-4 h-4 text-green-600 dark:text-green-400`} />
+                                                                        <span className={`text-sm font-medium text-green-700 dark:text-green-300`}>
+                                                                            Allocated Schedule:
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        {enrollment.timings.slice(0, 2).map((timing, idx) => (
+                                                                            <div key={idx} className="text-sm text-green-600 dark:text-green-400 flex items-center space-x-2 font-medium">
+                                                                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                                                                <span>{timing}</span>
+                                                                            </div>
+                                                                        ))}
+                                                                        {enrollment.timings.length > 2 && (
+                                                                            <div className="text-xs text-green-500 dark:text-green-400">
+                                                                                +{enrollment.timings.length - 2} more sessions
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
                                                             )}
                                                         </div>
                                                     </div>
-                                                </div>
-                                                
-                                                {/* Hover overlay */}
-                                                <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                                    
+                                                    {/* Hover overlay */}
+                                                    <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                                </motion.div>
+                                            );
+                                        });
+                                    } else {
+                                        // No courses selected during registration
+                                        return (
+                                            <motion.div
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                className={`col-span-full text-center py-12 rounded-2xl ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gradient-to-br from-purple-50 to-blue-50'} border-2 border-dashed ${theme === 'dark' ? 'border-gray-600' : 'border-purple-200'}`}
+                                            >
+                                                <BookOpen className={`w-16 h-16 mx-auto mb-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
+                                                <h4 className={`text-xl font-semibold mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                                                    No courses selected yet
+                                                </h4>
+                                                <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mb-4`}>
+                                                    {studentName} hasn't selected any courses during registration
+                                                </p>
+                                                <Link to="courses" className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all duration-300">
+                                                    <Sparkles className="w-4 h-4" />
+                                                    <span>Browse & Select Courses</span>
+                                                </Link>
                                             </motion.div>
                                         );
-                                    })
-                                )}
+                                    }
+                                })()}
                             </motion.div>
 
                             {/* Quick Actions */}

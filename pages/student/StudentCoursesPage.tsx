@@ -278,12 +278,21 @@ const StudentCoursesPage: React.FC = () => {
                                     animate={coursesInView ? { opacity: 1, y: 0 } : {}}
                                     transition={{ duration: 0.8 }}
                                 >
-                                    {studentEnrollments.length > 0 ? (
-                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                            {studentEnrollments.map((enrollment, idx) => {
-                                                const preferredTimings = getPreferredTimingsForCourse(currentStudent, enrollment.courseName);
-                                                const courseTheme = getCourseTheme(enrollment.courseName, idx);
-                                                const Icon = getCourseIcon(enrollment.courseName);
+                                    {/* Show preferred courses with allocation status */}
+                                {(() => {
+                                    const studentCourses = currentStudent?.courses || [];
+                                    const studentPreferredTimings = currentStudent?.preferredTimings || [];
+                                    
+                                    if (studentCourses.length > 0) {
+                                        return (
+                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                                {studentCourses.map((courseName, idx) => {
+                                                    // Find enrollment for this course (if allocated by admin)
+                                                    const enrollment = studentEnrollments.find(e => e.courseName === courseName);
+                                                    const preferredTimings = getPreferredTimingsForCourse(currentStudent, courseName);
+                                                    const courseTheme = getCourseTheme(courseName, idx);
+                                                    const Icon = getCourseIcon(courseName);
+                                                    const isAllocated = !!enrollment;
                                                 
                                                 return (
                                                     <motion.div
@@ -307,28 +316,28 @@ const StudentCoursesPage: React.FC = () => {
                                                                     </div>
                                                                     <div>
                                                                         <h3 className={`text-xl font-bold mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                                                                            {enrollment.courseName}
+                                                                            {courseName}
                                                                         </h3>
                                                                         <div className="flex items-center space-x-2">
                                                                             <Award className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`} />
                                                                             <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                                                                                Batch: {enrollment.batchName}
+                                                                                {isAllocated ? `Batch: ${enrollment.batchName}` : 'Pending allocation'}
                                                                             </span>
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                                                                {enrollment.mode && (
-                                                                    <motion.div
-                                                                        whileHover={{ scale: 1.05 }}
-                                                                        className={`px-3 py-1 rounded-full text-sm font-semibold shadow-lg ${
-                                                                            enrollment.mode === 'Online' 
+                                                                <motion.div
+                                                                    whileHover={{ scale: 1.05 }}
+                                                                    className={`px-3 py-1 rounded-full text-sm font-semibold shadow-lg ${
+                                                                        isAllocated 
+                                                                            ? (enrollment.mode === 'Online' 
                                                                                 ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white' 
-                                                                                : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
-                                                                        }`}
-                                                                    >
-                                                                        {enrollment.mode}
-                                                                    </motion.div>
-                                                                )}
+                                                                                : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white')
+                                                                            : 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white'
+                                                                    }`}
+                                                                >
+                                                                    {isAllocated ? enrollment.mode : 'Pending'}
+                                                                </motion.div>
                                                             </div>
 
                                                             {/* Teacher and Location */}
@@ -336,10 +345,10 @@ const StudentCoursesPage: React.FC = () => {
                                                                 <div className="flex items-center space-x-2">
                                                                     <User className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`} />
                                                                     <span className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                                                                        Teacher: {enrollment.teacher?.name || 'Not Assigned'}
+                                                                        Teacher: {isAllocated ? (enrollment.teacher?.name || 'Not Assigned') : 'To be assigned'}
                                                                     </span>
                                                                 </div>
-                                                                {enrollment.mode === 'Offline' && enrollment.location && (
+                                                                {isAllocated && enrollment.mode === 'Offline' && enrollment.location && (
                                                                     <motion.a 
                                                                         href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enrollment.location.address)}`}
                                                                         target="_blank"
@@ -364,7 +373,7 @@ const StudentCoursesPage: React.FC = () => {
                                                                     {preferredTimings.length > 0 ? (
                                                                         <ul className="space-y-2">
                                                                             {preferredTimings.map((timing, timingIdx) => {
-                                                                                const isMatched = isPreferredTimingMatched(timing, enrollment.timings);
+                                                                                const isMatched = isAllocated && isPreferredTimingMatched(timing, enrollment.timings);
                                                                                 return (
                                                                                     <motion.li 
                                                                                         key={timingIdx} 
@@ -372,17 +381,30 @@ const StudentCoursesPage: React.FC = () => {
                                                                                         animate={coursesInView ? { opacity: 1, x: 0 } : {}}
                                                                                         transition={{ duration: 0.5, delay: 0.3 + timingIdx * 0.1 }}
                                                                                         className={`text-sm flex items-center gap-2 ${
-                                                                                            isMatched ? 'text-green-700 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'
+                                                                                            isMatched 
+                                                                                                ? 'text-green-700 dark:text-green-400' 
+                                                                                                : isAllocated 
+                                                                                                    ? 'text-gray-500 dark:text-gray-400' 
+                                                                                                    : 'text-blue-600 dark:text-blue-400'
                                                                                         }`}
                                                                                     >
                                                                                         {isMatched ? (
                                                                                             <CheckCircle className="w-4 h-4 text-green-500" />
-                                                                                        ) : (
+                                                                                        ) : isAllocated ? (
                                                                                             <div className="w-4 h-4 rounded-full border-2 border-gray-400"></div>
+                                                                                        ) : (
+                                                                                            <div className="w-4 h-4 rounded-full border-2 border-blue-400 bg-blue-100 dark:bg-blue-900"></div>
                                                                                         )}
-                                                                                        <span className={isMatched ? 'font-medium' : 'line-through decoration-2'}>
+                                                                                        <span className={
+                                                                                            isMatched 
+                                                                                                ? 'font-medium' 
+                                                                                                : isAllocated 
+                                                                                                    ? 'line-through decoration-2' 
+                                                                                                    : 'font-medium'
+                                                                                        }>
                                                                                             {formatTimingSlot(timing)}
                                                                                         </span>
+                                                                                        {!isAllocated && <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 rounded-full">Requested</span>}
                                                                                     </motion.li>
                                                                                 );
                                                                             })}
@@ -395,12 +417,13 @@ const StudentCoursesPage: React.FC = () => {
                                                                 </div>
 
                                                                 {/* Assigned Timings */}
-                                                                <div className={`p-4 rounded-lg border ${theme === 'dark' ? 'bg-green-900/20 border-green-700/30' : 'bg-green-50/50 border-green-200/50'}`}>
-                                                                    <h4 className="text-sm font-semibold text-green-800 dark:text-green-300 mb-3 uppercase tracking-wide flex items-center space-x-2">
-                                                                        <Clock className="w-4 h-4" />
-                                                                        <span>Assigned Batch Times</span>
-                                                                    </h4>
-                                                                    {enrollment.timings.length > 0 ? (
+                                                                {isAllocated ? (
+                                                                    <div className={`p-4 rounded-lg border ${theme === 'dark' ? 'bg-green-900/20 border-green-700/30' : 'bg-green-50/50 border-green-200/50'}`}>
+                                                                        <h4 className="text-sm font-semibold text-green-800 dark:text-green-300 mb-3 uppercase tracking-wide flex items-center space-x-2">
+                                                                            <Clock className="w-4 h-4" />
+                                                                            <span>Assigned Batch Times</span>
+                                                                        </h4>
+                                                                        {enrollment.timings.length > 0 ? (
                                                                         <ul className="space-y-2">
                                                                             {enrollment.timings.map((timing, timingIdx) => (
                                                                                 <motion.li 
@@ -415,17 +438,29 @@ const StudentCoursesPage: React.FC = () => {
                                                                                 </motion.li>
                                                                             ))}
                                                                         </ul>
-                                                                    ) : (
-                                                                        <p className="text-sm text-gray-400 italic">No assigned times yet</p>
-                                                                    )}
-                                                                </div>
+                                                                        ) : (
+                                                                            <p className="text-sm text-gray-400 italic">No assigned times yet</p>
+                                                                        )}
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className={`p-4 rounded-lg border ${theme === 'dark' ? 'bg-yellow-900/20 border-yellow-700/30' : 'bg-yellow-50/50 border-yellow-200/50'}`}>
+                                                                        <h4 className="text-sm font-semibold text-yellow-800 dark:text-yellow-300 mb-3 uppercase tracking-wide flex items-center space-x-2">
+                                                                            <Clock className="w-4 h-4" />
+                                                                            <span>Allocation Status</span>
+                                                                        </h4>
+                                                                        <p className="text-sm text-yellow-700 dark:text-yellow-400">
+                                                                            ⏳ Waiting for admin to create batch and assign teacher
+                                                                        </p>
+                                                                    </div>
+                                                                )}
                                                             </div>
 
                                                             {/* Status Indicator */}
                                                             {preferredTimings.length > 0 && (
                                                                 <div className="mt-4 pt-4 border-t border-white/20 dark:border-gray-700/30">
                                                                     <div className="flex items-center gap-2">
-                                                                        {preferredTimings.every(timing => isPreferredTimingMatched(timing, enrollment.timings)) ? (
+                                                                        {isAllocated ? (
+                                                                            preferredTimings.every(timing => isPreferredTimingMatched(timing, enrollment.timings)) ? (
                                                                             <>
                                                                                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                                                                                 <span className="text-sm font-medium text-green-700 dark:text-green-400">
@@ -439,11 +474,19 @@ const StudentCoursesPage: React.FC = () => {
                                                                                     Partial match. Some of your preferred times were accommodated.
                                                                                 </span>
                                                                             </>
+                                                                            ) : (
+                                                                                <>
+                                                                                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                                                                                    <span className="text-sm font-medium text-blue-700 dark:text-blue-400">
+                                                                                        Different schedule assigned based on availability.
+                                                                                    </span>
+                                                                                </>
+                                                                            )
                                                                         ) : (
                                                                             <>
-                                                                                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                                                                                <span className="text-sm font-medium text-blue-700 dark:text-blue-400">
-                                                                                    Different schedule assigned based on availability.
+                                                                                <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                                                                                <span className="text-sm font-medium text-orange-700 dark:text-orange-400">
+                                                                                    Course preferences submitted. Waiting for admin allocation.
                                                                                 </span>
                                                                             </>
                                                                         )}
@@ -466,14 +509,14 @@ const StudentCoursesPage: React.FC = () => {
                                         >
                                             <BookOpen className={`w-16 h-16 mx-auto mb-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
                                             <h3 className={`text-xl font-semibold mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                                                No Courses Enrolled
+                                                No Courses Selected
                                             </h3>
                                             <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                                                {studentName} hasn't been enrolled in any courses yet. Contact admin for course enrollment.
+                                                {studentName} hasn't selected any courses during registration. Please complete course selection first.
                                             </p>
                                         </motion.div>
-                                    )}
-                                </motion.div>
+                                })()}
+                            </motion.div>
                             </motion.div>
                         </AnimatePresence>
                     </motion.section>
