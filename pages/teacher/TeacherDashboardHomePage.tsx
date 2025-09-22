@@ -23,7 +23,7 @@ import {
     Calculator
 } from 'lucide-react';
 import type { User, Event, Notice, Batch } from '../../types';
-import { getEvents, getNotices, getBatches } from '../../api';
+import { getEvents, getNotices, getBatches, refreshCurrentUser } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
 
 // Course-specific icons and colors for teachers
@@ -78,6 +78,10 @@ const TeacherDashboardHomePage: React.FC = () => {
             if (!user) return;
             try {
                 setIsLoading(true);
+                
+                // Refresh user data to ensure we have latest from database
+                console.log('Refreshing user data on dashboard load...');
+                await refreshCurrentUser();
                 
                 const [eventsData, noticesData, batchesData] = await Promise.all([
                     getEvents(5), // Limit to 5 recent events for dashboard

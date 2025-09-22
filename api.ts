@@ -445,6 +445,15 @@ export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
 
       console.log('Registering user with data:', completeUserData);
       
+      // Debug teacher-specific fields
+      if (user.role === 'Teacher') {
+        console.log('Teacher specific data:');
+        console.log('- courseExpertise:', user.courseExpertise);
+        console.log('- availableTimeSlots:', user.availableTimeSlots);
+        console.log('- Will save as course_expertise:', completeUserData.course_expertise);
+        console.log('- Will save as available_time_slots:', completeUserData.available_time_slots);
+      }
+      
       // Single insert with all data
       const { data, error } = await supabase
         .from('users')
