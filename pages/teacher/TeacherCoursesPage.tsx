@@ -115,7 +115,7 @@ const TeacherCoursesPage: React.FC = () => {
     }
 
     const teacherCourses = user.courseExpertise || [];
-    const teacherPreferredTimings = user.preferredTimings || [];
+    const teacherPreferredTimings = user.availableTimeSlots || user.preferredTimings || [];
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 p-6">

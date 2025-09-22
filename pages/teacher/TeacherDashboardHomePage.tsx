@@ -335,7 +335,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                     <div className="p-6">
                         {(() => {
                             const teacherCourses = user.courseExpertise || [];
-                            const teacherPreferredTimings = user.preferredTimings || [];
+                            const teacherPreferredTimings = user.availableTimeSlots || user.preferredTimings || [];
                             
                             if (teacherCourses.length > 0) {
                                 return (

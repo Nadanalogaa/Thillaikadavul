@@ -148,7 +148,7 @@ export interface User {
   educationalQualifications?: string;
   employmentType?: EmploymentType;
   yearsOfExperience?: number;
-  availableTimeSlots?: string[];
+  availableTimeSlots?: CourseTimingSlot[];
 
   // Soft delete fields
   isDeleted?: boolean;
