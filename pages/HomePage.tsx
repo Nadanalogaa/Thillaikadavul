@@ -25,7 +25,7 @@ const HomePage: React.FC<HomePageProps> = ({
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
       {/* Theme Toggle Button */}
-      <ThemeToggle />
+      <ThemeToggle position="fixed" />
       
       {/* Hero Section with Parallax */}
       <HeroSection 

@@ -461,7 +461,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                 ? 'bg-gradient-to-br from-gray-900 via-indigo-900 to-purple-900' 
                 : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'
         }`}>
-            <ThemeToggle />
+            <ThemeToggle position="fixed" />
             
             {/* Animated Background Elements */}
             <div className="absolute inset-0 overflow-hidden">

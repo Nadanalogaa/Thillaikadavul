@@ -63,7 +63,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         ? 'bg-gradient-to-br from-gray-900 via-indigo-900 to-purple-900' 
         : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'
     }`}>
-      <ThemeToggle />
+      <ThemeToggle position="fixed" />
       
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden">

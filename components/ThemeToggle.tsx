@@ -2,13 +2,27 @@ import React from 'react';
 import { Sun, Moon } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
-const ThemeToggle: React.FC = () => {
+interface ThemeToggleProps {
+  className?: string;
+  position?: 'fixed' | 'relative';
+}
+
+const ThemeToggle: React.FC<ThemeToggleProps> = ({ 
+  className = "", 
+  position = 'relative' 
+}) => {
   const { theme, toggleTheme } = useTheme();
+
+  const baseClasses = "bg-white dark:bg-gray-800 text-gray-800 dark:text-white p-3 rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-300 border border-gray-200 dark:border-gray-700";
+  
+  const positionClasses = position === 'fixed' 
+    ? "fixed top-4 right-4 z-50" 
+    : "relative z-10";
 
   return (
     <button
       onClick={toggleTheme}
-      className="fixed top-4 right-4 z-50 bg-white dark:bg-gray-800 text-gray-800 dark:text-white p-3 rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-300 border border-gray-200 dark:border-gray-700"
+      className={`${baseClasses} ${positionClasses} ${className}`}
       aria-label="Toggle theme"
     >
       {theme === 'light' ? (
