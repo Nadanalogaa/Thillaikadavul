@@ -6,7 +6,6 @@ import { Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { loginUser } from '../api';
 import type { User } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
-import ThemeToggle from '../components/ThemeToggle';
 
 interface LoginPageProps {
   onLogin: (user: User) => void;
@@ -63,7 +62,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         ? 'bg-gradient-to-br from-gray-900 via-indigo-900 to-purple-900' 
         : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'
     }`}>
-      <ThemeToggle position="fixed" />
       
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden">

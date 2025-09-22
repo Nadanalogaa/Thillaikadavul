@@ -14,7 +14,6 @@ import {
     Sparkles, Star, Heart, Globe
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
-import ThemeToggle from '../components/ThemeToggle';
 
 interface RegisterPageProps {
   onLoginNeeded: (email: string) => void;
@@ -461,7 +460,6 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                 ? 'bg-gradient-to-br from-gray-900 via-indigo-900 to-purple-900' 
                 : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'
         }`}>
-            <ThemeToggle position="fixed" />
             
             {/* Animated Background Elements */}
             <div className="absolute inset-0 overflow-hidden">

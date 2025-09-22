@@ -26,7 +26,6 @@ import type { Course } from '../../types';
 import UnifiedNotificationBell from '../../components/UnifiedNotificationBell';
 import { useTheme } from '../../contexts/ThemeContext';
 import BeautifulLoader from '../../components/BeautifulLoader';
-import ThemeToggle from '../../components/ThemeToggle';
 
 
 // Course-specific icons and colors
@@ -168,7 +167,6 @@ const StudentDashboardHomePage: React.FC = () => {
                             {dateString}
                         </p>
                     </motion.div>
-                    <ThemeToggle />
                 </div>
             </div>
             

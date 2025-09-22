@@ -21,7 +21,6 @@ import {
 import type { User, Event, Notice, Batch } from '../../types';
 import { getEvents, getNotices, getBatches } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
-import ThemeToggle from '../../components/ThemeToggle';
 
 
 const TeacherDashboardHomePage: React.FC = () => {
@@ -157,7 +156,6 @@ const TeacherDashboardHomePage: React.FC = () => {
                             {dateString}
                         </p>
                     </motion.div>
-                    <ThemeToggle />
                 </div>
             </div>
 

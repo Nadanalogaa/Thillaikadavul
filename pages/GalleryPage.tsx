@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { X, Play, Image as ImageIcon, Music, Palette, Sparkles, ChevronDown } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
-import ThemeToggle from '../components/ThemeToggle';
 
 const GalleryPage: React.FC = () => {
   const { theme } = useTheme();
@@ -142,7 +141,6 @@ const GalleryPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
-      <ThemeToggle position="fixed" />
       
       {/* Hero Section with Parallax */}
       <section className="relative min-h-[85vh] overflow-hidden">

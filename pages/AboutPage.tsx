@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { Users, Heart, Star, Award, ChevronDown } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
-import ThemeToggle from '../components/ThemeToggle';
 
 const AboutPage: React.FC = () => {
   const { theme } = useTheme();
@@ -38,7 +37,6 @@ const AboutPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
-      <ThemeToggle position="fixed" />
       
       {/* Hero Section with Parallax */}
       <section className="relative min-h-[85vh] overflow-hidden">

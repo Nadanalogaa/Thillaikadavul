@@ -7,7 +7,6 @@ import ImageGallery from '../components/modern/ImageGallery';
 import VideoSection from '../components/modern/VideoSection';
 import CoursesSection from '../components/modern/CoursesSection';
 import AnimatedFooter from '../components/modern/AnimatedFooter';
-import ThemeToggle from '../components/ThemeToggle';
 
 interface HomePageProps {
   onLoginClick: () => void;
@@ -24,8 +23,6 @@ const HomePage: React.FC<HomePageProps> = ({
 }) => {
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
-      {/* Theme Toggle Button */}
-      <ThemeToggle position="fixed" />
       
       {/* Hero Section with Parallax */}
       <HeroSection 

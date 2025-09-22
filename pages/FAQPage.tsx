@@ -5,7 +5,6 @@ import { Plus, Minus, HelpCircle, Search, BookOpen, Users, Clock, Award, Chevron
 import { FAQ_DATA } from '../constants';
 import type { FAQItem } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
-import ThemeToggle from '../components/ThemeToggle';
 
 const FaqAccordionItem: React.FC<{ 
   item: FAQItem; 
@@ -103,7 +102,6 @@ const FAQPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
-            <ThemeToggle position="fixed" />
             
             {/* Hero Section with Parallax */}
             <section className="relative min-h-[85vh] overflow-hidden">

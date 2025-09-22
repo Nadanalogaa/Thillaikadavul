@@ -4,7 +4,6 @@ import { useInView } from 'react-intersection-observer';
 import { Mail, Phone, MapPin, Clock, Send, MessageCircle, Star, CheckCircle, ChevronDown } from 'lucide-react';
 import { submitContactForm } from '../api';
 import { useTheme } from '../contexts/ThemeContext';
-import ThemeToggle from '../components/ThemeToggle';
 
 const ContactPage: React.FC = () => {
   const { theme } = useTheme();
@@ -85,7 +84,6 @@ const ContactPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
-      <ThemeToggle position="fixed" />
       
       {/* Hero Section with Parallax */}
       <section className="relative min-h-[85vh] overflow-hidden">
