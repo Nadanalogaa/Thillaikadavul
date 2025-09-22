@@ -987,47 +987,12 @@ BEGIN
             SET 
                 course_expertise = CASE 
                     WHEN lower(teacher_record.name) LIKE '%bharath%' OR lower(teacher_record.name) LIKE '%dance%' THEN
-                        '[
-                            {
-                                "courseId": "bharatanatyam",
-                                "courseName": "Bharatanatyam",
-                                "proficiencyLevel": "Expert",
-                                "yearsOfExperience": 8,
-                                "specializations": ["Classical", "Folk", "Semi-Classical"],
-                                "certifications": ["Natya Visharad", "Diploma in Bharatanatyam"]
-                            }
-                        ]'::jsonb
+                        '["Bharatanatyam"]'::jsonb
                     WHEN lower(teacher_record.name) LIKE '%vocal%' OR lower(teacher_record.name) LIKE '%music%' THEN
-                        '[
-                            {
-                                "courseId": "vocal",
-                                "courseName": "Vocal",
-                                "proficiencyLevel": "Expert",
-                                "yearsOfExperience": 6,
-                                "specializations": ["Carnatic", "Light Music", "Devotional"],
-                                "certifications": ["Sangeet Visharad", "Grade 8 Vocal"]
-                            }
-                        ]'::jsonb
+                        '["Vocal"]'::jsonb
                     ELSE
                         -- Default: Both Bharatanatyam and Vocal expertise
-                        '[
-                            {
-                                "courseId": "bharatanatyam",
-                                "courseName": "Bharatanatyam",
-                                "proficiencyLevel": "Expert",
-                                "yearsOfExperience": 5,
-                                "specializations": ["Classical", "Semi-Classical"],
-                                "certifications": ["Natya Visharad"]
-                            },
-                            {
-                                "courseId": "vocal",
-                                "courseName": "Vocal",
-                                "proficiencyLevel": "Intermediate",
-                                "yearsOfExperience": 3,
-                                "specializations": ["Carnatic", "Light Music"],
-                                "certifications": ["Grade 6 Vocal"]
-                            }
-                        ]'::jsonb
+                        '["Bharatanatyam", "Vocal"]'::jsonb
                 END,
                 educational_qualifications = CASE
                     WHEN educational_qualifications IS NULL OR educational_qualifications = '' THEN
@@ -1049,45 +1014,29 @@ BEGIN
         IF teacher_record.available_time_slots IS NULL OR 
            jsonb_array_length(teacher_record.available_time_slots) = 0 THEN
             
-            -- Populate with realistic time slots
+            -- Populate with realistic time slots (matching CourseTimingSlot structure)
             UPDATE users 
             SET 
                 available_time_slots = '[
                     {
+                        "courseName": "Bharatanatyam",
                         "day": "Monday",
-                        "time": "4:00 PM - 5:00 PM",
-                        "isAvailable": true,
-                        "maxStudents": 8
+                        "timeSlot": "4:00 PM - 5:00 PM"
                     },
                     {
-                        "day": "Tuesday",
-                        "time": "5:00 PM - 6:00 PM",
-                        "isAvailable": true,
-                        "maxStudents": 8
-                    },
-                    {
+                        "courseName": "Bharatanatyam", 
                         "day": "Wednesday",
-                        "time": "4:00 PM - 5:00 PM",
-                        "isAvailable": true,
-                        "maxStudents": 8
+                        "timeSlot": "4:00 PM - 5:00 PM"
                     },
                     {
+                        "courseName": "Vocal",
+                        "day": "Tuesday", 
+                        "timeSlot": "5:00 PM - 6:00 PM"
+                    },
+                    {
+                        "courseName": "Vocal",
                         "day": "Thursday",
-                        "time": "5:00 PM - 6:00 PM",
-                        "isAvailable": true,
-                        "maxStudents": 8
-                    },
-                    {
-                        "day": "Friday",
-                        "time": "3:00 PM - 4:00 PM",
-                        "isAvailable": true,
-                        "maxStudents": 6
-                    },
-                    {
-                        "day": "Saturday",
-                        "time": "10:00 AM - 11:00 AM",
-                        "isAvailable": true,
-                        "maxStudents": 10
+                        "timeSlot": "5:00 PM - 6:00 PM"
                     }
                 ]'::jsonb,
                 employment_type = CASE

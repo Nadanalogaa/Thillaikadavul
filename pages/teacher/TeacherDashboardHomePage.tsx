@@ -20,11 +20,10 @@ import {
     Heart,
     Music,
     Palette,
-    Calculator,
-    RefreshCw
+    Calculator
 } from 'lucide-react';
 import type { User, Event, Notice, Batch } from '../../types';
-import { getEvents, getNotices, getBatches, refreshCurrentUser } from '../../api';
+import { getEvents, getNotices, getBatches } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
 
 // Course-specific icons and colors for teachers
@@ -61,40 +60,22 @@ const getCourseTheme = (courseName: string, index: number) => {
 };
 
 const TeacherDashboardHomePage: React.FC = () => {
-    const { user: contextUser } = useOutletContext<{ user: User }>();
+    const { user } = useOutletContext<{ user: User }>();
     const { theme } = useTheme();
     const [heroRef, heroInView] = useInView({ threshold: 0.1, triggerOnce: true });
     const [statsRef, statsInView] = useInView({ threshold: 0.1, triggerOnce: true });
     const [batchesRef, batchesInView] = useInView({ threshold: 0.1, triggerOnce: true });
     const [activityRef, activityInView] = useInView({ threshold: 0.1, triggerOnce: true });
     
-    const [currentUser, setCurrentUser] = useState<User>(contextUser);
     const [stats, setStats] = useState({ totalStudents: 0, totalBatches: 0 });
     const [recentEvents, setRecentEvents] = useState<Event[]>([]);
     const [recentNotices, setRecentNotices] = useState<Notice[]>([]);
     const [teacherBatches, setTeacherBatches] = useState<Batch[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false);
-
-    // Refresh user data function
-    const handleRefreshUserData = async () => {
-        setIsRefreshing(true);
-        try {
-            const refreshedUser = await refreshCurrentUser();
-            if (refreshedUser) {
-                setCurrentUser(refreshedUser);
-                console.log('User data refreshed:', refreshedUser);
-            }
-        } catch (error) {
-            console.error('Failed to refresh user data:', error);
-        } finally {
-            setIsRefreshing(false);
-        }
-    };
 
     useEffect(() => {
         const fetchData = async () => {
-            if (!currentUser) return;
+            if (!user) return;
             try {
                 setIsLoading(true);
                 
@@ -107,7 +88,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                 // Calculate stats
                 const filteredTeacherBatches = batchesData.filter(b => {
                     const teacherId = typeof b.teacherId === 'string' ? b.teacherId : (b.teacherId as User)?.id;
-                    return teacherId === currentUser.id;
+                    return teacherId === user.id;
                 });
                 
                 const studentIds = new Set<string>();
@@ -130,7 +111,7 @@ const TeacherDashboardHomePage: React.FC = () => {
             }
         };
         fetchData();
-    }, [currentUser]);
+    }, [user]);
     
     const today = new Date();
     const dateString = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -206,30 +187,12 @@ const TeacherDashboardHomePage: React.FC = () => {
                         className="flex flex-col"
                     >
                         <h1 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-1`}>
-                            Welcome back, {currentUser.name?.split(' ')[0]}!
+                            Welcome back, {user.name?.split(' ')[0]}!
                         </h1>
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                             {dateString}
                         </p>
                     </motion.div>
-                    
-                    {/* Refresh Button */}
-                    <motion.button
-                        onClick={handleRefreshUserData}
-                        disabled={isRefreshing}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className={`px-4 py-2 rounded-xl border transition-all duration-300 flex items-center space-x-2 ${
-                            theme === 'dark' 
-                                ? 'bg-gray-800/50 border-gray-600 text-gray-300 hover:bg-gray-700/50' 
-                                : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
-                        } ${isRefreshing ? 'opacity-75 cursor-not-allowed' : ''}`}
-                    >
-                        <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                        <span className="text-sm font-medium">
-                            {isRefreshing ? 'Refreshing...' : 'Refresh Data'}
-                        </span>
-                    </motion.button>
                 </div>
             </div>
 
@@ -260,7 +223,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                         },
                         {
                             title: "Course Expertise",
-                            value: (currentUser.courseExpertise || []).length,
+                            value: (user.courseExpertise || []).length,
                             linkTo: undefined, 
                             icon: Award,
                             color: "text-purple-600 dark:text-purple-400",
@@ -359,7 +322,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                                 </div>
                                 <div>
                                     <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                                        Your Course Expertise ({(currentUser.courseExpertise || []).length})
+                                        Your Course Expertise ({(user.courseExpertise || []).length})
                                     </h2>
                                     <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                                         Courses you can teach with allocation status
@@ -372,8 +335,8 @@ const TeacherDashboardHomePage: React.FC = () => {
                     {/* Course Content */}
                     <div className="p-6">
                         {(() => {
-                            const teacherCourses = currentUser.courseExpertise || [];
-                            const teacherPreferredTimings = currentUser.availableTimeSlots || currentUser.preferredTimings || [];
+                            const teacherCourses = user.courseExpertise || [];
+                            const teacherPreferredTimings = user.availableTimeSlots || user.preferredTimings || [];
                             
                             if (teacherCourses.length > 0) {
                                 return (
