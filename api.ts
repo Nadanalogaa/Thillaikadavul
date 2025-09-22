@@ -145,6 +145,10 @@ export const loginUser = async (email: string, password: string): Promise<User> 
       courses: user.courses || [],
       courseExpertise: user.course_expertise || [],
       preferredTimings: user.preferred_timings || [],
+      availableTimeSlots: user.available_time_slots || [],
+      educationalQualifications: user.educational_qualifications,
+      employmentType: user.employment_type,
+      yearsOfExperience: user.years_of_experience,
       dateOfJoining: user.date_of_joining
     };
 
