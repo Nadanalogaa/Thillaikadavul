@@ -173,6 +173,15 @@ const StudentDashboardHomePage: React.FC = () => {
     const currentStudent = family[activeIdx];
     const studentEnrollments = enrollments.get(currentStudent?.id) || [];
     const studentName = currentStudent?.name || `Student ${activeIdx + 1}`;
+    
+    // Calculate correct statistics
+    const studentCourses = currentStudent?.courses || [];
+    const upcomingEvents = recentEvents.filter(event => {
+        const eventDate = new Date(event.date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Reset time to start of day
+        return eventDate >= today;
+    });
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 relative overflow-hidden">
@@ -276,7 +285,7 @@ const StudentDashboardHomePage: React.FC = () => {
                     />
                     <StatCard
                         title="Total Courses"
-                        value={studentEnrollments.length}
+                        value={studentCourses.length}
                         linkTo="courses"
                         icon={BookOpen}
                         gradient="bg-gradient-to-br from-blue-500 to-indigo-500"
@@ -284,7 +293,7 @@ const StudentDashboardHomePage: React.FC = () => {
                     />
                     <StatCard
                         title="Upcoming Events"
-                        value={recentEvents.length}
+                        value={upcomingEvents.length}
                         linkTo="events"
                         icon={Calendar}
                         gradient="bg-gradient-to-br from-green-500 to-emerald-500"
