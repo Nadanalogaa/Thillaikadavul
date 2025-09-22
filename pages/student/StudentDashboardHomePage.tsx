@@ -26,6 +26,7 @@ import type { Course } from '../../types';
 import UnifiedNotificationBell from '../../components/UnifiedNotificationBell';
 import { useTheme } from '../../contexts/ThemeContext';
 import BeautifulLoader from '../../components/BeautifulLoader';
+import ThemeToggle from '../../components/ThemeToggle';
 
 const StatCard: React.FC<{ 
   title: string; 
@@ -185,6 +186,13 @@ const StudentDashboardHomePage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 relative overflow-hidden">
+            {/* Header with Theme Toggle */}
+            <div className="relative z-10 px-6 py-4">
+                <div className="flex justify-end">
+                    <ThemeToggle />
+                </div>
+            </div>
+            
             {/* Animated Background Elements */}
             <div className="absolute inset-0 pointer-events-none">
                 <motion.div
