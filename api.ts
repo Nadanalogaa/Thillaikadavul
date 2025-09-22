@@ -425,6 +425,17 @@ export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
       if (user.preferredTimings && user.preferredTimings.length > 0) {
         completeUserData.preferred_timings = user.preferredTimings;
       }
+      
+      // Teacher-specific fields
+      if (user.courseExpertise && user.courseExpertise.length > 0) {
+        completeUserData.course_expertise = user.courseExpertise;
+      }
+      if (user.availableTimeSlots && user.availableTimeSlots.length > 0) {
+        completeUserData.available_time_slots = user.availableTimeSlots;
+      }
+      if (user.yearsOfExperience !== undefined) {
+        completeUserData.years_of_experience = user.yearsOfExperience;
+      }
       if (user.dateOfJoining) {
         const joinDate = new Date(user.dateOfJoining);
         completeUserData.date_of_joining = joinDate.toISOString().split('T')[0];
