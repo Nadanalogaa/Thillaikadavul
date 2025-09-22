@@ -28,40 +28,6 @@ import { useTheme } from '../../contexts/ThemeContext';
 import BeautifulLoader from '../../components/BeautifulLoader';
 import ThemeToggle from '../../components/ThemeToggle';
 
-const StatCard: React.FC<{ 
-  title: string; 
-  value: string | number; 
-  linkTo: string; 
-  icon: React.ElementType;
-  gradient: string;
-  delay: number;
-}> = ({ title, value, linkTo, icon: Icon, gradient, delay }) => {
-  const [cardRef, cardInView] = useInView({ threshold: 0.1, triggerOnce: true });
-  
-  return (
-    <motion.div
-      ref={cardRef}
-      initial={{ opacity: 0, y: 50, scale: 0.9 }}
-      animate={cardInView ? { opacity: 1, y: 0, scale: 1 } : {}}
-      transition={{ duration: 0.8, delay }}
-      whileHover={{ scale: 1.05, y: -5 }}
-      className="group"
-    >
-      <Link to={linkTo} className={`block p-6 rounded-2xl ${gradient} shadow-lg hover:shadow-2xl transition-all duration-500 border border-white/20 backdrop-blur-sm relative overflow-hidden`}>
-        <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-6 translate-x-6"></div>
-        <div className="relative z-10">
-          <div className="flex items-center justify-between mb-3">
-            <Icon className="w-8 h-8 text-white/90" />
-            <ChevronRight className="w-5 h-5 text-white/60 group-hover:translate-x-1 transition-transform duration-300" />
-          </div>
-          <h4 className="text-sm font-semibold uppercase text-white/80 tracking-wide mb-1">{title}</h4>
-          <p className="text-3xl font-bold text-white mb-2">{value}</p>
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-      </Link>
-    </motion.div>
-  );
-};
 
 // Course-specific icons and colors
 const getCourseTheme = (courseName: string, index: number) => {
@@ -186,9 +152,22 @@ const StudentDashboardHomePage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 relative overflow-hidden">
-            {/* Header with Theme Toggle */}
+            {/* Header Section */}
             <div className="relative z-10 px-6 py-4">
-                <div className="flex justify-end">
+                <div className="flex justify-between items-center">
+                    <motion.div
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.6 }}
+                        className="flex flex-col"
+                    >
+                        <h1 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-1`}>
+                            Welcome back, {guardianName?.split(' ')[0]}!
+                        </h1>
+                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                            {dateString}
+                        </p>
+                    </motion.div>
                     <ThemeToggle />
                 </div>
             </div>
@@ -242,79 +221,83 @@ const StudentDashboardHomePage: React.FC = () => {
             </div>
 
             {/* Main Content */}
-            <div className="relative z-10 p-6 space-y-8">
-                {/* Hero Section */}
-                <motion.section
-                    ref={heroRef}
-                    initial={{ opacity: 0, y: 50 }}
-                    animate={heroInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 1, ease: "easeOut" }}
-                    className="text-center py-12"
-                >
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={heroInView ? { opacity: 1, scale: 1 } : {}}
-                        transition={{ duration: 1.2, delay: 0.2 }}
-                        className="mb-8"
-                    >
-                        <GraduationCap className="w-16 h-16 mx-auto mb-6 text-purple-600 dark:text-purple-400" />
-                        <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent mb-4">
-                            Welcome back, {guardianName?.split(' ')[0]}!
-                        </h1>
-                        <p className={`text-lg md:text-xl ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-2`}>
-                            {dateString}
-                        </p>
-                    </motion.div>
-                    
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={heroInView ? { opacity: 1, scale: 1 } : {}}
-                        transition={{ duration: 1, delay: 0.4 }}
-                        className="flex justify-center space-x-3"
-                    >
-                        <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
-                        <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
-                        <div className="w-3 h-3 bg-indigo-500 rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></div>
-                    </motion.div>
-                </motion.section>
+            <div className="relative z-10 px-6 pb-6">
 
-                {/* Quick Stats */}
+                {/* Professional Stats Cards */}
                 <motion.section
                     ref={statsRef}
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
                 >
-                    <StatCard
-                        title="Active Students"
-                        value={family.length}
-                        linkTo="family-profile"
-                        icon={Users}
-                        gradient="bg-gradient-to-br from-purple-500 to-pink-500"
-                        delay={0.1}
-                    />
-                    <StatCard
-                        title="Total Courses"
-                        value={studentCourses.length}
-                        linkTo="courses"
-                        icon={BookOpen}
-                        gradient="bg-gradient-to-br from-blue-500 to-indigo-500"
-                        delay={0.2}
-                    />
-                    <StatCard
-                        title="Upcoming Events"
-                        value={upcomingEvents.length}
-                        linkTo="events"
-                        icon={Calendar}
-                        gradient="bg-gradient-to-br from-green-500 to-emerald-500"
-                        delay={0.3}
-                    />
-                    <StatCard
-                        title="Recent Notices"
-                        value={recentNotices.length}
-                        linkTo="notices"
-                        icon={Bell}
-                        gradient="bg-gradient-to-br from-orange-500 to-amber-500"
-                        delay={0.4}
-                    />
+                    {[
+                        {
+                            title: "Active Students",
+                            value: family.length,
+                            linkTo: "family-profile",
+                            icon: Users,
+                            color: "text-blue-600 dark:text-blue-400",
+                            bg: "bg-blue-50 dark:bg-blue-900/20"
+                        },
+                        {
+                            title: "Total Courses", 
+                            value: studentCourses.length,
+                            linkTo: "courses",
+                            icon: BookOpen,
+                            color: "text-green-600 dark:text-green-400",
+                            bg: "bg-green-50 dark:bg-green-900/20"
+                        },
+                        {
+                            title: "Upcoming Events",
+                            value: upcomingEvents.length,
+                            linkTo: "events", 
+                            icon: Calendar,
+                            color: "text-purple-600 dark:text-purple-400",
+                            bg: "bg-purple-50 dark:bg-purple-900/20"
+                        },
+                        {
+                            title: "Recent Notices",
+                            value: recentNotices.length,
+                            linkTo: "notices",
+                            icon: Bell,
+                            color: "text-orange-600 dark:text-orange-400", 
+                            bg: "bg-orange-50 dark:bg-orange-900/20"
+                        }
+                    ].map((stat, index) => (
+                        <motion.div
+                            key={stat.title}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={statsInView ? { opacity: 1, y: 0 } : {}}
+                            transition={{ duration: 0.5, delay: index * 0.1 }}
+                            whileHover={{ scale: 1.02 }}
+                            className="group"
+                        >
+                            <Link 
+                                to={stat.linkTo}
+                                className={`block p-4 rounded-lg transition-all duration-300 border ${
+                                    theme === 'dark' 
+                                        ? 'bg-gray-800/50 border-gray-700/50 hover:bg-gray-700/50 hover:border-gray-600' 
+                                        : 'bg-white border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md'
+                                }`}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className={`text-sm font-medium ${
+                                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                        }`}>
+                                            {stat.title}
+                                        </p>
+                                        <p className={`text-2xl font-bold ${
+                                            theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                        }`}>
+                                            {stat.value}
+                                        </p>
+                                    </div>
+                                    <div className={`p-3 rounded-lg ${stat.bg} group-hover:scale-110 transition-transform duration-300`}>
+                                        <stat.icon className={`w-6 h-6 ${stat.color}`} />
+                                    </div>
+                                </div>
+                            </Link>
+                        </motion.div>
+                    ))}
                 </motion.section>
 
                 {/* Student Tabs Section */}
