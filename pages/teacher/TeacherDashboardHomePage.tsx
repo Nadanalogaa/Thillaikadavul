@@ -79,8 +79,8 @@ const TeacherDashboardHomePage: React.FC = () => {
             try {
                 setIsLoading(true);
                 const [eventsData, noticesData, batchesData] = await Promise.all([
-                    getEvents(),
-                    getNotices(),
+                    getEvents(5), // Limit to 5 recent events for dashboard
+                    getNotices(5), // Limit to 5 recent notices for dashboard
                     getBatches(),
                 ]);
 

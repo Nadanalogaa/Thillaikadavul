@@ -83,8 +83,8 @@ const StudentDashboardHomePage: React.FC = () => {
                 setIsLoading(true);
                 const [familyData, eventsData, noticesData, coursesData] = await Promise.all([
                     getFamilyStudents(),
-                    getEvents(),
-                    getNotices(),
+                    getEvents(5), // Limit to 5 recent events for dashboard
+                    getNotices(5), // Limit to 5 recent notices for dashboard
                     getCourses(),
                 ]);
                 setFamily(familyData);

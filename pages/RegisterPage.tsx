@@ -250,7 +250,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
             }
             emailCheckTimeoutRef.current = setTimeout(() => {
                 validateEmail(value, false);
-            }, 500);
+            }, 1200); // Increased debounce time for better performance
         }
     };
     
@@ -306,7 +306,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
             }
             emailCheckTimeoutRef.current = setTimeout(() => {
                 validateEmail(value, true);
-            }, 500);
+            }, 1200); // Increased debounce time for better performance
         }
     };
 

@@ -45,13 +45,26 @@ const safeSetLocalStorage = (key: string, value: any) => {
   }
 };
 
+// Email validation cache to avoid duplicate API calls
+const emailCache = new Map<string, { exists: boolean; timestamp: number }>();
+const CACHE_DURATION = 30000; // 30 seconds
+
 // Core working functions
 export const checkEmailExists = async (email: string): Promise<{ exists: boolean }> => {
   try {
+    const normalizedEmail = email.toLowerCase().trim();
+    
+    // Check cache first
+    const cached = emailCache.get(normalizedEmail);
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      return { exists: cached.exists };
+    }
+
     const { data, error } = await supabase
       .from('users')
       .select('email')
-      .eq('email', email.toLowerCase().trim())
+      .eq('email', normalizedEmail)
+      .eq('is_deleted', false)
       .limit(1);
 
     if (error) {
@@ -59,7 +72,12 @@ export const checkEmailExists = async (email: string): Promise<{ exists: boolean
       throw new Error('Failed to check email availability');
     }
 
-    return { exists: data && data.length > 0 };
+    const exists = data && data.length > 0;
+    
+    // Cache the result
+    emailCache.set(normalizedEmail, { exists, timestamp: Date.now() });
+    
+    return { exists };
   } catch (error) {
     console.error('Error in checkEmailExists:', error);
     throw error;
@@ -1847,13 +1865,19 @@ export const deleteLocation = async (id: string): Promise<void> => {
 };
 
 // Content functions
-export const getEvents = async (): Promise<Event[]> => {
+export const getEvents = async (limit?: number): Promise<Event[]> => {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('events')
-      .select('*, event_images(*)')
+      .select('id, title, description, event_date, event_time, is_public, location, created_at, updated_at')
       .eq('is_active', true)
       .order('event_date', { ascending: true });
+    
+    if (limit) {
+      query = query.limit(limit);
+    }
+    
+    const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching events:', error);
@@ -2657,12 +2681,18 @@ export const sendNotice = async (noticeId: string, recipientIds: string[]): Prom
   }
 };
 
-export const getNotices = async (): Promise<Notice[]> => {
+export const getNotices = async (limit?: number): Promise<Notice[]> => {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('notices')
-      .select('*')
+      .select('id, title, content, issued_at, created_at, updated_at')
       .order('created_at', { ascending: false });
+    
+    if (limit) {
+      query = query.limit(limit);
+    }
+    
+    const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching notices:', error);

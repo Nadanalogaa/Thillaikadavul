@@ -393,6 +393,18 @@ CREATE INDEX IF NOT EXISTS idx_notices_recipient_ids ON notices USING GIN (recip
 CREATE INDEX IF NOT EXISTS idx_grade_exams_recipient_ids ON grade_exams USING GIN (recipient_ids);
 CREATE INDEX IF NOT EXISTS idx_book_materials_recipient_ids ON book_materials USING GIN (recipient_ids);
 
+-- PERFORMANCE: Additional indexes for frequently queried fields
+CREATE INDEX IF NOT EXISTS idx_events_is_active ON events(is_active);
+CREATE INDEX IF NOT EXISTS idx_events_event_date ON events(event_date);
+CREATE INDEX IF NOT EXISTS idx_notices_created_at ON notices(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_events_created_at ON events(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_users_email_role ON users(email, role) WHERE is_deleted = false;
+CREATE INDEX IF NOT EXISTS idx_users_role_deleted ON users(role, is_deleted);
+
+-- PERFORMANCE: Composite indexes for common query patterns
+CREATE INDEX IF NOT EXISTS idx_events_active_date ON events(is_active, event_date) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_notices_active_created ON notices(created_at DESC) WHERE is_active = true;
+
 -- Create function for auto-updating updated_at columns
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
