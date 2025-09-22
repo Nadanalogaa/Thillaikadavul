@@ -338,6 +338,10 @@ const TeacherDashboardHomePage: React.FC = () => {
                             const teacherCourses = user.courseExpertise || [];
                             const teacherPreferredTimings = user.availableTimeSlots || user.preferredTimings || [];
                             
+                            // Debug logging to see what data we have
+                            console.log('Teacher courses:', teacherCourses);
+                            console.log('Teacher preferred timings:', teacherPreferredTimings);
+                            
                             if (teacherCourses.length > 0) {
                                 return (
                                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -351,8 +355,10 @@ const TeacherDashboardHomePage: React.FC = () => {
                                             
                                             // Find preferred timings for this course
                                             const preferredTimings = Array.isArray(teacherPreferredTimings) 
-                                                ? teacherPreferredTimings.filter(t => t && typeof t === 'object' && t.courseName === courseName)
+                                                ? teacherPreferredTimings.filter(t => t && typeof t === 'object' && (t.courseName === courseName || !t.courseName))
                                                 : [];
+                                            
+                                            console.log(`Preferred timings for ${courseName}:`, preferredTimings);
                                             
                                             return (
                                                 <motion.div
@@ -400,7 +406,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                                                         {/* Timing Information */}
                                                         <div className="space-y-3">
                                                             {/* Preferred Timings */}
-                                                            {preferredTimings.length > 0 && (
+                                                            {(preferredTimings.length > 0 || teacherPreferredTimings.length > 0) && (
                                                                 <div>
                                                                     <div className="flex items-center space-x-2 mb-2">
                                                                         <Clock className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`} />
@@ -409,7 +415,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                                                                         </span>
                                                                     </div>
                                                                     <div className="space-y-1">
-                                                                        {preferredTimings.map((timing, idx) => {
+                                                                        {(preferredTimings.length > 0 ? preferredTimings : teacherPreferredTimings).map((timing, idx) => {
                                                                             const timingStr = `${timing.day}: ${timing.timeSlot}`;
                                                                             
                                                                             // Check if this timing matches any allocated batch schedule
