@@ -501,7 +501,9 @@ const StudentCoursesPage: React.FC = () => {
                                                 );
                                             })}
                                         </div>
-                                    ) : (
+                                        );
+                                    } else {
+                                        return (
                                         <motion.div
                                             initial={{ opacity: 0, y: 20 }}
                                             animate={{ opacity: 1, y: 0 }}
@@ -515,6 +517,8 @@ const StudentCoursesPage: React.FC = () => {
                                                 {studentName} hasn't selected any courses during registration. Please complete course selection first.
                                             </p>
                                         </motion.div>
+                                        );
+                                    }
                                 })()}
                             </motion.div>
                             </motion.div>
