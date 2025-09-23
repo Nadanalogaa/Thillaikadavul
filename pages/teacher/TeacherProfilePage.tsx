@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import type { User, Course } from '../../types';
 import { Sex, ClassPreference, EmploymentType } from '../../types';
-import { updateUserProfile, getCourses } from '../../api';
+import { updateUserProfile, getCourses, refreshCurrentUser } from '../../api';
 import { COUNTRIES } from '../../constants';
 
 const TeacherProfilePage: React.FC = () => {
@@ -16,14 +16,26 @@ const TeacherProfilePage: React.FC = () => {
     const [success, setSuccess] = useState<string | null>(null);
 
     useEffect(() => {
-        // Wait for user to be available with ID
-        if (user?.id) {
-            setFormData({
-                ...user,
-                dob: user.dob ? user.dob.split('T')[0] : '', // Format for date input
-                courseExpertise: user.courseExpertise || [],
-            });
-        }
+        const loadUserData = async () => {
+            // Wait for user to be available with ID
+            if (user?.id) {
+                // Refresh user data to ensure we have latest from database
+                console.log('Refreshing user data on profile page load...');
+                const refreshedUser = await refreshCurrentUser();
+                const currentUser = refreshedUser || user;
+                
+                setFormData({
+                    ...currentUser,
+                    dob: currentUser.dob ? currentUser.dob.split('T')[0] : '', // Format for date input
+                    courseExpertise: currentUser.courseExpertise || [],
+                });
+                
+                if (refreshedUser) {
+                    console.log('Profile page user data refreshed');
+                }
+            }
+        };
+        loadUserData();
     }, [user?.id]); // Only re-run when user ID changes
 
     useEffect(() => {

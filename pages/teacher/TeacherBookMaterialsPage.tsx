@@ -20,7 +20,7 @@ import {
     ExternalLink
 } from 'lucide-react';
 import type { BookMaterial, User, Batch } from '../../types';
-import { getBookMaterials, getBatches } from '../../api';
+import { getBookMaterials, getBatches, refreshCurrentUser } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
 import BeautifulLoader from '../../components/BeautifulLoader';
 
@@ -95,6 +95,12 @@ const TeacherBookMaterialsPage: React.FC = () => {
             
             try {
                 setIsLoading(true);
+                
+                // Refresh user data to ensure we have latest from database
+                console.log('Refreshing user data on materials page load...');
+                const refreshedUser = await refreshCurrentUser();
+                const currentUser = refreshedUser || user;
+                
                 const [materialsData, batchesData] = await Promise.all([
                     getBookMaterials(),
                     getBatches()
@@ -103,7 +109,7 @@ const TeacherBookMaterialsPage: React.FC = () => {
                 // Filter batches where this teacher is assigned
                 const filteredTeacherBatches = batchesData.filter(batch => {
                     const teacherId = typeof batch.teacherId === 'string' ? batch.teacherId : (batch.teacherId as User)?.id;
-                    return teacherId === user.id;
+                    return teacherId === currentUser.id;
                 });
                 
                 // Get courses this teacher teaches

@@ -20,7 +20,7 @@ import {
     Target,
     GraduationCap
 } from 'lucide-react';
-import { getBatches } from '../../api';
+import { getBatches, refreshCurrentUser } from '../../api';
 import type { User, Batch, CourseTimingSlot } from '../../types';
 import { useTheme } from '../../contexts/ThemeContext';
 import BeautifulLoader from '../../components/BeautifulLoader';
@@ -64,14 +64,22 @@ const getCourseTheme = (courseName: string, index: number) => {
 };
 
 const TeacherCoursesPage: React.FC = () => {
-    const { user } = useOutletContext<{ user: User }>();
+    const { user: contextUser } = useOutletContext<{ user: User }>();
     const { theme } = useTheme();
+    const [user, setUser] = useState<User | null>(contextUser || null);
     const [heroRef, heroInView] = useInView({ threshold: 0.1, triggerOnce: true });
     const [coursesRef, coursesInView] = useInView({ threshold: 0.1, triggerOnce: true });
     
     const [teacherBatches, setTeacherBatches] = useState<Batch[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Update local user state when contextUser changes
+    useEffect(() => {
+        if (contextUser) {
+            setUser(contextUser);
+        }
+    }, [contextUser]);
 
     useEffect(() => {
         const fetchTeacherData = async () => {
@@ -83,12 +91,22 @@ const TeacherCoursesPage: React.FC = () => {
             
             try {
                 setIsLoading(true);
+                
+                // Refresh user data to ensure we have latest from database
+                console.log('Refreshing user data on courses page load...');
+                const refreshedUser = await refreshCurrentUser();
+                const currentUser = refreshedUser || user;
+                if (refreshedUser) {
+                    setUser(refreshedUser);
+                    console.log('Courses page user state updated with refreshed data');
+                }
+                
                 const batchesData = await getBatches();
                 
                 // Filter batches where this teacher is assigned
                 const filteredTeacherBatches = batchesData.filter(batch => {
                     const teacherId = typeof batch.teacherId === 'string' ? batch.teacherId : (batch.teacherId as User)?.id;
-                    return teacherId === user.id;
+                    return teacherId === currentUser.id;
                 });
                 
                 setTeacherBatches(filteredTeacherBatches);
