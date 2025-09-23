@@ -52,6 +52,10 @@ import PaymentHistoryPage from './pages/student/PaymentHistoryPage';
 import TeacherDashboardHomePage from './pages/teacher/TeacherDashboardHomePage';
 import TeacherProfilePage from './pages/teacher/TeacherProfilePage';
 import TeacherCoursesPage from './pages/teacher/TeacherCoursesPage';
+import TeacherBookMaterialsPage from './pages/teacher/TeacherBookMaterialsPage';
+import TeacherEventsPage from './pages/teacher/TeacherEventsPage';
+import TeacherNoticesPage from './pages/teacher/TeacherNoticesPage';
+import TeacherPaymentHistoryPage from './pages/teacher/TeacherPaymentHistoryPage';
 
 const TeacherContentPlaceholder = ({ title }: { title: string }) => (
     <div className="p-4 sm:p-6 md:p-8">
@@ -256,10 +260,10 @@ function App() {
               <Route index element={<TeacherDashboardHomePage />} />
               <Route path="profile" element={<TeacherProfilePage />} />
               <Route path="courses" element={<TeacherCoursesPage />} />
-              <Route path="book-materials" element={<TeacherContentPlaceholder title="Book Materials" />} />
-              <Route path="events" element={<TeacherContentPlaceholder title="Events" />} />
-              <Route path="notice" element={<TeacherContentPlaceholder title="Notice" />} />
-              <Route path="payment-history" element={<TeacherContentPlaceholder title="Payment History" />} />
+              <Route path="book-materials" element={<TeacherBookMaterialsPage />} />
+              <Route path="events" element={<TeacherEventsPage />} />
+              <Route path="notice" element={<TeacherNoticesPage />} />
+              <Route path="payment-history" element={<TeacherPaymentHistoryPage />} />
             </Route>
 
           </Routes>
