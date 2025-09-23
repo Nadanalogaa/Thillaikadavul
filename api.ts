@@ -142,10 +142,10 @@ export const loginUser = async (email: string, password: string): Promise<User> 
       standard: user.standard,
       grade: user.grade,
       photoUrl: user.photo_url,
-      courses: user.courses || [],
-      courseExpertise: user.course_expertise || [],
-      preferredTimings: user.preferred_timings || [],
-      availableTimeSlots: user.available_time_slots || [],
+      courses: Array.isArray(user.courses) ? user.courses : (user.courses ? [user.courses] : []),
+      courseExpertise: Array.isArray(user.course_expertise) ? user.course_expertise : (user.course_expertise ? [user.course_expertise] : []),
+      preferredTimings: Array.isArray(user.preferred_timings) ? user.preferred_timings : (user.preferred_timings ? [user.preferred_timings] : []),
+      availableTimeSlots: Array.isArray(user.available_time_slots) ? user.available_time_slots : (user.available_time_slots ? [user.available_time_slots] : []),
       educationalQualifications: user.educational_qualifications,
       employmentType: user.employment_type,
       yearsOfExperience: user.years_of_experience,
@@ -156,6 +156,8 @@ export const loginUser = async (email: string, password: string): Promise<User> 
     safeSetLocalStorage('currentUser', userData);
     
     console.log('User logged in from database:', userData);
+    console.log('Login courseExpertise:', userData.courseExpertise);
+    console.log('Login availableTimeSlots:', userData.availableTimeSlots);
     return userData;
 
   } catch (error) {
@@ -211,6 +213,9 @@ export const refreshCurrentUser = async (): Promise<User | null> => {
 
     const user = users[0];
     console.log('Raw user data from database:', user);
+    console.log('Raw course_expertise:', user.course_expertise);
+    console.log('Raw available_time_slots:', user.available_time_slots);
+    console.log('Raw courses:', user.courses);
     
     const userData: User = {
       id: user.id,
@@ -231,10 +236,10 @@ export const refreshCurrentUser = async (): Promise<User | null> => {
       standard: user.standard,
       grade: user.grade,
       photoUrl: user.photo_url,
-      courses: user.courses || [],
-      courseExpertise: user.course_expertise || [],
-      preferredTimings: user.preferred_timings || [],
-      availableTimeSlots: user.available_time_slots || [],
+      courses: Array.isArray(user.courses) ? user.courses : (user.courses ? [user.courses] : []),
+      courseExpertise: Array.isArray(user.course_expertise) ? user.course_expertise : (user.course_expertise ? [user.course_expertise] : []),
+      preferredTimings: Array.isArray(user.preferred_timings) ? user.preferred_timings : (user.preferred_timings ? [user.preferred_timings] : []),
+      availableTimeSlots: Array.isArray(user.available_time_slots) ? user.available_time_slots : (user.available_time_slots ? [user.available_time_slots] : []),
       educationalQualifications: user.educational_qualifications,
       employmentType: user.employment_type,
       yearsOfExperience: user.years_of_experience,
@@ -242,6 +247,8 @@ export const refreshCurrentUser = async (): Promise<User | null> => {
     };
 
     console.log('Mapped user data:', userData);
+    console.log('Final courseExpertise:', userData.courseExpertise);
+    console.log('Final availableTimeSlots:', userData.availableTimeSlots);
     
     currentUser = userData;
     safeSetLocalStorage('currentUser', userData);
