@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import type { User as UserType, Course } from '../../types';
 import { Sex, ClassPreference, EmploymentType } from '../../types';
-import { updateUserProfile, getCourses, refreshCurrentUser } from '../../api';
+import { updateUserProfile, getCourses } from '../../api';
 import { COUNTRIES } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -91,32 +91,24 @@ const TeacherProfilePage: React.FC = () => {
 
     useEffect(() => {
         const loadUserData = async () => {
-            // Wait for user to be available with ID
-            if (user?.id) {
+            // Only refresh once when component mounts and user is available
+            if (user?.id && !formData.id) {
                 try {
-                    // Refresh user data to ensure we have latest from database
-                    console.log('Refreshing user data on profile page load...');
-                    const refreshedUser = await refreshCurrentUser();
-                    const currentUser = refreshedUser || user;
+                    console.log('Loading user data for profile page...');
                     
+                    // Set initial form data from current user
                     setFormData({
-                        ...currentUser,
-                        dob: currentUser.dob ? currentUser.dob.split('T')[0] : '', // Format for date input
-                        courseExpertise: currentUser.courseExpertise || [],
+                        ...user,
+                        dob: user.dob ? user.dob.split('T')[0] : '', // Format for date input
+                        courseExpertise: user.courseExpertise || [],
                     });
-                    
-                    if (refreshedUser) {
-                        console.log('Profile page user data refreshed:', refreshedUser);
-                        // Use setTimeout to avoid dependency issues and prevent infinite loops
-                        setTimeout(() => onUpdate(refreshedUser), 0);
-                    }
                 } catch (error) {
-                    console.error('Failed to refresh user data:', error);
+                    console.error('Failed to load user data:', error);
                 }
             }
         };
         loadUserData();
-    }, [user?.id]); // Only re-run when user ID changes
+    }, [user?.id, formData.id]); // Only run when user changes or formData is empty
 
     useEffect(() => {
         const fetchCourses = async () => {
@@ -170,11 +162,13 @@ const TeacherProfilePage: React.FC = () => {
 
     const cancelEdit = () => {
         // Reset form data to original user data
-        setFormData({
-            ...user,
-            dob: user.dob ? user.dob.split('T')[0] : '',
-            courseExpertise: user.courseExpertise || [],
-        });
+        if (user) {
+            setFormData({
+                ...user,
+                dob: user.dob ? user.dob.split('T')[0] : '',
+                courseExpertise: user.courseExpertise || [],
+            });
+        }
         setIsEditing(false);
         setError(null);
         setSuccess(null);

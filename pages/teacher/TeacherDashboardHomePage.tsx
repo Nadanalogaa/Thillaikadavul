@@ -23,7 +23,7 @@ import {
     Calculator
 } from 'lucide-react';
 import type { User, Event, Notice, Batch } from '../../types';
-import { getEvents, getNotices, getBatches, refreshCurrentUser } from '../../api';
+import { getEvents, getNotices, getBatches } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
 
 // Course-specific icons and colors for teachers
@@ -92,14 +92,7 @@ const TeacherDashboardHomePage: React.FC = () => {
             try {
                 setIsLoading(true);
                 
-                // Refresh user data to ensure we have latest from database
-                console.log('Refreshing user data on dashboard load...');
-                const refreshedUser = await refreshCurrentUser();
-                const currentUser = refreshedUser || user;
-                if (refreshedUser) {
-                    setUser(refreshedUser);
-                    console.log('Dashboard user state updated with refreshed data');
-                }
+                console.log('Loading dashboard data for teacher:', user.name);
                 
                 const [eventsData, noticesData, batchesData] = await Promise.all([
                     getEvents(5), // Limit to 5 recent events for dashboard
@@ -110,7 +103,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                 // Calculate stats using the current user data
                 const filteredTeacherBatches = batchesData.filter(b => {
                     const teacherId = typeof b.teacherId === 'string' ? b.teacherId : (b.teacherId as User)?.id;
-                    return teacherId === currentUser.id;
+                    return teacherId === user.id;
                 });
                 
                 const studentIds = new Set<string>();

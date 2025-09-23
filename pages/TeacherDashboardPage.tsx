@@ -1,9 +1,10 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useOutletContext } from 'react-router-dom';
 import type { User } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
 import ThemeToggle from '../components/ThemeToggle';
+import { refreshCurrentUser } from '../api';
 
 // --- SVG Icons for Sidebar ---
 const IconWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -93,6 +94,45 @@ const Sidebar: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
 
 const TeacherDashboardPage: React.FC<TeacherDashboardPageProps> = ({ user, onLogout, onUpdate }) => {
     const { theme } = useTheme();
+    const [currentUser, setCurrentUser] = useState<User>(user);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    
+    // Refresh user data once when teacher dashboard loads
+    useEffect(() => {
+        const refreshUserData = async () => {
+            if (!user?.id || isRefreshing) return;
+            
+            try {
+                setIsRefreshing(true);
+                console.log('Refreshing teacher data on dashboard load...');
+                const refreshedUser = await refreshCurrentUser();
+                
+                if (refreshedUser && refreshedUser.id === user.id) {
+                    setCurrentUser(refreshedUser);
+                    onUpdate(refreshedUser);
+                    console.log('Teacher dashboard user data refreshed');
+                }
+            } catch (error) {
+                console.error('Failed to refresh teacher data:', error);
+            } finally {
+                setIsRefreshing(false);
+            }
+        };
+        
+        refreshUserData();
+    }, [user?.id]); // Only refresh when user ID changes (login/logout)
+    
+    // Update current user when prop changes (e.g., from profile updates)
+    useEffect(() => {
+        if (user && user.id === currentUser.id) {
+            setCurrentUser(user);
+        }
+    }, [user, currentUser.id]);
+    
+    const handleUserUpdate = (updatedUser: User) => {
+        setCurrentUser(updatedUser);
+        onUpdate(updatedUser);
+    };
     
     return (
         <div className={`flex min-h-screen font-sans transition-colors duration-300 ${
@@ -100,7 +140,7 @@ const TeacherDashboardPage: React.FC<TeacherDashboardPageProps> = ({ user, onLog
         }`}>
             <Sidebar onLogout={onLogout} />
             <main className="flex-1 overflow-y-auto">
-                <Outlet context={{ user, onUpdate }} />
+                <Outlet context={{ user: currentUser, onUpdate: handleUserUpdate }} />
             </main>
         </div>
     );

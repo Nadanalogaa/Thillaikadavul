@@ -22,7 +22,7 @@ import {
     BookOpen
 } from 'lucide-react';
 import type { Event, User, Batch } from '../../types';
-import { getEvents, getBatches, refreshCurrentUser } from '../../api';
+import { getEvents, getBatches } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
 import BeautifulLoader from '../../components/BeautifulLoader';
 
@@ -73,10 +73,7 @@ const TeacherEventsPage: React.FC = () => {
             try {
                 setIsLoading(true);
                 
-                // Refresh user data to ensure we have latest from database
-                console.log('Refreshing user data on events page load...');
-                const refreshedUser = await refreshCurrentUser();
-                const currentUser = refreshedUser || user;
+                console.log('Loading events data for teacher:', user.name);
                 
                 const [eventsData, batchesData] = await Promise.all([
                     getEvents(),
@@ -86,7 +83,7 @@ const TeacherEventsPage: React.FC = () => {
                 // Filter batches where this teacher is assigned
                 const filteredTeacherBatches = batchesData.filter(batch => {
                     const teacherId = typeof batch.teacherId === 'string' ? batch.teacherId : (batch.teacherId as User)?.id;
-                    return teacherId === currentUser.id;
+                    return teacherId === user.id;
                 });
                 
                 // Get courses this teacher teaches

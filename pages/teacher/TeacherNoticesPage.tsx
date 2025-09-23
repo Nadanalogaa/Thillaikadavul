@@ -24,7 +24,7 @@ import {
     BookOpen
 } from 'lucide-react';
 import type { Notice, User as UserType, Batch } from '../../types';
-import { getNotices, getBatches, refreshCurrentUser } from '../../api';
+import { getNotices, getBatches } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
 import BeautifulLoader from '../../components/BeautifulLoader';
 
@@ -98,10 +98,7 @@ const TeacherNoticesPage: React.FC = () => {
             try {
                 setIsLoading(true);
                 
-                // Refresh user data to ensure we have latest from database
-                console.log('Refreshing user data on notices page load...');
-                const refreshedUser = await refreshCurrentUser();
-                const currentUser = refreshedUser || user;
+                console.log('Loading notices data for teacher:', user.name);
                 
                 const [noticesData, batchesData] = await Promise.all([
                     getNotices(),
@@ -111,7 +108,7 @@ const TeacherNoticesPage: React.FC = () => {
                 // Filter batches where this teacher is assigned
                 const filteredTeacherBatches = batchesData.filter(batch => {
                     const teacherId = typeof batch.teacherId === 'string' ? batch.teacherId : (batch.teacherId as UserType)?.id;
-                    return teacherId === currentUser.id;
+                    return teacherId === user.id;
                 });
                 
                 // Get courses this teacher teaches
@@ -127,7 +124,7 @@ const TeacherNoticesPage: React.FC = () => {
                 setError(null);
                 
                 // Load read notices from localStorage
-                const savedReadNotices = localStorage.getItem(`readNotices_${currentUser.id}`);
+                const savedReadNotices = localStorage.getItem(`readNotices_${user.id}`);
                 if (savedReadNotices) {
                     setReadNotices(new Set(JSON.parse(savedReadNotices)));
                 }

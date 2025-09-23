@@ -24,7 +24,7 @@ import {
     PieChart
 } from 'lucide-react';
 import type { User, Batch } from '../../types';
-import { getBatches, refreshCurrentUser } from '../../api';
+import { getBatches } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
 import BeautifulLoader from '../../components/BeautifulLoader';
 
@@ -134,17 +134,14 @@ const TeacherPaymentHistoryPage: React.FC = () => {
             try {
                 setIsLoading(true);
                 
-                // Refresh user data to ensure we have latest from database
-                console.log('Refreshing user data on payment history page load...');
-                const refreshedUser = await refreshCurrentUser();
-                const currentUser = refreshedUser || user;
+                console.log('Loading payment history data for teacher:', user.name);
                 
                 const batchesData = await getBatches();
                 
                 // Filter batches where this teacher is assigned
                 const filteredTeacherBatches = batchesData.filter(batch => {
                     const teacherId = typeof batch.teacherId === 'string' ? batch.teacherId : (batch.teacherId as User)?.id;
-                    return teacherId === currentUser.id;
+                    return teacherId === user.id;
                 });
                 
                 // Generate mock payment data

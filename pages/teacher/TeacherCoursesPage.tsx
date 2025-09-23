@@ -20,7 +20,7 @@ import {
     Target,
     GraduationCap
 } from 'lucide-react';
-import { getBatches, refreshCurrentUser } from '../../api';
+import { getBatches } from '../../api';
 import type { User, Batch, CourseTimingSlot } from '../../types';
 import { useTheme } from '../../contexts/ThemeContext';
 import BeautifulLoader from '../../components/BeautifulLoader';
@@ -92,21 +92,14 @@ const TeacherCoursesPage: React.FC = () => {
             try {
                 setIsLoading(true);
                 
-                // Refresh user data to ensure we have latest from database
-                console.log('Refreshing user data on courses page load...');
-                const refreshedUser = await refreshCurrentUser();
-                const currentUser = refreshedUser || user;
-                if (refreshedUser) {
-                    setUser(refreshedUser);
-                    console.log('Courses page user state updated with refreshed data');
-                }
+                console.log('Loading courses data for teacher:', user.name);
                 
                 const batchesData = await getBatches();
                 
                 // Filter batches where this teacher is assigned
                 const filteredTeacherBatches = batchesData.filter(batch => {
                     const teacherId = typeof batch.teacherId === 'string' ? batch.teacherId : (batch.teacherId as User)?.id;
-                    return teacherId === currentUser.id;
+                    return teacherId === user.id;
                 });
                 
                 setTeacherBatches(filteredTeacherBatches);
