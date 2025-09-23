@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import type { User } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
@@ -95,12 +95,13 @@ const Sidebar: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
 const TeacherDashboardPage: React.FC<TeacherDashboardPageProps> = ({ user, onLogout, onUpdate }) => {
     const { theme } = useTheme();
     const [currentUser, setCurrentUser] = useState<User>(user);
-    const [hasRefreshed, setHasRefreshed] = useState(false);
+    const hasRefreshedRef = useRef(false);
     
-    // Auto-refresh user data once when dashboard loads
+    // Auto-refresh user data once when dashboard loads - using ref to prevent infinite loops
     useEffect(() => {
         const autoRefreshUserData = async () => {
-            if (!hasRefreshed && user?.id) {
+            if (!hasRefreshedRef.current && user?.id) {
+                hasRefreshedRef.current = true; // Set immediately to prevent multiple calls
                 try {
                     console.log('🔄 Auto-refreshing teacher data on dashboard load...');
                     const refreshedUser = await refreshCurrentUser();
@@ -111,14 +112,12 @@ const TeacherDashboardPage: React.FC<TeacherDashboardPageProps> = ({ user, onLog
                     }
                 } catch (error) {
                     console.error('❌ Error auto-refreshing teacher data:', error);
-                } finally {
-                    setHasRefreshed(true);
                 }
             }
         };
         
         autoRefreshUserData();
-    }, [user?.id, hasRefreshed, onUpdate]);
+    }, [user?.id, onUpdate]);
     
     // Update current user when prop changes
     useEffect(() => {
