@@ -4,40 +4,58 @@ import { notificationService } from './services/notificationService';
 
 // Simple session management
 let currentUser: User | null = null;
+let attemptedTeacherHydration = false;
+
+const ensureArray = <T>(input: T | T[] | null | undefined): T[] => {
+  if (Array.isArray(input)) {
+    return input;
+  }
+  if (input === null || typeof input === 'undefined') {
+    return [];
+  }
+  return [input];
+};
+
+const buildPersistedUser = (value: User) => ({
+  ...value,
+  courses: ensureArray(value.courses),
+  courseExpertise: ensureArray(value.courseExpertise),
+  preferredTimings: ensureArray(value.preferredTimings),
+  availableTimeSlots: ensureArray(value.availableTimeSlots),
+});
+
+const needsTeacherDataHydration = (user: User | null): boolean => {
+  if (!user || user.role !== 'Teacher') {
+    return false;
+  }
+
+  const missingCourseExpertise = typeof user.courseExpertise === 'undefined';
+  const missingAvailableSlots = typeof user.availableTimeSlots === 'undefined';
+  const missingPreferredTimings = typeof user.preferredTimings === 'undefined';
+  const missingCourses = typeof user.courses === 'undefined';
+
+  return missingCourseExpertise || missingAvailableSlots || missingPreferredTimings || missingCourses;
+};
 
 // Safe localStorage operations with error handling
 const safeSetLocalStorage = (key: string, value: any) => {
   if (typeof window === 'undefined') return;
   
   try {
-    // Create a minimal version of user data for storage
-    if (key === 'currentUser' && value) {
-      const minimalUser = {
-        id: value.id,
-        name: value.name,
-        email: value.email,
-        role: value.role,
-        classPreference: value.classPreference
-        // Exclude large data like photoUrl, preferredTimings, etc.
-      };
-      localStorage.setItem(key, JSON.stringify(minimalUser));
+    if (key === 'currentUser' && value && typeof value === 'object') {
+      const persistedUser = buildPersistedUser(value as User);
+      localStorage.setItem(key, JSON.stringify(persistedUser));
     } else {
       localStorage.setItem(key, JSON.stringify(value));
     }
   } catch (error) {
     console.warn('Failed to save to localStorage:', error);
-    // Try to clear old data and retry
+    // Try to clear old data and retry with sanitized payload
     try {
       localStorage.clear();
-      if (key === 'currentUser' && value) {
-        const minimalUser = {
-          id: value.id,
-          name: value.name,
-          email: value.email,
-          role: value.role,
-          classPreference: value.classPreference
-        };
-        localStorage.setItem(key, JSON.stringify(minimalUser));
+      if (key === 'currentUser' && value && typeof value === 'object') {
+        const persistedUser = buildPersistedUser(value as User);
+        localStorage.setItem(key, JSON.stringify(persistedUser));
       }
     } catch (retryError) {
       console.error('localStorage completely full, cannot save user session:', retryError);
@@ -183,6 +201,20 @@ export const getCurrentUser = async (): Promise<User | null> => {
       }
     }
   }
+
+  if (!attemptedTeacherHydration && needsTeacherDataHydration(currentUser)) {
+    attemptedTeacherHydration = true;
+    try {
+      const refreshedUser = await refreshCurrentUser();
+      if (refreshedUser) {
+        attemptedTeacherHydration = false;
+        return refreshedUser;
+      }
+    } catch (error) {
+      console.error('Auto-refresh of teacher data failed:', error);
+    }
+  }
+
   return currentUser;
 };
 
@@ -251,6 +283,7 @@ export const refreshCurrentUser = async (): Promise<User | null> => {
     console.log('Final availableTimeSlots:', userData.availableTimeSlots);
     
     currentUser = userData;
+    attemptedTeacherHydration = false;
     safeSetLocalStorage('currentUser', userData);
     
     console.log('User data refreshed successfully:', userData);
@@ -264,6 +297,7 @@ export const refreshCurrentUser = async (): Promise<User | null> => {
 
 export const logout = async (): Promise<void> => {
   currentUser = null;
+  attemptedTeacherHydration = false;
   // Clear localStorage
   if (typeof window !== 'undefined') {
     localStorage.removeItem('currentUser');
