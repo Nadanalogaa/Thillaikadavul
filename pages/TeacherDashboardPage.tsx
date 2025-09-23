@@ -1,9 +1,10 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import type { User } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
 import ThemeToggle from '../components/ThemeToggle';
+import { refreshCurrentUser } from '../api';
 
 // --- SVG Icons for Sidebar ---
 const IconWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -93,6 +94,41 @@ const Sidebar: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
 
 const TeacherDashboardPage: React.FC<TeacherDashboardPageProps> = ({ user, onLogout, onUpdate }) => {
     const { theme } = useTheme();
+    const [currentUser, setCurrentUser] = useState<User>(user);
+    const [hasRefreshed, setHasRefreshed] = useState(false);
+    
+    // Auto-refresh user data once when dashboard loads
+    useEffect(() => {
+        const autoRefreshUserData = async () => {
+            if (!hasRefreshed && user?.id) {
+                try {
+                    console.log('🔄 Auto-refreshing teacher data on dashboard load...');
+                    const refreshedUser = await refreshCurrentUser();
+                    if (refreshedUser) {
+                        setCurrentUser(refreshedUser);
+                        onUpdate(refreshedUser);
+                        console.log('✅ Teacher data auto-refreshed on load');
+                    }
+                } catch (error) {
+                    console.error('❌ Error auto-refreshing teacher data:', error);
+                } finally {
+                    setHasRefreshed(true);
+                }
+            }
+        };
+        
+        autoRefreshUserData();
+    }, [user?.id, hasRefreshed, onUpdate]);
+    
+    // Update current user when prop changes
+    useEffect(() => {
+        setCurrentUser(user);
+    }, [user]);
+    
+    const handleUserUpdate = (updatedUser: User) => {
+        setCurrentUser(updatedUser);
+        onUpdate(updatedUser);
+    };
     
     return (
         <div className={`flex min-h-screen font-sans transition-colors duration-300 ${
@@ -100,7 +136,7 @@ const TeacherDashboardPage: React.FC<TeacherDashboardPageProps> = ({ user, onLog
         }`}>
             <Sidebar onLogout={onLogout} />
             <main className="flex-1 overflow-y-auto">
-                <Outlet context={{ user, onUpdate }} />
+                <Outlet context={{ user: currentUser, onUpdate: handleUserUpdate }} />
             </main>
         </div>
     );
