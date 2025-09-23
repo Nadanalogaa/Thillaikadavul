@@ -16,13 +16,17 @@ const TeacherProfilePage: React.FC = () => {
     const [success, setSuccess] = useState<string | null>(null);
 
     useEffect(() => {
-        if (user) {
+        // Wait for user to be available with ID
+        if (user?.id) {
             setFormData({
                 ...user,
                 dob: user.dob ? user.dob.split('T')[0] : '', // Format for date input
                 courseExpertise: user.courseExpertise || [],
             });
         }
+    }, [user?.id]); // Only re-run when user ID changes
+
+    useEffect(() => {
         const fetchCourses = async () => {
             try {
                 setIsCoursesLoading(true);
@@ -35,7 +39,7 @@ const TeacherProfilePage: React.FC = () => {
             }
         };
         fetchCourses();
-    }, [user]);
+    }, []); // Courses don't depend on user, run once
     
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });

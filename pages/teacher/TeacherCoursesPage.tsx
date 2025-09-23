@@ -75,7 +75,11 @@ const TeacherCoursesPage: React.FC = () => {
 
     useEffect(() => {
         const fetchTeacherData = async () => {
-            if (!user) return;
+            // Wait for user to be available with ID
+            if (!user?.id) {
+                setIsLoading(true);
+                return;
+            }
             
             try {
                 setIsLoading(true);
@@ -98,7 +102,7 @@ const TeacherCoursesPage: React.FC = () => {
         };
 
         fetchTeacherData();
-    }, [user]);
+    }, [user?.id]); // Only re-run when user ID changes
 
     if (isLoading) {
         return <BeautifulLoader message="Loading your courses..." />;
@@ -114,8 +118,8 @@ const TeacherCoursesPage: React.FC = () => {
         );
     }
 
-    const teacherCourses = user.courseExpertise || [];
-    const teacherPreferredTimings = user.availableTimeSlots || user.preferredTimings || [];
+    const teacherCourses = user?.courseExpertise || [];
+    const teacherPreferredTimings = user?.availableTimeSlots || user?.preferredTimings || [];
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 p-6">

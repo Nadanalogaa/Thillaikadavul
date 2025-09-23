@@ -89,7 +89,11 @@ const TeacherNoticesPage: React.FC = () => {
 
     useEffect(() => {
         const fetchNotices = async () => {
-            if (!user) return;
+            // Wait for user to be available with ID
+            if (!user?.id) {
+                setIsLoading(true);
+                return;
+            }
             
             try {
                 setIsLoading(true);
@@ -130,7 +134,7 @@ const TeacherNoticesPage: React.FC = () => {
         };
 
         fetchNotices();
-    }, [user]);
+    }, [user?.id]); // Only re-run when user ID changes
 
     const markAsRead = (noticeId: string) => {
         const newReadNotices = new Set(readNotices);

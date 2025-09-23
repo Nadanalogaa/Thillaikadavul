@@ -67,23 +67,35 @@ const TeacherDashboardHomePage: React.FC = () => {
     const [batchesRef, batchesInView] = useInView({ threshold: 0.1, triggerOnce: true });
     const [activityRef, activityInView] = useInView({ threshold: 0.1, triggerOnce: true });
     
-    const [user, setUser] = useState<User>(contextUser);
+    const [user, setUser] = useState<User | null>(contextUser || null);
     const [stats, setStats] = useState({ totalStudents: 0, totalBatches: 0 });
     const [recentEvents, setRecentEvents] = useState<Event[]>([]);
     const [recentNotices, setRecentNotices] = useState<Notice[]>([]);
     const [teacherBatches, setTeacherBatches] = useState<Batch[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
+    // Update local user state when contextUser changes
+    useEffect(() => {
+        if (contextUser) {
+            setUser(contextUser);
+        }
+    }, [contextUser]);
+
     useEffect(() => {
         const fetchData = async () => {
-            if (!contextUser) return;
+            // Wait for user to be available
+            if (!user?.id) {
+                setIsLoading(true);
+                return;
+            }
+
             try {
                 setIsLoading(true);
                 
                 // Refresh user data to ensure we have latest from database
                 console.log('Refreshing user data on dashboard load...');
                 const refreshedUser = await refreshCurrentUser();
-                const currentUser = refreshedUser || contextUser;
+                const currentUser = refreshedUser || user;
                 if (refreshedUser) {
                     setUser(refreshedUser);
                     console.log('Dashboard user state updated with refreshed data');
@@ -121,7 +133,7 @@ const TeacherDashboardHomePage: React.FC = () => {
             }
         };
         fetchData();
-    }, [contextUser]);
+    }, [user?.id]); // Only re-run when user ID changes
     
     const today = new Date();
     const dateString = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -197,7 +209,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                         className="flex flex-col"
                     >
                         <h1 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-1`}>
-                            Welcome back, {user.name?.split(' ')[0]}!
+                            Welcome back, {user?.name?.split(' ')[0] || 'Teacher'}!
                         </h1>
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                             {dateString}
@@ -332,7 +344,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                                 </div>
                                 <div>
                                     <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                                        Your Course Expertise ({(user.courseExpertise || []).length})
+                                        Your Course Expertise ({(user?.courseExpertise || []).length})
                                     </h2>
                                     <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                                         Courses you can teach with allocation status
@@ -345,8 +357,8 @@ const TeacherDashboardHomePage: React.FC = () => {
                     {/* Course Content */}
                     <div className="p-6">
                         {(() => {
-                            const teacherCourses = user.courseExpertise || [];
-                            const teacherPreferredTimings = user.availableTimeSlots || user.preferredTimings || [];
+                            const teacherCourses = user?.courseExpertise || [];
+                            const teacherPreferredTimings = user?.availableTimeSlots || user?.preferredTimings || [];
                             
                             // Debug logging to see what data we have
                             console.log('Teacher courses:', teacherCourses);

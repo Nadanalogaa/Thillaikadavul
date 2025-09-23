@@ -87,7 +87,11 @@ const TeacherBookMaterialsPage: React.FC = () => {
 
     useEffect(() => {
         const fetchMaterials = async () => {
-            if (!user) return;
+            // Wait for user to be available with ID
+            if (!user?.id) {
+                setIsLoading(true);
+                return;
+            }
             
             try {
                 setIsLoading(true);
@@ -122,7 +126,7 @@ const TeacherBookMaterialsPage: React.FC = () => {
         };
 
         fetchMaterials();
-    }, [user]);
+    }, [user?.id]); // Only re-run when user ID changes
 
     if (isLoading) {
         return <BeautifulLoader message="Loading book materials..." />;

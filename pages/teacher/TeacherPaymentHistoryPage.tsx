@@ -125,7 +125,11 @@ const TeacherPaymentHistoryPage: React.FC = () => {
 
     useEffect(() => {
         const fetchPaymentData = async () => {
-            if (!user) return;
+            // Wait for user to be available with ID
+            if (!user?.id) {
+                setIsLoading(true);
+                return;
+            }
             
             try {
                 setIsLoading(true);
@@ -152,7 +156,7 @@ const TeacherPaymentHistoryPage: React.FC = () => {
         };
 
         fetchPaymentData();
-    }, [user]);
+    }, [user?.id]); // Only re-run when user ID changes
 
     if (isLoading) {
         return <BeautifulLoader message="Loading payment history..." />;
