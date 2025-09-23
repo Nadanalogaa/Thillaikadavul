@@ -60,7 +60,7 @@ const getCourseTheme = (courseName: string, index: number) => {
 };
 
 const TeacherDashboardHomePage: React.FC = () => {
-    const { user: contextUser } = useOutletContext<{ user: User }>();
+    const { user } = useOutletContext<{ user: User }>();
     const { theme } = useTheme();
     const [heroRef, heroInView] = useInView({ threshold: 0.1, triggerOnce: true });
     const [statsRef, statsInView] = useInView({ threshold: 0.1, triggerOnce: true });
@@ -76,7 +76,7 @@ const TeacherDashboardHomePage: React.FC = () => {
     useEffect(() => {
         const fetchData = async () => {
             // Wait for user to be available
-            if (!contextUser?.id) {
+            if (!user?.id) {
                 setIsLoading(true);
                 return;
             }
@@ -84,7 +84,7 @@ const TeacherDashboardHomePage: React.FC = () => {
             try {
                 setIsLoading(true);
                 
-                console.log('Loading dashboard data for teacher:', contextUser.name);
+                console.log('Loading dashboard data for teacher:', user.name);
                 
                 const [eventsData, noticesData, batchesData] = await Promise.all([
                     getEvents(5), // Limit to 5 recent events for dashboard
@@ -95,7 +95,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                 // Calculate stats using the current user data
                 const filteredTeacherBatches = batchesData.filter(b => {
                     const teacherId = typeof b.teacherId === 'string' ? b.teacherId : (b.teacherId as User)?.id;
-                    return teacherId === contextUser.id;
+                    return teacherId === user.id;
                 });
                 
                 const studentIds = new Set<string>();
@@ -118,7 +118,7 @@ const TeacherDashboardHomePage: React.FC = () => {
             }
         };
         fetchData();
-    }, [contextUser?.id]); // Only re-run when user ID changes
+    }, [user?.id]); // Only re-run when user ID changes
     
     const today = new Date();
     const dateString = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -194,7 +194,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                         className="flex flex-col"
                     >
                         <h1 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-1`}>
-                            Welcome back, {contextUser?.name?.split(' ')[0] || 'Teacher'}!
+                            Welcome back, {user?.name?.split(' ')[0] || 'Teacher'}!
                         </h1>
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                             {dateString}
@@ -230,7 +230,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                         },
                         {
                             title: "Course Expertise",
-                            value: (contextUser.courseExpertise || []).length,
+                            value: (user.courseExpertise || []).length,
                             linkTo: undefined, 
                             icon: Award,
                             color: "text-purple-600 dark:text-purple-400",
@@ -329,7 +329,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                                 </div>
                                 <div>
                                     <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                                        Your Course Expertise ({(contextUser?.courseExpertise || []).length})
+                                        Your Course Expertise ({(user?.courseExpertise || []).length})
                                     </h2>
                                     <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                                         Courses you can teach with allocation status
@@ -342,8 +342,8 @@ const TeacherDashboardHomePage: React.FC = () => {
                     {/* Course Content */}
                     <div className="p-6">
                         {(() => {
-                            const teacherCourses = contextUser?.courseExpertise || [];
-                            const teacherPreferredTimings = contextUser?.availableTimeSlots || contextUser?.preferredTimings || [];
+                            const teacherCourses = user?.courseExpertise || [];
+                            const teacherPreferredTimings = user?.availableTimeSlots || user?.preferredTimings || [];
                             
                             // Debug logging to see what data we have
                             console.log('Teacher courses:', teacherCourses);
