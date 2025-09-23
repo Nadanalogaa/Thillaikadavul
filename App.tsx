@@ -52,6 +52,8 @@ import PaymentHistoryPage from './pages/student/PaymentHistoryPage';
 import TeacherDashboardHomePage from './pages/teacher/TeacherDashboardHomePage';
 import TeacherProfilePage from './pages/teacher/TeacherProfilePage';
 import TeacherCoursesPage from './pages/teacher/TeacherCoursesPage';
+import TeacherStudentsPage from './pages/teacher/TeacherStudentsPage';
+import TeacherBatchesPage from './pages/teacher/TeacherBatchesPage';
 import TeacherBookMaterialsPage from './pages/teacher/TeacherBookMaterialsPage';
 import TeacherEventsPage from './pages/teacher/TeacherEventsPage';
 import TeacherNoticesPage from './pages/teacher/TeacherNoticesPage';
@@ -260,6 +262,8 @@ function App() {
               <Route index element={<TeacherDashboardHomePage />} />
               <Route path="profile" element={<TeacherProfilePage />} />
               <Route path="courses" element={<TeacherCoursesPage />} />
+              <Route path="students" element={<TeacherStudentsPage />} />
+              <Route path="batches" element={<TeacherBatchesPage />} />
               <Route path="book-materials" element={<TeacherBookMaterialsPage />} />
               <Route path="events" element={<TeacherEventsPage />} />
               <Route path="notice" element={<TeacherNoticesPage />} />

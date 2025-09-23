@@ -26,7 +26,7 @@ import {
 import type { Notice, User as UserType, Batch } from '../../types';
 import { getNotices, getBatches } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
-import BeautifulLoader from '../../components/BeautifulLoader';
+import TeacherLoader from '../../components/TeacherLoader';
 
 const getCourseIcon = (courseName: string) => {
     const iconMap: Record<string, React.ElementType> = {
@@ -149,7 +149,7 @@ const TeacherNoticesPage: React.FC = () => {
     };
 
     if (isLoading) {
-        return <BeautifulLoader message="Loading notices..." />;
+        return <TeacherLoader message="Loading notices..." />;
     }
 
     if (error) {

@@ -1089,6 +1089,66 @@ export const getBatches = async (): Promise<Batch[]> => {
   }
 };
 
+export const getUsersByIds = async (ids: string[]): Promise<User[]> => {
+  if (!ids || ids.length === 0) {
+    return [];
+  }
+
+  try {
+    const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+    if (uniqueIds.length === 0) {
+      return [];
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .in('id', uniqueIds)
+      .eq('is_deleted', false);
+
+    if (error) {
+      console.error('Error fetching users by IDs:', error);
+      return [];
+    }
+
+    return (data || []).map(user => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      classPreference: user.class_preference || 'Online',
+      contactNumber: user.contact_number,
+      address: user.address,
+      country: user.country,
+      state: user.state,
+      city: user.city,
+      postalCode: user.postal_code,
+      fatherName: user.father_name,
+      dob: user.dob,
+      sex: user.sex,
+      schoolName: user.school_name,
+      standard: user.standard,
+      grade: user.grade,
+      photoUrl: user.photo_url,
+      courses: ensureArray<string>(user.courses as string[] | string | null | undefined),
+      courseExpertise: ensureArray<string>(user.course_expertise as string[] | string | null | undefined),
+      preferredTimings: ensureArray<User['preferredTimings'][number]>(user.preferred_timings as any),
+      availableTimeSlots: ensureArray<User['availableTimeSlots'][number]>(user.available_time_slots as any),
+      educationalQualifications: user.educational_qualifications,
+      employmentType: user.employment_type,
+      yearsOfExperience: user.years_of_experience,
+      dateOfJoining: user.date_of_joining,
+      schedules: user.schedules || [],
+      documents: user.documents || [],
+      isDeleted: user.is_deleted,
+      notes: user.notes
+    }));
+  } catch (error) {
+    console.error('Error in getUsersByIds:', error);
+    return [];
+  }
+};
+
 export const addBatch = async (batchData: Partial<Batch>): Promise<Batch> => {
   try {
     const insertData: any = {

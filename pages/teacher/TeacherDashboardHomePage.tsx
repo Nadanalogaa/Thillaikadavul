@@ -25,6 +25,7 @@ import {
 import type { User, Event, Notice, Batch } from '../../types';
 import { getEvents, getNotices, getBatches } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
+import TeacherLoader from '../../components/TeacherLoader';
 
 // Course-specific icons and colors for teachers
 const getCourseTheme = (courseName: string, index: number) => {
@@ -124,14 +125,7 @@ const TeacherDashboardHomePage: React.FC = () => {
     const dateString = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
     if (isLoading) {
-        return (
-            <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 flex items-center justify-center">
-                <div className="text-center">
-                    <div className="w-8 h-8 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-gray-600 dark:text-gray-400">Loading teacher dashboard...</p>
-                </div>
-            </div>
-        );
+        return <TeacherLoader message="Loading teacher dashboard..." />;
     }
 
     return (

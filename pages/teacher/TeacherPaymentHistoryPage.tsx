@@ -26,7 +26,7 @@ import {
 import type { User, Batch } from '../../types';
 import { getBatches } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
-import BeautifulLoader from '../../components/BeautifulLoader';
+import TeacherLoader from '../../components/TeacherLoader';
 
 // Mock payment data structure - replace with actual API call
 interface Payment {
@@ -162,7 +162,7 @@ const TeacherPaymentHistoryPage: React.FC = () => {
     }, [user?.id]); // Only re-run when user ID changes
 
     if (isLoading) {
-        return <BeautifulLoader message="Loading payment history..." />;
+        return <TeacherLoader message="Loading payment history..." />;
     }
 
     if (error) {

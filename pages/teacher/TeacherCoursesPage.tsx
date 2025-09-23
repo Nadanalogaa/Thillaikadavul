@@ -23,7 +23,7 @@ import {
 import { getBatches } from '../../api';
 import type { User, Batch, CourseTimingSlot } from '../../types';
 import { useTheme } from '../../contexts/ThemeContext';
-import BeautifulLoader from '../../components/BeautifulLoader';
+import TeacherLoader from '../../components/TeacherLoader';
 
 const getCourseIcon = (courseName: string) => {
     const iconMap: Record<string, React.ElementType> = {
@@ -116,7 +116,7 @@ const TeacherCoursesPage: React.FC = () => {
     }, [user?.id]); // Only re-run when user ID changes
 
     if (isLoading) {
-        return <BeautifulLoader message="Loading your courses..." />;
+        return <TeacherLoader message="Loading your courses..." />;
     }
 
     if (error) {

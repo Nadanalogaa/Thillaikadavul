@@ -24,7 +24,7 @@ import {
 import type { Event, User, Batch } from '../../types';
 import { getEvents, getBatches } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
-import BeautifulLoader from '../../components/BeautifulLoader';
+import TeacherLoader from '../../components/TeacherLoader';
 
 const getCourseIcon = (courseName: string) => {
     const iconMap: Record<string, React.ElementType> = {
@@ -109,7 +109,7 @@ const TeacherEventsPage: React.FC = () => {
     }, [user?.id]); // Only re-run when user ID changes
 
     if (isLoading) {
-        return <BeautifulLoader message="Loading events..." />;
+        return <TeacherLoader message="Loading events..." />;
     }
 
     if (error) {

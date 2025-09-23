@@ -22,7 +22,7 @@ import {
 import type { BookMaterial, User, Batch } from '../../types';
 import { getBookMaterials, getBatches } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
-import BeautifulLoader from '../../components/BeautifulLoader';
+import TeacherLoader from '../../components/TeacherLoader';
 
 const getCourseIcon = (courseName: string) => {
     const iconMap: Record<string, React.ElementType> = {
@@ -132,7 +132,7 @@ const TeacherBookMaterialsPage: React.FC = () => {
     }, [user?.id]); // Only re-run when user ID changes
 
     if (isLoading) {
-        return <BeautifulLoader message="Loading book materials..." />;
+        return <TeacherLoader message="Loading book materials..." />;
     }
 
     if (error) {
