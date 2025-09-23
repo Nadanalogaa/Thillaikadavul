@@ -93,24 +93,29 @@ const TeacherProfilePage: React.FC = () => {
         const loadUserData = async () => {
             // Wait for user to be available with ID
             if (user?.id) {
-                // Refresh user data to ensure we have latest from database
-                console.log('Refreshing user data on profile page load...');
-                const refreshedUser = await refreshCurrentUser();
-                const currentUser = refreshedUser || user;
-                
-                setFormData({
-                    ...currentUser,
-                    dob: currentUser.dob ? currentUser.dob.split('T')[0] : '', // Format for date input
-                    courseExpertise: currentUser.courseExpertise || [],
-                });
-                
-                if (refreshedUser) {
-                    console.log('Profile page user data refreshed');
+                try {
+                    // Refresh user data to ensure we have latest from database
+                    console.log('Refreshing user data on profile page load...');
+                    const refreshedUser = await refreshCurrentUser();
+                    const currentUser = refreshedUser || user;
+                    
+                    setFormData({
+                        ...currentUser,
+                        dob: currentUser.dob ? currentUser.dob.split('T')[0] : '', // Format for date input
+                        courseExpertise: currentUser.courseExpertise || [],
+                    });
+                    
+                    if (refreshedUser) {
+                        console.log('Profile page user data refreshed:', refreshedUser);
+                        onUpdate(refreshedUser); // Update the context with fresh data
+                    }
+                } catch (error) {
+                    console.error('Failed to refresh user data:', error);
                 }
             }
         };
         loadUserData();
-    }, [user?.id]); // Only re-run when user ID changes
+    }, [user?.id, onUpdate]); // Only re-run when user ID changes
 
     useEffect(() => {
         const fetchCourses = async () => {
@@ -276,7 +281,7 @@ const TeacherProfilePage: React.FC = () => {
                             <motion.button 
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
-                                onClick={() => setIsEditing(!isEditing)}
+                                onClick={isEditing ? cancelEdit : () => setIsEditing(true)}
                                 className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all duration-300"
                             >
                                 <Edit3 className="w-4 h-4" />
@@ -524,31 +529,31 @@ const TeacherProfilePage: React.FC = () => {
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                         <InfoField 
                                             label="Date of Birth" 
-                                            value={user.dob ? new Date(user.dob).toLocaleDateString() : null} 
+                                            value={formData.dob ? new Date(formData.dob).toLocaleDateString() : null} 
                                             icon={Calendar} 
                                             delay={0.1} 
                                         />
-                                        <InfoField label="Gender" value={user.sex} icon={User} delay={0.2} />
-                                        <InfoField label="Contact Number" value={user.contactNumber} icon={Phone} delay={0.3} />
-                                        <InfoField label="Email" value={user.email} icon={Mail} delay={0.4} />
-                                        <InfoField label="Country" value={user.country} icon={Globe} delay={0.5} />
-                                        <InfoField label="Employment Type" value={user.employmentType} icon={Briefcase} delay={0.6} />
+                                        <InfoField label="Gender" value={formData.sex} icon={User} delay={0.2} />
+                                        <InfoField label="Contact Number" value={formData.contactNumber} icon={Phone} delay={0.3} />
+                                        <InfoField label="Email" value={formData.email} icon={Mail} delay={0.4} />
+                                        <InfoField label="Country" value={formData.country} icon={Globe} delay={0.5} />
+                                        <InfoField label="Employment Type" value={formData.employmentType} icon={Briefcase} delay={0.6} />
                                         <InfoField 
                                             label="Years of Experience" 
-                                            value={user.yearsOfExperience ? `${user.yearsOfExperience} years` : null} 
+                                            value={formData.yearsOfExperience ? `${formData.yearsOfExperience} years` : null} 
                                             icon={Award} 
                                             delay={0.7} 
                                         />
                                         <InfoField 
                                             label="Date of Joining" 
-                                            value={user.dateOfJoining ? new Date(user.dateOfJoining).toLocaleDateString() : null} 
+                                            value={formData.dateOfJoining ? new Date(formData.dateOfJoining).toLocaleDateString() : null} 
                                             icon={Calendar} 
                                             delay={0.8} 
                                         />
                                     </div>
 
                                     {/* Address */}
-                                    {user.address && (
+                                    {formData.address && (
                                         <motion.div
                                             initial={{ opacity: 0, y: 30 }}
                                             animate={profileInView ? { opacity: 1, y: 0 } : {}}
@@ -564,13 +569,13 @@ const TeacherProfilePage: React.FC = () => {
                                                 </h3>
                                             </div>
                                             <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} leading-relaxed`}>
-                                                {user.address}
+                                                {formData.address}
                                             </p>
                                         </motion.div>
                                     )}
 
                                     {/* Educational Qualifications */}
-                                    {user.educationalQualifications && (
+                                    {formData.educationalQualifications && (
                                         <motion.div
                                             initial={{ opacity: 0, y: 30 }}
                                             animate={profileInView ? { opacity: 1, y: 0 } : {}}
@@ -586,7 +591,7 @@ const TeacherProfilePage: React.FC = () => {
                                                 </h3>
                                             </div>
                                             <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} leading-relaxed`}>
-                                                {user.educationalQualifications}
+                                                {formData.educationalQualifications}
                                             </p>
                                         </motion.div>
                                     )}
@@ -606,9 +611,9 @@ const TeacherProfilePage: React.FC = () => {
                                                 Course Expertise
                                             </h3>
                                         </div>
-                                        {user.courseExpertise && user.courseExpertise.length > 0 ? (
+                                        {formData.courseExpertise && formData.courseExpertise.length > 0 ? (
                                             <div className="flex flex-wrap gap-3">
-                                                {user.courseExpertise.map((course, idx) => {
+                                                {formData.courseExpertise.map((course, idx) => {
                                                     const Icon = getCourseIcon(course);
                                                     return (
                                                         <motion.div
@@ -647,9 +652,9 @@ const TeacherProfilePage: React.FC = () => {
                                                 Available Time Slots
                                             </h3>
                                         </div>
-                                        {user.availableTimeSlots && user.availableTimeSlots.length > 0 ? (
+                                        {formData.availableTimeSlots && formData.availableTimeSlots.length > 0 ? (
                                             <div className="flex flex-wrap gap-3">
-                                                {user.availableTimeSlots.map((timing, index) => {
+                                                {formData.availableTimeSlots.map((timing, index) => {
                                                     const timingText = typeof timing === 'string' ? timing : `${timing.day}: ${timing.timeSlot}`;
                                                     return (
                                                         <motion.div
