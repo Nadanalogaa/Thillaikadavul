@@ -107,7 +107,8 @@ const TeacherProfilePage: React.FC = () => {
                     
                     if (refreshedUser) {
                         console.log('Profile page user data refreshed:', refreshedUser);
-                        onUpdate(refreshedUser); // Update the context with fresh data
+                        // Use setTimeout to avoid dependency issues and prevent infinite loops
+                        setTimeout(() => onUpdate(refreshedUser), 0);
                     }
                 } catch (error) {
                     console.error('Failed to refresh user data:', error);
@@ -115,7 +116,7 @@ const TeacherProfilePage: React.FC = () => {
             }
         };
         loadUserData();
-    }, [user?.id, onUpdate]); // Only re-run when user ID changes
+    }, [user?.id]); // Only re-run when user ID changes
 
     useEffect(() => {
         const fetchCourses = async () => {
