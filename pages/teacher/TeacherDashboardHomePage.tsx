@@ -23,7 +23,7 @@ import {
     Calculator
 } from 'lucide-react';
 import type { User, Event, Notice, Batch } from '../../types';
-import { getEvents, getNotices, getBatches } from '../../api';
+import { getEvents, getNotices, getBatches, refreshCurrentUser } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
 
 // Course-specific icons and colors for teachers
@@ -60,7 +60,7 @@ const getCourseTheme = (courseName: string, index: number) => {
 };
 
 const TeacherDashboardHomePage: React.FC = () => {
-    const { user } = useOutletContext<{ user: User }>();
+    const { user, onUpdate } = useOutletContext<{ user: User; onUpdate: (user: User) => void }>();
     const { theme } = useTheme();
     const [heroRef, heroInView] = useInView({ threshold: 0.1, triggerOnce: true });
     const [statsRef, statsInView] = useInView({ threshold: 0.1, triggerOnce: true });
@@ -204,10 +204,23 @@ const TeacherDashboardHomePage: React.FC = () => {
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.6, delay: 0.2 }}
-                        onClick={() => window.location.reload()}
+                        onClick={async () => {
+                            console.log('🔄 Force refreshing user data from database...');
+                            try {
+                                const refreshedUser = await refreshCurrentUser();
+                                if (refreshedUser) {
+                                    onUpdate(refreshedUser);
+                                    console.log('✅ User data force refreshed:', refreshedUser);
+                                } else {
+                                    console.log('❌ Failed to refresh user data');
+                                }
+                            } catch (error) {
+                                console.error('❌ Error refreshing user data:', error);
+                            }
+                        }}
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                     >
-                        Refresh Data
+                        Force Refresh
                     </motion.button>
                 </div>
             </div>
