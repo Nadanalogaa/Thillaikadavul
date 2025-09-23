@@ -230,7 +230,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                         },
                         {
                             title: "Course Expertise",
-                            value: (user.courseExpertise || []).length,
+                            value: (contextUser.courseExpertise || []).length,
                             linkTo: undefined, 
                             icon: Award,
                             color: "text-purple-600 dark:text-purple-400",
@@ -329,7 +329,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                                 </div>
                                 <div>
                                     <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                                        Your Course Expertise ({(user?.courseExpertise || []).length})
+                                        Your Course Expertise ({(contextUser?.courseExpertise || []).length})
                                     </h2>
                                     <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                                         Courses you can teach with allocation status
@@ -342,8 +342,8 @@ const TeacherDashboardHomePage: React.FC = () => {
                     {/* Course Content */}
                     <div className="p-6">
                         {(() => {
-                            const teacherCourses = user?.courseExpertise || [];
-                            const teacherPreferredTimings = user?.availableTimeSlots || user?.preferredTimings || [];
+                            const teacherCourses = contextUser?.courseExpertise || [];
+                            const teacherPreferredTimings = contextUser?.availableTimeSlots || contextUser?.preferredTimings || [];
                             
                             // Debug logging to see what data we have
                             console.log('Teacher courses:', teacherCourses);
