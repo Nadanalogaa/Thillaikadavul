@@ -76,13 +76,14 @@ const TeacherDashboardHomePage: React.FC = () => {
 
     useEffect(() => {
         const fetchData = async () => {
-            if (!user) return;
+            if (!contextUser) return;
             try {
                 setIsLoading(true);
                 
                 // Refresh user data to ensure we have latest from database
                 console.log('Refreshing user data on dashboard load...');
                 const refreshedUser = await refreshCurrentUser();
+                const currentUser = refreshedUser || contextUser;
                 if (refreshedUser) {
                     setUser(refreshedUser);
                     console.log('Dashboard user state updated with refreshed data');
@@ -94,10 +95,10 @@ const TeacherDashboardHomePage: React.FC = () => {
                     getBatches(),
                 ]);
 
-                // Calculate stats
+                // Calculate stats using the current user data
                 const filteredTeacherBatches = batchesData.filter(b => {
                     const teacherId = typeof b.teacherId === 'string' ? b.teacherId : (b.teacherId as User)?.id;
-                    return teacherId === user.id;
+                    return teacherId === currentUser.id;
                 });
                 
                 const studentIds = new Set<string>();
@@ -120,7 +121,7 @@ const TeacherDashboardHomePage: React.FC = () => {
             }
         };
         fetchData();
-    }, [user]);
+    }, [contextUser]);
     
     const today = new Date();
     const dateString = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
