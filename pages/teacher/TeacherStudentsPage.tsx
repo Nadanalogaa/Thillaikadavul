@@ -9,12 +9,15 @@ import { useTheme } from '../../contexts/ThemeContext';
 import TeacherLoader from '../../components/TeacherLoader';
 import { formatBatchScheduleLabel } from '../../utils/schedule';
 
+interface StudentBatchAllocation {
+  batch: Pick<Batch, 'id' | 'name' | 'courseName' | 'mode'>;
+  scheduleLabels: string[];
+}
+
 interface StudentAllocationRow {
   student: User;
-  allocations: Array<{
-    batch: Pick<Batch, 'id' | 'name' | 'courseName' | 'mode'>;
-    scheduleLabel: string;
-  }>;
+  batches: StudentBatchAllocation[];
+  courseNames: string[];
 }
 
 const modeLabels: Record<ClassPreference, string> = {
@@ -49,25 +52,31 @@ const TeacherStudentsPage: React.FC = () => {
           return teacherId === user.id;
         });
 
-        const allocationMap = new Map<string, StudentAllocationRow['allocations']>();
+        const allocationMap = new Map<string, StudentBatchAllocation[]>();
 
         teacherBatches.forEach(batch => {
           (batch.schedule || []).forEach((schedule: BatchSchedule) => {
             const scheduleLabel = formatBatchScheduleLabel(schedule);
             (schedule.studentIds || []).forEach(studentId => {
+              const studentAllocations = allocationMap.get(studentId) || [];
               if (!allocationMap.has(studentId)) {
-                allocationMap.set(studentId, []);
+                allocationMap.set(studentId, studentAllocations);
               }
 
-              allocationMap.get(studentId)!.push({
-                batch: {
-                  id: batch.id,
-                  name: batch.name,
-                  courseName: batch.courseName,
-                  mode: batch.mode
-                },
-                scheduleLabel
-              });
+              const existingBatch = studentAllocations.find(entry => entry.batch.id === batch.id);
+              if (existingBatch) {
+                existingBatch.scheduleLabels.push(scheduleLabel);
+              } else {
+                studentAllocations.push({
+                  batch: {
+                    id: batch.id,
+                    name: batch.name,
+                    courseName: batch.courseName,
+                    mode: batch.mode
+                  },
+                  scheduleLabels: [scheduleLabel]
+                });
+              }
             });
           });
         });
@@ -88,11 +97,26 @@ const TeacherStudentsPage: React.FC = () => {
               return null;
             }
 
-            const allocations = allocationMap.get(studentId) || [];
+            const allocations = allocationMap.get(studentId);
+            if (!allocations || allocations.length === 0) {
+              return {
+                student: studentRecord,
+                batches: [],
+                courseNames: []
+              };
+            }
+
+            const grouped = allocations.map(allocation => ({
+              batch: allocation.batch,
+              scheduleLabels: Array.from(new Set(allocation.scheduleLabels))
+            })).sort((a, b) => a.batch.courseName.localeCompare(b.batch.courseName));
+
+            const courseNames = Array.from(new Set(grouped.map(group => group.batch.courseName))).sort();
 
             return {
               student: studentRecord,
-              allocations: allocations.sort((a, b) => a.batch.courseName.localeCompare(b.batch.courseName))
+              batches: grouped,
+              courseNames
             };
           })
           .filter((row): row is StudentAllocationRow => Boolean(row));
@@ -188,8 +212,8 @@ const TeacherStudentsPage: React.FC = () => {
             <div className={`overflow-hidden rounded-3xl border shadow-2xl backdrop-blur-sm ${theme === 'dark' ? 'border-gray-700/70 bg-gray-900/70' : 'border-emerald-100 bg-white/90'}`}>
               <div className={`hidden md:grid grid-cols-12 gap-4 px-6 py-4 text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'bg-gray-800/80 text-gray-300' : 'bg-emerald-50/70 text-emerald-700'}`}>
                 <span className="col-span-3">Student</span>
-                <span className="col-span-3">Course</span>
-                <span className="col-span-3">Batch</span>
+                <span className="col-span-3">Courses</span>
+                <span className="col-span-3">Batch Details</span>
                 <span className="col-span-3">Allocated Timings</span>
               </div>
               <div className="divide-y divide-emerald-50 dark:divide-gray-800">
@@ -211,16 +235,18 @@ const TeacherStudentsPage: React.FC = () => {
                     </div>
 
                     <div className="col-span-3 space-y-2">
-                      {row.allocations.map((allocation, allocIndex) => (
-                        <div key={`${allocation.batch.id}-course-${allocIndex}`} className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300">
+                      {row.courseNames.length ? row.courseNames.map(courseName => (
+                        <div key={courseName} className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300">
                           <BookOpen className="w-4 h-4 text-emerald-500" />
-                          <span>{allocation.batch.courseName}</span>
+                          <span>{courseName}</span>
                         </div>
-                      ))}
+                      )) : (
+                        <p className="text-sm text-gray-500 dark:text-gray-400">No courses assigned</p>
+                      )}
                     </div>
 
                     <div className="col-span-3 space-y-2">
-                      {row.allocations.map((allocation, allocIndex) => (
+                      {row.batches.map((allocation, allocIndex) => (
                         <div key={`${allocation.batch.id}-batch-${allocIndex}`} className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300">
                           <Layers className="w-4 h-4 text-indigo-500" />
                           <div>
@@ -236,13 +262,17 @@ const TeacherStudentsPage: React.FC = () => {
                     </div>
 
                     <div className="col-span-3 space-y-3">
-                      {row.allocations.map((allocation, allocIndex) => (
-                        <div
-                          key={`${allocation.batch.id}-timing-${allocIndex}`}
-                          className={`flex items-center space-x-2 rounded-xl px-3 py-2 text-xs font-medium ${theme === 'dark' ? 'bg-indigo-900/40 text-indigo-200' : 'bg-indigo-50 text-indigo-700'}`}
-                        >
-                          <Clock className="w-4 h-4" />
-                          <span>{allocation.scheduleLabel}</span>
+                      {row.batches.map((allocation, allocIndex) => (
+                        <div key={`${allocation.batch.id}-timing-${allocIndex}`} className="space-y-2">
+                          {allocation.scheduleLabels.map(label => (
+                            <div
+                              key={`${allocation.batch.id}-${label}`}
+                              className={`flex items-center space-x-2 rounded-xl px-3 py-2 text-xs font-medium ${theme === 'dark' ? 'bg-indigo-900/40 text-indigo-200' : 'bg-indigo-50 text-indigo-700'}`}
+                            >
+                              <Clock className="w-4 h-4" />
+                              <span>{label}</span>
+                            </div>
+                          ))}
                         </div>
                       ))}
                     </div>
