@@ -67,24 +67,16 @@ const TeacherDashboardHomePage: React.FC = () => {
     const [batchesRef, batchesInView] = useInView({ threshold: 0.1, triggerOnce: true });
     const [activityRef, activityInView] = useInView({ threshold: 0.1, triggerOnce: true });
     
-    const [user, setUser] = useState<User | null>(contextUser || null);
     const [stats, setStats] = useState({ totalStudents: 0, totalBatches: 0 });
     const [recentEvents, setRecentEvents] = useState<Event[]>([]);
     const [recentNotices, setRecentNotices] = useState<Notice[]>([]);
     const [teacherBatches, setTeacherBatches] = useState<Batch[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Update local user state when contextUser changes
-    useEffect(() => {
-        if (contextUser) {
-            setUser(contextUser);
-        }
-    }, [contextUser]);
-
     useEffect(() => {
         const fetchData = async () => {
             // Wait for user to be available
-            if (!user?.id) {
+            if (!contextUser?.id) {
                 setIsLoading(true);
                 return;
             }
@@ -92,7 +84,7 @@ const TeacherDashboardHomePage: React.FC = () => {
             try {
                 setIsLoading(true);
                 
-                console.log('Loading dashboard data for teacher:', user.name);
+                console.log('Loading dashboard data for teacher:', contextUser.name);
                 
                 const [eventsData, noticesData, batchesData] = await Promise.all([
                     getEvents(5), // Limit to 5 recent events for dashboard
@@ -103,7 +95,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                 // Calculate stats using the current user data
                 const filteredTeacherBatches = batchesData.filter(b => {
                     const teacherId = typeof b.teacherId === 'string' ? b.teacherId : (b.teacherId as User)?.id;
-                    return teacherId === user.id;
+                    return teacherId === contextUser.id;
                 });
                 
                 const studentIds = new Set<string>();
@@ -126,7 +118,7 @@ const TeacherDashboardHomePage: React.FC = () => {
             }
         };
         fetchData();
-    }, [user?.id]); // Only re-run when user ID changes
+    }, [contextUser?.id]); // Only re-run when user ID changes
     
     const today = new Date();
     const dateString = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -202,7 +194,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                         className="flex flex-col"
                     >
                         <h1 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-1`}>
-                            Welcome back, {user?.name?.split(' ')[0] || 'Teacher'}!
+                            Welcome back, {contextUser?.name?.split(' ')[0] || 'Teacher'}!
                         </h1>
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                             {dateString}
