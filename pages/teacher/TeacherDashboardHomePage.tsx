@@ -200,6 +200,15 @@ const TeacherDashboardHomePage: React.FC = () => {
                             {dateString}
                         </p>
                     </motion.div>
+                    <motion.button
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.6, delay: 0.2 }}
+                        onClick={() => window.location.reload()}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                    >
+                        Refresh Data
+                    </motion.button>
                 </div>
             </div>
 
