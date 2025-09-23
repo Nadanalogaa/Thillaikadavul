@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
-import { Users, Clock, Layers, AlertCircle } from 'lucide-react';
+import { Users, Clock, Layers, AlertCircle, BookOpen } from 'lucide-react';
 import type { User, Batch, BatchSchedule, ClassPreference } from '../../types';
 import { getBatches, getUsersByIds } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';

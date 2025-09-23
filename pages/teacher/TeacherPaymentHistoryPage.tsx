@@ -23,12 +23,10 @@ import {
     Wallet,
     PieChart
 } from 'lucide-react';
-import type { User, Batch } from '../../types';
-import { getBatches } from '../../api';
+import type { User } from '../../types';
 import { useTheme } from '../../contexts/ThemeContext';
 import TeacherLoader from '../../components/TeacherLoader';
 
-// Mock payment data structure - replace with actual API call
 interface Payment {
     id: string;
     amount: number;
@@ -71,42 +69,6 @@ const getStatusBg = (status: string, theme: string) => {
     return bgMap[status] || (theme === 'dark' ? 'bg-gray-900/20' : 'bg-gray-50');
 };
 
-// Mock function to generate payment data - replace with actual API
-const generateMockPayments = (batches: Batch[]): Payment[] => {
-    const payments: Payment[] = [];
-    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    const statuses: ('Paid' | 'Pending' | 'Failed')[] = ['Paid', 'Paid', 'Paid', 'Pending', 'Paid'];
-    const paymentMethods = ['Bank Transfer', 'Direct Deposit', 'Cheque', 'Digital Wallet'];
-    
-    batches.forEach(batch => {
-        const studentCount = batch.schedule.reduce((total, schedule) => total + schedule.studentIds.length, 0);
-        const baseAmount = studentCount * 200; // Base salary per student
-        
-        // Generate payments for last 6 months
-        for (let i = 0; i < 6; i++) {
-            const date = new Date();
-            date.setMonth(date.getMonth() - i);
-            
-            payments.push({
-                id: `payment-${batch.id}-${i}`,
-                amount: baseAmount + (Math.random() * 100 - 50), // Small variation
-                currency: 'USD',
-                status: statuses[Math.floor(Math.random() * statuses.length)],
-                paymentDate: date.toISOString(),
-                paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
-                batchName: batch.name,
-                courseName: batch.courseName,
-                month: months[date.getMonth()],
-                year: date.getFullYear(),
-                studentCount,
-                description: `Teaching salary for ${batch.name} - ${months[date.getMonth()]} ${date.getFullYear()}`
-            });
-        }
-    });
-    
-    return payments.sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime());
-};
-
 const TeacherPaymentHistoryPage: React.FC = () => {
     const { user } = useOutletContext<{ user: User }>();
     const { theme } = useTheme();
@@ -115,7 +77,6 @@ const TeacherPaymentHistoryPage: React.FC = () => {
     const [statsRef, statsInView] = useInView({ threshold: 0.1, triggerOnce: true });
     
     const [payments, setPayments] = useState<Payment[]>([]);
-    const [teacherBatches, setTeacherBatches] = useState<Batch[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -124,42 +85,19 @@ const TeacherPaymentHistoryPage: React.FC = () => {
     const paymentsPerPage = 8;
 
     useEffect(() => {
-        const fetchPaymentData = async () => {
-            // Wait for user to be available with ID
+        const preparePaymentData = async () => {
             if (!user?.id) {
                 setIsLoading(true);
                 return;
             }
-            
-            try {
-                setIsLoading(true);
-                
-                console.log('Loading payment history data for teacher:', user.name);
-                
-                const batchesData = await getBatches();
-                
-                // Filter batches where this teacher is assigned
-                const filteredTeacherBatches = batchesData.filter(batch => {
-                    const teacherId = typeof batch.teacherId === 'string' ? batch.teacherId : (batch.teacherId as User)?.id;
-                    return teacherId === user.id;
-                });
-                
-                // Generate mock payment data
-                const mockPayments = generateMockPayments(filteredTeacherBatches);
-                
-                setTeacherBatches(filteredTeacherBatches);
-                setPayments(mockPayments);
-                setError(null);
-            } catch (err) {
-                console.error("Failed to fetch payment data:", err);
-                setError(err instanceof Error ? err.message : 'Failed to fetch payment data');
-            } finally {
-                setIsLoading(false);
-            }
+
+            setIsLoading(false);
+            setPayments([]);
+            setError(null);
         };
 
-        fetchPaymentData();
-    }, [user?.id]); // Only re-run when user ID changes
+        preparePaymentData();
+    }, [user?.id]);
 
     if (isLoading) {
         return <TeacherLoader message="Loading payment history..." />;
@@ -208,6 +146,8 @@ const TeacherPaymentHistoryPage: React.FC = () => {
         }).format(amount);
     };
 
+    const hasPayments = payments.length > 0;
+
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('en-US', {
             year: 'numeric',
@@ -253,21 +193,21 @@ const TeacherPaymentHistoryPage: React.FC = () => {
                 {[
                     {
                         title: "Total Earnings",
-                        value: formatCurrency(totalEarnings),
+                        value: hasPayments ? formatCurrency(totalEarnings) : 'No payments yet',
                         icon: DollarSign,
                         gradient: "from-green-500 to-emerald-500",
                         bg: "bg-green-50 dark:bg-green-900/20"
                     },
                     {
                         title: "This Month",
-                        value: formatCurrency(thisMonthEarnings),
+                        value: hasPayments ? formatCurrency(thisMonthEarnings) : 'No payments yet',
                         icon: TrendingUp,
                         gradient: "from-blue-500 to-indigo-500",
                         bg: "bg-blue-50 dark:bg-blue-900/20"
                     },
                     {
                         title: "Pending Payments",
-                        value: formatCurrency(pendingPayments),
+                        value: hasPayments ? formatCurrency(pendingPayments) : 'No payments yet',
                         icon: AlertCircle,
                         gradient: "from-yellow-500 to-orange-500",
                         bg: "bg-yellow-50 dark:bg-yellow-900/20"
