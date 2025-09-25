@@ -73,7 +73,6 @@ const getStatusBg = (status: string, theme: string) => {
 const TeacherPaymentHistoryPage: React.FC = () => {
     const { user } = useOutletContext<{ user: User }>();
     const { theme } = useTheme();
-    const [heroRef, heroInView] = useInView({ threshold: 0.1, triggerOnce: true });
     const [paymentsRef, paymentsInView] = useInView({ threshold: 0.1, triggerOnce: true });
     const [statsRef, statsInView] = useInView({ threshold: 0.1, triggerOnce: true });
     
@@ -158,30 +157,13 @@ const TeacherPaymentHistoryPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 p-6">
-            {/* Hero Section */}
-            <motion.section
-                ref={heroRef}
-                initial={{ opacity: 0, y: 30 }}
-                animate={heroInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.8 }}
-                className="text-center mb-8"
-            >
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={heroInView ? { opacity: 1, scale: 1 } : {}}
-                    transition={{ duration: 1, delay: 0.2 }}
-                    className="mb-6"
-                >
-                    <Wallet className="w-16 h-16 mx-auto mb-4 text-purple-600 dark:text-purple-400" />
-                    <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent mb-4">
-                        Payment History
-                    </h1>
-                    <p className={`text-lg ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} max-w-2xl mx-auto`}>
-                        Track your teaching earnings and payment history
-                    </p>
-                </motion.div>
-            </motion.section>
+        <DashboardHeader 
+            userName={user?.name || 'Teacher'} 
+            userRole="Teacher"
+            pageTitle="Payment History"
+            pageSubtitle="Track your teaching earnings and payment history"
+        >
+            <div className="px-6">
 
             {/* Statistics Cards */}
             <motion.section
@@ -246,7 +228,7 @@ const TeacherPaymentHistoryPage: React.FC = () => {
             {/* Search and Filter */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
-                animate={heroInView ? { opacity: 1, y: 0 } : {}}
+                animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.3 }}
                 className="flex flex-col md:flex-row gap-4 mb-8 max-w-4xl mx-auto"
             >
@@ -467,7 +449,8 @@ const TeacherPaymentHistoryPage: React.FC = () => {
                     </motion.div>
                 )}
             </motion.section>
-        </div>
+            </div>
+        </DashboardHeader>
     );
 };
 

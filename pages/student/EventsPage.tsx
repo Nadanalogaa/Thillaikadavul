@@ -4,6 +4,7 @@ import type { Event, User, EventNotification } from '../../types';
 import { getEvents, getFamilyStudents, getStudentEvents, getEventNotifications, markEventNotificationAsRead, getCurrentUser, submitEventResponse, getEventResponse } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
 import BeautifulLoader from '../../components/BeautifulLoader';
+import DashboardHeader from '../../components/DashboardHeader';
 
 const EventsPage: React.FC = () => {
     const { theme } = useTheme();
@@ -132,16 +133,13 @@ const EventsPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 p-4 sm:p-6 md:p-8">
-            {/* Header */}
-            <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mb-8"
-            >
-                <h1 className="text-4xl font-bold text-gray-900 mb-2">Events</h1>
-                <p className="text-gray-600">Stay updated with upcoming events and announcements</p>
-            </motion.div>
+        <DashboardHeader 
+            userName={currentUser?.name || family[0]?.name || 'Guardian'} 
+            userRole="Guardian"
+            pageTitle="Events"
+            pageSubtitle="Stay updated with upcoming events and announcements"
+        >
+            <div className="px-4 sm:px-6 md:px-8">
 
             {/* Filter Tabs */}
             <motion.div
@@ -464,7 +462,8 @@ const EventsPage: React.FC = () => {
                     </motion.div>
                 </motion.div>
             )}
-        </div>
+            </div>
+        </DashboardHeader>
     );
 };
 
