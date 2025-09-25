@@ -188,7 +188,7 @@ const AboutPage: React.FC = () => {
               >
                 <div className="relative rounded-2xl overflow-hidden shadow-2xl">
                   <img 
-                    src="/danceImages/Nadanaloga.png" 
+                    src="/danceImages/responsive/large/Logo.webp" 
                     alt="Nadanaloga Heritage" 
                     className="w-full h-[500px] object-cover"
                   />

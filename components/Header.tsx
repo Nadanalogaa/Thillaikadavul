@@ -74,14 +74,6 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
       ? '1px solid rgba(75, 85, 99, 0.3)'
       : '1px solid rgba(199, 210, 254, 0.3)'
   };
-
-  const logoStyle = {
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    backgroundClip: 'text'
-  };
-
   const buttonStyle = {
     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     transition: 'all 0.3s ease',
@@ -102,15 +94,12 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
       <div className="container mx-auto px-6 py-2">
         <div className="flex justify-between items-center">
           {/* Logo and Brand */}
-          <NavLink to="/" className="flex items-center space-x-2 hover:scale-105 transition-transform duration-300">
+          <NavLink to="/" className="flex items-center hover:scale-105 transition-transform duration-300">
             <img
               src="/danceImages/Nadanaloga.png"
               alt="Nadanaloga Academy"
-              className="h-8 w-auto"
+              className="h-10 w-auto"
             />
-            <span style={logoStyle} className="text-lg font-bold">
-              Nadanaloga
-            </span>
           </NavLink>
 
           {/* User Info and Social - Desktop Only */}
