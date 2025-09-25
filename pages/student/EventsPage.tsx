@@ -112,19 +112,19 @@ const EventsPage: React.FC = () => {
 
     const getPriorityColor = (priority?: string) => {
         switch (priority) {
-            case 'High': return 'bg-red-100 text-red-800';
-            case 'Low': return 'bg-gray-100 text-gray-800';
-            default: return 'bg-yellow-100 text-yellow-800';
+            case 'High': return theme === 'dark' ? 'bg-red-900/50 text-red-300' : 'bg-red-100 text-red-800';
+            case 'Low': return theme === 'dark' ? 'bg-gray-800/50 text-gray-400' : 'bg-gray-100 text-gray-800';
+            default: return theme === 'dark' ? 'bg-yellow-900/50 text-yellow-300' : 'bg-yellow-100 text-yellow-800';
         }
     };
 
     const getEventTypeColor = (eventType?: string) => {
         switch (eventType) {
-            case 'Academic': return 'bg-blue-100 text-blue-800';
-            case 'Cultural': return 'bg-purple-100 text-purple-800';
-            case 'Sports': return 'bg-green-100 text-green-800';
-            case 'Notice': return 'bg-orange-100 text-orange-800';
-            default: return 'bg-gray-100 text-gray-800';
+            case 'Academic': return theme === 'dark' ? 'bg-blue-900/50 text-blue-300' : 'bg-blue-100 text-blue-800';
+            case 'Cultural': return theme === 'dark' ? 'bg-purple-900/50 text-purple-300' : 'bg-purple-100 text-purple-800';
+            case 'Sports': return theme === 'dark' ? 'bg-green-900/50 text-green-300' : 'bg-green-100 text-green-800';
+            case 'Notice': return theme === 'dark' ? 'bg-orange-900/50 text-orange-300' : 'bg-orange-100 text-orange-800';
+            default: return theme === 'dark' ? 'bg-gray-800/50 text-gray-400' : 'bg-gray-100 text-gray-800';
         }
     };
 
@@ -147,7 +147,11 @@ const EventsPage: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="mb-8"
             >
-                <div className="flex space-x-1 bg-white p-1 rounded-xl shadow-lg border border-gray-200">
+                <div className={`flex space-x-1 p-1 rounded-xl shadow-lg border backdrop-blur-sm ${
+                    theme === 'dark' 
+                        ? 'bg-gray-800/90 border-gray-700/50' 
+                        : 'bg-white/90 border-purple-200/50'
+                }`}>
                     {(['upcoming', 'all', 'past'] as const).map((filterOption) => (
                         <button
                             key={filterOption}
@@ -155,7 +159,7 @@ const EventsPage: React.FC = () => {
                             className={`flex-1 px-6 py-3 rounded-lg text-sm font-semibold transition-all duration-200 ${
                                 filter === filterOption
                                     ? 'bg-indigo-600 text-white shadow-lg transform scale-105'
-                                    : 'text-gray-600 hover:text-indigo-600 hover:bg-indigo-50'
+                                    : `${theme === 'dark' ? 'text-gray-300 hover:text-indigo-400 hover:bg-gray-700/50' : 'text-gray-600 hover:text-indigo-600 hover:bg-indigo-50'}`
                             }`}
                         >
                             {filterOption.charAt(0).toUpperCase() + filterOption.slice(1)}
@@ -178,7 +182,11 @@ const EventsPage: React.FC = () => {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.1 }}
                             onClick={() => setSelectedEvent(event)}
-                            className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer overflow-hidden group hover:-translate-y-1 border border-gray-100"
+                            className={`rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer overflow-hidden group hover:-translate-y-1 border backdrop-blur-sm ${
+                                theme === 'dark' 
+                                    ? 'bg-gray-800/90 border-gray-700/50 hover:bg-gray-800' 
+                                    : 'bg-white/90 border-purple-200/50 hover:bg-white'
+                            }`}
                         >
                             {/* Event Images */}
                             {event.images && event.images.length > 0 && (
@@ -219,32 +227,32 @@ const EventsPage: React.FC = () => {
                                 </div>
 
                                 {/* Event details */}
-                                <h3 className="font-bold text-xl text-gray-900 mb-3 line-clamp-2 group-hover:text-indigo-600 transition-colors">{event.title}</h3>
+                                <h3 className={`font-bold text-xl ${theme === 'dark' ? 'text-white group-hover:text-indigo-400' : 'text-gray-900 group-hover:text-indigo-600'} mb-3 line-clamp-2 transition-colors`}>{event.title}</h3>
                                 
                                 <div className="space-y-2 mb-4">
                                     {event.time && (
-                                        <div className="flex items-center text-sm text-gray-600">
-                                            <div className="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
-                                                <span className="text-indigo-600 text-xs">🕐</span>
+                                        <div className={`flex items-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                            <div className={`w-5 h-5 ${theme === 'dark' ? 'bg-indigo-900/50' : 'bg-indigo-100'} rounded-full flex items-center justify-center mr-3`}>
+                                                <span className={`${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'} text-xs`}>🕐</span>
                                             </div>
                                             <span className="font-medium">{event.time}</span>
                                         </div>
                                     )}
                                     
                                     {event.location && (
-                                        <div className="flex items-center text-sm text-gray-600">
-                                            <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center mr-3">
-                                                <span className="text-red-600 text-xs">📍</span>
+                                        <div className={`flex items-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                            <div className={`w-5 h-5 ${theme === 'dark' ? 'bg-red-900/50' : 'bg-red-100'} rounded-full flex items-center justify-center mr-3`}>
+                                                <span className={`${theme === 'dark' ? 'text-red-400' : 'text-red-600'} text-xs`}>📍</span>
                                             </div>
                                             <span className="font-medium">{event.location}</span>
                                         </div>
                                     )}
                                 </div>
 
-                                <p className="text-gray-700 text-sm line-clamp-3 mb-6 leading-relaxed">{event.description}</p>
+                                <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} text-sm line-clamp-3 mb-6 leading-relaxed`}>{event.description}</p>
                                 
                                 {/* Response Buttons */}
-                                <div className="pt-4 border-t border-gray-100">
+                                <div className={`pt-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'}`}>
                                     {eventResponses[event.id] ? (
                                         <div className="text-center">
                                             <div className={`inline-flex items-center px-4 py-3 rounded-xl text-sm font-semibold shadow-lg ${
@@ -312,13 +320,17 @@ const EventsPage: React.FC = () => {
                 <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="text-center py-20 bg-white rounded-2xl shadow-lg border border-gray-100"
+                    className={`text-center py-20 rounded-2xl shadow-lg border backdrop-blur-sm ${
+                        theme === 'dark' 
+                            ? 'bg-gray-800/90 border-gray-700/50' 
+                            : 'bg-white/90 border-gray-100'
+                    }`}
                 >
-                    <div className="w-24 h-24 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full mx-auto mb-6 flex items-center justify-center">
+                    <div className="w-24 h-24 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/50 dark:to-purple-900/50 rounded-full mx-auto mb-6 flex items-center justify-center">
                         <div className="text-4xl">📅</div>
                     </div>
-                    <h3 className="text-2xl font-bold text-gray-900 mb-3">No Events Found</h3>
-                    <p className="text-gray-600 text-lg max-w-md mx-auto">
+                    <h3 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-3`}>No Events Found</h3>
+                    <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-lg max-w-md mx-auto`}>
                         {filter === 'upcoming' && "No upcoming events scheduled. Check back soon for new announcements!"}
                         {filter === 'past' && "No past events to show at the moment."}
                         {filter === 'all' && "No events available at this time. Stay tuned for exciting updates!"}
@@ -337,22 +349,26 @@ const EventsPage: React.FC = () => {
                     <motion.div
                         initial={{ scale: 0.9, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                        className={`rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto backdrop-blur-sm ${
+                            theme === 'dark' 
+                                ? 'bg-gray-800/95 border border-gray-700' 
+                                : 'bg-white/95'
+                        }`}
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Modal Header */}
-                        <div className="p-6 border-b">
+                        <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <h2 className="text-2xl font-bold text-gray-900">{selectedEvent.title}</h2>
-                                    <p className="text-gray-600 mt-1">
+                                    <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{selectedEvent.title}</h2>
+                                    <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
                                         {new Date(selectedEvent.date).toLocaleDateString()} 
                                         {selectedEvent.time && ` at ${selectedEvent.time}`}
                                     </p>
                                 </div>
                                 <button
                                     onClick={() => setSelectedEvent(null)}
-                                    className="text-gray-400 hover:text-gray-600"
+                                    className={`${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'}`}
                                 >
                                     ✕
                                 </button>
@@ -384,14 +400,14 @@ const EventsPage: React.FC = () => {
                             {/* Event Details */}
                             <div className="space-y-4">
                                 <div>
-                                    <h3 className="font-semibold text-gray-900 mb-2">Description</h3>
-                                    <p className="text-gray-700">{selectedEvent.description}</p>
+                                    <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-2`}>Description</h3>
+                                    <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{selectedEvent.description}</p>
                                 </div>
 
                                 {selectedEvent.location && (
                                     <div>
-                                        <h3 className="font-semibold text-gray-900 mb-2">Location</h3>
-                                        <p className="text-gray-700">📍 {selectedEvent.location}</p>
+                                        <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-2`}>Location</h3>
+                                        <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>📍 {selectedEvent.location}</p>
                                     </div>
                                 )}
 
@@ -405,14 +421,16 @@ const EventsPage: React.FC = () => {
                                 </div>
 
                                 {/* Response Section in Modal */}
-                                <div className="border-t pt-6">
-                                    <h3 className="font-semibold text-gray-900 mb-4">Your Response</h3>
+                                <div className={`border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} pt-6`}>
+                                    <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-4`}>Your Response</h3>
                                     {eventResponses[selectedEvent.id] ? (
-                                        <div className="text-center p-4 bg-gray-50 rounded-lg">
+                                        <div className={`text-center p-4 rounded-lg ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
                                             <div className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium ${
-                                                eventResponses[selectedEvent.id].response === 'accepted' ? 'bg-green-100 text-green-800' :
-                                                eventResponses[selectedEvent.id].response === 'declined' ? 'bg-red-100 text-red-800' :
-                                                'bg-yellow-100 text-yellow-800'
+                                                eventResponses[selectedEvent.id].response === 'accepted' ? 
+                                                    (theme === 'dark' ? 'bg-green-900/50 text-green-300' : 'bg-green-100 text-green-800') :
+                                                eventResponses[selectedEvent.id].response === 'declined' ? 
+                                                    (theme === 'dark' ? 'bg-red-900/50 text-red-300' : 'bg-red-100 text-red-800') :
+                                                    (theme === 'dark' ? 'bg-yellow-900/50 text-yellow-300' : 'bg-yellow-100 text-yellow-800')
                                             }`}>
                                                 {eventResponses[selectedEvent.id].response === 'accepted' && '✅ You have accepted this event'}
                                                 {eventResponses[selectedEvent.id].response === 'declined' && '❌ You have declined this event'}
@@ -426,7 +444,7 @@ const EventsPage: React.FC = () => {
                                                         return newResponses;
                                                     });
                                                 }}
-                                                className="mt-2 text-sm text-blue-600 hover:text-blue-800 underline"
+                                                className={`mt-2 text-sm ${theme === 'dark' ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'} underline`}
                                             >
                                                 Change response
                                             </button>
