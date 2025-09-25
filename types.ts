@@ -362,6 +362,9 @@ export interface Notice {
   id: string;
   title: string;
   content: string;
+  targetAudience?: string;
+  type?: string; // For compatibility with UI components
+  courseName?: string; // For compatibility with UI components
   issuedAt: string; // ISO string
   recipientIds?: string[];
 }

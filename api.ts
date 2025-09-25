@@ -2884,7 +2884,7 @@ export const getNotices = async (limit?: number): Promise<Notice[]> => {
   try {
     let query = supabase
       .from('notices')
-      .select('id, title, content, issued_at, created_at, updated_at')
+      .select('id, title, content, target_audience, recipient_ids, issued_at, created_at, updated_at')
       .order('created_at', { ascending: false });
     
     if (limit) {
@@ -2902,8 +2902,11 @@ export const getNotices = async (limit?: number): Promise<Notice[]> => {
       id: notice.id,
       title: notice.title,
       content: notice.content,
-      issuedAt: notice.issued_at,
-      recipientIds: notice.recipient_ids || []
+      targetAudience: notice.target_audience,
+      type: 'Info', // Default type for UI compatibility
+      courseName: null, // Default course name for UI compatibility
+      recipientIds: notice.recipient_ids || [],
+      issuedAt: notice.issued_at
     }));
   } catch (error) {
     console.error('Error in getNotices:', error);

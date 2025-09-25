@@ -114,10 +114,19 @@ const TeacherNoticesPage: React.FC = () => {
                 // Get courses this teacher teaches
                 const teacherCourses = Array.from(new Set(filteredTeacherBatches.map(batch => batch.courseName)));
                 
-                // Filter notices for courses this teacher teaches or general notices
-                const relevantNotices = noticesData.filter(notice => 
-                    !notice.courseName || teacherCourses.includes(notice.courseName) || notice.targetAudience === 'Teachers' || notice.targetAudience === 'All'
-                );
+                // Filter notices based on recipient IDs or target audience
+                const relevantNotices = noticesData.filter(notice => {
+                    // If notice has specific recipients, check if teacher is included
+                    if (notice.recipientIds && notice.recipientIds.length > 0) {
+                        return notice.recipientIds.includes(user.id);
+                    }
+                    
+                    // If no specific recipients, use target audience or default to show all
+                    return notice.targetAudience === 'Teachers' || 
+                           notice.targetAudience === 'All' || 
+                           !notice.targetAudience || // Default: show if no target audience specified
+                           (!notice.courseName || teacherCourses.includes(notice.courseName));
+                });
                 
                 setNotices(relevantNotices);
                 setTeacherBatches(filteredTeacherBatches);
