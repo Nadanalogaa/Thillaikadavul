@@ -8,6 +8,7 @@ interface DashboardHeaderProps {
     pageTitle?: string;
     pageSubtitle?: string;
     children: React.ReactNode;
+    showWelcome?: boolean; // New prop to control welcome message
 }
 
 const DashboardHeader: React.FC<DashboardHeaderProps> = ({ 
@@ -15,7 +16,8 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     userRole, 
     pageTitle, 
     pageSubtitle,
-    children 
+    children,
+    showWelcome = false 
 }) => {
     const { theme } = useTheme();
     const today = new Date();
@@ -79,35 +81,53 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             </div>
 
             {/* Header Section */}
-            <div className="relative z-10 px-6 py-4">
-                <div className="flex justify-between items-center">
-                    <motion.div
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.6 }}
-                        className="flex flex-col"
-                    >
-                        <h1 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-1`}>
-                            Welcome back, {firstName}!
-                        </h1>
-                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {dateString}
-                        </p>
-                        {pageTitle && (
-                            <div className="mt-3">
-                                <h2 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                                    {pageTitle}
-                                </h2>
-                                {pageSubtitle && (
+            {(showWelcome || pageTitle) && (
+                <div className="relative z-10 px-6 py-4">
+                    <div className="flex justify-between items-center">
+                        <motion.div
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.6 }}
+                            className="flex flex-col"
+                        >
+                            {showWelcome && (
+                                <>
+                                    <h1 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-1`}>
+                                        Welcome back, {firstName}!
+                                    </h1>
                                     <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                                        {pageSubtitle}
+                                        {dateString}
                                     </p>
-                                )}
-                            </div>
-                        )}
-                    </motion.div>
+                                </>
+                            )}
+                            {pageTitle && !showWelcome && (
+                                <div>
+                                    <h1 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                        {pageTitle}
+                                    </h1>
+                                    {pageSubtitle && (
+                                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                            {pageSubtitle}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                            {pageTitle && showWelcome && (
+                                <div className="mt-3">
+                                    <h2 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                        {pageTitle}
+                                    </h2>
+                                    {pageSubtitle && (
+                                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                            {pageSubtitle}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                        </motion.div>
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Main Content */}
             <div className="relative z-10 pb-6">
