@@ -4,7 +4,6 @@ import { Calendar, Clock, User, Bell, FileText, AlertCircle, Star } from 'lucide
 import type { Notice, User as UserType } from '../../types';
 import { getNotices, getFamilyStudents, getCurrentUser } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
-import BeautifulLoader from '../../components/BeautifulLoader';
 import DashboardHeader from '../../components/DashboardHeader';
 
 const NoticesPage: React.FC = () => {
@@ -67,8 +66,11 @@ const NoticesPage: React.FC = () => {
     
     if (isLoading) {
         return (
-            <div className="relative min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 flex items-center justify-center">
-                <BeautifulLoader message="Loading notices..." />
+            <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="w-8 h-8 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-gray-600 dark:text-gray-400">Loading notices...</p>
+                </div>
             </div>
         );
     }
