@@ -123,23 +123,6 @@ const NoticesPage: React.FC = () => {
                                 : 'bg-white/90 border-purple-200/50'
                         }`}
                     >
-                        {/* Tab Header */}
-                        <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-purple-200'}`}>
-                            <div className="flex items-center space-x-4">
-                                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
-                                    <Bell className="w-6 h-6 text-white" />
-                                </div>
-                                <div>
-                                    <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                                        Notice Board
-                                    </h2>
-                                    <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                                        Stay informed with important announcements for each student
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
                         {/* Student Navigation Tabs */}
                         <div className={`px-6 py-4 ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gradient-to-r from-purple-50/50 to-blue-50/50'}`}>
                             <div className="flex space-x-2 overflow-x-auto">
