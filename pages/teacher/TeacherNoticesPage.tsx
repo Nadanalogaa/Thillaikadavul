@@ -27,6 +27,7 @@ import type { Notice, User as UserType, Batch } from '../../types';
 import { getNotices, getBatches } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
 import TeacherLoader from '../../components/TeacherLoader';
+import DashboardHeader from '../../components/DashboardHeader';
 
 const getCourseIcon = (courseName: string) => {
     const iconMap: Record<string, React.ElementType> = {

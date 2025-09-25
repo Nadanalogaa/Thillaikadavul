@@ -24,6 +24,7 @@ import { getBatches } from '../../api';
 import type { User, Batch, CourseTimingSlot } from '../../types';
 import { useTheme } from '../../contexts/ThemeContext';
 import TeacherLoader from '../../components/TeacherLoader';
+import DashboardHeader from '../../components/DashboardHeader';
 
 const getCourseIcon = (courseName: string) => {
     const iconMap: Record<string, React.ElementType> = {
@@ -133,30 +134,13 @@ const TeacherCoursesPage: React.FC = () => {
     const teacherPreferredTimings = user?.availableTimeSlots || user?.preferredTimings || [];
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 p-6">
-            {/* Hero Section */}
-            <motion.section
-                ref={heroRef}
-                initial={{ opacity: 0, y: 30 }}
-                animate={heroInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.8 }}
-                className="text-center mb-8"
-            >
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={heroInView ? { opacity: 1, scale: 1 } : {}}
-                    transition={{ duration: 1, delay: 0.2 }}
-                    className="mb-6"
-                >
-                    <GraduationCap className="w-16 h-16 mx-auto mb-4 text-purple-600 dark:text-purple-400" />
-                    <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent mb-4">
-                        Your Courses
-                    </h1>
-                    <p className={`text-lg ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} max-w-2xl mx-auto`}>
-                        Manage your teaching expertise, view allocated batches, and track your preferred schedules
-                    </p>
-                </motion.div>
-            </motion.section>
+        <DashboardHeader 
+            userName={user?.name || 'Teacher'} 
+            userRole="Teacher"
+            pageTitle="Your Courses"
+            pageSubtitle="Manage your teaching expertise, view allocated batches, and track your preferred schedules"
+        >
+            <div className="px-6">
 
             {/* Courses Grid */}
             <motion.section
@@ -342,7 +326,8 @@ const TeacherCoursesPage: React.FC = () => {
                     </motion.div>
                 )}
             </motion.section>
-        </div>
+            </div>
+        </DashboardHeader>
     );
 };
 

@@ -26,6 +26,7 @@ import {
 import type { User } from '../../types';
 import { useTheme } from '../../contexts/ThemeContext';
 import TeacherLoader from '../../components/TeacherLoader';
+import DashboardHeader from '../../components/DashboardHeader';
 
 interface Payment {
     id: string;

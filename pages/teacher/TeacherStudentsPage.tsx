@@ -9,15 +9,10 @@ import { useTheme } from '../../contexts/ThemeContext';
 import TeacherLoader from '../../components/TeacherLoader';
 import { formatBatchScheduleLabel } from '../../utils/schedule';
 
-interface StudentBatchAllocation {
+interface TeacherBatchGroup {
   batch: Pick<Batch, 'id' | 'name' | 'courseName' | 'mode'>;
   scheduleLabels: string[];
-}
-
-interface StudentAllocationRow {
-  student: User;
-  batches: StudentBatchAllocation[];
-  courseNames: string[];
+  students: User[];
 }
 
 const modeLabels: Record<ClassPreference, string> = {
@@ -29,7 +24,7 @@ const modeLabels: Record<ClassPreference, string> = {
 const TeacherStudentsPage: React.FC = () => {
   const { user } = useOutletContext<{ user: User }>();
   const { theme } = useTheme();
-  const [students, setStudents] = useState<StudentAllocationRow[]>([]);
+  const [batchGroups, setBatchGroups] = useState<TeacherBatchGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,78 +47,70 @@ const TeacherStudentsPage: React.FC = () => {
           return teacherId === user.id;
         });
 
-        const allocationMap = new Map<string, StudentBatchAllocation[]>();
+        const batchScheduleMap = new Map<string, Set<string>>();
+        const batchStudentsMap = new Map<string, Set<string>>();
 
         teacherBatches.forEach(batch => {
           (batch.schedule || []).forEach((schedule: BatchSchedule) => {
             const scheduleLabel = formatBatchScheduleLabel(schedule);
             (schedule.studentIds || []).forEach(studentId => {
-              const studentAllocations = allocationMap.get(studentId) || [];
-              if (!allocationMap.has(studentId)) {
-                allocationMap.set(studentId, studentAllocations);
+              if (!batchStudentsMap.has(batch.id)) {
+                batchStudentsMap.set(batch.id, new Set());
               }
+              batchStudentsMap.get(batch.id)!.add(studentId);
 
-              const existingBatch = studentAllocations.find(entry => entry.batch.id === batch.id);
-              if (existingBatch) {
-                existingBatch.scheduleLabels.push(scheduleLabel);
-              } else {
-                studentAllocations.push({
-                  batch: {
-                    id: batch.id,
-                    name: batch.name,
-                    courseName: batch.courseName,
-                    mode: batch.mode
-                  },
-                  scheduleLabels: [scheduleLabel]
-                });
+              if (!batchScheduleMap.has(batch.id)) {
+                batchScheduleMap.set(batch.id, new Set());
+              }
+              if (scheduleLabel) {
+                batchScheduleMap.get(batch.id)!.add(scheduleLabel);
               }
             });
           });
         });
 
-        const studentIds = Array.from(allocationMap.keys());
+        const studentIds = Array.from(
+          new Set(
+            Array.from(batchStudentsMap.values()).flatMap(set => Array.from(set))
+          )
+        );
+
         if (!studentIds.length) {
-          setStudents([]);
+          setBatchGroups([]);
           return;
         }
 
         const studentsData = await getUsersByIds(studentIds);
         const studentLookup = new Map(studentsData.map(studentEntry => [studentEntry.id, studentEntry]));
 
-        const rows: StudentAllocationRow[] = studentIds
-          .map(studentId => {
-            const studentRecord = studentLookup.get(studentId);
-            if (!studentRecord) {
-              return null;
-            }
+        const groups: TeacherBatchGroup[] = teacherBatches.map(batch => {
+          const studentIdsForBatch = Array.from(batchStudentsMap.get(batch.id) || new Set());
+          const scheduleLabels = Array.from(batchScheduleMap.get(batch.id) || new Set());
 
-            const allocations = allocationMap.get(studentId);
-            if (!allocations || allocations.length === 0) {
-              return {
-                student: studentRecord,
-                batches: [],
-                courseNames: []
-              };
-            }
+          const studentsForBatch = studentIdsForBatch
+            .map(studentId => studentLookup.get(studentId))
+            .filter((student): student is User => Boolean(student))
+            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
-            const grouped = allocations.map(allocation => ({
-              batch: allocation.batch,
-              scheduleLabels: Array.from(new Set(allocation.scheduleLabels))
-            })).sort((a, b) => a.batch.courseName.localeCompare(b.batch.courseName));
+          return {
+            batch: {
+              id: batch.id,
+              name: batch.name,
+              courseName: batch.courseName,
+              mode: batch.mode
+            },
+            scheduleLabels,
+            students: studentsForBatch
+          };
+        }).filter(group => group.students.length > 0);
 
-            const courseNames = Array.from(new Set(grouped.map(group => group.batch.courseName))).sort();
+        groups.sort((a, b) => {
+          const courseCompare = (a.batch.courseName || '').localeCompare(b.batch.courseName || '');
+          if (courseCompare !== 0) return courseCompare;
+          return (a.batch.name || '').localeCompare(b.batch.name || '');
+        });
 
-            return {
-              student: studentRecord,
-              batches: grouped,
-              courseNames
-            };
-          })
-          .filter((row): row is StudentAllocationRow => Boolean(row));
-
-        rows.sort((a, b) => (a.student.name || '').localeCompare(b.student.name || ''));
-
-        setStudents(rows);
+        setBatchGroups(groups);
       } catch (fetchError) {
         console.error('Failed to load teacher students:', fetchError);
         setError('Unable to load students right now. Please try again shortly.');
@@ -134,6 +121,12 @@ const TeacherStudentsPage: React.FC = () => {
 
     fetchStudents();
   }, [user?.id]);
+
+  const totalStudents = useMemo(() => {
+    const ids = new Set<string>();
+    batchGroups.forEach(group => group.students.forEach(student => ids.add(student.id)));
+    return ids.size;
+  }, [batchGroups]);
 
   const emptyState = useMemo(() => (
     <div className={`rounded-3xl border ${theme === 'dark' ? 'border-gray-700 bg-gray-800/80' : 'border-emerald-100 bg-white/80'} p-10 text-center shadow-xl`}
@@ -184,7 +177,7 @@ const TeacherStudentsPage: React.FC = () => {
             </div>
             <div className="flex items-center space-x-3 text-sm text-emerald-600 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 px-4 py-2 rounded-full">
               <Users className="w-5 h-5" />
-              <span>{students.length} {students.length === 1 ? 'student' : 'students'}</span>
+              <span>{totalStudents} {totalStudents === 1 ? 'student' : 'students'}</span>
             </div>
           </div>
         </motion.div>
@@ -206,79 +199,75 @@ const TeacherStudentsPage: React.FC = () => {
           animate={tableInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.8, delay: 0.15 }}
         >
-          {students.length === 0 ? (
+          {batchGroups.length === 0 ? (
             emptyState
           ) : (
-            <div className={`overflow-hidden rounded-3xl border shadow-2xl backdrop-blur-sm ${theme === 'dark' ? 'border-gray-700/70 bg-gray-900/70' : 'border-emerald-100 bg-white/90'}`}>
-              <div className={`hidden md:grid grid-cols-12 gap-4 px-6 py-4 text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'bg-gray-800/80 text-gray-300' : 'bg-emerald-50/70 text-emerald-700'}`}>
-                <span className="col-span-3">Student</span>
-                <span className="col-span-3">Courses</span>
-                <span className="col-span-3">Batch Details</span>
-                <span className="col-span-3">Allocated Timings</span>
-              </div>
-              <div className="divide-y divide-emerald-50 dark:divide-gray-800">
-                {students.map((row, index) => (
-                  <div
-                    key={row.student.id}
-                    className={`grid grid-cols-1 md:grid-cols-12 gap-4 px-6 py-6 ${theme === 'dark' ? 'bg-gray-900/60 hover:bg-gray-900/80' : index % 2 === 0 ? 'bg-white/80' : 'bg-emerald-50/60'} transition-colors duration-300`}
-                  >
-                    <div className="col-span-3">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 text-white flex items-center justify-center font-semibold">
-                          {row.student.name?.charAt(0) || '?'}
+            <div className="space-y-6">
+              {batchGroups.map((group, index) => (
+                <motion.div
+                  key={group.batch.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.05 }}
+                  className={`rounded-3xl border shadow-2xl backdrop-blur-sm overflow-hidden ${theme === 'dark' ? 'border-gray-700/70 bg-gray-900/70' : 'border-emerald-100 bg-white/90'}`}
+                >
+                  <div className={`px-6 py-5 border-b ${theme === 'dark' ? 'border-gray-800' : 'border-emerald-100'}`}>
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                      <div>
+                        <div className="flex items-center space-x-3 text-sm uppercase tracking-widest text-emerald-500">
+                          <BookOpen className="w-4 h-4" />
+                          <span>{group.batch.courseName || 'Course name pending'}</span>
                         </div>
-                        <div>
-                          <p className="font-semibold text-gray-900 dark:text-white">{row.student.name || 'Unnamed Student'}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">{row.student.email}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="col-span-3 space-y-2">
-                      {row.courseNames.length ? row.courseNames.map(courseName => (
-                        <div key={courseName} className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300">
-                          <BookOpen className="w-4 h-4 text-emerald-500" />
-                          <span>{courseName}</span>
-                        </div>
-                      )) : (
-                        <p className="text-sm text-gray-500 dark:text-gray-400">No courses assigned</p>
-                      )}
-                    </div>
-
-                    <div className="col-span-3 space-y-2">
-                      {row.batches.map((allocation, allocIndex) => (
-                        <div key={`${allocation.batch.id}-batch-${allocIndex}`} className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300">
-                          <Layers className="w-4 h-4 text-indigo-500" />
-                          <div>
-                            <p>{allocation.batch.name}</p>
-                            {allocation.batch.mode && (
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                {modeLabels[allocation.batch.mode] || allocation.batch.mode}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="col-span-3 space-y-3">
-                      {row.batches.map((allocation, allocIndex) => (
-                        <div key={`${allocation.batch.id}-timing-${allocIndex}`} className="space-y-2">
-                          {allocation.scheduleLabels.map(label => (
-                            <div
-                              key={`${allocation.batch.id}-${label}`}
-                              className={`flex items-center space-x-2 rounded-xl px-3 py-2 text-xs font-medium ${theme === 'dark' ? 'bg-indigo-900/40 text-indigo-200' : 'bg-indigo-50 text-indigo-700'}`}
+                        <h2 className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">
+                          {group.batch.name || 'Batch name pending'}
+                        </h2>
+                        <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                          <span className={`inline-flex items-center space-x-2 rounded-full px-3 py-1 ${theme === 'dark' ? 'bg-indigo-900/40 text-indigo-200' : 'bg-indigo-50 text-indigo-700'}`}>
+                            <Layers className="w-4 h-4" />
+                            <span>{group.batch.mode ? modeLabels[group.batch.mode] || group.batch.mode : 'Mode pending'}</span>
+                          </span>
+                          {group.scheduleLabels.map(label => (
+                            <span
+                              key={`${group.batch.id}-${label}`}
+                              className={`inline-flex items-center space-x-2 rounded-full px-3 py-1 ${theme === 'dark' ? 'bg-purple-900/30 text-purple-200' : 'bg-purple-50 text-purple-700'}`}
                             >
                               <Clock className="w-4 h-4" />
                               <span>{label}</span>
-                            </div>
+                            </span>
                           ))}
                         </div>
-                      ))}
+                      </div>
+
+                      <div className={`px-4 py-3 rounded-2xl text-center ${theme === 'dark' ? 'bg-gray-800/80 border border-gray-700/60 text-gray-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}`}>
+                        <p className="text-xs uppercase tracking-wider">Students</p>
+                        <p className="text-xl font-bold">{group.students.length}</p>
+                      </div>
                     </div>
                   </div>
-                ))}
-              </div>
+
+                  <div className="px-6 py-6">
+                    {group.students.length === 0 ? (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">No students assigned to this batch yet.</p>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {group.students.map(student => (
+                          <div
+                            key={student.id}
+                            className={`flex items-center space-x-3 rounded-2xl px-4 py-3 ${theme === 'dark' ? 'bg-gray-800/70 text-gray-200' : 'bg-emerald-50 text-emerald-700'}`}
+                          >
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 text-white flex items-center justify-center font-semibold">
+                              {student.name?.charAt(0) || '?'}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-sm">{student.name || 'Unnamed Student'}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
             </div>
           )}
         </motion.div>
