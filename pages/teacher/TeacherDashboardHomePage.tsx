@@ -23,7 +23,7 @@ import {
     Calculator
 } from 'lucide-react';
 import type { User, Event, Notice, Batch } from '../../types';
-import { getEvents, getNotices, getBatches } from '../../api';
+import { getEvents, getNotices, getBatches, getUsersByIds } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
 import TeacherLoader from '../../components/TeacherLoader';
 
@@ -99,15 +99,50 @@ const TeacherDashboardHomePage: React.FC = () => {
                     return teacherId === user.id;
                 });
                 
-                const studentIds = new Set<string>();
+                const initialStudentIds = new Set<string>();
                 filteredTeacherBatches.forEach(batch => {
-                    batch.schedule.forEach(s => s.studentIds.forEach(id => studentIds.add(id)));
+                    batch.schedule.forEach(scheduleItem => {
+                        (scheduleItem.studentIds || []).forEach(id => {
+                            if (id) initialStudentIds.add(id);
+                        });
+                    });
                 });
 
-                setTeacherBatches(filteredTeacherBatches);
+                let activeStudentIdSet = new Set<string>();
+                if (initialStudentIds.size > 0) {
+                    const activeStudents = await getUsersByIds(Array.from(initialStudentIds));
+                    activeStudentIdSet = new Set(activeStudents.map(student => student.id));
+                }
+
+                const sanitizedBatches = filteredTeacherBatches.map(batch => {
+                    const sanitizedSchedule = (batch.schedule || []).map(scheduleItem => {
+                        const filteredIds = (scheduleItem.studentIds || []).filter(id => activeStudentIdSet.has(id));
+                        return { ...scheduleItem, studentIds: filteredIds };
+                    });
+
+                    const batchStudentIds = new Set<string>();
+                    sanitizedSchedule.forEach(scheduleItem => {
+                        (scheduleItem.studentIds || []).forEach(id => batchStudentIds.add(id));
+                    });
+
+                    return {
+                        ...batch,
+                        schedule: sanitizedSchedule,
+                        enrolled: batchStudentIds.size
+                    };
+                });
+
+                const totalActiveStudentIds = new Set<string>();
+                sanitizedBatches.forEach(batch => {
+                    batch.schedule.forEach(scheduleItem => {
+                        (scheduleItem.studentIds || []).forEach(id => totalActiveStudentIds.add(id));
+                    });
+                });
+
+                setTeacherBatches(sanitizedBatches);
                 setStats({
-                    totalStudents: studentIds.size,
-                    totalBatches: filteredTeacherBatches.length
+                    totalStudents: totalActiveStudentIds.size,
+                    totalBatches: sanitizedBatches.length
                 });
 
                 setRecentEvents(eventsData.slice(0, 3));
