@@ -2468,8 +2468,11 @@ export const getBookMaterials = async (): Promise<BookMaterial[]> => {
       courseName: material.course_name,
       type: material.type,
       url: material.url,
+      fileUrl: material.url, // Add fileUrl for compatibility
+      linkUrl: material.url, // Add linkUrl for compatibility
       data: material.data,
-      recipientIds: material.recipient_ids || []
+      recipientIds: material.recipient_ids || [],
+      uploadedAt: material.created_at // Add uploadedAt for compatibility
     }));
   } catch (error) {
     console.error('Error in getBookMaterials:', error);

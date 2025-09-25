@@ -112,10 +112,14 @@ const TeacherBookMaterialsPage: React.FC = () => {
                 // Get courses this teacher teaches
                 const teacherCourses = Array.from(new Set(filteredTeacherBatches.map(batch => batch.courseName)));
                 
-                // Filter materials for courses this teacher teaches
-                const teacherMaterials = materialsData.filter(material => 
-                    teacherCourses.includes(material.courseName)
-                );
+                // Filter materials for courses this teacher teaches and that are sent to this teacher
+                const teacherMaterials = materialsData.filter(material => {
+                    const isCourseMatch = teacherCourses.includes(material.courseName);
+                    const isRecipient = material.recipientIds && material.recipientIds.length > 0 
+                        ? material.recipientIds.includes(user.id)
+                        : isCourseMatch; // If no recipients specified, show to all teachers of the course
+                    return isCourseMatch && isRecipient;
+                });
                 
                 setMaterials(teacherMaterials);
                 setTeacherBatches(filteredTeacherBatches);

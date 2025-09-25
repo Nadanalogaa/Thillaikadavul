@@ -334,8 +334,11 @@ export interface BookMaterial {
   courseName: string;
   type: BookMaterialType;
   url: string; // URL for youtube or stored video, or data URI for PDF
+  fileUrl?: string; // For compatibility with UI components
+  linkUrl?: string; // For compatibility with UI components
   data?: string; // For base64 pdf data
   recipientIds?: string[];
+  uploadedAt?: string; // For compatibility with UI components
 }
 
 export interface GradeExam {
