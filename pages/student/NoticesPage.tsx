@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, User, Bell, FileText, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, User, Bell, FileText, AlertCircle, Star } from 'lucide-react';
 import type { Notice, User as UserType } from '../../types';
 import { getNotices, getFamilyStudents, getCurrentUser } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -67,7 +67,7 @@ const NoticesPage: React.FC = () => {
     
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
+            <div className="relative min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 flex items-center justify-center">
                 <BeautifulLoader message="Loading notices..." />
             </div>
         );
@@ -115,38 +115,79 @@ const NoticesPage: React.FC = () => {
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="mb-8"
-                    >
-                        <div className={`flex space-x-1 p-1 rounded-xl shadow-lg border backdrop-blur-sm ${
+                        className={`rounded-3xl shadow-2xl border backdrop-blur-sm overflow-hidden mb-8 ${
                             theme === 'dark' 
                                 ? 'bg-gray-800/90 border-gray-700/50' 
                                 : 'bg-white/90 border-purple-200/50'
-                        }`}>
-                            {family.map((student) => {
-                                const studentNotices = noticesByStudent.get(student.id) || [];
-                                const isActive = activeStudentId === student.id;
-                                return (
-                                    <button
-                                        key={student.id}
-                                        onClick={() => setActiveStudentId(student.id)}
-                                        className={`flex-1 px-4 py-3 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
-                                            isActive
-                                                ? 'bg-indigo-600 text-white shadow-lg transform scale-105'
-                                                : `${theme === 'dark' ? 'text-gray-300 hover:text-indigo-400 hover:bg-gray-700/50' : 'text-gray-600 hover:text-indigo-600 hover:bg-indigo-50'}`
-                                        }`}
-                                    >
-                                        <User className="w-4 h-4" />
-                                        <span>{student.name}</span>
-                                        {studentNotices.length > 0 && (
-                                            <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                                isActive ? 'bg-white/20' : theme === 'dark' ? 'bg-indigo-900/50 text-indigo-300' : 'bg-indigo-100 text-indigo-600'
+                        }`}
+                    >
+                        {/* Tab Header */}
+                        <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-purple-200'}`}>
+                            <div className="flex items-center space-x-4">
+                                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+                                    <Bell className="w-6 h-6 text-white" />
+                                </div>
+                                <div>
+                                    <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                        Notice Board
+                                    </h2>
+                                    <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                        Stay informed with important announcements for each student
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Student Navigation Tabs */}
+                        <div className={`px-6 py-4 ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gradient-to-r from-purple-50/50 to-blue-50/50'}`}>
+                            <div className="flex space-x-2 overflow-x-auto">
+                                {family.map((student, index) => {
+                                    const active = activeStudentId === student.id;
+                                    const studentName = student.name || `Student ${index + 1}`;
+                                    const studentNotices = noticesByStudent.get(student.id) || [];
+                                    
+                                    return (
+                                        <motion.button
+                                            key={student.id}
+                                            whileHover={{ scale: 1.02 }}
+                                            whileTap={{ scale: 0.98 }}
+                                            initial={{ opacity: 0, x: 50 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{ duration: 0.6, delay: index * 0.1 }}
+                                            className={`flex items-center space-x-3 px-6 py-3 rounded-xl transition-all duration-300 whitespace-nowrap font-semibold min-w-fit ${
+                                                active 
+                                                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg ring-2 ring-purple-300 dark:ring-purple-600 transform scale-105' 
+                                                    : theme === 'dark'
+                                                        ? 'bg-gray-600/50 text-gray-300 hover:bg-gray-500/50 hover:text-white'
+                                                        : 'bg-white/70 text-gray-700 hover:bg-white hover:text-purple-600 border border-gray-200 hover:border-purple-300'
+                                            }`}
+                                            onClick={() => setActiveStudentId(student.id)}
+                                        >
+                                            <div className="relative">
+                                                <img
+                                                    src={student.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(studentName)}&background=${active ? 'fff' : '7B61FF'}&color=${active ? '7B61FF' : 'fff'}`}
+                                                    className="w-10 h-10 rounded-full object-cover shadow-md"
+                                                    alt={studentName}
+                                                />
+                                                {active && (
+                                                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 border-2 border-white rounded-full"></div>
+                                                )}
+                                            </div>
+                                            <span>{studentName}</span>
+                                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                                active 
+                                                    ? 'bg-white/20 text-white'
+                                                    : theme === 'dark'
+                                                        ? 'bg-gray-700 text-gray-300'
+                                                        : 'bg-purple-100 text-purple-700'
                                             }`}>
                                                 {studentNotices.length}
                                             </span>
-                                        )}
-                                    </button>
-                                );
-                            })}
+                                            {active && <Star className="w-4 h-4 text-yellow-300" fill="currentColor" />}
+                                        </motion.button>
+                                    );
+                                })}
+                            </div>
                         </div>
                     </motion.div>
                 )}

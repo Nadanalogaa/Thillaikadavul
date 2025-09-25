@@ -129,7 +129,11 @@ const EventsPage: React.FC = () => {
     };
 
     if (isLoading) {
-        return <div className="p-8 text-center">Loading events...</div>;
+        return (
+            <div className="relative min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 flex items-center justify-center">
+                <BeautifulLoader message="Loading events..." />
+            </div>
+        );
     }
 
     return (
