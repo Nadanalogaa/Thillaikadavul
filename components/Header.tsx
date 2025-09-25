@@ -104,7 +104,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
           {/* Logo and Brand */}
           <NavLink to="/" className="flex items-center space-x-2 hover:scale-105 transition-transform duration-300">
             <img
-              src="/danceImages/responsive/large/Logo.webp"
+              src="/danceImages/Nadanaloga.png"
               alt="Nadanaloga Academy"
               className="h-8 w-auto"
             />
