@@ -91,14 +91,14 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
   return (
     <header style={headerStyle} className="sticky top-0 z-40 border-0">
       {/* Row 1: Brand and User Info */}
-      <div className="container mx-auto px-6 py-2">
-        <div className="flex justify-between items-center">
+      <div className="w-full px-4 sm:px-6 py-2">
+        <div className="flex items-center justify-between w-full">
           {/* Logo and Brand */}
-          <NavLink to="/" className="flex items-center hover:scale-105 transition-transform duration-300">
+          <NavLink to="/" className="flex items-center mr-auto hover:scale-105 transition-transform duration-300">
             <img
               src="/danceImages/Nadanaloga.png"
               alt="Nadanaloga Academy"
-              className="h-10 w-auto"
+              className="h-12 sm:h-14 md:h-16 w-auto"
             />
           </NavLink>
 
