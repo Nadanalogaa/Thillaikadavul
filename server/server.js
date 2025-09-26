@@ -66,12 +66,10 @@ async function startServer() {
         }
     };
 
-    // Seed courses after connection is established
-    try {
-        await seedCourses();
-    } catch (err) {
-        console.error('[DB] Error during seeding:', err);
-    }
+    // Skip database seeding if tables don't exist (empty database)
+    // This allows the app to start without requiring database import
+    // Database seeding will be handled after manual import
+    console.log('[DB] Skipping course seeding - will be handled after database import');
 
     // --- Email Template ---
     const createEmailTemplate = (name, subject, message) => {
@@ -165,7 +163,7 @@ async function startServer() {
             console.log('-------------------------------------\\n');
 
             const testAccount = await nodemailer.createTestAccount();
-            mailTransporter = nodemailer.createTransporter({
+            mailTransporter = nodemailer.createTransport({
                 host: testAccount.smtp.host,
                 port: testAccount.smtp.port,
                 secure: testAccount.smtp.secure,
@@ -174,7 +172,7 @@ async function startServer() {
         } else {
             console.log('\\n--- 📧 EMAIL CONFIGURATION ---');
             console.log(`[Email] Live SMTP config found. Connecting to ${process.env.SMTP_HOST}...`);
-            mailTransporter = nodemailer.createTransporter({
+            mailTransporter = nodemailer.createTransport({
                 host: process.env.SMTP_HOST,
                 port: parseInt(process.env.SMTP_PORT || '587', 10),
                 secure: parseInt(process.env.SMTP_PORT || '587', 10) === 465,
