@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: nadanaloga-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nadanaloga
+      POSTGRES_USER: nadanaloga_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./schema_final_complete.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    networks:
+      - nadanaloga-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nadanaloga_user -d nadanaloga"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Main Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nadanaloga-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://nadanaloga_user:${POSTGRES_PASSWORD:-changeme123}@postgres:5432/nadanaloga
+      SESSION_SECRET: ${SESSION_SECRET:-your-super-secret-session-key-change-this}
+      
+      # Supabase Configuration
+      VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+      VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      
+      # Email Configuration (optional)
+      EMAIL_HOST: ${EMAIL_HOST:-}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_USER: ${EMAIL_USER:-}
+      EMAIL_PASS: ${EMAIL_PASS:-}
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@nadanaloga.com}
+      
+      # Google AI (optional)
+      GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - nadanaloga-network
+    volumes:
+      # Mount public assets (if needed for uploads)
+      - app_uploads:/app/dist/uploads
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: nadanaloga-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - nginx_logs:/var/log/nginx
+      # SSL certificates (uncomment when ready for HTTPS)
+      # - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - app
+    networks:
+      - nadanaloga-network
+
+volumes:
+  postgres_data:
+    driver: local
+  app_uploads:
+    driver: local
+  nginx_logs:
+    driver: local
+
+networks:
+  nadanaloga-network:
+    driver: bridge
+    name: nadanaloga-network
