@@ -24,7 +24,6 @@ async function startServer() {
     try {
         await pool.query('SELECT NOW()');
         console.log('[DB] PostgreSQL connected successfully.');
-        await seedCourses();
     } catch (err) {
         console.error('[DB] PostgreSQL connection error:', err);
         process.exit(1);
@@ -57,6 +56,13 @@ async function startServer() {
             console.error('[DB] Error seeding courses:', error);
         }
     };
+
+    // Seed courses after connection is established
+    try {
+        await seedCourses();
+    } catch (err) {
+        console.error('[DB] Error during seeding:', err);
+    }
 
     // --- Email Template ---
     const createEmailTemplate = (name, subject, message) => {
