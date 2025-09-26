@@ -6,6 +6,7 @@ const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
+const path = require('path');
 
 // Load environment variables
 dotenv.config();
@@ -339,10 +340,20 @@ async function startServer() {
         }
     });
 
+    // --- Serve Static Files (React Frontend) ---
+    const distPath = path.join(__dirname, '..', 'dist');
+    app.use(express.static(distPath));
+    
+    // Catch-all handler: send back React's index.html file for any non-API routes
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+    });
+
     // --- Start Server ---
     app.listen(PORT, () => {
         console.log(`[Server] Running on http://localhost:${PORT}`);
         console.log(`[Server] CORS is configured to allow requests from: ${whitelist.join(', ')}`);
+        console.log(`[Server] Serving static files from: ${distPath}`);
     });
 }
 
