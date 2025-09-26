@@ -64,30 +64,10 @@ services:
       timeout: 10s
       retries: 3
 
-  # Nginx Reverse Proxy
-  nginx:
-    image: nginx:alpine
-    container_name: nadanaloga-nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - nginx_logs:/var/log/nginx
-      # SSL certificates (uncomment when ready for HTTPS)
-      # - ./ssl:/etc/nginx/ssl:ro
-    depends_on:
-      - app
-    networks:
-      - nadanaloga-network
-
 volumes:
   postgres_data:
     driver: local
   app_uploads:
-    driver: local
-  nginx_logs:
     driver: local
 
 networks:
