@@ -1,9 +1,12 @@
 # Multi-stage build for Nadanaloga application
 FROM node:18-alpine AS frontend-builder
 
-# Cache bust argument to force rebuild
+# Cache bust arguments to force rebuild
 ARG CACHE_BUST
+ARG FORCE_REBUILD
 RUN echo "Cache bust: $CACHE_BUST"
+RUN echo "Force rebuild: $FORCE_REBUILD"
+RUN echo "SSL FIX SHOULD BE INCLUDED NOW"
 
 WORKDIR /app
 
