@@ -36,20 +36,15 @@ services:
       DATABASE_URL: postgresql://nadanaloga_user:${POSTGRES_PASSWORD:-changeme123}@postgres:5432/nadanaloga
       SESSION_SECRET: ${SESSION_SECRET:-your-super-secret-session-key-change-this}
       
-      # Supabase Configuration
-      VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
-      VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
-      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      # Email Configuration (SMTP)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-noreply@nadanaloga.com}
       
-      # Email Configuration (optional)
-      EMAIL_HOST: ${EMAIL_HOST:-}
-      EMAIL_PORT: ${EMAIL_PORT:-587}
-      EMAIL_USER: ${EMAIL_USER:-}
-      EMAIL_PASS: ${EMAIL_PASS:-}
-      EMAIL_FROM: ${EMAIL_FROM:-noreply@nadanaloga.com}
-      
-      # Google AI (optional)
-      GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY:-}
+      # Client URL for CORS
+      CLIENT_URL: ${CLIENT_URL:-}
     depends_on:
       postgres:
         condition: service_healthy
