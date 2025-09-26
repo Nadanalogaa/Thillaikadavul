@@ -17,13 +17,19 @@ async function startServer() {
     console.log(`[Server] Node environment (NODE_ENV): ${process.env.NODE_ENV || 'not set (defaults to development)'}`);
 
     // --- PostgreSQL Connection ---
-    const pool = new Pool({
-        connectionString: process.env.DATABASE_URL,
-        ssl: {
-            rejectUnauthorized: false,
-            require: true
-        }
-    });
+    // Parse and modify the connection string to disable SSL certificate validation
+    let dbConfig;
+    if (process.env.DATABASE_URL) {
+        dbConfig = {
+            connectionString: process.env.DATABASE_URL + '&sslmode=require',
+            ssl: false  // Completely disable SSL for now to bypass certificate issues
+        };
+    } else {
+        console.error('[DB] DATABASE_URL environment variable is not set!');
+        process.exit(1);
+    }
+    
+    const pool = new Pool(dbConfig);
     
     try {
         await pool.query('SELECT NOW()');

@@ -8,8 +8,9 @@ services:
       dockerfile: Dockerfile
       args:
         - BUILDKIT_INLINE_CACHE=1
-        - CACHE_BUST=2025-09-26-ssl-fix-v2
+        - CACHE_BUST=2025-09-26-ssl-fix-v3
         - FORCE_REBUILD=true
+        - SSL_BYPASS_FIX=enabled
     container_name: nadanaloga-app
     restart: unless-stopped
     ports:
