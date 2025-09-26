@@ -1,6 +1,10 @@
 # Multi-stage build for Nadanaloga application
 FROM node:18-alpine AS frontend-builder
 
+# Cache bust argument to force rebuild
+ARG CACHE_BUST
+RUN echo "Cache bust: $CACHE_BUST"
+
 WORKDIR /app
 
 # Copy package files for frontend
