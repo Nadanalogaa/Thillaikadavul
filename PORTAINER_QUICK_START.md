@@ -40,12 +40,23 @@ Add new proxy host:
 ### 4. What Happens Automatically
 
 ✅ PostgreSQL database created with `nadanaloga` name  
-✅ Supabase backup imported automatically  
 ✅ Application built and started on port 3000  
 ✅ Health checks enabled for monitoring  
 ✅ Persistent volumes for database and uploads  
 
-### 5. Check Status
+### 5. Import Your Database (Optional)
+
+After deployment, if you need your Supabase data:
+
+1. **Download the repository** to your local machine
+2. **Run the import script**:
+   ```bash
+   ./import-database.sh
+   ```
+   
+This will import your `supabase_backup.sql` into the running PostgreSQL container.
+
+### 6. Check Status
 
 - **Portainer**: Stacks → nadanaloga-app → Check all services are green
 - **Health**: Visit your domain to test the application
