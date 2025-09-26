@@ -1,6 +1,28 @@
 version: '3.8'
 
 services:
+  # Local PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: nadanaloga-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nadanaloga
+      POSTGRES_USER: nadanaloga_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-SecurePassword123!}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./supabase_backup.sql:/docker-entrypoint-initdb.d/01-import.sql:ro
+    networks:
+      - nadanaloga-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nadanaloga_user -d nadanaloga"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    ports:
+      - "5432:5432"
+
   # Main Application
   app:
     build:
@@ -8,9 +30,9 @@ services:
       dockerfile: Dockerfile
       args:
         - BUILDKIT_INLINE_CACHE=1
-        - CACHE_BUST=2025-09-26-ssl-fix-v3
+        - CACHE_BUST=2025-09-26-local-postgres-migration
         - FORCE_REBUILD=true
-        - SSL_BYPASS_FIX=enabled
+        - LOCAL_POSTGRES_SETUP=enabled
     container_name: nadanaloga-app
     restart: unless-stopped
     ports:
@@ -18,7 +40,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: postgresql://nadanaloga_user:${POSTGRES_PASSWORD:-SecurePassword123!}@postgres:5432/nadanaloga
       SESSION_SECRET: ${SESSION_SECRET}
       
       # Supabase Configuration
@@ -43,7 +65,19 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - nadanaloga-network
 
 volumes:
+  postgres_data:
+    driver: local
   app_uploads:
     driver: local
+
+networks:
+  nadanaloga-network:
+    driver: bridge
+    name: nadanaloga-network
