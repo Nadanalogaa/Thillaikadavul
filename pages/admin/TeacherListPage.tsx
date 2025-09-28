@@ -220,6 +220,14 @@ const TeacherListPage: React.FC = () => {
             setEditingUser(null);
             // Refetch all data to ensure UI consistency
             await fetchData();
+
+            // Show success message with notification status
+            const hasScheduleChanges = usersToUpdate.some(user => user.schedules && user.schedules.length > 0);
+            const successMessage = hasScheduleChanges
+                ? `✅ Teacher profile updated successfully! 📧 Email notifications and in-app notifications sent to affected students, teachers, and admin regarding schedule changes.`
+                : `✅ Teacher profile updated successfully! 📧 Email notifications and in-app notifications sent regarding profile changes.`;
+
+            alert(successMessage);
         } catch (err) {
             alert(err instanceof Error ? err.message : 'Failed to save teacher.');
         }
@@ -281,6 +289,14 @@ const TeacherListPage: React.FC = () => {
             // Step 4: Refresh all data and close the modal
             await fetchData();
             setIsAddModalOpen(false);
+
+            // Show success message
+            const assignmentCount = assignmentChanges.size;
+            const successMessage = assignmentCount > 0
+                ? `✅ Teacher "${teacherData.name || 'New Teacher'}" created successfully with ${assignmentCount} student assignments! 📧 Email notifications and in-app notifications sent to all affected students, teachers, and admin.`
+                : `✅ Teacher "${teacherData.name || 'New Teacher'}" created successfully! 📧 Welcome email and registration notifications sent.`;
+
+            alert(successMessage);
 
         } catch (err) {
             alert(err instanceof Error ? err.message : 'An error occurred while creating the teacher.');

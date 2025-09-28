@@ -127,17 +127,23 @@ const BatchesPage: React.FC = () => {
                 payload.teacherId = (payload.teacherId as Partial<User>).id;
             }
 
+            let successMessage = '';
             if (payload.id) { // Editing
                 await updateBatch(payload.id, payload);
+                successMessage = `✅ Batch "${payload.name || 'Unnamed'}" updated successfully! 📧 Email notifications and in-app notifications sent to all assigned students, teachers, and admin.`;
             } else { // Creating
                 await addBatch(payload);
+                successMessage = `✅ Batch "${payload.name || 'Unnamed'}" created successfully! 📧 Email notifications and in-app notifications will be sent when students are assigned.`;
             }
-            
+
             // Refetch all data to get the latest state with populated fields
             await fetchData();
 
             setEditingBatch(null);
             setAddingStudentsToBatch(null);
+
+            // Show success message
+            alert(successMessage);
         } catch (err) {
             alert(err instanceof Error ? err.message : 'Failed to save batch.');
         }

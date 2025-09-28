@@ -330,22 +330,76 @@ class NotificationService {
   }
 
   // Batch Allocation Notifications
-  async notifyBatchAllocation(studentId: string, batchName: string, courseName: string, teacherName: string, timing: string, adminId?: string): Promise<void> {
-    const notifications: NotificationData[] = [
-      // Notify student/parent
-      {
-        type: 'batch_allocation',
-        title: 'Batch Allocation Confirmed',
-        message: `${studentId} has been allocated to batch "${batchName}" for ${courseName}. Teacher: ${teacherName}. Schedule: ${timing}`,
-        recipientId: studentId,
-        emailRequired: true,
-        priority: 'high'
-      }
-    ];
+  async notifyBatchAllocation(studentId: string, batchName: string, courseName: string, teacherName: string, timing: string, teacherId?: string): Promise<void> {
+    try {
+      // Get student info for email
+      const { data: studentData, error: studentError } = await supabase
+        .from('users')
+        .select('name, email')
+        .eq('id', studentId)
+        .single();
 
-    // Send notifications
-    for (const notification of notifications) {
-      await this.sendNotification(notification);
+      if (studentError || !studentData) {
+        console.error('Could not find student for batch allocation notification');
+        return;
+      }
+
+      const notifications: NotificationData[] = [
+        // Notify student/parent
+        {
+          type: 'batch_allocation',
+          title: 'Batch Allocation Confirmed',
+          message: `You have been allocated to batch "${batchName}" for ${courseName}. Teacher: ${teacherName}. Schedule: ${timing}`,
+          recipientId: studentId,
+          emailRequired: true,
+          priority: 'high'
+        }
+      ];
+
+      // Notify admin (nadanaloga@gmail.com)
+      const adminIds = await this.getAdminUsers();
+      adminIds.forEach(adminId => {
+        notifications.push({
+          type: 'batch_allocation',
+          title: 'Student Batch Assignment',
+          message: `${studentData.name} has been assigned to batch "${batchName}" for ${courseName}. Teacher: ${teacherName}. Schedule: ${timing}`,
+          recipientId: adminId,
+          emailRequired: true,
+          priority: 'medium'
+        });
+      });
+
+      // Notify teacher if provided
+      if (teacherId) {
+        notifications.push({
+          type: 'batch_allocation',
+          title: 'New Student Assignment',
+          message: `${studentData.name} has been assigned to your batch "${batchName}" for ${courseName}. Schedule: ${timing}`,
+          recipientId: teacherId,
+          emailRequired: true,
+          priority: 'medium'
+        });
+      }
+
+      // Send notifications
+      for (const notification of notifications) {
+        await this.sendNotification(notification);
+      }
+
+      // Also call the dedicated batch allocation email API for better formatting
+      if (studentData.email) {
+        await this.sendBatchAllocationEmail(studentData, {
+          name: batchName,
+          courseName: courseName,
+          teacherName: teacherName,
+          schedule: timing,
+          location: 'To be announced',
+          startDate: new Date().toISOString()
+        });
+      }
+
+    } catch (error) {
+      console.error('Error in notifyBatchAllocation:', error);
     }
   }
 
@@ -527,7 +581,7 @@ class NotificationService {
   }
 
   // Special email handler for demo booking customer confirmation
-  private async sendCustomerDemoBookingEmail(notificationData: any, demoBookingData: any): Promise<void> {
+  private async sendCustomerDemoBookingEmail(_notificationData: any, demoBookingData: any): Promise<void> {
     try {
       // Create a notification record for tracking (optional)
       console.log('CUSTOMER DEMO BOOKING EMAIL:', {

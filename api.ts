@@ -879,8 +879,28 @@ export const addStudentByAdmin = async (userData: Partial<User>): Promise<User> 
 };
 export const updateUserByAdmin = async (userId: string, userData: Partial<User>): Promise<User> => {
   try {
+    // Get the current user data to compare for schedule changes
+    let currentUser: User | null = null;
+    if (userData.schedules !== undefined) {
+      const { data: currentUserData, error: fetchError } = await supabase
+        .from('users')
+        .select('schedules, name, email, role')
+        .eq('id', userId)
+        .single();
+
+      if (!fetchError && currentUserData) {
+        currentUser = {
+          id: userId,
+          name: currentUserData.name,
+          email: currentUserData.email,
+          role: currentUserData.role as UserRole,
+          schedules: currentUserData.schedules || []
+        } as User;
+      }
+    }
+
     const updateData: any = {};
-    
+
     // Map User interface fields to database fields
     if (userData.name !== undefined) updateData.name = userData.name;
     if (userData.email !== undefined) updateData.email = userData.email;
@@ -897,7 +917,7 @@ export const updateUserByAdmin = async (userId: string, userData: Partial<User>)
     if (userData.preferredTimings !== undefined) updateData.preferred_timings = userData.preferredTimings;
     if (userData.status !== undefined) updateData.status = userData.status;
     if (userData.locationId !== undefined) updateData.location_id = userData.locationId;
-    
+
     // Student specific fields
     if (userData.courses !== undefined) updateData.courses = userData.courses;
     if (userData.fatherName !== undefined) updateData.father_name = userData.fatherName;
@@ -983,15 +1003,128 @@ export const updateUserByAdmin = async (userId: string, userData: Partial<User>)
       deletedAt: data.deleted_at
     };
 
-    // Send profile modification notification for students
-    if (data.role === 'Student') {
+    // Send schedule/assignment change notifications
+    if (currentUser && userData.schedules !== undefined && data.role === 'Student') {
+      try {
+        const oldSchedules = currentUser.schedules || [];
+        const newSchedules = userData.schedules || [];
+
+        // Compare schedules to detect teacher assignments/changes
+        for (const newSchedule of newSchedules) {
+          const oldSchedule = oldSchedules.find(s => s.course === newSchedule.course);
+
+          // New teacher assignment
+          if (newSchedule.teacherId && (!oldSchedule || oldSchedule.teacherId !== newSchedule.teacherId)) {
+            // Get teacher name for notification
+            const { data: teacherData } = await supabase
+              .from('users')
+              .select('name')
+              .eq('id', newSchedule.teacherId)
+              .single();
+
+            const teacherName = teacherData?.name || 'Unknown Teacher';
+
+            await notificationService.notifyBatchAllocation(
+              userId,
+              `${newSchedule.course} Class`,
+              newSchedule.course,
+              teacherName,
+              newSchedule.timing || 'Schedule to be confirmed',
+              newSchedule.teacherId
+            );
+          }
+
+          // Teacher unassignment (when teacherId is removed)
+          if (oldSchedule?.teacherId && !newSchedule.teacherId) {
+            // Notify about unassignment
+            const { data: oldTeacherData } = await supabase
+              .from('users')
+              .select('name')
+              .eq('id', oldSchedule.teacherId)
+              .single();
+
+            const oldTeacherName = oldTeacherData?.name || 'Previous Teacher';
+
+            // Send unassignment notification to admin and old teacher
+            const adminIds = await notificationService.getAdminUsers();
+
+            // Notify admin
+            for (const adminId of adminIds) {
+              await notificationService.sendNotification({
+                type: 'modification',
+                title: 'Student Assignment Removed',
+                message: `${currentUser.name} has been unassigned from ${oldTeacherName} for ${newSchedule.course}`,
+                recipientId: adminId,
+                emailRequired: true,
+                priority: 'medium'
+              });
+            }
+
+            // Notify old teacher
+            if (oldSchedule.teacherId) {
+              await notificationService.sendNotification({
+                type: 'modification',
+                title: 'Student Assignment Removed',
+                message: `${currentUser.name} has been unassigned from your ${newSchedule.course} class`,
+                recipientId: oldSchedule.teacherId,
+                emailRequired: true,
+                priority: 'medium'
+              });
+            }
+          }
+        }
+
+        // Check for removed courses (courses that existed but are no longer in the schedule)
+        for (const oldSchedule of oldSchedules) {
+          if (!newSchedules.find(s => s.course === oldSchedule.course) && oldSchedule.teacherId) {
+            // Course completely removed - notify teacher and admin
+            const { data: teacherData } = await supabase
+              .from('users')
+              .select('name')
+              .eq('id', oldSchedule.teacherId)
+              .single();
+
+            const teacherName = teacherData?.name || 'Unknown Teacher';
+            const adminIds = await notificationService.getAdminUsers();
+
+            // Notify admin
+            for (const adminId of adminIds) {
+              await notificationService.sendNotification({
+                type: 'modification',
+                title: 'Student Course Removed',
+                message: `${currentUser.name} has been removed from ${oldSchedule.course} (was assigned to ${teacherName})`,
+                recipientId: adminId,
+                emailRequired: true,
+                priority: 'medium'
+              });
+            }
+
+            // Notify teacher
+            await notificationService.sendNotification({
+              type: 'modification',
+              title: 'Student Course Removed',
+              message: `${currentUser.name} has been removed from your ${oldSchedule.course} class`,
+              recipientId: oldSchedule.teacherId,
+              emailRequired: true,
+              priority: 'medium'
+            });
+          }
+        }
+      } catch (notificationError) {
+        console.error('Failed to send schedule change notification:', notificationError);
+        // Don't fail the update if notification fails
+      }
+    }
+
+    // Send profile modification notification for students (for other changes)
+    if (data.role === 'Student' && userData.schedules === undefined) {
       try {
         // Determine what was modified
-        const modificationType = Object.keys(userData).length === 1 ? 
+        const modificationType = Object.keys(userData).length === 1 ?
           Object.keys(userData)[0] : 'profile information';
-        
-        const modificationDetails = Object.keys(userData).length > 3 ? 
-          'Multiple fields have been updated.' : 
+
+        const modificationDetails = Object.keys(userData).length > 3 ?
+          'Multiple fields have been updated.' :
           `Modified: ${Object.keys(userData).join(', ')}`;
 
         await notificationService.notifyProfileModification(
@@ -1056,7 +1189,7 @@ export const addCourseByAdmin = async (courseData: Omit<Course, 'id'>): Promise<
       throw new Error(`Failed to add course: ${error.message}`);
     }
 
-    return {
+    const newCourse = {
       id: data.id,
       name: data.name,
       description: data.description,
@@ -1064,6 +1197,39 @@ export const addCourseByAdmin = async (courseData: Omit<Course, 'id'>): Promise<
       image: data.image,
       icon_url: data.icon_url
     };
+
+    // Send notifications about new course to all users
+    try {
+      const adminIds = await notificationService.getAdminUsers();
+      const allStudents = await notificationService.getAllStudents();
+
+      // Get all teachers
+      const { data: teachersData } = await supabase
+        .from('users')
+        .select('id')
+        .eq('role', 'Teacher');
+
+      const teacherIds = teachersData?.map(t => t.id) || [];
+
+      // Notify all users about new course
+      const allUserIds = [...adminIds, ...allStudents, ...teacherIds];
+
+      for (const userId of allUserIds) {
+        await notificationService.sendNotification({
+          type: 'general',
+          title: 'New Course Available',
+          message: `A new course "${courseData.name}" has been added to our offerings. ${courseData.description}`,
+          recipientId: userId,
+          emailRequired: true,
+          priority: 'medium'
+        });
+      }
+    } catch (notificationError) {
+      console.error('Failed to send course addition notification:', notificationError);
+      // Don't fail the course creation if notification fails
+    }
+
+    return newCourse;
   } catch (error) {
     console.error('Error in addCourseByAdmin:', error);
     throw error;
@@ -1091,7 +1257,7 @@ export const updateCourseByAdmin = async (courseId: string, courseData: Partial<
       throw new Error(`Failed to update course: ${error.message}`);
     }
 
-    return {
+    const updatedCourse = {
       id: data.id,
       name: data.name,
       description: data.description,
@@ -1099,6 +1265,37 @@ export const updateCourseByAdmin = async (courseId: string, courseData: Partial<
       image: data.image,
       icon_url: data.icon_url
     };
+
+    // Send notifications about course update to all users who are enrolled in this course
+    try {
+      // Get all users who have this course in their courses array
+      const { data: enrolledUsers } = await supabase
+        .from('users')
+        .select('id, name')
+        .contains('courses', [data.name]);
+
+      const enrolledUserIds = enrolledUsers?.map(u => u.id) || [];
+
+      // Also notify admin
+      const adminIds = await notificationService.getAdminUsers();
+      const allRelevantUsers = [...new Set([...enrolledUserIds, ...adminIds])];
+
+      for (const userId of allRelevantUsers) {
+        await notificationService.sendNotification({
+          type: 'modification',
+          title: 'Course Updated',
+          message: `The course "${data.name}" has been updated. ${Object.keys(courseData).join(', ')} modified.`,
+          recipientId: userId,
+          emailRequired: true,
+          priority: 'medium'
+        });
+      }
+    } catch (notificationError) {
+      console.error('Failed to send course update notification:', notificationError);
+      // Don't fail the course update if notification fails
+    }
+
+    return updatedCourse;
   } catch (error) {
     console.error('Error in updateCourseByAdmin:', error);
     throw error;
@@ -1106,6 +1303,13 @@ export const updateCourseByAdmin = async (courseId: string, courseData: Partial<
 };
 export const deleteCourseByAdmin = async (courseId: string): Promise<void> => {
   try {
+    // Get course details before deletion for notification
+    const { data: courseData } = await supabase
+      .from('courses')
+      .select('name')
+      .eq('id', courseId)
+      .single();
+
     const { error } = await supabase
       .from('courses')
       .delete()
@@ -1114,6 +1318,37 @@ export const deleteCourseByAdmin = async (courseId: string): Promise<void> => {
     if (error) {
       console.error('Error deleting course:', error);
       throw new Error(`Failed to delete course: ${error.message}`);
+    }
+
+    // Send notifications about course deletion
+    if (courseData?.name) {
+      try {
+        // Get all users who had this course in their courses array
+        const { data: affectedUsers } = await supabase
+          .from('users')
+          .select('id, name')
+          .contains('courses', [courseData.name]);
+
+        const affectedUserIds = affectedUsers?.map(u => u.id) || [];
+
+        // Also notify admin
+        const adminIds = await notificationService.getAdminUsers();
+        const allRelevantUsers = [...new Set([...affectedUserIds, ...adminIds])];
+
+        for (const userId of allRelevantUsers) {
+          await notificationService.sendNotification({
+            type: 'modification',
+            title: 'Course Discontinued',
+            message: `The course "${courseData.name}" has been discontinued. Please contact administration for further information about alternative options.`,
+            recipientId: userId,
+            emailRequired: true,
+            priority: 'high'
+          });
+        }
+      } catch (notificationError) {
+        console.error('Failed to send course deletion notification:', notificationError);
+        // Don't fail the course deletion if notification fails
+      }
     }
   } catch (error) {
     console.error('Error in deleteCourseByAdmin:', error);
@@ -1384,7 +1619,8 @@ export const updateBatch = async (batchId: string, batchData: Partial<Batch>): P
             batchName,
             courseName,
             teacherName,
-            timing
+            timing,
+            data.teacher_id
           );
         }
       } catch (notificationError) {
@@ -2439,7 +2675,7 @@ export const addGradeExam = async (exam: Omit<GradeExam, 'id'>): Promise<GradeEx
       throw new Error(`Failed to add grade exam: ${error.message}`);
     }
 
-    return {
+    const examResult = {
       id: data.id,
       title: data.title,
       description: data.description,
@@ -2454,6 +2690,49 @@ export const addGradeExam = async (exam: Omit<GradeExam, 'id'>): Promise<GradeEx
       isOpen: data.is_open,
       createdAt: new Date(data.created_at)
     };
+
+    // Send notifications for grade exam
+    try {
+      // Get all students enrolled in this course
+      const { data: enrolledStudents } = await supabase
+        .from('users')
+        .select('id')
+        .eq('role', 'Student')
+        .contains('courses', [exam.course]);
+
+      const studentIds = enrolledStudents?.map(s => s.id) || [];
+
+      // Also notify admin and teachers teaching this course
+      const adminIds = await notificationService.getAdminUsers();
+
+      const { data: teachersData } = await supabase
+        .from('users')
+        .select('id')
+        .eq('role', 'Teacher')
+        .contains('course_expertise', [exam.course]);
+
+      const teacherIds = teachersData?.map(t => t.id) || [];
+
+      const allRecipients = [...studentIds, ...adminIds, ...teacherIds];
+
+      for (const recipientId of allRecipients) {
+        await notificationService.sendNotification({
+          type: 'event',
+          title: `New Grade Exam: ${exam.title}`,
+          message: `A new grade exam "${exam.title}" has been scheduled for ${exam.course}. Date: ${exam.date}. Registration fee: ₹${exam.registrationFee}. Please register before ${exam.registrationDeadline}.`,
+          recipientId,
+          relatedEntityId: data.id,
+          relatedEntityType: 'event',
+          emailRequired: true,
+          priority: 'high'
+        });
+      }
+    } catch (notificationError) {
+      console.error('Failed to send grade exam notification:', notificationError);
+      // Don't fail the exam creation if notification fails
+    }
+
+    return examResult;
   } catch (error) {
     console.error('Error in addGradeExam:', error);
     throw error;
@@ -3016,13 +3295,47 @@ export const addNotice = async (notice: Omit<Notice, 'id'>): Promise<Notice> => 
       throw new Error(`Failed to add notice: ${error.message}`);
     }
 
-    return {
+    const noticeResult = {
       id: data.id,
       title: data.title,
       content: data.content,
       issuedAt: data.issued_at,
       recipientIds: []
     };
+
+    // Send notifications for new notice to all users
+    try {
+      const adminIds = await notificationService.getAdminUsers();
+      const allStudents = await notificationService.getAllStudents();
+
+      // Get all teachers
+      const { data: teachersData } = await supabase
+        .from('users')
+        .select('id')
+        .eq('role', 'Teacher');
+
+      const teacherIds = teachersData?.map(t => t.id) || [];
+
+      // Notify all users about new notice
+      const allUserIds = [...adminIds, ...allStudents, ...teacherIds];
+
+      for (const userId of allUserIds) {
+        await notificationService.sendNotification({
+          type: 'general',
+          title: `New Notice: ${notice.title}`,
+          message: notice.content,
+          recipientId: userId,
+          relatedEntityId: data.id,
+          emailRequired: true,
+          priority: 'medium'
+        });
+      }
+    } catch (notificationError) {
+      console.error('Failed to send notice notification:', notificationError);
+      // Don't fail the notice creation if notification fails
+    }
+
+    return noticeResult;
   } catch (error) {
     console.error('Error in addNotice:', error);
     throw error;

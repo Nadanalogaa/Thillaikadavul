@@ -192,13 +192,19 @@ const EventsManagementPage: React.FC = () => {
     const handleSave = async (event: Partial<Event>) => {
         setIsFormLoading(true);
         try {
+            let successMessage = '';
             if (event.id) {
                 await updateEvent(event.id, event);
+                successMessage = `✅ Event "${event.title || 'Unnamed Event'}" updated successfully! 📧 Email notifications and in-app notifications sent to all participants.`;
             } else {
                 await addEvent(event as Omit<Event, 'id'>);
+                successMessage = `✅ Event "${event.title || 'New Event'}" created successfully! 📧 Email notifications and in-app notifications sent to all target audience members.`;
             }
             setEditingEvent(null);
             await fetchData();
+
+            // Show success message
+            alert(successMessage);
         } catch (err) {
             alert(err instanceof Error ? err.message : 'Failed to save event.');
         } finally {

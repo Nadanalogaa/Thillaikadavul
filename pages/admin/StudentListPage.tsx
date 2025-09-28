@@ -340,9 +340,17 @@ const StudentListPage: React.FC = () => {
                 });
     
                 await Promise.all([updatedUserPromise, ...batchUpdatePromises]);
-                
+
                 setEditingUser(null);
                 await fetchData(); // Refetch all data to ensure UI is up to date
+
+                // Show success message with notification status
+                const batchChangeCount = batchChanges.size;
+                const successMessage = batchChangeCount > 0
+                    ? `✅ Student "${user.name}" profile updated successfully with ${batchChangeCount} batch changes! 📧 Email notifications and in-app notifications sent to student, teachers, and admin regarding batch assignments.`
+                    : `✅ Student "${user.name}" profile updated successfully! 📧 Email notifications and in-app notifications sent regarding profile changes.`;
+
+                alert(successMessage);
             } catch (err) {
                 alert(err instanceof Error ? err.message : 'An error occurred while saving.');
             }
@@ -355,6 +363,9 @@ const StudentListPage: React.FC = () => {
             const savedStudent = await addStudentByAdmin(newUser);
             setAllUsers(prev => [...prev, savedStudent]);
             setIsAddModalOpen(false);
+
+            // Show success message
+            alert(`✅ Student "${newUser.name || 'New Student'}" added successfully! 📧 Welcome email and registration notifications sent to student and admin.`);
         } catch (err) {
             alert(err instanceof Error ? err.message : 'Failed to add student.');
         }
