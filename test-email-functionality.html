@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Email Functionality</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        button { padding: 10px 20px; margin: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 10px; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        input, textarea { width: 100%; padding: 8px; margin: 5px 0; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Email Functionality Test</h1>
+
+        <div class="test-section">
+            <h3>Test 1: Direct Email Send</h3>
+            <input type="email" id="testEmail" placeholder="Enter test email address" value="mathan.pv@gmail.com">
+            <input type="text" id="testSubject" placeholder="Subject" value="Test Email from Nadanaloga">
+            <textarea id="testMessage" rows="4" placeholder="Email message">This is a test email from the Nadanaloga email system. If you receive this, the email functionality is working correctly!</textarea>
+            <input type="text" id="testRecipientName" placeholder="Recipient Name" value="Test User">
+            <button onclick="testDirectEmail()">Send Test Email</button>
+            <div id="directEmailResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 2: Registration with Email</h3>
+            <input type="text" id="regName" placeholder="Name" value="Test Student">
+            <input type="email" id="regEmail" placeholder="Email" value="test@example.com">
+            <input type="password" id="regPassword" placeholder="Password" value="password123">
+            <input type="text" id="regCourses" placeholder="Courses (comma separated)" value="Bharatanatyam,Vocal">
+            <button onclick="testRegistrationEmail()">Register with Email Notifications</button>
+            <div id="registrationResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Server Status</h3>
+            <button onclick="checkServerStatus()">Check Backend Status</button>
+            <div id="serverStatusResult"></div>
+        </div>
+    </div>
+
+    <script>
+        async function testDirectEmail() {
+            const resultDiv = document.getElementById('directEmailResult');
+            resultDiv.innerHTML = 'Sending email...';
+
+            try {
+                const response = await fetch('/api/send-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        to: document.getElementById('testEmail').value,
+                        subject: document.getElementById('testSubject').value,
+                        body: document.getElementById('testMessage').value,
+                        recipientName: document.getElementById('testRecipientName').value
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="success">✅ Email sent successfully! Message: ${result.message}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Failed to send email: ${result.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        async function testRegistrationEmail() {
+            const resultDiv = document.getElementById('registrationResult');
+            resultDiv.innerHTML = 'Registering user with email notifications...';
+
+            try {
+                const courses = document.getElementById('regCourses').value.split(',').map(c => c.trim());
+
+                const response = await fetch('/api/register-with-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name: document.getElementById('regName').value,
+                        email: document.getElementById('regEmail').value,
+                        password: document.getElementById('regPassword').value,
+                        role: 'Student',
+                        courses: courses,
+                        contactNumber: '1234567890',
+                        dateOfJoining: new Date().toISOString()
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="success">✅ Registration successful! User ID: ${result.userId}, Email sent: ${result.emailSent}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Registration failed: ${result.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        async function checkServerStatus() {
+            const resultDiv = document.getElementById('serverStatusResult');
+            resultDiv.innerHTML = 'Checking server status...';
+
+            try {
+                const response = await fetch('/api/health');
+                const result = await response.json();
+
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="success">✅ Server is running! Status: ${result.status}, Time: ${result.timestamp}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Server error: ${response.status}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Cannot connect to server: ${error.message}</div>`;
+            }
+        }
+
+        // Auto-check server status on page load
+        window.onload = () => {
+            checkServerStatus();
+        };
+    </script>
+</body>
+</html>

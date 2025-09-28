@@ -49,7 +49,7 @@ class NotificationService {
     }
   }
 
-  // Send email notification (placeholder for email service integration)
+  // Send email notification via backend API
   private async sendEmailNotification(data: NotificationData): Promise<void> {
     try {
       // Get user email
@@ -64,20 +64,28 @@ class NotificationService {
         return;
       }
 
-      // TODO: Integrate with actual email service (SendGrid, Nodemailer, etc.)
-      console.log('EMAIL NOTIFICATION:', {
-        to: userData.email,
-        subject: data.title,
-        body: data.message,
-        recipientName: userData.name
+      // Call backend email endpoint
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: userData.email,
+          subject: data.title,
+          body: data.message,
+          recipientName: userData.name
+        })
       });
 
-      // For now, just log. Later integrate with:
-      // - SendGrid API
-      // - Nodemailer 
-      // - AWS SES
-      // - Or any other email service
-      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to send email');
+      }
+
+      const result = await response.json();
+      console.log('Notification sent successfully:', data.title);
+
     } catch (error) {
       console.error('Error sending email notification:', error);
     }

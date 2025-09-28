@@ -1,4 +1,5 @@
-import type { User, ContactFormData, Course, DashboardStats, Notification, Batch, FeeStructure, Invoice, PaymentDetails, StudentEnrollment, Event, GradeExam, BookMaterial, Notice, Location, DemoBooking } from './types';
+import type { User, ContactFormData, Course, DashboardStats, Notification, Batch, FeeStructure, Invoice, PaymentDetails, StudentEnrollment, Event, GradeExam, BookMaterial, Notice, Location, DemoBooking, EventNotification, EventImage } from './types';
+import { UserRole, ClassPreference } from './types';
 import { supabase } from './src/lib/supabase.js';
 import { notificationService } from './services/notificationService';
 
@@ -114,8 +115,8 @@ export const loginUser = async (email: string, password: string): Promise<User> 
         id: 'admin-001',
         name: 'Administrator',
         email: normalizedEmail,
-        role: 'Admin',
-        classPreference: 'Hybrid'
+        role: UserRole.Admin,
+        classPreference: ClassPreference.Hybrid
       };
       
       currentUser = adminUser;
@@ -428,7 +429,7 @@ export const submitContactForm = async (data: ContactFormData): Promise<{success
 };
 
 // All other functions as placeholders to prevent errors
-export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
+export const registerUser = async (userData: Partial<User>[], sendEmails: boolean = true): Promise<any> => {
   try {
     const finalUsersData = [];
     
@@ -489,7 +490,7 @@ export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
       }
 
       console.log('Registering user with data:', completeUserData);
-      
+
       // Debug teacher-specific fields
       if (user.role === 'Teacher') {
         console.log('Teacher specific data:');
@@ -498,70 +499,119 @@ export const registerUser = async (userData: Partial<User>[]): Promise<any> => {
         console.log('- Will save as course_expertise:', completeUserData.course_expertise);
         console.log('- Will save as available_time_slots:', completeUserData.available_time_slots);
       }
-      
-      // Single insert with all data
-      const { data, error } = await supabase
-        .from('users')
-        .insert([completeUserData])
-        .select()
-        .single();
 
-      if (error) {
-        console.error('Registration error details:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-          userData: completeUserData
-        });
-        throw new Error(`Registration failed: ${error.message}. Details: ${error.details || 'No additional details'}`);
+      let data;
+      // Use backend registration endpoint with email notifications for students
+      if (sendEmails && user.role === 'Student') {
+        try {
+          const response = await fetch('/api/register-with-email', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(completeUserData)
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Registration failed');
+          }
+
+          const result = await response.json();
+          // Since backend returns userId, we need to fetch the complete user data
+          const { data: userData, error: fetchError } = await supabase
+            .from('users')
+            .select()
+            .eq('id', result.userId)
+            .single();
+
+          if (fetchError) {
+            throw new Error('Failed to fetch user data after registration');
+          }
+
+          data = userData;
+          console.log('User registered with emails successfully:', data);
+        } catch (backendError) {
+          console.error('Backend registration with emails failed, falling back to Supabase:', backendError);
+          // Fallback to direct Supabase registration
+          const { data: supabaseData, error } = await supabase
+            .from('users')
+            .insert([completeUserData])
+            .select()
+            .single();
+
+          if (error) {
+            console.error('Supabase registration error:', error);
+            throw new Error(`Registration failed: ${error.message}`);
+          }
+          data = supabaseData;
+        }
+      } else {
+        // Direct Supabase registration for teachers or when emails are disabled
+        const { data: supabaseData, error } = await supabase
+          .from('users')
+          .insert([completeUserData])
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Registration error details:', {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code,
+            userData: completeUserData
+          });
+          throw new Error(`Registration failed: ${error.message}. Details: ${error.details || 'No additional details'}`);
+        }
+        data = supabaseData;
+
+        // Send registration notification for students using notification service
+        if (sendEmails && data.role === 'Student') {
+          try {
+            // Get admin users for notification
+            const adminUsers = await notificationService.getAdminUsers();
+            const adminId = adminUsers.length > 0 ? adminUsers[0] : undefined;
+
+            // Convert database fields to User interface
+            const userForNotification: User = {
+              id: data.id,
+              name: data.name,
+              email: data.email,
+              role: data.role,
+              classPreference: data.class_preference,
+              contactNumber: data.contact_number,
+              address: data.address,
+              country: data.country,
+              state: data.state,
+              city: data.city,
+              postalCode: data.postal_code,
+              fatherName: data.father_name,
+              dob: data.dob,
+              sex: data.sex,
+              schoolName: data.school_name,
+              standard: data.standard,
+              grade: data.grade,
+              photoUrl: data.photo_url,
+              courses: data.courses || [],
+              courseExpertise: data.course_expertise || [],
+              preferredTimings: data.preferred_timings || [],
+              dateOfJoining: data.date_of_joining,
+              schedules: data.schedules || [],
+              documents: data.documents || [],
+              notes: data.notes
+            };
+
+            await notificationService.notifyStudentRegistration(userForNotification, adminId);
+          } catch (notificationError) {
+            console.error('Failed to send registration notification:', notificationError);
+            // Don't fail the registration if notification fails
+          }
+        }
       }
 
       console.log('User registered successfully:', data);
       finalUsersData.push(data);
-
-      // Send registration notification for students
-      if (data.role === 'Student') {
-        try {
-          // Get admin users for notification
-          const adminUsers = await notificationService.getAdminUsers();
-          const adminId = adminUsers.length > 0 ? adminUsers[0] : undefined;
-          
-          // Convert database fields to User interface
-          const userForNotification: User = {
-            id: data.id,
-            name: data.name,
-            email: data.email,
-            role: data.role,
-            classPreference: data.class_preference,
-            contactNumber: data.contact_number,
-            address: data.address,
-            country: data.country,
-            state: data.state,
-            city: data.city,
-            postalCode: data.postal_code,
-            fatherName: data.father_name,
-            dob: data.dob,
-            sex: data.sex,
-            schoolName: data.school_name,
-            standard: data.standard,
-            grade: data.grade,
-            photoUrl: data.photo_url,
-            courses: data.courses || [],
-            courseExpertise: data.course_expertise || [],
-            preferredTimings: data.preferred_timings || [],
-            dateOfJoining: data.date_of_joining,
-            schedules: data.schedules || [],
-            documents: data.documents || [],
-            notes: data.notes
-          };
-
-          await notificationService.notifyStudentRegistration(userForNotification, adminId);
-        } catch (notificationError) {
-          console.error('Failed to send registration notification:', notificationError);
-          // Don't fail the registration if notification fails
-        }
-      }
     }
 
     return { message: 'Registration successful', users: finalUsersData };
@@ -1580,11 +1630,11 @@ export const getStudentInvoices = async (): Promise<Invoice[]> => {
 export const getStudentEnrollments = async (): Promise<StudentEnrollment[]> => {
   try {
     // Get current user
-    const currentUser = getCurrentUser();
+    const currentUser = await getCurrentUser();
     if (!currentUser?.id) {
       return [];
     }
-    
+
     // Use the family function for the current user
     return await getStudentEnrollmentsForFamily(currentUser.id);
   } catch (error) {
@@ -1717,11 +1767,11 @@ export const getStudentEnrollmentsForFamily = async (studentId: string): Promise
           
           const timings = studentSchedules.map(scheduleItem => {
             console.log('DEBUG: Processing schedule item:', scheduleItem);
-            // Use the timing property directly if it exists, otherwise try day:timeSlot format
+            // Use the timing property directly if it exists, otherwise try legacy day:timeSlot format
             if (scheduleItem.timing) {
               return scheduleItem.timing;
-            } else if (scheduleItem.day && scheduleItem.timeSlot) {
-              return `${scheduleItem.day}: ${scheduleItem.timeSlot}`;
+            } else if ((scheduleItem as any).day && (scheduleItem as any).timeSlot) {
+              return `${(scheduleItem as any).day}: ${(scheduleItem as any).timeSlot}`;
             } else {
               return null;
             }
@@ -1734,9 +1784,9 @@ export const getStudentEnrollmentsForFamily = async (studentId: string): Promise
             batchName: batch.name,
             courseName: batch.courseName,
             timings: timings.length > 0 ? timings : ['Schedule not set'],
-            teacher: batch.teacherId ? { 
-              id: batch.teacherId, 
-              name: batch.teacherName 
+            teacher: batch.teacherId ? {
+              id: typeof batch.teacherId === 'string' ? batch.teacherId : (batch.teacherId as any)?.id || 'unknown',
+              name: batch.teacherName || 'Unknown Teacher'
             } : null,
             mode: batch.mode
           });
@@ -3044,7 +3094,7 @@ export const sendContentNotification = async (payload: {
   }
 };
 
-// Send email notifications to recipients
+// Send email notifications to recipients via backend API
 const sendEmailNotifications = async (userIds: string[], subject: string, message: string): Promise<void> => {
   try {
     // Get user emails
@@ -3058,28 +3108,42 @@ const sendEmailNotifications = async (userIds: string[], subject: string, messag
       return;
     }
 
-    // In a real implementation, you would integrate with an email service like:
-    // - SendGrid, Mailgun, AWS SES, etc.
-    // For now, we'll log the emails that would be sent
-    console.log('Email notifications would be sent to:');
-    users?.forEach(user => {
-      console.log(`📧 To: ${user.email} (${user.name})`);
-      console.log(`   Subject: ${subject}`);
-      console.log(`   Message: ${message}`);
+    if (!users || users.length === 0) {
+      console.log('No users found for email notifications');
+      return;
+    }
+
+    // Send email to each user via backend API
+    const emailPromises = users.map(async (user) => {
+      try {
+        const response = await fetch('/api/send-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            to: user.email,
+            subject: subject,
+            body: message,
+            recipientName: user.name
+          })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to send email');
+        }
+
+        console.log(`📧 Email sent successfully to: ${user.email} (${user.name})`);
+        return await response.json();
+      } catch (emailError) {
+        console.error(`Failed to send email to ${user.email}:`, emailError);
+        return null;
+      }
     });
 
-    // TODO: Implement actual email sending service integration
-    // Example with a hypothetical email service:
-    /*
-    const emailPromises = users?.map(user => 
-      emailService.send({
-        to: user.email,
-        subject: subject,
-        html: generateEmailTemplate(user.name, subject, message)
-      })
-    );
-    await Promise.all(emailPromises || []);
-    */
+    await Promise.all(emailPromises);
+    console.log(`Email notifications sent to ${users.length} recipients`);
   } catch (error) {
     console.error('Error sending email notifications:', error);
   }

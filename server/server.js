@@ -340,6 +340,166 @@ async function startServer() {
         }
     });
 
+    // --- Email API Endpoints ---
+    app.post('/api/send-email', async (req, res) => {
+        try {
+            const { to, subject, body, recipientName } = req.body;
+
+            if (!to || !subject || !body) {
+                return res.status(400).json({ message: 'Missing required fields: to, subject, body' });
+            }
+
+            if (!mailTransporter) {
+                console.log('📧 Email in test mode - would send to:', to);
+                return res.status(200).json({
+                    success: true,
+                    message: 'Email sent successfully (test mode)',
+                    preview: `Subject: ${subject}\nTo: ${to}\nBody: ${body}`
+                });
+            }
+
+            const emailHtml = createEmailTemplate(recipientName || 'User', subject, body);
+
+            const mailOptions = {
+                from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
+                to: to,
+                subject: subject,
+                html: emailHtml
+            };
+
+            await mailTransporter.sendMail(mailOptions);
+            console.log(`📧 Email sent successfully to: ${to}`);
+
+            res.status(200).json({
+                success: true,
+                message: 'Email sent successfully'
+            });
+        } catch (error) {
+            console.error('Email sending error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to send email',
+                error: error.message
+            });
+        }
+    });
+
+    // Enhanced registration endpoint with email notifications
+    app.post('/api/register-with-email', async (req, res) => {
+        try {
+            const { password, ...userData } = req.body;
+            if (!userData.email) return res.status(400).json({ message: 'Email is required.' });
+
+            const normalizedEmail = userData.email.toLowerCase();
+
+            const existingUserResult = await pool.query('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
+            if (existingUserResult.rows.length > 0) {
+                return res.status(409).json({ message: 'This email is already registered. Please try logging in.' });
+            }
+
+            if (normalizedEmail === 'admin@nadanaloga.com') userData.role = 'Admin';
+            if (!password) return res.status(400).json({ message: 'Password is required.' });
+
+            const hashedPassword = await bcrypt.hash(password, 10);
+
+            // Insert user into database
+            const result = await pool.query(
+                'INSERT INTO users (name, email, password, role, class_preference, photo_url, dob, sex, contact_number, address, date_of_joining, courses, father_name, standard, school_name, grade, notes, course_expertise, educational_qualifications, employment_type) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING id',
+                [
+                    userData.name, normalizedEmail, hashedPassword, userData.role || 'Student',
+                    userData.classPreference, userData.photoUrl, userData.dob, userData.sex,
+                    userData.contactNumber, userData.address, userData.dateOfJoining,
+                    JSON.stringify(userData.courses || []), userData.fatherName, userData.standard,
+                    userData.schoolName, userData.grade, userData.notes,
+                    JSON.stringify(userData.courseExpertise || []), userData.educationalQualifications,
+                    userData.employmentType
+                ]
+            );
+
+            const newUserId = result.rows[0].id;
+
+            // Send welcome email to user
+            if (mailTransporter) {
+                try {
+                    const coursesList = userData.courses && userData.courses.length > 0
+                        ? userData.courses.join(', ')
+                        : 'No specific courses selected';
+
+                    const welcomeMessage = `Thank you for registering with Nadanaloga Academy!
+
+Your registration has been successfully submitted with the following details:
+
+👤 Name: ${userData.name}
+📧 Email: ${normalizedEmail}
+📚 Courses of Interest: ${coursesList}
+📞 Contact: ${userData.contactNumber || 'Not provided'}
+
+What happens next?
+✅ Our admin team will review your application
+✅ You'll receive a confirmation email once approved
+✅ We'll contact you to discuss class schedules and batch allocation
+
+If you have any questions, feel free to contact us at nadanalogaa@gmail.com.
+
+Welcome to the Nadanaloga family!`;
+
+                    const userMailOptions = {
+                        from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
+                        to: normalizedEmail,
+                        subject: 'Welcome to Nadanaloga Academy!',
+                        html: createEmailTemplate(userData.name, 'Welcome to Nadanaloga Academy!', welcomeMessage)
+                    };
+
+                    await mailTransporter.sendMail(userMailOptions);
+                    console.log(`📧 Welcome email sent to: ${normalizedEmail}`);
+                } catch (emailError) {
+                    console.error('Error sending welcome email:', emailError);
+                }
+            }
+
+            // Send notification email to admin
+            if (mailTransporter) {
+                try {
+                    const adminMessage = `A new student has registered on Nadanaloga Academy:
+
+👤 Name: ${userData.name}
+📧 Email: ${normalizedEmail}
+📞 Contact: ${userData.contactNumber || 'Not provided'}
+📚 Courses of Interest: ${userData.courses && userData.courses.length > 0 ? userData.courses.join(', ') : 'No specific courses selected'}
+👨‍👩‍👧‍👦 Father's Name: ${userData.fatherName || 'Not provided'}
+🎓 Standard/Class: ${userData.standard || 'Not provided'}
+🏫 School: ${userData.schoolName || 'Not provided'}
+📍 Address: ${userData.address || 'Not provided'}
+📅 Date of Joining: ${userData.dateOfJoining || 'Not provided'}
+📝 Notes: ${userData.notes || 'None'}
+
+Please review and approve this registration in the admin panel.`;
+
+                    const adminMailOptions = {
+                        from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
+                        to: 'nadanalogaa@gmail.com',
+                        subject: 'New Student Registration - Nadanaloga Academy',
+                        html: createEmailTemplate('Admin', 'New Student Registration', adminMessage)
+                    };
+
+                    await mailTransporter.sendMail(adminMailOptions);
+                    console.log('📧 Admin notification email sent');
+                } catch (emailError) {
+                    console.error('Error sending admin notification email:', emailError);
+                }
+            }
+
+            res.status(201).json({
+                message: 'Registration successful',
+                userId: newUserId,
+                emailSent: !!mailTransporter
+            });
+        } catch (error) {
+            console.error('Registration error:', error);
+            res.status(500).json({ message: 'Server error during registration.' });
+        }
+    });
+
     // --- Serve Static Files (React Frontend) ---
     const distPath = path.join(__dirname, '..', 'dist');
     app.use(express.static(distPath));
