@@ -441,6 +441,340 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
+    // Batch Allocation Email Notification
+    app.post('/api/send-batch-allocation-email', async (req, res) => {
+        try {
+            const { studentName, studentEmail, batchName, courseName, teacherName, schedule, location, startDate } = req.body;
+
+            if (!studentEmail || !studentName || !batchName) {
+                return res.status(400).json({ message: 'Student email, name, and batch name are required.' });
+            }
+
+            console.log('[DEBUG] Sending batch allocation email to:', studentEmail);
+
+            if (!mailTransporter) {
+                return res.status(200).json({ success: true, message: 'Email sent (test mode)' });
+            }
+
+            const batchMessage = `Congratulations! You have been allocated to a new batch.
+
+📚 Course: ${courseName || 'Not specified'}
+👥 Batch Name: ${batchName}
+👨‍🏫 Teacher: ${teacherName || 'To be assigned'}
+📅 Schedule: ${schedule || 'To be confirmed'}
+📍 Location: ${location || 'Online/To be confirmed'}
+🚀 Start Date: ${startDate || 'To be announced'}
+
+Please log in to your student portal for more details and to access your learning materials.
+
+Best regards,
+Nadanaloga Academy Team`;
+
+            const mailOptions = {
+                from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
+                to: studentEmail,
+                subject: `Batch Allocation Confirmed - ${courseName || 'Course'}`,
+                html: createEmailTemplate(studentName, 'Batch Allocation Confirmed', batchMessage)
+            };
+
+            await mailTransporter.sendMail(mailOptions);
+            console.log(`📧 Batch allocation email sent to: ${studentEmail}`);
+
+            res.status(200).json({ success: true, message: 'Batch allocation email sent successfully' });
+        } catch (error) {
+            console.error('Batch allocation email error:', error);
+            res.status(500).json({ success: false, message: 'Failed to send batch allocation email', error: error.message });
+        }
+    });
+
+    // Grade Exam Result Email Notification
+    app.post('/api/send-grade-exam-email', async (req, res) => {
+        try {
+            const { studentName, studentEmail, examName, courseName, grade, score, feedback, date } = req.body;
+
+            if (!studentEmail || !studentName || !examName) {
+                return res.status(400).json({ message: 'Student email, name, and exam name are required.' });
+            }
+
+            console.log('[DEBUG] Sending grade exam email to:', studentEmail);
+
+            if (!mailTransporter) {
+                return res.status(200).json({ success: true, message: 'Email sent (test mode)' });
+            }
+
+            const gradeMessage = `Your exam results are now available!
+
+📋 Exam: ${examName}
+📚 Course: ${courseName || 'Not specified'}
+📅 Date: ${date || 'Not specified'}
+⭐ Grade: ${grade || 'Not specified'}
+📊 Score: ${score || 'Not specified'}
+
+${feedback ? `📝 Teacher Feedback:\n${feedback}` : ''}
+
+Keep up the great work! Log in to your student portal to view detailed results.
+
+Best regards,
+Nadanaloga Academy Team`;
+
+            const mailOptions = {
+                from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
+                to: studentEmail,
+                subject: `Exam Results Available - ${examName}`,
+                html: createEmailTemplate(studentName, 'Exam Results Available', gradeMessage)
+            };
+
+            await mailTransporter.sendMail(mailOptions);
+            console.log(`📧 Grade exam email sent to: ${studentEmail}`);
+
+            res.status(200).json({ success: true, message: 'Grade exam email sent successfully' });
+        } catch (error) {
+            console.error('Grade exam email error:', error);
+            res.status(500).json({ success: false, message: 'Failed to send grade exam email', error: error.message });
+        }
+    });
+
+    // Book Materials Email Notification
+    app.post('/api/send-book-materials-email', async (req, res) => {
+        try {
+            const { studentName, studentEmail, materialTitle, courseName, description, downloadLink, sharedBy } = req.body;
+
+            if (!studentEmail || !studentName || !materialTitle) {
+                return res.status(400).json({ message: 'Student email, name, and material title are required.' });
+            }
+
+            console.log('[DEBUG] Sending book materials email to:', studentEmail);
+
+            if (!mailTransporter) {
+                return res.status(200).json({ success: true, message: 'Email sent (test mode)' });
+            }
+
+            const materialsMessage = `New study material has been shared with you!
+
+📖 Material: ${materialTitle}
+📚 Course: ${courseName || 'General'}
+👨‍🏫 Shared by: ${sharedBy || 'Your teacher'}
+
+${description ? `📝 Description:\n${description}` : ''}
+
+${downloadLink ? `🔗 Download Link: ${downloadLink}` : 'Please log in to your student portal to access the material.'}
+
+Happy learning!
+
+Best regards,
+Nadanaloga Academy Team`;
+
+            const mailOptions = {
+                from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
+                to: studentEmail,
+                subject: `New Study Material - ${materialTitle}`,
+                html: createEmailTemplate(studentName, 'New Study Material Available', materialsMessage)
+            };
+
+            await mailTransporter.sendMail(mailOptions);
+            console.log(`📧 Book materials email sent to: ${studentEmail}`);
+
+            res.status(200).json({ success: true, message: 'Book materials email sent successfully' });
+        } catch (error) {
+            console.error('Book materials email error:', error);
+            res.status(500).json({ success: false, message: 'Failed to send book materials email', error: error.message });
+        }
+    });
+
+    // Events Email Notification
+    app.post('/api/send-event-email', async (req, res) => {
+        try {
+            const { studentName, studentEmail, eventTitle, eventDescription, eventDate, eventTime, location, registrationRequired } = req.body;
+
+            if (!studentEmail || !studentName || !eventTitle) {
+                return res.status(400).json({ message: 'Student email, name, and event title are required.' });
+            }
+
+            console.log('[DEBUG] Sending event email to:', studentEmail);
+
+            if (!mailTransporter) {
+                return res.status(200).json({ success: true, message: 'Email sent (test mode)' });
+            }
+
+            const eventMessage = `You're invited to an upcoming event!
+
+🎉 Event: ${eventTitle}
+📅 Date: ${eventDate || 'To be announced'}
+🕐 Time: ${eventTime || 'To be announced'}
+📍 Location: ${location || 'To be announced'}
+
+${eventDescription ? `📝 Description:\n${eventDescription}` : ''}
+
+${registrationRequired ? '⚠️ Registration required. Please log in to your portal to register.' : 'No registration required. Just show up!'}
+
+We look forward to seeing you there!
+
+Best regards,
+Nadanaloga Academy Team`;
+
+            const mailOptions = {
+                from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
+                to: studentEmail,
+                subject: `Event Invitation - ${eventTitle}`,
+                html: createEmailTemplate(studentName, 'Event Invitation', eventMessage)
+            };
+
+            await mailTransporter.sendMail(mailOptions);
+            console.log(`📧 Event email sent to: ${studentEmail}`);
+
+            res.status(200).json({ success: true, message: 'Event email sent successfully' });
+        } catch (error) {
+            console.error('Event email error:', error);
+            res.status(500).json({ success: false, message: 'Failed to send event email', error: error.message });
+        }
+    });
+
+    // Notice Email Notification
+    app.post('/api/send-notice-email', async (req, res) => {
+        try {
+            const { studentName, studentEmail, noticeTitle, noticeContent, priority, expiryDate, issuedBy } = req.body;
+
+            if (!studentEmail || !studentName || !noticeTitle) {
+                return res.status(400).json({ message: 'Student email, name, and notice title are required.' });
+            }
+
+            console.log('[DEBUG] Sending notice email to:', studentEmail);
+
+            if (!mailTransporter) {
+                return res.status(200).json({ success: true, message: 'Email sent (test mode)' });
+            }
+
+            const priorityEmoji = priority === 'high' ? '🚨' : priority === 'medium' ? '⚠️' : 'ℹ️';
+
+            const noticeMessage = `${priorityEmoji} Important Notice
+
+📢 ${noticeTitle}
+
+${noticeContent}
+
+${issuedBy ? `📝 Issued by: ${issuedBy}` : ''}
+${expiryDate ? `⏰ Valid until: ${expiryDate}` : ''}
+
+Please take note of this information and log in to your portal for any required actions.
+
+Best regards,
+Nadanaloga Academy Team`;
+
+            const mailOptions = {
+                from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
+                to: studentEmail,
+                subject: `Notice - ${noticeTitle}`,
+                html: createEmailTemplate(studentName, 'Important Notice', noticeMessage)
+            };
+
+            await mailTransporter.sendMail(mailOptions);
+            console.log(`📧 Notice email sent to: ${studentEmail}`);
+
+            res.status(200).json({ success: true, message: 'Notice email sent successfully' });
+        } catch (error) {
+            console.error('Notice email error:', error);
+            res.status(500).json({ success: false, message: 'Failed to send notice email', error: error.message });
+        }
+    });
+
+    // Payment History Email Notification
+    app.post('/api/send-payment-email', async (req, res) => {
+        try {
+            const { studentName, studentEmail, transactionId, amount, paymentDate, description, status, invoiceLink } = req.body;
+
+            if (!studentEmail || !studentName || !transactionId) {
+                return res.status(400).json({ message: 'Student email, name, and transaction ID are required.' });
+            }
+
+            console.log('[DEBUG] Sending payment email to:', studentEmail);
+
+            if (!mailTransporter) {
+                return res.status(200).json({ success: true, message: 'Email sent (test mode)' });
+            }
+
+            const statusEmoji = status === 'completed' ? '✅' : status === 'pending' ? '⏳' : '❌';
+
+            const paymentMessage = `Payment Receipt ${statusEmoji}
+
+💳 Transaction ID: ${transactionId}
+💰 Amount: ${amount || 'N/A'}
+📅 Date: ${paymentDate || 'N/A'}
+📋 Description: ${description || 'Payment'}
+📊 Status: ${status || 'Completed'}
+
+${invoiceLink ? `📄 Download Invoice: ${invoiceLink}` : 'Your receipt is attached or available in your student portal.'}
+
+Thank you for your payment!
+
+Best regards,
+Nadanaloga Academy Team`;
+
+            const mailOptions = {
+                from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
+                to: studentEmail,
+                subject: `Payment Receipt - ${transactionId}`,
+                html: createEmailTemplate(studentName, 'Payment Receipt', paymentMessage)
+            };
+
+            await mailTransporter.sendMail(mailOptions);
+            console.log(`📧 Payment email sent to: ${studentEmail}`);
+
+            res.status(200).json({ success: true, message: 'Payment email sent successfully' });
+        } catch (error) {
+            console.error('Payment email error:', error);
+            res.status(500).json({ success: false, message: 'Failed to send payment email', error: error.message });
+        }
+    });
+
+    // Profile Update Email Notification
+    app.post('/api/send-profile-update-email', async (req, res) => {
+        try {
+            const { studentName, studentEmail, updatedFields, updatedBy } = req.body;
+
+            if (!studentEmail || !studentName) {
+                return res.status(400).json({ message: 'Student email and name are required.' });
+            }
+
+            console.log('[DEBUG] Sending profile update email to:', studentEmail);
+
+            if (!mailTransporter) {
+                return res.status(200).json({ success: true, message: 'Email sent (test mode)' });
+            }
+
+            const fieldsText = updatedFields && updatedFields.length > 0
+                ? updatedFields.join(', ')
+                : 'various fields';
+
+            const profileMessage = `Your profile has been updated successfully!
+
+🔄 Updated Information: ${fieldsText}
+👤 Updated by: ${updatedBy || 'System'}
+📅 Date: ${new Date().toLocaleDateString()}
+
+Please log in to your student portal to review the changes.
+
+If you didn't request these changes, please contact us immediately.
+
+Best regards,
+Nadanaloga Academy Team`;
+
+            const mailOptions = {
+                from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
+                to: studentEmail,
+                subject: 'Profile Updated - Nadanaloga Academy',
+                html: createEmailTemplate(studentName, 'Profile Updated', profileMessage)
+            };
+
+            await mailTransporter.sendMail(mailOptions);
+            console.log(`📧 Profile update email sent to: ${studentEmail}`);
+
+            res.status(200).json({ success: true, message: 'Profile update email sent successfully' });
+        } catch (error) {
+            console.error('Profile update email error:', error);
+            res.status(500).json({ success: false, message: 'Failed to send profile update email', error: error.message });
+        }
+    });
+
     app.post('/api/send-email', async (req, res) => {
         try {
             const { to, subject, body, recipientName } = req.body;

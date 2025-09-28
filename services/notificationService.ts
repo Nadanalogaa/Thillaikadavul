@@ -91,6 +91,210 @@ class NotificationService {
     }
   }
 
+  // Send batch allocation email
+  async sendBatchAllocationEmail(studentData: any, batchData: any): Promise<void> {
+    try {
+      const response = await fetch('/api/send-batch-allocation-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          studentName: studentData.name,
+          studentEmail: studentData.email,
+          batchName: batchData.name,
+          courseName: batchData.courseName,
+          teacherName: batchData.teacherName,
+          schedule: batchData.schedule,
+          location: batchData.location,
+          startDate: batchData.startDate
+        })
+      });
+
+      if (response.ok) {
+        console.log('Batch allocation email sent successfully');
+      } else {
+        console.error('Failed to send batch allocation email');
+      }
+    } catch (error) {
+      console.error('Error sending batch allocation email:', error);
+    }
+  }
+
+  // Send grade exam email
+  async sendGradeExamEmail(studentData: any, examData: any): Promise<void> {
+    try {
+      const response = await fetch('/api/send-grade-exam-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          studentName: studentData.name,
+          studentEmail: studentData.email,
+          examName: examData.examName,
+          courseName: examData.courseName,
+          grade: examData.grade,
+          score: examData.score,
+          feedback: examData.feedback,
+          date: examData.date
+        })
+      });
+
+      if (response.ok) {
+        console.log('Grade exam email sent successfully');
+      } else {
+        console.error('Failed to send grade exam email');
+      }
+    } catch (error) {
+      console.error('Error sending grade exam email:', error);
+    }
+  }
+
+  // Send book materials email
+  async sendBookMaterialsEmail(studentData: any, materialData: any): Promise<void> {
+    try {
+      const response = await fetch('/api/send-book-materials-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          studentName: studentData.name,
+          studentEmail: studentData.email,
+          materialTitle: materialData.title,
+          courseName: materialData.courseName,
+          description: materialData.description,
+          downloadLink: materialData.downloadLink,
+          sharedBy: materialData.sharedBy
+        })
+      });
+
+      if (response.ok) {
+        console.log('Book materials email sent successfully');
+      } else {
+        console.error('Failed to send book materials email');
+      }
+    } catch (error) {
+      console.error('Error sending book materials email:', error);
+    }
+  }
+
+  // Send event email
+  async sendEventEmail(studentData: any, eventData: any): Promise<void> {
+    try {
+      const response = await fetch('/api/send-event-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          studentName: studentData.name,
+          studentEmail: studentData.email,
+          eventTitle: eventData.title,
+          eventDescription: eventData.description,
+          eventDate: eventData.date,
+          eventTime: eventData.time,
+          location: eventData.location,
+          registrationRequired: eventData.registrationRequired
+        })
+      });
+
+      if (response.ok) {
+        console.log('Event email sent successfully');
+      } else {
+        console.error('Failed to send event email');
+      }
+    } catch (error) {
+      console.error('Error sending event email:', error);
+    }
+  }
+
+  // Send notice email
+  async sendNoticeEmail(studentData: any, noticeData: any): Promise<void> {
+    try {
+      const response = await fetch('/api/send-notice-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          studentName: studentData.name,
+          studentEmail: studentData.email,
+          noticeTitle: noticeData.title,
+          noticeContent: noticeData.content,
+          priority: noticeData.priority,
+          expiryDate: noticeData.expiryDate,
+          issuedBy: noticeData.issuedBy
+        })
+      });
+
+      if (response.ok) {
+        console.log('Notice email sent successfully');
+      } else {
+        console.error('Failed to send notice email');
+      }
+    } catch (error) {
+      console.error('Error sending notice email:', error);
+    }
+  }
+
+  // Send payment email
+  async sendPaymentEmail(studentData: any, paymentData: any): Promise<void> {
+    try {
+      const response = await fetch('/api/send-payment-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          studentName: studentData.name,
+          studentEmail: studentData.email,
+          transactionId: paymentData.transactionId,
+          amount: paymentData.amount,
+          paymentDate: paymentData.date,
+          description: paymentData.description,
+          status: paymentData.status,
+          invoiceLink: paymentData.invoiceLink
+        })
+      });
+
+      if (response.ok) {
+        console.log('Payment email sent successfully');
+      } else {
+        console.error('Failed to send payment email');
+      }
+    } catch (error) {
+      console.error('Error sending payment email:', error);
+    }
+  }
+
+  // Send profile update email
+  async sendProfileUpdateEmail(studentData: any, updateData: any): Promise<void> {
+    try {
+      const response = await fetch('/api/send-profile-update-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          studentName: studentData.name,
+          studentEmail: studentData.email,
+          updatedFields: updateData.updatedFields,
+          updatedBy: updateData.updatedBy
+        })
+      });
+
+      if (response.ok) {
+        console.log('Profile update email sent successfully');
+      } else {
+        console.error('Failed to send profile update email');
+      }
+    } catch (error) {
+      console.error('Error sending profile update email:', error);
+    }
+  }
+
   // Student Registration Notifications
   async notifyStudentRegistration(studentData: User, adminId?: string): Promise<void> {
     const notifications: NotificationData[] = [

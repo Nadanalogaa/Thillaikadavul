@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test All Email Notifications - Nadanaloga Academy</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 30px; color: #333; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
+        .test-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .test-card h3 { margin-top: 0; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        .form-group { margin: 15px 0; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;
+            box-sizing: border-box; font-size: 14px;
+        }
+        .form-group textarea { height: 80px; resize: vertical; }
+        .btn {
+            padding: 12px 20px; background: #3498db; color: white; border: none;
+            border-radius: 5px; cursor: pointer; font-size: 14px; width: 100%;
+            transition: background 0.3s;
+        }
+        .btn:hover { background: #2980b9; }
+        .result { margin-top: 15px; padding: 10px; border-radius: 5px; font-size: 14px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .status-bar { background: #34495e; color: white; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎓 Nadanaloga Academy Email Notification Test Center</h1>
+            <p>Test all email notifications for different dashboard modules</p>
+        </div>
+
+        <div class="status-bar" id="statusBar">
+            <strong>Status:</strong> <span id="statusText">Ready to test email notifications</span>
+        </div>
+
+        <div class="grid">
+            <!-- Batch Allocation Email -->
+            <div class="test-card">
+                <h3>👥 Batch Allocation Email</h3>
+                <div class="form-group">
+                    <label>Student Name:</label>
+                    <input type="text" id="batch_studentName" value="John Doe" placeholder="Student Name">
+                </div>
+                <div class="form-group">
+                    <label>Student Email:</label>
+                    <input type="email" id="batch_studentEmail" value="student@example.com" placeholder="student@example.com">
+                </div>
+                <div class="form-group">
+                    <label>Batch Name:</label>
+                    <input type="text" id="batch_batchName" value="Bharatanatyam - Batch A" placeholder="Batch Name">
+                </div>
+                <div class="form-group">
+                    <label>Course Name:</label>
+                    <input type="text" id="batch_courseName" value="Bharatanatyam" placeholder="Course Name">
+                </div>
+                <div class="form-group">
+                    <label>Teacher Name:</label>
+                    <input type="text" id="batch_teacherName" value="Ms. Priya Sharma" placeholder="Teacher Name">
+                </div>
+                <div class="form-group">
+                    <label>Schedule:</label>
+                    <input type="text" id="batch_schedule" value="Mon, Wed, Fri - 6:00 PM to 7:00 PM IST" placeholder="Schedule">
+                </div>
+                <button class="btn" onclick="testBatchAllocation()">Send Batch Allocation Email</button>
+                <div id="batchResult"></div>
+            </div>
+
+            <!-- Grade Exam Email -->
+            <div class="test-card">
+                <h3>🎯 Grade Exam Results Email</h3>
+                <div class="form-group">
+                    <label>Student Name:</label>
+                    <input type="text" id="exam_studentName" value="Jane Smith" placeholder="Student Name">
+                </div>
+                <div class="form-group">
+                    <label>Student Email:</label>
+                    <input type="email" id="exam_studentEmail" value="jane@example.com" placeholder="student@example.com">
+                </div>
+                <div class="form-group">
+                    <label>Exam Name:</label>
+                    <input type="text" id="exam_examName" value="Bharatanatyam Level 1 Assessment" placeholder="Exam Name">
+                </div>
+                <div class="form-group">
+                    <label>Grade:</label>
+                    <select id="exam_grade">
+                        <option value="A+">A+</option>
+                        <option value="A">A</option>
+                        <option value="B+">B+</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Score:</label>
+                    <input type="text" id="exam_score" value="95/100" placeholder="Score">
+                </div>
+                <div class="form-group">
+                    <label>Teacher Feedback:</label>
+                    <textarea id="exam_feedback" placeholder="Excellent performance! Keep up the good work.">Excellent performance in all dance movements. Your expressions and rhythm are particularly impressive. Keep practicing the advanced poses.</textarea>
+                </div>
+                <button class="btn" onclick="testGradeExam()">Send Exam Results Email</button>
+                <div id="examResult"></div>
+            </div>
+
+            <!-- Book Materials Email -->
+            <div class="test-card">
+                <h3>📖 Study Materials Email</h3>
+                <div class="form-group">
+                    <label>Student Name:</label>
+                    <input type="text" id="material_studentName" value="Alex Johnson" placeholder="Student Name">
+                </div>
+                <div class="form-group">
+                    <label>Student Email:</label>
+                    <input type="email" id="material_studentEmail" value="alex@example.com" placeholder="student@example.com">
+                </div>
+                <div class="form-group">
+                    <label>Material Title:</label>
+                    <input type="text" id="material_title" value="Bharatanatyam Basic Positions Guide" placeholder="Material Title">
+                </div>
+                <div class="form-group">
+                    <label>Course Name:</label>
+                    <input type="text" id="material_course" value="Bharatanatyam" placeholder="Course Name">
+                </div>
+                <div class="form-group">
+                    <label>Description:</label>
+                    <textarea id="material_description" placeholder="Description of the material">A comprehensive guide covering all basic positions and hand gestures (mudras) in Bharatanatyam. Includes practice exercises and video references.</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Shared By:</label>
+                    <input type="text" id="material_sharedBy" value="Ms. Priya Sharma" placeholder="Teacher Name">
+                </div>
+                <button class="btn" onclick="testBookMaterials()">Send Materials Email</button>
+                <div id="materialResult"></div>
+            </div>
+
+            <!-- Events Email -->
+            <div class="test-card">
+                <h3>🎉 Events Invitation Email</h3>
+                <div class="form-group">
+                    <label>Student Name:</label>
+                    <input type="text" id="event_studentName" value="Sarah Wilson" placeholder="Student Name">
+                </div>
+                <div class="form-group">
+                    <label>Student Email:</label>
+                    <input type="email" id="event_studentEmail" value="sarah@example.com" placeholder="student@example.com">
+                </div>
+                <div class="form-group">
+                    <label>Event Title:</label>
+                    <input type="text" id="event_title" value="Annual Cultural Performance" placeholder="Event Title">
+                </div>
+                <div class="form-group">
+                    <label>Event Date:</label>
+                    <input type="date" id="event_date" value="2024-03-15">
+                </div>
+                <div class="form-group">
+                    <label>Event Time:</label>
+                    <input type="time" id="event_time" value="18:00">
+                </div>
+                <div class="form-group">
+                    <label>Location:</label>
+                    <input type="text" id="event_location" value="Nadanaloga Cultural Center" placeholder="Location">
+                </div>
+                <div class="form-group">
+                    <label>Description:</label>
+                    <textarea id="event_description" placeholder="Event description">Join us for our annual cultural performance where students will showcase their talents in various dance forms. This is a great opportunity to celebrate our students' progress and cultural heritage.</textarea>
+                </div>
+                <button class="btn" onclick="testEvent()">Send Event Invitation Email</button>
+                <div id="eventResult"></div>
+            </div>
+
+            <!-- Notice Email -->
+            <div class="test-card">
+                <h3>📢 Notice Email</h3>
+                <div class="form-group">
+                    <label>Student Name:</label>
+                    <input type="text" id="notice_studentName" value="Michael Brown" placeholder="Student Name">
+                </div>
+                <div class="form-group">
+                    <label>Student Email:</label>
+                    <input type="email" id="notice_studentEmail" value="michael@example.com" placeholder="student@example.com">
+                </div>
+                <div class="form-group">
+                    <label>Notice Title:</label>
+                    <input type="text" id="notice_title" value="Holiday Schedule Update" placeholder="Notice Title">
+                </div>
+                <div class="form-group">
+                    <label>Priority:</label>
+                    <select id="notice_priority">
+                        <option value="high">High</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Notice Content:</label>
+                    <textarea id="notice_content" placeholder="Notice content">Please note that classes will be suspended from December 25th to January 2nd for the holiday season. Regular classes will resume on January 3rd. Make-up classes will be scheduled in the following week.</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Issued By:</label>
+                    <input type="text" id="notice_issuedBy" value="Administration" placeholder="Issued By">
+                </div>
+                <button class="btn" onclick="testNotice()">Send Notice Email</button>
+                <div id="noticeResult"></div>
+            </div>
+
+            <!-- Payment Email -->
+            <div class="test-card">
+                <h3>💳 Payment Receipt Email</h3>
+                <div class="form-group">
+                    <label>Student Name:</label>
+                    <input type="text" id="payment_studentName" value="Emily Davis" placeholder="Student Name">
+                </div>
+                <div class="form-group">
+                    <label>Student Email:</label>
+                    <input type="email" id="payment_studentEmail" value="emily@example.com" placeholder="student@example.com">
+                </div>
+                <div class="form-group">
+                    <label>Transaction ID:</label>
+                    <input type="text" id="payment_transactionId" value="TXN-2024-001234" placeholder="Transaction ID">
+                </div>
+                <div class="form-group">
+                    <label>Amount:</label>
+                    <input type="text" id="payment_amount" value="₹2,500" placeholder="Amount">
+                </div>
+                <div class="form-group">
+                    <label>Description:</label>
+                    <input type="text" id="payment_description" value="Monthly Bharatanatyam Course Fee" placeholder="Payment Description">
+                </div>
+                <div class="form-group">
+                    <label>Status:</label>
+                    <select id="payment_status">
+                        <option value="completed" selected>Completed</option>
+                        <option value="pending">Pending</option>
+                        <option value="failed">Failed</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="testPayment()">Send Payment Receipt Email</button>
+                <div id="paymentResult"></div>
+            </div>
+
+            <!-- Profile Update Email -->
+            <div class="test-card">
+                <h3>👤 Profile Update Email</h3>
+                <div class="form-group">
+                    <label>Student Name:</label>
+                    <input type="text" id="profile_studentName" value="Robert Taylor" placeholder="Student Name">
+                </div>
+                <div class="form-group">
+                    <label>Student Email:</label>
+                    <input type="email" id="profile_studentEmail" value="robert@example.com" placeholder="student@example.com">
+                </div>
+                <div class="form-group">
+                    <label>Updated Fields (comma-separated):</label>
+                    <input type="text" id="profile_updatedFields" value="Contact Number, Address, Emergency Contact" placeholder="Updated fields">
+                </div>
+                <div class="form-group">
+                    <label>Updated By:</label>
+                    <input type="text" id="profile_updatedBy" value="Admin" placeholder="Updated By">
+                </div>
+                <button class="btn" onclick="testProfileUpdate()">Send Profile Update Email</button>
+                <div id="profileResult"></div>
+            </div>
+
+            <!-- Registration Email (existing) -->
+            <div class="test-card">
+                <h3>📝 Registration Email</h3>
+                <div class="form-group">
+                    <label>Student Name:</label>
+                    <input type="text" id="reg_studentName" value="New Student" placeholder="Student Name">
+                </div>
+                <div class="form-group">
+                    <label>Student Email:</label>
+                    <input type="email" id="reg_studentEmail" value="newstudent@example.com" placeholder="student@example.com">
+                </div>
+                <div class="form-group">
+                    <label>Courses (comma-separated):</label>
+                    <input type="text" id="reg_courses" value="Bharatanatyam, Vocal" placeholder="Courses">
+                </div>
+                <div class="form-group">
+                    <label>Contact Number:</label>
+                    <input type="text" id="reg_contactNumber" value="+91 9876543210" placeholder="Contact Number">
+                </div>
+                <button class="btn" onclick="testRegistration()">Send Registration Email</button>
+                <div id="registrationResult"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateStatus(message, type = 'info') {
+            const statusText = document.getElementById('statusText');
+            statusText.textContent = message;
+
+            const statusBar = document.getElementById('statusBar');
+            statusBar.className = `status-bar ${type}`;
+        }
+
+        function showResult(elementId, message, success) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="${success ? 'success' : 'error'}">${success ? '✅' : '❌'} ${message}</div>`;
+        }
+
+        async function testBatchAllocation() {
+            updateStatus('Sending batch allocation email...', 'info');
+            try {
+                const response = await fetch('/api/send-batch-allocation-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        studentName: document.getElementById('batch_studentName').value,
+                        studentEmail: document.getElementById('batch_studentEmail').value,
+                        batchName: document.getElementById('batch_batchName').value,
+                        courseName: document.getElementById('batch_courseName').value,
+                        teacherName: document.getElementById('batch_teacherName').value,
+                        schedule: document.getElementById('batch_schedule').value,
+                        location: 'Online',
+                        startDate: new Date().toISOString().split('T')[0]
+                    })
+                });
+
+                const result = await response.json();
+                showResult('batchResult', result.message, response.ok);
+                updateStatus(response.ok ? 'Batch allocation email sent successfully!' : 'Failed to send batch allocation email', response.ok ? 'success' : 'error');
+            } catch (error) {
+                showResult('batchResult', `Error: ${error.message}`, false);
+                updateStatus('Error sending batch allocation email', 'error');
+            }
+        }
+
+        async function testGradeExam() {
+            updateStatus('Sending grade exam email...', 'info');
+            try {
+                const response = await fetch('/api/send-grade-exam-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        studentName: document.getElementById('exam_studentName').value,
+                        studentEmail: document.getElementById('exam_studentEmail').value,
+                        examName: document.getElementById('exam_examName').value,
+                        courseName: 'Bharatanatyam',
+                        grade: document.getElementById('exam_grade').value,
+                        score: document.getElementById('exam_score').value,
+                        feedback: document.getElementById('exam_feedback').value,
+                        date: new Date().toLocaleDateString()
+                    })
+                });
+
+                const result = await response.json();
+                showResult('examResult', result.message, response.ok);
+                updateStatus(response.ok ? 'Grade exam email sent successfully!' : 'Failed to send grade exam email', response.ok ? 'success' : 'error');
+            } catch (error) {
+                showResult('examResult', `Error: ${error.message}`, false);
+                updateStatus('Error sending grade exam email', 'error');
+            }
+        }
+
+        async function testBookMaterials() {
+            updateStatus('Sending book materials email...', 'info');
+            try {
+                const response = await fetch('/api/send-book-materials-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        studentName: document.getElementById('material_studentName').value,
+                        studentEmail: document.getElementById('material_studentEmail').value,
+                        materialTitle: document.getElementById('material_title').value,
+                        courseName: document.getElementById('material_course').value,
+                        description: document.getElementById('material_description').value,
+                        sharedBy: document.getElementById('material_sharedBy').value
+                    })
+                });
+
+                const result = await response.json();
+                showResult('materialResult', result.message, response.ok);
+                updateStatus(response.ok ? 'Book materials email sent successfully!' : 'Failed to send book materials email', response.ok ? 'success' : 'error');
+            } catch (error) {
+                showResult('materialResult', `Error: ${error.message}`, false);
+                updateStatus('Error sending book materials email', 'error');
+            }
+        }
+
+        async function testEvent() {
+            updateStatus('Sending event invitation email...', 'info');
+            try {
+                const response = await fetch('/api/send-event-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        studentName: document.getElementById('event_studentName').value,
+                        studentEmail: document.getElementById('event_studentEmail').value,
+                        eventTitle: document.getElementById('event_title').value,
+                        eventDescription: document.getElementById('event_description').value,
+                        eventDate: document.getElementById('event_date').value,
+                        eventTime: document.getElementById('event_time').value,
+                        location: document.getElementById('event_location').value,
+                        registrationRequired: true
+                    })
+                });
+
+                const result = await response.json();
+                showResult('eventResult', result.message, response.ok);
+                updateStatus(response.ok ? 'Event invitation email sent successfully!' : 'Failed to send event invitation email', response.ok ? 'success' : 'error');
+            } catch (error) {
+                showResult('eventResult', `Error: ${error.message}`, false);
+                updateStatus('Error sending event invitation email', 'error');
+            }
+        }
+
+        async function testNotice() {
+            updateStatus('Sending notice email...', 'info');
+            try {
+                const response = await fetch('/api/send-notice-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        studentName: document.getElementById('notice_studentName').value,
+                        studentEmail: document.getElementById('notice_studentEmail').value,
+                        noticeTitle: document.getElementById('notice_title').value,
+                        noticeContent: document.getElementById('notice_content').value,
+                        priority: document.getElementById('notice_priority').value,
+                        issuedBy: document.getElementById('notice_issuedBy').value,
+                        expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString()
+                    })
+                });
+
+                const result = await response.json();
+                showResult('noticeResult', result.message, response.ok);
+                updateStatus(response.ok ? 'Notice email sent successfully!' : 'Failed to send notice email', response.ok ? 'success' : 'error');
+            } catch (error) {
+                showResult('noticeResult', `Error: ${error.message}`, false);
+                updateStatus('Error sending notice email', 'error');
+            }
+        }
+
+        async function testPayment() {
+            updateStatus('Sending payment receipt email...', 'info');
+            try {
+                const response = await fetch('/api/send-payment-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        studentName: document.getElementById('payment_studentName').value,
+                        studentEmail: document.getElementById('payment_studentEmail').value,
+                        transactionId: document.getElementById('payment_transactionId').value,
+                        amount: document.getElementById('payment_amount').value,
+                        paymentDate: new Date().toLocaleDateString(),
+                        description: document.getElementById('payment_description').value,
+                        status: document.getElementById('payment_status').value
+                    })
+                });
+
+                const result = await response.json();
+                showResult('paymentResult', result.message, response.ok);
+                updateStatus(response.ok ? 'Payment receipt email sent successfully!' : 'Failed to send payment receipt email', response.ok ? 'success' : 'error');
+            } catch (error) {
+                showResult('paymentResult', `Error: ${error.message}`, false);
+                updateStatus('Error sending payment receipt email', 'error');
+            }
+        }
+
+        async function testProfileUpdate() {
+            updateStatus('Sending profile update email...', 'info');
+            try {
+                const updatedFields = document.getElementById('profile_updatedFields').value.split(',').map(s => s.trim());
+                const response = await fetch('/api/send-profile-update-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        studentName: document.getElementById('profile_studentName').value,
+                        studentEmail: document.getElementById('profile_studentEmail').value,
+                        updatedFields: updatedFields,
+                        updatedBy: document.getElementById('profile_updatedBy').value
+                    })
+                });
+
+                const result = await response.json();
+                showResult('profileResult', result.message, response.ok);
+                updateStatus(response.ok ? 'Profile update email sent successfully!' : 'Failed to send profile update email', response.ok ? 'success' : 'error');
+            } catch (error) {
+                showResult('profileResult', `Error: ${error.message}`, false);
+                updateStatus('Error sending profile update email', 'error');
+            }
+        }
+
+        async function testRegistration() {
+            updateStatus('Sending registration email...', 'info');
+            try {
+                const courses = document.getElementById('reg_courses').value.split(',').map(s => s.trim());
+                const response = await fetch('/api/send-registration-emails', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userName: document.getElementById('reg_studentName').value,
+                        userEmail: document.getElementById('reg_studentEmail').value,
+                        courses: courses,
+                        contactNumber: document.getElementById('reg_contactNumber').value,
+                        dateOfJoining: new Date().toISOString().split('T')[0]
+                    })
+                });
+
+                const result = await response.json();
+                showResult('registrationResult', result.message, response.ok);
+                updateStatus(response.ok ? 'Registration email sent successfully!' : 'Failed to send registration email', response.ok ? 'success' : 'error');
+            } catch (error) {
+                showResult('registrationResult', `Error: ${error.message}`, false);
+                updateStatus('Error sending registration email', 'error');
+            }
+        }
+
+        // Initialize status
+        updateStatus('All email notification endpoints are ready for testing!', 'success');
+    </script>
+</body>
+</html>
