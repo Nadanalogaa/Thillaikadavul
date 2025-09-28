@@ -407,12 +407,12 @@ async function startServer() {
                 'INSERT INTO users (name, email, password, role, class_preference, photo_url, dob, sex, contact_number, address, date_of_joining, courses, father_name, standard, school_name, grade, notes, course_expertise, educational_qualifications, employment_type) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING id',
                 [
                     userData.name, normalizedEmail, hashedPassword, userData.role || 'Student',
-                    userData.classPreference, userData.photoUrl, userData.dob, userData.sex,
-                    userData.contactNumber, userData.address, userData.dateOfJoining,
-                    JSON.stringify(userData.courses || []), userData.fatherName, userData.standard,
-                    userData.schoolName, userData.grade, userData.notes,
-                    JSON.stringify(userData.courseExpertise || []), userData.educationalQualifications,
-                    userData.employmentType
+                    userData.class_preference || userData.classPreference, userData.photo_url || userData.photoUrl, userData.dob, userData.sex,
+                    userData.contact_number || userData.contactNumber, userData.address, userData.date_of_joining || userData.dateOfJoining,
+                    JSON.stringify(userData.courses || []), userData.father_name || userData.fatherName, userData.standard,
+                    userData.school_name || userData.schoolName, userData.grade, userData.notes,
+                    JSON.stringify(userData.course_expertise || userData.courseExpertise || []), userData.educational_qualifications || userData.educationalQualifications,
+                    userData.employment_type || userData.employmentType
                 ]
             );
 
@@ -432,7 +432,7 @@ Your registration has been successfully submitted with the following details:
 👤 Name: ${userData.name}
 📧 Email: ${normalizedEmail}
 📚 Courses of Interest: ${coursesList}
-📞 Contact: ${userData.contactNumber || 'Not provided'}
+📞 Contact: ${userData.contact_number || userData.contactNumber || 'Not provided'}
 
 What happens next?
 ✅ Our admin team will review your application
@@ -464,13 +464,13 @@ Welcome to the Nadanaloga family!`;
 
 👤 Name: ${userData.name}
 📧 Email: ${normalizedEmail}
-📞 Contact: ${userData.contactNumber || 'Not provided'}
+📞 Contact: ${userData.contact_number || userData.contactNumber || 'Not provided'}
 📚 Courses of Interest: ${userData.courses && userData.courses.length > 0 ? userData.courses.join(', ') : 'No specific courses selected'}
-👨‍👩‍👧‍👦 Father's Name: ${userData.fatherName || 'Not provided'}
+👨‍👩‍👧‍👦 Father's Name: ${userData.father_name || userData.fatherName || 'Not provided'}
 🎓 Standard/Class: ${userData.standard || 'Not provided'}
-🏫 School: ${userData.schoolName || 'Not provided'}
+🏫 School: ${userData.school_name || userData.schoolName || 'Not provided'}
 📍 Address: ${userData.address || 'Not provided'}
-📅 Date of Joining: ${userData.dateOfJoining || 'Not provided'}
+📅 Date of Joining: ${userData.date_of_joining || userData.dateOfJoining || 'Not provided'}
 📝 Notes: ${userData.notes || 'None'}
 
 Please review and approve this registration in the admin panel.`;
