@@ -341,6 +341,106 @@ async function startServer() {
     });
 
     // --- Email API Endpoints ---
+    // Registration notification endpoint (doesn't require users table)
+    app.post('/api/send-registration-emails', async (req, res) => {
+        try {
+            const { userName, userEmail, courses, contactNumber, fatherName, standard, schoolName, address, dateOfJoining, notes } = req.body;
+
+            if (!userEmail || !userName) {
+                return res.status(400).json({ message: 'User email and name are required.' });
+            }
+
+            console.log('[DEBUG] Sending registration emails for:', userEmail);
+
+            if (!mailTransporter) {
+                console.log('📧 Email in test mode - would send registration emails to:', userEmail);
+                return res.status(200).json({
+                    success: true,
+                    message: 'Registration emails sent successfully (test mode)'
+                });
+            }
+
+            // Send welcome email to user
+            try {
+                const coursesList = courses && courses.length > 0
+                    ? courses.join(', ')
+                    : 'No specific courses selected';
+
+                const welcomeMessage = `Thank you for registering with Nadanaloga Academy!
+
+Your registration has been successfully submitted with the following details:
+
+👤 Name: ${userName}
+📧 Email: ${userEmail}
+📚 Courses of Interest: ${coursesList}
+📞 Contact: ${contactNumber || 'Not provided'}
+
+What happens next?
+✅ Our admin team will review your application
+✅ You'll receive a confirmation email once approved
+✅ We'll contact you to discuss class schedules and batch allocation
+
+If you have any questions, feel free to contact us at nadanalogaa@gmail.com.
+
+Welcome to the Nadanaloga family!`;
+
+                const userMailOptions = {
+                    from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
+                    to: userEmail,
+                    subject: 'Welcome to Nadanaloga Academy!',
+                    html: createEmailTemplate(userName, 'Welcome to Nadanaloga Academy!', welcomeMessage)
+                };
+
+                await mailTransporter.sendMail(userMailOptions);
+                console.log(`📧 Welcome email sent to: ${userEmail}`);
+            } catch (emailError) {
+                console.error('Error sending welcome email:', emailError);
+            }
+
+            // Send notification email to admin
+            try {
+                const adminMessage = `A new student has registered on Nadanaloga Academy:
+
+👤 Name: ${userName}
+📧 Email: ${userEmail}
+📞 Contact: ${contactNumber || 'Not provided'}
+📚 Courses of Interest: ${courses && courses.length > 0 ? courses.join(', ') : 'No specific courses selected'}
+👨‍👩‍👧‍👦 Father's Name: ${fatherName || 'Not provided'}
+🎓 Standard/Class: ${standard || 'Not provided'}
+🏫 School: ${schoolName || 'Not provided'}
+📍 Address: ${address || 'Not provided'}
+📅 Date of Joining: ${dateOfJoining || 'Not provided'}
+📝 Notes: ${notes || 'None'}
+
+Please review and approve this registration in the admin panel.`;
+
+                const adminMailOptions = {
+                    from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
+                    to: 'nadanalogaa@gmail.com',
+                    subject: 'New Student Registration - Nadanaloga Academy',
+                    html: createEmailTemplate('Admin', 'New Student Registration', adminMessage)
+                };
+
+                await mailTransporter.sendMail(adminMailOptions);
+                console.log('📧 Admin notification email sent');
+            } catch (emailError) {
+                console.error('Error sending admin notification email:', emailError);
+            }
+
+            res.status(200).json({
+                success: true,
+                message: 'Registration emails sent successfully'
+            });
+        } catch (error) {
+            console.error('Registration email error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to send registration emails',
+                error: error.message
+            });
+        }
+    });
+
     app.post('/api/send-email', async (req, res) => {
         try {
             const { to, subject, body, recipientName } = req.body;
@@ -387,10 +487,16 @@ async function startServer() {
     // Enhanced registration endpoint with email notifications
     app.post('/api/register-with-email', async (req, res) => {
         try {
+            console.log('[DEBUG] Registration request received:', req.body);
             const { password, ...userData } = req.body;
-            if (!userData.email) return res.status(400).json({ message: 'Email is required.' });
+
+            if (!userData.email) {
+                console.log('[ERROR] Email is missing');
+                return res.status(400).json({ message: 'Email is required.' });
+            }
 
             const normalizedEmail = userData.email.toLowerCase();
+            console.log('[DEBUG] Processing registration for:', normalizedEmail);
 
             const existingUserResult = await pool.query('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
             if (existingUserResult.rows.length > 0) {
@@ -398,9 +504,21 @@ async function startServer() {
             }
 
             if (normalizedEmail === 'admin@nadanaloga.com') userData.role = 'Admin';
-            if (!password) return res.status(400).json({ message: 'Password is required.' });
+            if (!password) {
+                console.log('[ERROR] Password is missing');
+                return res.status(400).json({ message: 'Password is required.' });
+            }
 
+            console.log('[DEBUG] Hashing password...');
             const hashedPassword = await bcrypt.hash(password, 10);
+
+            console.log('[DEBUG] Preparing database insert with data:', {
+                name: userData.name,
+                email: normalizedEmail,
+                role: userData.role || 'Student',
+                class_preference: userData.class_preference || userData.classPreference,
+                courses: userData.courses
+            });
 
             // Insert user into database
             const result = await pool.query(
@@ -417,6 +535,7 @@ async function startServer() {
             );
 
             const newUserId = result.rows[0].id;
+            console.log('[DEBUG] User registered with ID:', newUserId);
 
             // Send welcome email to user
             if (mailTransporter) {

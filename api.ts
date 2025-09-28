@@ -501,8 +501,9 @@ export const registerUser = async (userData: Partial<User>[], sendEmails: boolea
       }
 
       let data;
+      // Skip backend registration for now due to missing users table in PostgreSQL
       // Use backend registration endpoint with email notifications for students
-      if (sendEmails && user.role === 'Student') {
+      if (false && sendEmails && user.role === 'Student') {
         try {
           const response = await fetch('/api/register-with-email', {
             method: 'POST',
@@ -566,8 +567,40 @@ export const registerUser = async (userData: Partial<User>[], sendEmails: boolea
         }
         data = supabaseData;
 
-        // Send registration notification for students using notification service
+        // Send registration emails for students
         if (sendEmails && data.role === 'Student') {
+          try {
+            // Send emails via backend endpoint
+            const emailResponse = await fetch('/api/send-registration-emails', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                userName: data.name,
+                userEmail: data.email,
+                courses: data.courses || [],
+                contactNumber: data.contact_number,
+                fatherName: data.father_name,
+                standard: data.standard,
+                schoolName: data.school_name,
+                address: data.address,
+                dateOfJoining: data.date_of_joining,
+                notes: data.notes
+              })
+            });
+
+            if (emailResponse.ok) {
+              console.log('Registration emails sent successfully');
+            } else {
+              console.error('Failed to send registration emails:', await emailResponse.text());
+            }
+          } catch (emailError) {
+            console.error('Failed to send registration emails:', emailError);
+            // Don't fail the registration if emails fail
+          }
+
+          // Also send in-app notifications
           try {
             // Get admin users for notification
             const adminUsers = await notificationService.getAdminUsers();
@@ -604,7 +637,7 @@ export const registerUser = async (userData: Partial<User>[], sendEmails: boolea
 
             await notificationService.notifyStudentRegistration(userForNotification, adminId);
           } catch (notificationError) {
-            console.error('Failed to send registration notification:', notificationError);
+            console.error('Failed to send in-app notification:', notificationError);
             // Don't fail the registration if notification fails
           }
         }
