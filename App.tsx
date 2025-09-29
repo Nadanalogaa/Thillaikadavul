@@ -37,6 +37,16 @@ import RegistrationInfoPage from './pages/RegistrationInfoPage';
 import BlogPage from './pages/BlogPage';
 import CareersPage from './pages/CareersPage';
 
+// Course Pages
+import BharatanatyamPage from './pages/courses/BharatanatyamPage';
+import ClassicalVocalPage from './pages/courses/ClassicalVocalPage';
+import DrawingPage from './pages/courses/DrawingPage';
+import AbacusPage from './pages/courses/AbacusPage';
+import PhonicsPage from './pages/courses/PhonicsPage';
+import InstrumentPage from './pages/courses/InstrumentPage';
+import AdultsPage from './pages/courses/AdultsPage';
+import WesternPage from './pages/courses/WesternPage';
+
 // New Admin Pages
 import EventsManagementPage from './pages/admin/EventsManagementPage';
 import GradeExamsManagementPage from './pages/admin/GradeExamsManagementPage';
@@ -215,6 +225,14 @@ function App() {
             } />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/courses" element={<CoursesPage />} />
+            <Route path="/courses/bharatanatyam" element={<BharatanatyamPage />} />
+            <Route path="/courses/classical-vocal" element={<ClassicalVocalPage />} />
+            <Route path="/courses/drawing" element={<DrawingPage />} />
+            <Route path="/courses/abacus" element={<AbacusPage />} />
+            <Route path="/courses/phonics" element={<PhonicsPage />} />
+            <Route path="/courses/instrument" element={<InstrumentPage />} />
+            <Route path="/courses/adults" element={<AdultsPage />} />
+            <Route path="/courses/western" element={<WesternPage />} />
             <Route path="/team" element={<TeamPage />} />
             <Route path="/gallery" element={<GalleryPage />} />
             <Route path="/faq" element={<FAQPage />} />

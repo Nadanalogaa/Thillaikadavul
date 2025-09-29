@@ -16,11 +16,27 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isCoursesDropdownOpen, setIsCoursesDropdownOpen] = useState(false);
+  const [isMobileCoursesOpen, setIsMobileCoursesOpen] = useState(false);
   const location = useLocation();
   const isAdminPage = location.pathname.startsWith('/admin');
   const { theme } = useTheme();
 
   const visibleNavLinks = NAV_LINKS.filter(link => !isAdminPage);
+
+  const courseMenuItems = [
+    { name: 'All Courses', path: '/courses' },
+    { name: 'Bharatanatyam', path: '/courses/bharatanatyam' },
+    { name: 'Classical Vocal', path: '/courses/classical-vocal' },
+    { name: 'Drawing', path: '/courses/drawing' },
+    { name: 'Abacus', path: '/courses/abacus' },
+    { name: 'Phonics', path: '/courses/phonics' },
+    { name: 'Private Class (1 to 1)', path: '/private-class' },
+    { name: 'Class for Adults', path: '/courses/adults' },
+    { name: 'Performance Workshops', path: '/performance-workshops' },
+    { name: 'Instrument', path: '/courses/instrument' },
+    { name: 'Western Classes', path: '/courses/western' }
+  ];
 
   const socialLinks = [
     {
@@ -188,19 +204,73 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
       <div className="hidden md:block border-t border-opacity-20 border-gray-300 dark:border-gray-600">
         <nav className="container mx-auto px-6 py-2">
           <div className="flex justify-center items-center space-x-8">
-            {visibleNavLinks.map((link) => (
-              <NavLink
-                key={link.name}
-                to={link.path}
-                className={({ isActive }) =>
-                  `${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400' : 'text-gray-700 hover:text-indigo-600'} transition-all duration-300 font-medium text-sm relative ${
-                    isActive ? `${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'} after:absolute after:bottom-[-8px] after:left-0 after:right-0 after:h-0.5 after:bg-gradient-to-r after:from-indigo-600 after:to-purple-600` : ''
-                  }`
-                }
-              >
-                {link.name}
-              </NavLink>
-            ))}
+            {visibleNavLinks.map((link) => {
+              if (link.name === 'Our Courses') {
+                return (
+                  <div
+                    key={link.name}
+                    className="relative"
+                    onMouseEnter={() => setIsCoursesDropdownOpen(true)}
+                    onMouseLeave={() => setIsCoursesDropdownOpen(false)}
+                  >
+                    <button
+                      className={`${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400' : 'text-gray-700 hover:text-indigo-600'} transition-all duration-300 font-medium text-sm relative flex items-center gap-1 ${
+                        location.pathname.startsWith('/courses') || location.pathname === '/private-class' || location.pathname === '/performance-workshops'
+                          ? `${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'} after:absolute after:bottom-[-8px] after:left-0 after:right-0 after:h-0.5 after:bg-gradient-to-r after:from-indigo-600 after:to-purple-600`
+                          : ''
+                      }`}
+                    >
+                      {link.name}
+                      <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    {isCoursesDropdownOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.2 }}
+                        className={`absolute top-full left-0 mt-2 w-56 ${
+                          theme === 'dark'
+                            ? 'bg-gray-800 border-gray-700'
+                            : 'bg-white border-gray-200'
+                        } border rounded-lg shadow-lg py-2 z-50`}
+                      >
+                        {courseMenuItems.map((courseItem) => (
+                          <Link
+                            key={courseItem.name}
+                            to={courseItem.path}
+                            className={`block px-4 py-2 text-sm ${
+                              theme === 'dark'
+                                ? 'text-gray-200 hover:bg-gray-700 hover:text-indigo-400'
+                                : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'
+                            } transition-colors duration-200`}
+                          >
+                            {courseItem.name}
+                          </Link>
+                        ))}
+                      </motion.div>
+                    )}
+                  </div>
+                );
+              }
+
+              return (
+                <NavLink
+                  key={link.name}
+                  to={link.path}
+                  className={({ isActive }) =>
+                    `${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400' : 'text-gray-700 hover:text-indigo-600'} transition-all duration-300 font-medium text-sm relative ${
+                      isActive ? `${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'} after:absolute after:bottom-[-8px] after:left-0 after:right-0 after:h-0.5 after:bg-gradient-to-r after:from-indigo-600 after:to-purple-600` : ''
+                    }`
+                  }
+                >
+                  {link.name}
+                </NavLink>
+              );
+            })}
             {currentUser && (
               <NavLink
                 to={getDashboardPath()}
@@ -232,20 +302,72 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
           className="md:hidden px-6 pb-6"
         >
           <div className="flex flex-col space-y-4">
-            {visibleNavLinks.map((link) => (
-              <NavLink
-                key={link.name}
-                to={link.path}
-                onClick={() => setIsMenuOpen(false)}
-                className={({ isActive }) =>
-                  `${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400' : 'text-gray-700 hover:text-indigo-600'} py-3 px-4 rounded-lg transition-all duration-300 font-medium ${
-                    isActive ? `${theme === 'dark' ? 'text-indigo-400 bg-gray-800' : 'text-indigo-600 bg-indigo-50'}` : `${theme === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-indigo-50'}`
-                  }`
-                }
-              >
-                {link.name}
-              </NavLink>
-            ))}
+            {visibleNavLinks.map((link) => {
+              if (link.name === 'Our Courses') {
+                return (
+                  <div key={link.name}>
+                    <button
+                      onClick={() => setIsMobileCoursesOpen(!isMobileCoursesOpen)}
+                      className={`w-full text-left py-3 px-4 rounded-lg transition-all duration-300 font-medium flex items-center justify-between ${
+                        location.pathname.startsWith('/courses') || location.pathname === '/private-class' || location.pathname === '/performance-workshops'
+                          ? `${theme === 'dark' ? 'text-indigo-400 bg-gray-800' : 'text-indigo-600 bg-indigo-50'}`
+                          : `${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400 hover:bg-gray-800' : 'text-gray-700 hover:text-indigo-600 hover:bg-indigo-50'}`
+                      }`}
+                    >
+                      {link.name}
+                      <svg
+                        className={`w-4 h-4 transition-transform duration-200 ${isMobileCoursesOpen ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    {isMobileCoursesOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="mt-2 ml-4 space-y-2"
+                      >
+                        {courseMenuItems.map((courseItem) => (
+                          <Link
+                            key={courseItem.name}
+                            to={courseItem.path}
+                            onClick={() => setIsMenuOpen(false)}
+                            className={`block py-2 px-4 rounded-lg text-sm ${
+                              theme === 'dark'
+                                ? 'text-gray-300 hover:text-indigo-400 hover:bg-gray-800'
+                                : 'text-gray-600 hover:text-indigo-600 hover:bg-indigo-50'
+                            } transition-colors duration-200`}
+                          >
+                            {courseItem.name}
+                          </Link>
+                        ))}
+                      </motion.div>
+                    )}
+                  </div>
+                );
+              }
+
+              return (
+                <NavLink
+                  key={link.name}
+                  to={link.path}
+                  onClick={() => setIsMenuOpen(false)}
+                  className={({ isActive }) =>
+                    `${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400' : 'text-gray-700 hover:text-indigo-600'} py-3 px-4 rounded-lg transition-all duration-300 font-medium ${
+                      isActive ? `${theme === 'dark' ? 'text-indigo-400 bg-gray-800' : 'text-indigo-600 bg-indigo-50'}` : `${theme === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-indigo-50'}`
+                    }`
+                  }
+                >
+                  {link.name}
+                </NavLink>
+              );
+            })}
              {currentUser && (
                 <NavLink
                   to={getDashboardPath()}

@@ -65,11 +65,11 @@ const AnimatedFooter: React.FC = () => {
       layout: 'contact',
       items: [
         { text: 'Head Office Branch:', isHeader: true },
-        { icon: <MapPin className="w-4 h-4" />, text: 'Plot no3, VIT Serasa avenue, beside VIT College Ponmar, Mambakkam, Chennai, Tamil Nadu 600127' },
+        { icon: <MapPin className="w-4 h-4" />, text: 'Plot no3, VIT Serasa Ave, beside VIT College Ponmar, Chennai 600127' },
         { icon: <Mail className="w-4 h-4" />, text: 'nadanalogaa@gmail.com' },
         { icon: <Phone className="w-4 h-4" />, text: '+91 95668 66588, +91 95668 66538' },
         { text: 'Branches:', isHeader: true },
-        { icon: <MapPin className="w-4 h-4" />, text: '4th St, Ayyappa Nagar, Sadasivam Nagar, Sembakkam Chennai, Tamil Nadu 600064' },
+        { icon: <MapPin className="w-4 h-4" />, text: '4th St, Ayyappa Nagar, Sadasivam Nagar, Sembakkam Chennai 600064' },
         { icon: <Mail className="w-4 h-4" />, text: 'nadanalogaa@gmail.com' },
         { icon: <Phone className="w-4 h-4" />, text: '+91 95668 66588, +91 78458 66588' }
       ]
