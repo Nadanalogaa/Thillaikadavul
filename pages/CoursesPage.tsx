@@ -111,7 +111,7 @@ const CoursesPage: React.FC = () => {
     <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
 
       {/* Hero Section */}
-      <section className="relative min-h-[70vh] overflow-hidden" ref={heroRef}>
+      <section className="relative min-h-[50vh] overflow-hidden" ref={heroRef}>
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 dark:from-gray-800 dark:via-gray-900 dark:to-indigo-900"></div>
 
         {/* Floating Elements */}

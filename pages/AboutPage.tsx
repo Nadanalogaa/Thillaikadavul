@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
-import { Users, Heart, Star, Award, ChevronDown } from 'lucide-react';
+import { Users, Heart, Star, Award } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
 const AboutPage: React.FC = () => {
@@ -39,7 +39,7 @@ const AboutPage: React.FC = () => {
     <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
       
       {/* Hero Section with Parallax */}
-      <section className="relative min-h-[85vh] overflow-hidden">
+      <section className="relative min-h-[50vh] overflow-hidden">
         {/* Animated Background */}
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 dark:from-gray-800 dark:via-gray-900 dark:to-indigo-900"></div>
@@ -83,7 +83,7 @@ const AboutPage: React.FC = () => {
           />
         </div>
 
-        <div className="relative z-10 flex items-center justify-center min-h-[85vh] px-6">
+        <div className="relative z-10 flex items-center justify-center min-h-[50vh] px-6">
           <motion.div
             ref={heroRef}
             initial={{ opacity: 0, y: 50 }}
@@ -116,23 +116,6 @@ const AboutPage: React.FC = () => {
           </motion.div>
         </div>
 
-        {/* Scroll Indicator */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={heroInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 1, delay: 1 }}
-          className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10"
-        >
-          <motion.div
-            animate={{ y: [0, 10, 0] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            className="flex flex-col items-center justify-center text-center cursor-pointer"
-            onClick={() => window.scrollTo({ top: window.innerHeight * 0.85, behavior: 'smooth' })}
-          >
-            <span className="text-sm text-gray-600 dark:text-gray-300 mb-2 whitespace-nowrap">Scroll to explore</span>
-            <ChevronDown className="w-6 h-6 text-purple-600 dark:text-purple-400 mx-auto" />
-          </motion.div>
-        </motion.div>
       </section>
 
       {/* Our Story Section */}
