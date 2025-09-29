@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: nadanaloga-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nadanaloga
+      POSTGRES_USER: nadanaloga_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-SecurePassword123!}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - nadanaloga-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nadanaloga_user -d nadanaloga"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    # Uncomment if you need external access to database
+    # ports:
+    #   - "5432:5432"
+
+  app:
+    image: node:18-alpine
+    container_name: nadanaloga-app
+    restart: unless-stopped
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://nadanaloga_user:${POSTGRES_PASSWORD:-SecurePassword123!}@postgres:5432/nadanaloga
+      SESSION_SECRET: ${SESSION_SECRET:-fallback-secret-change-me}
+
+      # Supabase Configuration (optional)
+      VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
+      VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+
+      # Email Configuration (optional)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-noreply@nadanaloga.com}
+
+      # Client URL
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:3000}
+
+    command: >
+      sh -c "
+        echo 'Installing git and dependencies...' &&
+        apk add --no-cache git &&
+        echo 'Cloning repository...' &&
+        git clone https://github.com/Nadanalogaa/Thillaikadavul.git /tmp/app &&
+        cp -r /tmp/app/* . &&
+        echo 'Installing npm dependencies...' &&
+        npm ci &&
+        echo 'Building application...' &&
+        npm run build &&
+        echo 'Starting server...' &&
+        node server/server.js
+      "
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - nadanaloga-network
+    volumes:
+      - app_data:/app
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  postgres_data:
+    driver: local
+  app_data:
+    driver: local
+
+networks:
+  nadanaloga-network:
+    driver: bridge
+    name: nadanaloga-network
