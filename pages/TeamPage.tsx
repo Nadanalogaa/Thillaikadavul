@@ -114,7 +114,7 @@ const TeacherCard: React.FC<TeacherCardProps> = ({ teacher, index, inView, theme
 );
 
 const CategorySection: React.FC<CategorySectionProps> = ({ title, emoji, teachers, sectionRef, inView, gradientColor, theme }) => (
-  <section className="py-20 relative overflow-hidden" ref={sectionRef}>
+  <section className="py-12 relative overflow-hidden" ref={sectionRef}>
     <div className="absolute inset-0">
       <div className={`absolute inset-0 bg-gradient-to-br ${gradientColor} opacity-5`}></div>
       

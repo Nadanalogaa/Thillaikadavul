@@ -131,7 +131,7 @@ const CoursesPage: React.FC = () => {
           transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }}
         />
 
-        <div className="relative container mx-auto px-4 h-full flex items-center">
+        <div className="relative z-10 flex items-center justify-center min-h-[50vh] px-6">
           <div className="max-w-4xl mx-auto text-center">
             <motion.h1
               initial={{ opacity: 0, y: 50 }}
@@ -170,7 +170,7 @@ const CoursesPage: React.FC = () => {
       </section>
 
       {/* Courses Section */}
-      <section className="py-20 bg-gradient-to-br from-gray-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800" ref={coursesRef}>
+      <section className="py-12 bg-gradient-to-br from-gray-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800" ref={coursesRef}>
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 50 }}

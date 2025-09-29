@@ -119,7 +119,7 @@ const AboutPage: React.FC = () => {
       </section>
 
       {/* Our Story Section */}
-      <section className="py-20 relative overflow-hidden">
+      <section className="py-12 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-indigo-50/30 to-transparent dark:via-gray-800/30"></div>
         
         <div className="container mx-auto px-6 relative z-10">
@@ -195,7 +195,7 @@ const AboutPage: React.FC = () => {
       </section>
 
       {/* Values Section */}
-      <section className="py-20 relative overflow-hidden">
+      <section className="py-12 relative overflow-hidden">
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-gradient-to-br from-purple-100 via-blue-50 to-indigo-100 dark:from-gray-800 dark:via-indigo-900 dark:to-purple-900"></div>
           
@@ -274,7 +274,7 @@ const AboutPage: React.FC = () => {
       </section>
 
       {/* Vision & Mission Section */}
-      <section className="py-20 relative overflow-hidden">
+      <section className="py-12 relative overflow-hidden">
         <div className="container mx-auto px-6 relative z-10">
           <motion.div
             ref={teamRef}

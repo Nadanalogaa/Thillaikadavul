@@ -237,7 +237,7 @@ const GalleryPage: React.FC = () => {
       </section>
 
       {/* Gallery Section */}
-      <section className="py-20 relative overflow-hidden">
+      <section className="py-8 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-50/30 to-transparent dark:via-gray-800/30"></div>
         
         <div className="container mx-auto px-6 relative z-10">

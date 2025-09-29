@@ -180,7 +180,7 @@ const ContactPage: React.FC = () => {
       </section>
 
       {/* Contact Methods */}
-      <section className="py-16 relative overflow-hidden">
+      <section className="py-8 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-50/30 to-transparent dark:via-gray-800/30"></div>
         
         <div className="container mx-auto px-6 relative z-10">
@@ -226,7 +226,7 @@ const ContactPage: React.FC = () => {
       </section>
 
       {/* Locations & Contact Form */}
-      <section className="py-20 relative overflow-hidden">
+      <section className="py-12 relative overflow-hidden">
         <div className="container mx-auto px-6 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 max-w-7xl mx-auto">
             {/* Locations */}

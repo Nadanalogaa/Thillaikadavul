@@ -208,7 +208,7 @@ const FAQPage: React.FC = () => {
             </section>
 
             {/* Quick Stats */}
-            <section className="py-16 relative overflow-hidden">
+            <section className="py-8 relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-50/30 to-transparent dark:via-gray-800/30"></div>
                 
                 <div className="container mx-auto px-6 relative z-10">
@@ -251,7 +251,7 @@ const FAQPage: React.FC = () => {
             </section>
 
             {/* FAQ Section */}
-            <section className="py-20 relative overflow-hidden">
+            <section className="py-12 relative overflow-hidden">
                 <div className="container mx-auto px-6 relative z-10">
                     <motion.div
                         ref={faqRef}
@@ -298,7 +298,7 @@ const FAQPage: React.FC = () => {
                                 <motion.div
                                     initial={{ opacity: 0, scale: 0.8 }}
                                     animate={{ opacity: 1, scale: 1 }}
-                                    className={`text-center py-16 rounded-2xl ${theme === 'dark' ? 'bg-gray-800/50' : 'bg-gray-50'}`}
+                                    className={`text-center py-8 rounded-2xl ${theme === 'dark' ? 'bg-gray-800/50' : 'bg-gray-50'}`}
                                 >
                                     <HelpCircle className={`w-16 h-16 mx-auto mb-4 ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}`} />
                                     <h3 className={`text-xl font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-2`}>
