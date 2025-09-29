@@ -197,9 +197,9 @@ const AnimatedFooter: React.FC = () => {
             className="grid grid-cols-2 md:grid-cols-4 gap-8 py-12 border-t border-gray-700"
           >
             {[
-              { icon: <Users className="w-8 h-8" />, value: '200+', label: 'Happy Students' },
+              { icon: <Users className="w-8 h-8" />, value: '500+', label: 'Happy Students' },
               { icon: <Music className="w-8 h-8" />, value: '15+', label: 'Courses Offered' },
-              { icon: <Heart className="w-8 h-8" />, value: '12+', label: 'Years of Excellence' },
+              { icon: <Heart className="w-8 h-8" />, value: '20+', label: 'Years of Excellence' },
               { icon: <Youtube className="w-8 h-8" />, value: '50+', label: 'Performances' }
             ].map((stat, index) => (
               <motion.div

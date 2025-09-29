@@ -1,10 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
+import { useNavigate } from 'react-router-dom';
 import { Users, Award, Heart, BookOpen } from 'lucide-react';
 
 const AboutUsSection: React.FC = () => {
   const [ref, inView] = useInView({ threshold: 0.1 });
+  const navigate = useNavigate();
 
   const features = [
     {
@@ -23,13 +25,13 @@ const AboutUsSection: React.FC = () => {
       icon: <Heart className="w-8 h-8" />,
       title: 'Happy Students',
       description: 'Building confidence and artistic expression in students of all ages',
-      count: '200+'
+      count: '500+'
     },
     {
       icon: <BookOpen className="w-8 h-8" />,
       title: 'Years of Excellence',
-      description: 'Preserving and teaching traditional Indian classical arts for over a decade',
-      count: '12+'
+      description: 'Preserving and teaching traditional Indian classical arts for over two decades',
+      count: '20+'
     }
   ];
 
@@ -58,7 +60,7 @@ const AboutUsSection: React.FC = () => {
               transition={{ duration: 0.6, delay: 0.2 }}
               className="text-lg text-gray-600 dark:text-gray-300 mb-8 leading-relaxed"
             >
-              At Nadanaloga Academy, we are dedicated to preserving the rich heritage of classical Indian dance while nurturing the next generation of artists. Our academy combines traditional teaching methods with modern techniques to provide a comprehensive learning experience.
+              At Nadanaloga Fine Arts Academy, we are dedicated to preserving the beauty of Indian arts while guiding students in both online and offline classes. With courses in Bharatanatyam, Carnatic Vocal, Drawing, Abacus, and Phonics, our academy blends traditional methods with modern learning to give every student a complete experience.
             </motion.p>
             
             <motion.p
@@ -67,7 +69,7 @@ const AboutUsSection: React.FC = () => {
               transition={{ duration: 0.6, delay: 0.3 }}
               className="text-lg text-gray-600 dark:text-gray-300 mb-8 leading-relaxed"
             >
-              We believe that dance is not just about movement, but about storytelling, cultural expression, and personal growth. Our experienced instructors guide students through their artistic journey, helping them discover their unique voice while honoring the traditions of classical dance.
+              We believe learning is not just about practice, but about expression, creativity, and personal growth. Our highly experienced teachers provide individual attention, helping students discover their talent and confidence while carrying forward the rich cultural traditions that have been nurtured at Nadanaloga Fine Arts Academy for over two decades.
             </motion.p>
 
             <motion.div
@@ -79,6 +81,7 @@ const AboutUsSection: React.FC = () => {
               <motion.button
                 whileHover={{ scale: 1.05, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}
                 whileTap={{ scale: 0.95 }}
+                onClick={() => navigate('/about')}
                 className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
               >
                 Learn More
@@ -86,6 +89,7 @@ const AboutUsSection: React.FC = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                onClick={() => navigate('/team')}
                 className="border-2 border-purple-600 text-purple-600 dark:text-purple-400 dark:border-purple-400 px-8 py-3 rounded-lg font-semibold hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all duration-300"
               >
                 Meet Our Team
