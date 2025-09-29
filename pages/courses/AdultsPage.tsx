@@ -25,6 +25,15 @@ import { useTheme } from '../../contexts/ThemeContext';
 
 const AdultsPage: React.FC = () => {
   const [ref, inView] = useInView({ threshold: 0.1, triggerOnce: true, initialInView: true });
+
+  const [hasMounted, setHasMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    const id = requestAnimationFrame(() => setHasMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  const isContentVisible = hasMounted || inView;
   const { theme } = useTheme();
 
   const adultPrograms = [
@@ -196,7 +205,7 @@ const AdultsPage: React.FC = () => {
         <div className="relative container mx-auto px-6 text-center" ref={ref}>
           <motion.div
             initial={{ opacity: 0, y: 30 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
+            animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8 }}
           >
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
@@ -243,7 +252,7 @@ const AdultsPage: React.FC = () => {
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 30 }}
-                animate={inView ? { opacity: 1, y: 0 } : {}}
+                animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.6, delay: index * 0.1 }}
                 className={`p-6 rounded-xl ${
                   theme === 'dark'
@@ -290,7 +299,7 @@ const AdultsPage: React.FC = () => {
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 30 }}
-                animate={inView ? { opacity: 1, y: 0 } : {}}
+                animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.6, delay: index * 0.1 }}
                 className={`p-6 rounded-xl ${
                   theme === 'dark'
@@ -323,7 +332,7 @@ const AdultsPage: React.FC = () => {
               <motion.div
                 key={index}
                 initial={{ opacity: 0, x: index % 2 === 0 ? -50 : 50 }}
-                animate={inView ? { opacity: 1, x: 0 } : {}}
+                animate={isContentVisible ? { opacity: 1, x: 0 } : {}}
                 transition={{ duration: 0.6, delay: index * 0.2 }}
                 className={`p-8 rounded-xl ${
                   theme === 'dark'
@@ -371,7 +380,7 @@ const AdultsPage: React.FC = () => {
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 30 }}
-                animate={inView ? { opacity: 1, y: 0 } : {}}
+                animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.6, delay: index * 0.1 }}
                 className={`p-6 rounded-xl ${
                   theme === 'dark'
@@ -418,7 +427,7 @@ const AdultsPage: React.FC = () => {
           <div className="max-w-2xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
+              animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.6 }}
               className={`p-8 rounded-xl ${
                 theme === 'dark'
@@ -493,7 +502,7 @@ const AdultsPage: React.FC = () => {
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 30 }}
-                animate={inView ? { opacity: 1, y: 0 } : {}}
+                animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.6, delay: index * 0.2 }}
                 className={`p-6 rounded-xl ${
                   theme === 'dark'
@@ -537,7 +546,7 @@ const AdultsPage: React.FC = () => {
               <motion.div
                 key={index}
                 initial={{ opacity: 0, x: index % 2 === 0 ? -30 : 30 }}
-                animate={inView ? { opacity: 1, x: 0 } : {}}
+                animate={isContentVisible ? { opacity: 1, x: 0 } : {}}
                 transition={{ duration: 0.6, delay: index * 0.1 }}
                 className={`flex items-start gap-3 p-4 rounded-lg ${
                   theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50 shadow-md'
@@ -559,7 +568,7 @@ const AdultsPage: React.FC = () => {
         <div className="relative container mx-auto px-6 text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
+            animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8 }}
           >
             <h2 className="text-3xl md:text-4xl font-bold mb-6">

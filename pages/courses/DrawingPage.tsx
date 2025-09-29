@@ -22,6 +22,15 @@ import {
 const DrawingPage: React.FC = () => {
   const [ref, inView] = useInView({ threshold: 0.1, triggerOnce: true, initialInView: true });
 
+  const [hasMounted, setHasMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    const id = requestAnimationFrame(() => setHasMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  const isContentVisible = hasMounted || inView;
+
   const courseFeatures = [
     {
       icon: <Palette className="w-8 h-8" />,
@@ -228,7 +237,7 @@ const DrawingPage: React.FC = () => {
         <section className="mb-20">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
+            animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8 }}
             className="text-center mb-16"
           >
@@ -247,7 +256,7 @@ const DrawingPage: React.FC = () => {
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 30 }}
-                animate={inView ? { opacity: 1, y: 0 } : {}}
+                animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.6, delay: index * 0.1 }}
                 className="bg-gradient-to-br from-orange-50 to-pink-50 dark:from-gray-800 dark:to-gray-700 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-center"
               >
@@ -269,7 +278,7 @@ const DrawingPage: React.FC = () => {
         <section className="mb-20">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
+            animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8 }}
             className="text-center mb-16"
           >
@@ -286,7 +295,7 @@ const DrawingPage: React.FC = () => {
               <motion.div
                 key={index}
                 initial={{ opacity: 0, x: index % 2 === 0 ? -50 : 50 }}
-                animate={inView ? { opacity: 1, x: 0 } : {}}
+                animate={isContentVisible ? { opacity: 1, x: 0 } : {}}
                 transition={{ duration: 0.6, delay: index * 0.1 }}
                 className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300"
               >
@@ -315,7 +324,7 @@ const DrawingPage: React.FC = () => {
         <section className="mb-20">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
+            animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8 }}
             className="text-center mb-16"
           >
@@ -332,7 +341,7 @@ const DrawingPage: React.FC = () => {
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 30 }}
-                animate={inView ? { opacity: 1, y: 0 } : {}}
+                animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.6, delay: index * 0.1 }}
                 className="bg-gradient-to-br from-orange-50 to-pink-50 dark:from-gray-800 dark:to-gray-700 p-6 rounded-xl shadow-lg"
               >
@@ -373,7 +382,7 @@ const DrawingPage: React.FC = () => {
         <section className="mb-20">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
+            animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8 }}
             className="text-center mb-16"
           >
@@ -390,7 +399,7 @@ const DrawingPage: React.FC = () => {
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 30 }}
-                animate={inView ? { opacity: 1, y: 0 } : {}}
+                animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.6, delay: index * 0.05 }}
                 className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 text-center hover:shadow-xl transition-all duration-300"
               >
@@ -407,7 +416,7 @@ const DrawingPage: React.FC = () => {
         <section className="mb-20">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
+            animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8 }}
             className="text-center mb-16"
           >
@@ -424,7 +433,7 @@ const DrawingPage: React.FC = () => {
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 30 }}
-                animate={inView ? { opacity: 1, y: 0 } : {}}
+                animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.6, delay: index * 0.1 }}
                 className="bg-gradient-to-br from-orange-50 to-pink-50 dark:from-gray-800 dark:to-gray-700 p-6 rounded-xl shadow-lg"
               >
@@ -455,7 +464,7 @@ const DrawingPage: React.FC = () => {
         <section className="mb-20">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
+            animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8 }}
             className="text-center mb-16"
           >
@@ -472,7 +481,7 @@ const DrawingPage: React.FC = () => {
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 30 }}
-                animate={inView ? { opacity: 1, y: 0 } : {}}
+                animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.6, delay: index * 0.1 }}
                 className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700"
               >
@@ -501,7 +510,7 @@ const DrawingPage: React.FC = () => {
         <section className="mb-20">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
+            animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8 }}
             className="text-center mb-16"
           >
@@ -550,7 +559,7 @@ const DrawingPage: React.FC = () => {
         <section className="mb-20">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
+            animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8 }}
             className="text-center mb-16"
           >
@@ -567,7 +576,7 @@ const DrawingPage: React.FC = () => {
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 30 }}
-                animate={inView ? { opacity: 1, y: 0 } : {}}
+                animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.6, delay: index * 0.05 }}
                 className="bg-gradient-to-br from-orange-50 to-pink-50 dark:from-gray-800 dark:to-gray-700 p-4 rounded-xl shadow-lg text-center"
               >
@@ -584,7 +593,7 @@ const DrawingPage: React.FC = () => {
         <section>
           <motion.div
             initial={{ opacity: 0, y: 50 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
+            animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8 }}
             className="text-center bg-gradient-to-r from-orange-600 to-pink-600 rounded-2xl p-12 text-white"
           >
