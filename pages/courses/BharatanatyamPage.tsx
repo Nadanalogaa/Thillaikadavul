@@ -315,7 +315,7 @@ const BharatanatyamPage: React.FC = () => {
           </div>
         </section>
 
-        {/* Contact for Fees */}
+        {/* Fee Structure */}
         <section className="mb-20">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -324,34 +324,52 @@ const BharatanatyamPage: React.FC = () => {
             className="text-center mb-16"
           >
             <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Fees & <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Enrollment</span>
+              Fee <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Structure</span>
             </h2>
             <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-              <strong>Contact us for detailed fee structure and enrollment information</strong><br/>
               Affordable pricing for quality Bharatanatyam education - both online and offline
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 text-center">
-              <Phone className="w-12 h-12 text-green-600 dark:text-green-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Call Us</h3>
-              <p className="text-lg font-semibold text-green-600 dark:text-green-400 mb-2">+91 95668 66588</p>
-              <p className="text-lg font-semibold text-green-600 dark:text-green-400 mb-4">+91 95668 66538</p>
-              <p className="text-gray-600 dark:text-gray-300 text-sm">Available for immediate assistance</p>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 text-center">
+              <Music className="w-12 h-12 text-purple-600 dark:text-purple-400 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Registration Fee</h3>
+              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400 mb-2">Contact Us</p>
+              <p className="text-gray-600 dark:text-gray-300 text-sm">One-time payment</p>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 text-center">
-              <Mail className="w-12 h-12 text-purple-600 dark:text-purple-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Email Us</h3>
-              <p className="text-lg font-semibold text-purple-600 dark:text-purple-400 mb-4">nadanalogaa@gmail.com</p>
-              <p className="text-gray-600 dark:text-gray-300 text-sm">Get detailed information about courses and fees</p>
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 text-center">
+              <Calendar className="w-12 h-12 text-green-600 dark:text-green-400 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Monthly Fee</h3>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400 mb-2">Contact Us</p>
+              <p className="text-gray-600 dark:text-gray-300 text-sm">2 classes per week</p>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 text-center">
+              <Star className="w-12 h-12 text-orange-600 dark:text-orange-400 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Quarterly Fee</h3>
+              <p className="text-2xl font-bold text-orange-600 dark:text-orange-400 mb-2">Contact Us</p>
+              <p className="text-gray-600 dark:text-gray-300 text-sm">Special discounts available</p>
             </div>
           </div>
 
           <div className="mt-8 text-center">
+            <div className="grid md:grid-cols-2 gap-6 max-w-2xl mx-auto mb-6">
+              <div className="flex items-center justify-center gap-2">
+                <Phone className="w-5 h-5 text-green-600" />
+                <div>
+                  <p className="font-semibold text-green-600">+91 95668 66588</p>
+                  <p className="font-semibold text-green-600">+91 95668 66538</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                <Mail className="w-5 h-5 text-purple-600" />
+                <p className="font-semibold text-purple-600">nadanalogaa@gmail.com</p>
+              </div>
+            </div>
             <p className="text-gray-600 dark:text-gray-300 mb-2">
-              <strong>Contact us for:</strong> Course fees, enrollment process, class schedules, and special discounts
+              <strong>Contact us for:</strong> Detailed fee structure, enrollment process, and special discounts
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               Family discounts and flexible payment options available
