@@ -114,7 +114,7 @@ const AnimatedFooter: React.FC = () => {
 
       <div className="relative z-10">
         {/* Main Footer Content */}
-        <div className="container mx-auto px-4 py-16">
+        <div className="container mx-auto px-6 md:px-10 lg:px-14 py-16">
           {/* Top Section */}
           <motion.div
             initial={{ opacity: 0, y: 50 }}
@@ -162,7 +162,7 @@ const AnimatedFooter: React.FC = () => {
                 initial={{ opacity: 0, y: 30 }}
                 animate={inView ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.6, delay: 0.2 + index * 0.1 }}
-                className="space-y-4 max-w-sm"
+                className="space-y-4 max-w-xs sm:max-w-sm mx-auto sm:mx-0"
               >
                 <h4 className="text-lg font-semibold text-yellow-400 mb-4">
                   {section.title}
@@ -170,8 +170,8 @@ const AnimatedFooter: React.FC = () => {
                 <ul className="space-y-2">
                   {section.items.map((item, itemIndex) => {
                     const baseClasses = item.isHeader
-                      ? 'text-white font-semibold uppercase tracking-wide text-xs sm:text-sm mt-4 mb-1'
-                      : 'text-gray-300 hover:text-white transition-all duration-300 flex items-start gap-3 text-sm leading-relaxed';
+                      ? 'text-white font-semibold uppercase tracking-wide text-xs sm:text-sm mt-4 mb-1 text-left'
+                      : 'text-gray-300 hover:text-white transition-all duration-300 flex items-start gap-3 text-sm leading-relaxed text-left';
 
                     return (
                       <motion.li
