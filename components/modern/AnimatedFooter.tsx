@@ -155,35 +155,45 @@ const AnimatedFooter: React.FC = () => {
           </motion.div>
 
           {/* Footer Sections Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-8 mb-12">
+          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4 mb-12">
             {footerSections.map((section, index) => (
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 30 }}
                 animate={inView ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.6, delay: 0.2 + index * 0.1 }}
-                className="space-y-4"
+                className="space-y-4 max-w-sm"
               >
                 <h4 className="text-lg font-semibold text-yellow-400 mb-4">
                   {section.title}
                 </h4>
                 <ul className="space-y-2">
-                  {section.items.map((item, itemIndex) => (
-                    <motion.li
-                      key={itemIndex}
-                      whileHover={{ x: 5 }}
-                      className={`text-gray-300 hover:text-white transition-all duration-300 flex items-center gap-2 ${
-                        item.isHeader ? 'font-semibold text-yellow-400 mt-4 mb-2' : ''
-                      }`}
-                    >
-                      {item.icon && item.icon}
-                      {item.to ? (
-                        <Link to={item.to} className="hover:text-white">
-                          {item.text}
-                        </Link>
-                      ) : item.text}
-                    </motion.li>
-                  ))}
+                  {section.items.map((item, itemIndex) => {
+                    const baseClasses = item.isHeader
+                      ? 'text-white font-semibold uppercase tracking-wide text-xs sm:text-sm mt-4 mb-1'
+                      : 'text-gray-300 hover:text-white transition-all duration-300 flex items-start gap-3 text-sm leading-relaxed';
+
+                    return (
+                      <motion.li
+                        key={itemIndex}
+                        whileHover={item.isHeader ? undefined : { x: 5 }}
+                        className={baseClasses}
+                      >
+                        {!item.isHeader && item.icon ? (
+                          <span className="mt-1 text-yellow-300">{item.icon}</span>
+                        ) : null}
+                        {item.isHeader ? (
+                          <span>{item.text}</span>
+                        ) : item.to ? (
+                          <Link to={item.to} className="hover:text-white">
+                            {item.text}
+                          </Link>
+                        ) : (
+                          <span>{item.text}</span>
+                        )}
+                      </motion.li>
+                    );
+                  })}
                 </ul>
               </motion.div>
             ))}
