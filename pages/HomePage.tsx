@@ -6,7 +6,6 @@ import AboutUsSection from '../components/modern/AboutUsSection';
 import ImageGallery from '../components/modern/ImageGallery';
 import VideoSection from '../components/modern/VideoSection';
 import CoursesSection from '../components/modern/CoursesSection';
-import AnimatedFooter from '../components/modern/AnimatedFooter';
 
 interface HomePageProps {
   onLoginClick: () => void;
@@ -43,9 +42,6 @@ const HomePage: React.FC<HomePageProps> = ({
       
       {/* Courses Section */}
       <CoursesSection />
-      
-      {/* Animated Footer */}
-      <AnimatedFooter />
     </div>
   );
 };

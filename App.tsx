@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, Navigate, NavLink, useParams, Outlet, useLocation } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Header from './components/Header';
-import Footer from './components/Footer';
+import AnimatedFooter from './components/modern/AnimatedFooter';
 import HomePage from './pages/HomePage';
 import AboutPage from './pages/AboutPage';
 import TeamPage from './pages/TeamPage';
@@ -185,8 +185,6 @@ function App() {
     return <StudentProfileViewPage studentId={studentId} />;
   };
 
-  const isDashboard = location.pathname.startsWith('/dashboard/') || location.pathname.startsWith('/admin/');
-
   return (
     <ThemeProvider>
       <div className="flex flex-col min-h-screen bg-brand-light/20 dark:bg-gray-900">
@@ -274,7 +272,7 @@ function App() {
 
           </Routes>
         </main>
-        {!isDashboard && <Footer />}
+        <AnimatedFooter />
         <WhatsAppButton />
         <ThemeToggle position="fixed" />
 

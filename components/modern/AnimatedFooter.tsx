@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { 
@@ -14,6 +15,7 @@ import {
   Music,
   Users
 } from 'lucide-react';
+import { NAV_LINKS } from '../../constants';
 
 const AnimatedFooter: React.FC = () => {
   const [ref, inView] = useInView({ threshold: 0.1 });
@@ -22,7 +24,13 @@ const AnimatedFooter: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const quickLinks = [...NAV_LINKS, { name: 'Admin Login / Register', path: '/admin/login' }];
+
   const footerSections = [
+    {
+      title: 'Quick Links',
+      items: quickLinks.map(link => ({ text: link.name, to: link.path }))
+    },
     {
       title: 'Contact Us',
       items: [
@@ -149,7 +157,7 @@ const AnimatedFooter: React.FC = () => {
           </motion.div>
 
           {/* Footer Sections Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-8 mb-12">
             {footerSections.map((section, index) => (
               <motion.div
                 key={index}
@@ -166,10 +174,14 @@ const AnimatedFooter: React.FC = () => {
                     <motion.li
                       key={itemIndex}
                       whileHover={{ x: 5 }}
-                      className="text-gray-300 hover:text-white transition-all duration-300 cursor-pointer flex items-center gap-2"
+                      className="text-gray-300 hover:text-white transition-all duration-300 flex items-center gap-2"
                     >
                       {item.icon && item.icon}
-                      {item.text}
+                      {item.to ? (
+                        <Link to={item.to} className="hover:text-white">
+                          {item.text}
+                        </Link>
+                      ) : item.text}
                     </motion.li>
                   ))}
                 </ul>
