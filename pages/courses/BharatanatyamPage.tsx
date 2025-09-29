@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 
 const BharatanatyamPage: React.FC = () => {
-  const [ref, inView] = useInView({ threshold: 0.1 });
+  const [ref, inView] = useInView({ threshold: 0.1, triggerOnce: true, initialInView: true });
 
   const courseFeatures = [
     {

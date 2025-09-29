@@ -25,7 +25,7 @@ import { Link } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const WesternPage: React.FC = () => {
-  const [ref, inView] = useInView({ threshold: 0.1 });
+  const [ref, inView] = useInView({ threshold: 0.1, triggerOnce: true, initialInView: true });
   const { theme } = useTheme();
 
   const westernPrograms = [
