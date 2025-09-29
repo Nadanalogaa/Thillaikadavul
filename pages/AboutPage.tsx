@@ -86,7 +86,7 @@ const AboutPage: React.FC = () => {
               transition={{ duration: 1.2, delay: 0.2 }}
               className="text-6xl md:text-7xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent mb-8"
             >
-              Welcome to Nadanaloga
+              About Us
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 30 }}
@@ -191,55 +191,6 @@ const AboutPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Our Courses Section */}
-      <section className="py-12 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-100 via-blue-50 to-indigo-100 dark:from-gray-800 dark:via-indigo-900 dark:to-purple-900"></div>
-
-        <div className="container mx-auto px-6 relative z-10">
-          <motion.div
-            ref={coursesRef}
-            initial={{ opacity: 0, y: 50 }}
-            animate={coursesInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 1 }}
-            className="text-center max-w-4xl mx-auto mb-16"
-          >
-            <h2 className={`text-4xl md:text-5xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>
-              Our Courses
-            </h2>
-            <p className={`text-xl ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} leading-relaxed mb-8`}>
-              We offer courses for different interests and age groups. Our teaching is not just about technique—it's about helping students enjoy the arts and grow in confidence.
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {courses.map((course, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 50, scale: 0.9 }}
-                animate={coursesInView ? { opacity: 1, y: 0, scale: 1 } : {}}
-                transition={{ duration: 0.8, delay: index * 0.1 }}
-                whileHover={{ scale: 1.05, y: -5 }}
-                className={`relative p-6 rounded-2xl ${theme === 'dark' ? 'bg-gray-800/80 border-gray-700' : 'bg-white/80 border-purple-200'} border-2 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300`}
-              >
-                <motion.div
-                  whileHover={{ rotate: 360 }}
-                  transition={{ duration: 0.5 }}
-                  className={`w-12 h-12 bg-gradient-to-br ${course.color} rounded-full flex items-center justify-center mb-4 mx-auto`}
-                >
-                  <course.icon className="w-6 h-6 text-white" />
-                </motion.div>
-                <h3 className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-3 text-center`}>
-                  {course.name}
-                </h3>
-                <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} text-center text-sm leading-relaxed`}>
-                  {course.description}
-                </p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* About Our Guru Section */}
       <section className="py-12 relative overflow-hidden">
         <div className="container mx-auto px-6 relative z-10">
@@ -311,6 +262,55 @@ const AboutPage: React.FC = () => {
         </div>
       </section>
 
+      {/* Our Courses Section */}
+      <section className="py-12 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-100 via-blue-50 to-indigo-100 dark:from-gray-800 dark:via-indigo-900 dark:to-purple-900"></div>
+
+        <div className="container mx-auto px-6 relative z-10">
+          <motion.div
+            ref={coursesRef}
+            initial={{ opacity: 0, y: 50 }}
+            animate={coursesInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 1 }}
+            className="text-center max-w-4xl mx-auto mb-16"
+          >
+            <h2 className={`text-4xl md:text-5xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>
+              Our Courses
+            </h2>
+            <p className={`text-xl ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} leading-relaxed mb-8`}>
+              We offer courses for different interests and age groups. Our teaching is not just about technique—it's about helping students enjoy the arts and grow in confidence.
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {courses.map((course, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 50, scale: 0.9 }}
+                animate={coursesInView ? { opacity: 1, y: 0, scale: 1 } : {}}
+                transition={{ duration: 0.8, delay: index * 0.1 }}
+                whileHover={{ scale: 1.05, y: -5 }}
+                className={`relative p-6 rounded-2xl ${theme === 'dark' ? 'bg-gray-800/80 border-gray-700' : 'bg-white/80 border-purple-200'} border-2 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300`}
+              >
+                <motion.div
+                  whileHover={{ rotate: 360 }}
+                  transition={{ duration: 0.5 }}
+                  className={`w-12 h-12 bg-gradient-to-br ${course.color} rounded-full flex items-center justify-center mb-4 mx-auto`}
+                >
+                  <course.icon className="w-6 h-6 text-white" />
+                </motion.div>
+                <h3 className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-3 text-center`}>
+                  {course.name}
+                </h3>
+                <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} text-center text-sm leading-relaxed`}>
+                  {course.description}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Join Us Section */}
       <section className="py-12 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 dark:from-gray-800 dark:via-indigo-900 dark:to-purple-900"></div>
@@ -350,7 +350,7 @@ const AboutPage: React.FC = () => {
               className={`inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1`}
             >
               <Phone className="w-5 h-5" />
-              <span className="text-lg font-semibold">Call us today to book your free trial class or admission enquiry</span>
+              <span className="text-lg font-semibold">Call +91-9566866588 to book your free trial class or admission enquiry</span>
             </motion.div>
 
             <motion.div
@@ -367,7 +367,7 @@ const AboutPage: React.FC = () => {
               <div className={`p-6 rounded-xl ${theme === 'dark' ? 'bg-gray-800/50' : 'bg-white/50'} backdrop-blur-sm`}>
                 <Calendar className="w-8 h-8 text-blue-500 mx-auto mb-3" />
                 <h4 className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-2`}>Flexible Learning</h4>
-                <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>Online and offline classes available</p>
+                <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>Online and offline classes available worldwide</p>
               </div>
               <div className={`p-6 rounded-xl ${theme === 'dark' ? 'bg-gray-800/50' : 'bg-white/50'} backdrop-blur-sm`}>
                 <Award className="w-8 h-8 text-green-500 mx-auto mb-3" />

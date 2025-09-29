@@ -240,7 +240,7 @@ const GalleryPage: React.FC = () => {
       <section className="py-8 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-50/30 to-transparent dark:via-gray-800/30"></div>
         
-        <div className="container mx-auto px-6 relative z-10">
+        <div ref={galleryRef} className="container mx-auto px-6 relative z-10">
           {/* Category Filter */}
           <motion.div
             initial={{ opacity: 0, y: 50 }}
@@ -271,7 +271,6 @@ const GalleryPage: React.FC = () => {
 
           {/* Gallery Grid */}
           <motion.div
-            ref={galleryRef}
             initial={{ opacity: 0, y: 50 }}
             animate={galleryInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 1, delay: 0.3 }}
