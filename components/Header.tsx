@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Instagram, Facebook, Youtube, Linkedin } from 'lucide-react';
@@ -21,8 +21,26 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
   const location = useLocation();
   const isAdminPage = location.pathname.startsWith('/admin');
   const { theme } = useTheme();
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const visibleNavLinks = NAV_LINKS.filter(link => !isAdminPage);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsCoursesDropdownOpen(false);
+      }
+    };
+
+    if (isCoursesDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isCoursesDropdownOpen]);
 
   const courseMenuItems = [
     { name: 'All Courses', path: '/courses' },
@@ -210,10 +228,10 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                   <div
                     key={link.name}
                     className="relative"
-                    onMouseEnter={() => setIsCoursesDropdownOpen(true)}
-                    onMouseLeave={() => setIsCoursesDropdownOpen(false)}
+                    ref={dropdownRef}
                   >
                     <button
+                      onClick={() => setIsCoursesDropdownOpen(!isCoursesDropdownOpen)}
                       className={`${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400' : 'text-gray-700 hover:text-indigo-600'} transition-all duration-300 font-medium text-sm relative flex items-center gap-1 ${
                         location.pathname.startsWith('/courses') || location.pathname === '/private-class' || location.pathname === '/performance-workshops'
                           ? `${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'} after:absolute after:bottom-[-8px] after:left-0 after:right-0 after:h-0.5 after:bg-gradient-to-r after:from-indigo-600 after:to-purple-600`
@@ -221,7 +239,12 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                       }`}
                     >
                       {link.name}
-                      <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg
+                        className={`w-4 h-4 ml-1 transition-transform duration-200 ${isCoursesDropdownOpen ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </button>
@@ -242,6 +265,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                           <Link
                             key={courseItem.name}
                             to={courseItem.path}
+                            onClick={() => setIsCoursesDropdownOpen(false)}
                             className={`block px-4 py-2 text-sm ${
                               theme === 'dark'
                                 ? 'text-gray-200 hover:bg-gray-700 hover:text-indigo-400'
@@ -337,7 +361,10 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                           <Link
                             key={courseItem.name}
                             to={courseItem.path}
-                            onClick={() => setIsMenuOpen(false)}
+                            onClick={() => {
+                              setIsMenuOpen(false);
+                              setIsMobileCoursesOpen(false);
+                            }}
                             className={`block py-2 px-4 rounded-lg text-sm ${
                               theme === 'dark'
                                 ? 'text-gray-300 hover:text-indigo-400 hover:bg-gray-800'
