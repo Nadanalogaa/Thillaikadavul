@@ -1,10 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
+import { useNavigate } from 'react-router-dom';
 import { Clock, Users, Star, ArrowRight } from 'lucide-react';
 
 const CoursesSection: React.FC = () => {
   const [ref, inView] = useInView({ threshold: 0.1 });
+  const navigate = useNavigate();
 
   const courses = [
     {
@@ -30,15 +32,15 @@ const CoursesSection: React.FC = () => {
       price: '$200'
     },
     {
-      title: 'Kuchipudi Dance',
-      description: 'Explore this graceful dance form known for its fluid movements and dramatic expressions',
+      title: 'Drawing Classes',
+      description: 'Develop your artistic skills through structured drawing lessons and creative expression',
       image: '/danceImages/responsive/large/EGM_7698_DxO.webp',
       duration: '4 Months',
-      students: '18',
-      level: 'Intermediate',
-      rating: 4.7,
-      features: ['Fluid Movements', 'Dramatic Expression', 'Traditional Stories', 'Performance Art'],
-      price: '$150'
+      students: '22',
+      level: 'All Levels',
+      rating: 4.8,
+      features: ['Basic Sketching', 'Color Theory', 'Creative Expression', 'Portfolio Development'],
+      price: '$120'
     },
     {
       title: 'Vocal Music Classes',
@@ -63,15 +65,26 @@ const CoursesSection: React.FC = () => {
       price: '$80'
     },
     {
-      title: 'Performance Workshop',
-      description: 'Intensive workshop preparing students for stage performances and competitions',
+      title: 'Abacus Classes',
+      description: 'Enhance mathematical skills and mental calculation abilities through traditional abacus training',
       image: '/danceImages/responsive/large/EGM_7745_DxO.webp',
-      duration: '1 Month',
-      students: '12',
-      level: 'Advanced',
-      rating: 4.8,
-      features: ['Stage Presence', 'Costume & Makeup', 'Competition Strategy', 'Video Portfolio'],
-      price: '$250'
+      duration: '6 Months',
+      students: '25',
+      level: 'All Levels',
+      rating: 4.9,
+      features: ['Mental Math', 'Speed Calculation', 'Concentration Training', 'Problem Solving'],
+      price: '$90'
+    },
+    {
+      title: 'Phonics Classes',
+      description: 'Build strong reading foundations with systematic phonics instruction for early learners',
+      image: '/danceImages/responsive/large/DSC03395_DxO.webp',
+      duration: '4 Months',
+      students: '20',
+      level: 'Beginner',
+      rating: 4.9,
+      features: ['Letter Sounds', 'Reading Skills', 'Pronunciation', 'Language Development'],
+      price: '$100'
     }
   ];
 
@@ -187,6 +200,7 @@ const CoursesSection: React.FC = () => {
           <motion.button
             whileHover={{ scale: 1.05, boxShadow: "0 15px 40px rgba(0,0,0,0.1)" }}
             whileTap={{ scale: 0.95 }}
+            onClick={() => navigate('/courses')}
             className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-12 py-4 rounded-full text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
           >
             View All Courses

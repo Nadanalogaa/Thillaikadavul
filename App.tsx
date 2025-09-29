@@ -9,6 +9,7 @@ import TeamPage from './pages/TeamPage';
 import GalleryPage from './pages/GalleryPage';
 import FAQPage from './pages/FAQPage';
 import ContactPage from './pages/ContactPage';
+import CoursesPage from './pages/CoursesPage';
 import Modal from './components/Modal';
 import LoginForm from './components/LoginForm';
 import RegisterPage from './pages/RegisterPage';
@@ -197,8 +198,8 @@ function App() {
         <main className="flex-grow">
           <Routes>
             <Route path="/" element={
-              <HomePage 
-                onLoginClick={() => setLoginModalOpen(true)} 
+              <HomePage
+                onLoginClick={() => setLoginModalOpen(true)}
                 onRegisterClick={() => navigate('/register')}
                 onBookDemoClick={() => {
                   // TODO: Implement book demo functionality
@@ -208,6 +209,7 @@ function App() {
               />
             } />
             <Route path="/about" element={<AboutPage />} />
+            <Route path="/courses" element={<CoursesPage />} />
             <Route path="/team" element={<TeamPage />} />
             <Route path="/gallery" element={<GalleryPage />} />
             <Route path="/faq" element={<FAQPage />} />
