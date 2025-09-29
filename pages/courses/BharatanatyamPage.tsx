@@ -95,28 +95,28 @@ const BharatanatyamPage: React.FC = () => {
 
   const classSchedule = [
     {
-      day: 'Monday & Thursday',
-      time: '5:00 PM - 6:00 PM',
-      level: 'Beginner',
-      location: 'Head Office'
+      day: 'Twice Weekly (Flexible Days)',
+      time: 'Evening Batches - 1 Hour Each',
+      level: 'All Levels',
+      location: 'Offline Classes'
     },
     {
-      day: 'Tuesday & Friday',
-      time: '6:00 PM - 7:00 PM',
-      level: 'Intermediate',
-      location: 'Both Branches'
+      day: 'Available Slot Basis',
+      time: 'Flexible Timing',
+      level: 'All Levels',
+      location: 'Online Classes'
     },
     {
-      day: 'Wednesday & Saturday',
-      time: '4:00 PM - 5:00 PM',
-      level: 'Advanced',
-      location: 'Head Office'
+      day: 'Weekends Available',
+      time: 'Morning & Evening Slots',
+      level: 'All Levels',
+      location: 'Both Online & Offline'
     },
     {
-      day: 'Saturday',
-      time: '10:00 AM - 12:00 PM',
-      level: 'Senior & Competition',
-      location: 'Head Office'
+      day: 'Chennai Branches',
+      time: 'All Days Evening Batches',
+      level: 'Head Office & Branch',
+      location: 'Offline Classes'
     }
   ];
 
@@ -178,8 +178,10 @@ const BharatanatyamPage: React.FC = () => {
             </h2>
             <p className="text-lg text-gray-600 dark:text-gray-300 max-w-4xl mx-auto leading-relaxed">
               Bharatanatyam is a major form of Indian classical dance that originated in Tamil Nadu. This ancient art form is a perfect blend of
-              Bhava (expression), Raga (music), Tala (rhythm), and Natya (dance/drama). Our comprehensive program teaches traditional techniques
-              while fostering individual artistic growth and cultural understanding.
+              Bhava (expression), Raga (music), Tala (rhythm), and Natya (dance/drama). <strong>Now available globally through our online classes
+              and locally at our Chennai branches!</strong> Our comprehensive program teaches traditional techniques while fostering individual
+              artistic growth and cultural understanding. <strong>Join students worldwide who are learning this divine art form from the comfort
+              of their homes or visit our state-of-the-art facilities in Chennai.</strong>
             </p>
           </motion.div>
 
@@ -276,7 +278,8 @@ const BharatanatyamPage: React.FC = () => {
               Class <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Schedule</span>
             </h2>
             <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-              Choose from our flexible class timings designed to accommodate different schedules
+              <strong>Flexible scheduling for global learners!</strong> Join our twice-weekly classes (1 hour each) with evening batches at our Chennai branches.
+              Online classes available on slot basis. Weekend classes also available for both online and offline students.
             </p>
           </motion.div>
 
@@ -312,7 +315,7 @@ const BharatanatyamPage: React.FC = () => {
           </div>
         </section>
 
-        {/* Fee Structure */}
+        {/* Contact for Fees */}
         <section className="mb-20">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -321,42 +324,37 @@ const BharatanatyamPage: React.FC = () => {
             className="text-center mb-16"
           >
             <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Fee <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Structure</span>
+              Fees & <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Enrollment</span>
             </h2>
             <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-              Transparent and affordable pricing for quality Bharatanatyam education
+              <strong>Contact us for detailed fee structure and enrollment information</strong><br/>
+              Affordable pricing for quality Bharatanatyam education - both online and offline
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 text-center">
-              <Music className="w-12 h-12 text-purple-600 dark:text-purple-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Registration Fee</h3>
-              <p className="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-2">{feeStructure.registration}</p>
-              <p className="text-gray-600 dark:text-gray-300 text-sm">One-time payment</p>
+          <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
+            <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 text-center">
+              <Phone className="w-12 h-12 text-green-600 dark:text-green-400 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Call Us</h3>
+              <p className="text-lg font-semibold text-green-600 dark:text-green-400 mb-2">+91 95668 66588</p>
+              <p className="text-lg font-semibold text-green-600 dark:text-green-400 mb-4">+91 95668 66538</p>
+              <p className="text-gray-600 dark:text-gray-300 text-sm">Available for immediate assistance</p>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 text-center">
-              <Calendar className="w-12 h-12 text-green-600 dark:text-green-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Monthly Fee</h3>
-              <p className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">{feeStructure.monthly}</p>
-              <p className="text-gray-600 dark:text-gray-300 text-sm">4 classes per month</p>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 text-center">
-              <Star className="w-12 h-12 text-orange-600 dark:text-orange-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Quarterly Fee</h3>
-              <p className="text-3xl font-bold text-orange-600 dark:text-orange-400 mb-2">{feeStructure.quarterly}</p>
-              <p className="text-gray-600 dark:text-gray-300 text-sm">Save ₹300</p>
+            <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 text-center">
+              <Mail className="w-12 h-12 text-purple-600 dark:text-purple-400 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Email Us</h3>
+              <p className="text-lg font-semibold text-purple-600 dark:text-purple-400 mb-4">nadanalogaa@gmail.com</p>
+              <p className="text-gray-600 dark:text-gray-300 text-sm">Get detailed information about courses and fees</p>
             </div>
           </div>
 
           <div className="mt-8 text-center">
             <p className="text-gray-600 dark:text-gray-300 mb-2">
-              <strong>Additional Costs:</strong> Costume ({feeStructure.costume}), Exam Fees ({feeStructure.examFee})
+              <strong>Contact us for:</strong> Course fees, enrollment process, class schedules, and special discounts
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Family discounts available for multiple enrollments
+              Family discounts and flexible payment options available
             </p>
           </div>
         </section>
