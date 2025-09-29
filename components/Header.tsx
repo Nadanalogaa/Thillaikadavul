@@ -1,7 +1,24 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Instagram, Facebook, Youtube, Linkedin } from 'lucide-react';
+import {
+  Instagram,
+  Facebook,
+  Youtube,
+  Linkedin,
+  GraduationCap,
+  Music,
+  Mic,
+  Palette,
+  Calculator,
+  BookOpen,
+  Users,
+  Trophy,
+  Guitar,
+  Piano,
+  Heart,
+  Sparkles
+} from 'lucide-react';
 import { NAV_LINKS } from '../constants';
 import type { User } from '../types';
 import { UserRole } from '../types';
@@ -43,17 +60,17 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
   }, [isCoursesDropdownOpen]);
 
   const courseMenuItems = [
-    { name: 'All Courses', path: '/courses' },
-    { name: 'Bharatanatyam', path: '/courses/bharatanatyam' },
-    { name: 'Classical Vocal', path: '/courses/classical-vocal' },
-    { name: 'Drawing', path: '/courses/drawing' },
-    { name: 'Abacus', path: '/courses/abacus' },
-    { name: 'Phonics', path: '/courses/phonics' },
-    { name: 'Private Class (1 to 1)', path: '/private-class' },
-    { name: 'Class for Adults', path: '/courses/adults' },
-    { name: 'Performance Workshops', path: '/performance-workshops' },
-    { name: 'Instrument', path: '/courses/instrument' },
-    { name: 'Western Classes', path: '/courses/western' }
+    { name: 'All Courses', path: '/courses', icon: <GraduationCap className="w-4 h-4" /> },
+    { name: 'Bharatanatyam', path: '/courses/bharatanatyam', icon: <Music className="w-4 h-4" /> },
+    { name: 'Classical Vocal', path: '/courses/classical-vocal', icon: <Mic className="w-4 h-4" /> },
+    { name: 'Drawing', path: '/courses/drawing', icon: <Palette className="w-4 h-4" /> },
+    { name: 'Abacus', path: '/courses/abacus', icon: <Calculator className="w-4 h-4" /> },
+    { name: 'Phonics', path: '/courses/phonics', icon: <BookOpen className="w-4 h-4" /> },
+    { name: 'Private Class (1 to 1)', path: '/private-class', icon: <Heart className="w-4 h-4" /> },
+    { name: 'Class for Adults', path: '/courses/adults', icon: <Users className="w-4 h-4" /> },
+    { name: 'Performance Workshops', path: '/performance-workshops', icon: <Trophy className="w-4 h-4" /> },
+    { name: 'Instrument', path: '/courses/instrument', icon: <Guitar className="w-4 h-4" /> },
+    { name: 'Western Classes', path: '/courses/western', icon: <Piano className="w-4 h-4" /> }
   ];
 
   const socialLinks = [
@@ -238,6 +255,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                           : ''
                       }`}
                     >
+                      <GraduationCap className="w-4 h-4 mr-1" />
                       {link.name}
                       <svg
                         className={`w-4 h-4 ml-1 transition-transform duration-200 ${isCoursesDropdownOpen ? 'rotate-180' : ''}`}
@@ -255,26 +273,39 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.2 }}
-                        className={`absolute top-full left-0 mt-2 w-56 ${
+                        className={`absolute top-full left-0 mt-2 w-72 ${
                           theme === 'dark'
                             ? 'bg-gray-800 border-gray-700'
                             : 'bg-white border-gray-200'
-                        } border rounded-lg shadow-lg py-2 z-50`}
+                        } border rounded-lg shadow-xl py-2 z-50`}
                       >
-                        {courseMenuItems.map((courseItem) => (
-                          <Link
-                            key={courseItem.name}
-                            to={courseItem.path}
-                            onClick={() => setIsCoursesDropdownOpen(false)}
-                            className={`block px-4 py-2 text-sm ${
-                              theme === 'dark'
-                                ? 'text-gray-200 hover:bg-gray-700 hover:text-indigo-400'
-                                : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'
-                            } transition-colors duration-200`}
-                          >
-                            {courseItem.name}
-                          </Link>
-                        ))}
+                        {courseMenuItems.map((courseItem) => {
+                          const isCurrentPage = location.pathname === courseItem.path;
+                          return (
+                            <Link
+                              key={courseItem.name}
+                              to={courseItem.path}
+                              onClick={() => setIsCoursesDropdownOpen(false)}
+                              className={`flex items-center gap-3 px-4 py-3 text-sm transition-all duration-200 rounded-md mx-2 ${
+                                isCurrentPage
+                                  ? theme === 'dark'
+                                    ? 'bg-indigo-900 text-indigo-300 border-l-2 border-indigo-400'
+                                    : 'bg-indigo-100 text-indigo-700 border-l-2 border-indigo-500'
+                                  : theme === 'dark'
+                                    ? 'text-gray-200 hover:bg-gray-700 hover:text-indigo-400'
+                                    : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'
+                              }`}
+                            >
+                              <span className={`${isCurrentPage ? 'text-indigo-500' : theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                                {courseItem.icon}
+                              </span>
+                              <span className="font-medium">{courseItem.name}</span>
+                              {isCurrentPage && (
+                                <Sparkles className="w-3 h-3 text-indigo-500 ml-auto" />
+                              )}
+                            </Link>
+                          );
+                        })}
                       </motion.div>
                     )}
                   </div>
@@ -338,7 +369,10 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                           : `${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400 hover:bg-gray-800' : 'text-gray-700 hover:text-indigo-600 hover:bg-indigo-50'}`
                       }`}
                     >
-                      {link.name}
+                      <div className="flex items-center gap-2">
+                        <GraduationCap className="w-4 h-4" />
+                        {link.name}
+                      </div>
                       <svg
                         className={`w-4 h-4 transition-transform duration-200 ${isMobileCoursesOpen ? 'rotate-180' : ''}`}
                         fill="none"
@@ -357,23 +391,36 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                         transition={{ duration: 0.3 }}
                         className="mt-2 ml-4 space-y-2"
                       >
-                        {courseMenuItems.map((courseItem) => (
-                          <Link
-                            key={courseItem.name}
-                            to={courseItem.path}
-                            onClick={() => {
-                              setIsMenuOpen(false);
-                              setIsMobileCoursesOpen(false);
-                            }}
-                            className={`block py-2 px-4 rounded-lg text-sm ${
-                              theme === 'dark'
-                                ? 'text-gray-300 hover:text-indigo-400 hover:bg-gray-800'
-                                : 'text-gray-600 hover:text-indigo-600 hover:bg-indigo-50'
-                            } transition-colors duration-200`}
-                          >
-                            {courseItem.name}
-                          </Link>
-                        ))}
+                        {courseMenuItems.map((courseItem) => {
+                          const isCurrentPage = location.pathname === courseItem.path;
+                          return (
+                            <Link
+                              key={courseItem.name}
+                              to={courseItem.path}
+                              onClick={() => {
+                                setIsMenuOpen(false);
+                                setIsMobileCoursesOpen(false);
+                              }}
+                              className={`flex items-center gap-3 py-3 px-4 rounded-lg text-sm transition-all duration-200 ${
+                                isCurrentPage
+                                  ? theme === 'dark'
+                                    ? 'bg-indigo-900 text-indigo-300 border-l-2 border-indigo-400'
+                                    : 'bg-indigo-100 text-indigo-700 border-l-2 border-indigo-500'
+                                  : theme === 'dark'
+                                    ? 'text-gray-300 hover:text-indigo-400 hover:bg-gray-800'
+                                    : 'text-gray-600 hover:text-indigo-600 hover:bg-indigo-50'
+                              }`}
+                            >
+                              <span className={`${isCurrentPage ? 'text-indigo-500' : theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                                {courseItem.icon}
+                              </span>
+                              <span className="font-medium flex-1">{courseItem.name}</span>
+                              {isCurrentPage && (
+                                <Sparkles className="w-3 h-3 text-indigo-500" />
+                              )}
+                            </Link>
+                          );
+                        })}
                       </motion.div>
                     )}
                   </div>
