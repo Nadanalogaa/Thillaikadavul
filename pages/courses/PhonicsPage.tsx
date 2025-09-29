@@ -4,7 +4,7 @@ import { useInView } from 'react-intersection-observer';
 import {
   BookOpen,
   Volume2,
-  Abc,
+  Type,
   Lightbulb,
   Clock,
   Users,
@@ -23,7 +23,7 @@ const PhonicsPage: React.FC = () => {
 
   const courseFeatures = [
     {
-      icon: <Abc className="w-8 h-8" />,
+      icon: <Type className="w-8 h-8" />,
       title: 'Letter Recognition',
       description: 'Master alphabet recognition and letter-sound relationships through systematic learning'
     },
@@ -110,7 +110,7 @@ const PhonicsPage: React.FC = () => {
       activity: 'Word Building',
       description: 'Hands-on activities to construct words using letter tiles and blocks',
       materials: 'Letter tiles, magnetic letters, word building mats',
-      icon: <Abc className="w-6 h-6" />
+      icon: <Type className="w-6 h-6" />
     },
     {
       activity: 'Reading Practice',
