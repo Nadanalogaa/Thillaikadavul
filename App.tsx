@@ -29,6 +29,13 @@ import ThemeToggle from './components/ThemeToggle';
 import StudentProfileViewPage from './pages/admin/StudentProfileViewPage';
 import TrashPage from './pages/admin/TrashPage';
 import AddFamilyStudentPage from './pages/AddFamilyStudentPage';
+import PrivateClassPage from './pages/PrivateClassPage';
+import PerformanceWorkshopsPage from './pages/PerformanceWorkshopsPage';
+import ClassSchedulesPage from './pages/ClassSchedulesPage';
+import StudentPortalInfoPage from './pages/StudentPortalInfoPage';
+import RegistrationInfoPage from './pages/RegistrationInfoPage';
+import BlogPage from './pages/BlogPage';
+import CareersPage from './pages/CareersPage';
 
 // New Admin Pages
 import EventsManagementPage from './pages/admin/EventsManagementPage';
@@ -230,6 +237,13 @@ function App() {
             <Route path="/admin/book-materials" element={<AdminProtectedRoute><BookMaterialsManagementPage /></AdminProtectedRoute>} />
             <Route path="/admin/notices" element={<AdminProtectedRoute><NoticesManagementPage /></AdminProtectedRoute>} />
             <Route path="/admin/trash" element={<AdminProtectedRoute><TrashPage /></AdminProtectedRoute>} />
+            <Route path="/private-class" element={<PrivateClassPage />} />
+            <Route path="/performance-workshops" element={<PerformanceWorkshopsPage />} />
+            <Route path="/class-schedules" element={<ClassSchedulesPage />} />
+            <Route path="/student-portal-info" element={<StudentPortalInfoPage />} />
+            <Route path="/registration-info" element={<RegistrationInfoPage />} />
+            <Route path="/blog" element={<BlogPage />} />
+            <Route path="/careers" element={<CareersPage />} />
             
             <Route 
               path="/dashboard/student" 

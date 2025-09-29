@@ -29,47 +29,45 @@ const AnimatedFooter: React.FC = () => {
   const footerSections = [
     {
       title: 'Quick Links',
-      items: quickLinks.map(link => ({ text: link.name, to: link.path }))
+      items: [
+        ...quickLinks.map(link => ({ text: link.name, to: link.path })),
+        { text: 'Careers', to: '/careers' }
+      ]
     },
     {
       title: 'Contact Us',
       items: [
-        { icon: <Phone className="w-4 h-4" />, text: '+1 (555) 123-4567' },
-        { icon: <Mail className="w-4 h-4" />, text: 'info@nadanaloga.com' },
-        { icon: <MapPin className="w-4 h-4" />, text: '123 Dance Street, Arts District, NY 10001' }
+        { text: 'Head Office Branch:', isHeader: true },
+        { icon: <MapPin className="w-4 h-4" />, text: 'Plot no3, VIT Serasa avenue, beside VIT College Ponmar, Mambakkam, Chennai, Tamil Nadu 600127' },
+        { icon: <Mail className="w-4 h-4" />, text: 'nadanalogaa@gmail.com' },
+        { icon: <Phone className="w-4 h-4" />, text: '+91 95668 66588, +91 95668 66538' },
+        { text: 'Branches:', isHeader: true },
+        { icon: <MapPin className="w-4 h-4" />, text: '4th St, Ayyappa Nagar, Sadasivam Nagar, Sembakkam Chennai, Tamil Nadu 600064' },
+        { icon: <Mail className="w-4 h-4" />, text: 'nadanalogaa@gmail.com' },
+        { icon: <Phone className="w-4 h-4" />, text: '+91 95668 66588, +91 78458 66588' }
       ]
     },
     {
       title: 'Programs',
       items: [
-        { text: 'Bharatanatyam Classes' },
-        { text: 'Kuchipudi Training' },
-        { text: 'Vocal Music' },
-        { text: 'Kids Programs' },
-        { text: 'Private Lessons' },
-        { text: 'Performance Workshops' }
-      ]
-    },
-    {
-      title: 'Academy',
-      items: [
-        { text: 'About Us' },
-        { text: 'Our Instructors' },
-        { text: 'Student Gallery' },
-        { text: 'Events & Performances' },
-        { text: 'Testimonials' },
-        { text: 'Careers' }
+        { text: 'Bharatanatyam Classes', to: '/courses' },
+        { text: 'Classical Dance for Adults', to: '/courses' },
+        { text: 'Vocal Music', to: '/courses' },
+        { text: 'Abacus Class', to: '/courses' },
+        { text: 'Phonics Class', to: '/courses' },
+        { text: 'One to One Class (Private Class)', to: '/private-class' },
+        { text: 'Performance Workshops', to: '/performance-workshops' }
       ]
     },
     {
       title: 'Resources',
       items: [
-        { text: 'Class Schedules' },
-        { text: 'Student Portal' },
-        { text: 'Registration' },
-        { text: 'FAQ' },
-        { text: 'Blog' },
-        { text: 'Support' }
+        { text: 'Class Schedules', to: '/class-schedules' },
+        { text: 'Student Portal', to: '/student-portal-info' },
+        { text: 'Registration', to: '/registration-info' },
+        { text: 'FAQ', to: '/faq' },
+        { text: 'Blog', to: '/blog' },
+        { text: 'Support', to: '/contact' }
       ]
     }
   ];
@@ -174,7 +172,9 @@ const AnimatedFooter: React.FC = () => {
                     <motion.li
                       key={itemIndex}
                       whileHover={{ x: 5 }}
-                      className="text-gray-300 hover:text-white transition-all duration-300 flex items-center gap-2"
+                      className={`text-gray-300 hover:text-white transition-all duration-300 flex items-center gap-2 ${
+                        item.isHeader ? 'font-semibold text-yellow-400 mt-4 mb-2' : ''
+                      }`}
                     >
                       {item.icon && item.icon}
                       {item.to ? (
