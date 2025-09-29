@@ -29,26 +29,15 @@ const AnimatedFooter: React.FC = () => {
   const footerSections = [
     {
       title: 'Quick Links',
+      layout: 'default',
       items: [
         ...quickLinks.map(link => ({ text: link.name, to: link.path })),
         { text: 'Careers', to: '/careers' }
       ]
     },
     {
-      title: 'Contact Us',
-      items: [
-        { text: 'Head Office Branch:', isHeader: true },
-        { icon: <MapPin className="w-4 h-4" />, text: 'Plot no3, VIT Serasa avenue, beside VIT College Ponmar, Mambakkam, Chennai, Tamil Nadu 600127' },
-        { icon: <Mail className="w-4 h-4" />, text: 'nadanalogaa@gmail.com' },
-        { icon: <Phone className="w-4 h-4" />, text: '+91 95668 66588, +91 95668 66538' },
-        { text: 'Branches:', isHeader: true },
-        { icon: <MapPin className="w-4 h-4" />, text: '4th St, Ayyappa Nagar, Sadasivam Nagar, Sembakkam Chennai, Tamil Nadu 600064' },
-        { icon: <Mail className="w-4 h-4" />, text: 'nadanalogaa@gmail.com' },
-        { icon: <Phone className="w-4 h-4" />, text: '+91 95668 66588, +91 78458 66588' }
-      ]
-    },
-    {
       title: 'Programs',
+      layout: 'default',
       items: [
         { text: 'Bharatanatyam Classes', to: '/courses' },
         { text: 'Classical Dance for Adults', to: '/courses' },
@@ -61,6 +50,7 @@ const AnimatedFooter: React.FC = () => {
     },
     {
       title: 'Resources',
+      layout: 'default',
       items: [
         { text: 'Class Schedules', to: '/class-schedules' },
         { text: 'Student Portal', to: '/student-portal-info' },
@@ -68,6 +58,20 @@ const AnimatedFooter: React.FC = () => {
         { text: 'FAQ', to: '/faq' },
         { text: 'Blog', to: '/blog' },
         { text: 'Support', to: '/contact' }
+      ]
+    },
+    {
+      title: 'Contact Us',
+      layout: 'contact',
+      items: [
+        { text: 'Head Office Branch:', isHeader: true },
+        { icon: <MapPin className="w-4 h-4" />, text: 'Plot no3, VIT Serasa avenue, beside VIT College Ponmar, Mambakkam, Chennai, Tamil Nadu 600127' },
+        { icon: <Mail className="w-4 h-4" />, text: 'nadanalogaa@gmail.com' },
+        { icon: <Phone className="w-4 h-4" />, text: '+91 95668 66588, +91 95668 66538' },
+        { text: 'Branches:', isHeader: true },
+        { icon: <MapPin className="w-4 h-4" />, text: '4th St, Ayyappa Nagar, Sadasivam Nagar, Sembakkam Chennai, Tamil Nadu 600064' },
+        { icon: <Mail className="w-4 h-4" />, text: 'nadanalogaa@gmail.com' },
+        { icon: <Phone className="w-4 h-4" />, text: '+91 95668 66588, +91 78458 66588' }
       ]
     }
   ];
@@ -162,7 +166,9 @@ const AnimatedFooter: React.FC = () => {
                 initial={{ opacity: 0, y: 30 }}
                 animate={inView ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.6, delay: 0.2 + index * 0.1 }}
-                className="space-y-4 max-w-xs sm:max-w-sm mx-auto sm:mx-0"
+                className={`space-y-4 max-w-xs sm:max-w-sm mx-auto sm:mx-0 ${
+                  section.layout === 'contact' ? 'lg:col-span-2 lg:max-w-2xl' : ''
+                }`}
               >
                 <h4 className="text-lg font-semibold text-yellow-400 mb-4">
                   {section.title}
@@ -171,7 +177,7 @@ const AnimatedFooter: React.FC = () => {
                   {section.items.map((item, itemIndex) => {
                     const baseClasses = item.isHeader
                       ? 'text-white font-semibold uppercase tracking-wide text-xs sm:text-sm mt-4 mb-1 text-left'
-                      : 'text-gray-300 hover:text-white transition-all duration-300 flex items-start gap-3 text-sm leading-relaxed text-left';
+                      : 'text-gray-300 hover:text-white transition-all duration-300 flex items-start gap-3 text-sm leading-relaxed text-left break-words';
 
                     return (
                       <motion.li
@@ -183,13 +189,13 @@ const AnimatedFooter: React.FC = () => {
                           <span className="mt-1 text-yellow-300">{item.icon}</span>
                         ) : null}
                         {item.isHeader ? (
-                          <span>{item.text}</span>
+                          <span className="w-full">{item.text}</span>
                         ) : item.to ? (
-                          <Link to={item.to} className="hover:text-white">
+                          <Link to={item.to} className="hover:text-white w-full">
                             {item.text}
                           </Link>
                         ) : (
-                          <span>{item.text}</span>
+                          <span className="w-full">{item.text}</span>
                         )}
                       </motion.li>
                     );
