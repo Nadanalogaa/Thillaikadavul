@@ -18,7 +18,6 @@ interface EnrollmentFormData {
   classMode: 'online' | 'offline';
   instrument?: string;
   customInstrument?: string;
-  honeypot?: string; // Spam detection honeypot field
 }
 
 const EnrollmentModal: React.FC<EnrollmentModalProps> = ({
@@ -35,14 +34,12 @@ const EnrollmentModal: React.FC<EnrollmentModalProps> = ({
     location: '',
     classMode: 'online',
     instrument: '',
-    customInstrument: '',
-    honeypot: '' // Honeypot field for spam detection
+    customInstrument: ''
   });
 
   const [errors, setErrors] = useState<Partial<EnrollmentFormData>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
-  const [formStartTime, setFormStartTime] = useState<number>(0);
 
   const instrumentOptions = [
     { value: 'violin', label: 'Violin' },
@@ -51,63 +48,12 @@ const EnrollmentModal: React.FC<EnrollmentModalProps> = ({
     { value: 'others', label: 'Others' }
   ];
 
-  // Track form start time for spam detection
-  useEffect(() => {
-    if (isOpen) {
-      setFormStartTime(Date.now());
-    }
-  }, [isOpen]);
-
-  // List of common disposable email domains
-  const disposableEmailDomains = [
-    '10minutemail.com', 'tempmail.org', 'guerrillamail.com', 'mailinator.com',
-    'yopmail.com', 'temp-mail.org', 'throwaway.email', 'getnada.com',
-    'maildrop.cc', 'sharklasers.com', 'grr.la', 'guerrillamailblock.com',
-    'pokemail.net', 'spam4.me', 'tempail.com', 'tempr.email',
-    'fakeinbox.com', 'mohmal.com', 'mailcatch.com', 'emailondeck.com'
-  ];
 
   const validateEmail = (email: string): { isValid: boolean; error?: string } => {
     // Basic format validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return { isValid: false, error: 'Please enter a valid email format' };
-    }
-
-    // Check for disposable email domains
-    const domain = email.split('@')[1]?.toLowerCase();
-    if (domain && disposableEmailDomains.includes(domain)) {
-      return { isValid: false, error: 'Please use a permanent email address (temporary emails not allowed)' };
-    }
-
-    // Check for suspicious patterns
-    const suspiciousPatterns = [
-      /^\d+@/,  // Starts with only numbers
-      /^test.*@/, // Starts with "test"
-      /^temp.*@/, // Starts with "temp"
-      /^fake.*@/, // Starts with "fake"
-      /^spam.*@/, // Starts with "spam"
-      /.*\+.*\+.*@/, // Multiple + signs
-    ];
-
-    for (const pattern of suspiciousPatterns) {
-      if (pattern.test(email.toLowerCase())) {
-        return { isValid: false, error: 'Please provide a valid personal or business email address' };
-      }
-    }
-
-    // Check for common typos in popular domains
-    const commonDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com'];
-    const possibleTypos = {
-      'gmial.com': 'gmail.com',
-      'gmai.com': 'gmail.com',
-      'yahooo.com': 'yahoo.com',
-      'hotmial.com': 'hotmail.com',
-      'outlok.com': 'outlook.com'
-    };
-
-    if (domain && possibleTypos[domain]) {
-      return { isValid: false, error: `Did you mean ${email.replace(domain, possibleTypos[domain])}?` };
     }
 
     return { isValid: true };
@@ -158,33 +104,6 @@ const EnrollmentModal: React.FC<EnrollmentModalProps> = ({
     return { isValid: true };
   };
 
-  const detectSuspiciousActivity = (): { isSuspicious: boolean; reason?: string } => {
-    // Check for rapid-fire typing patterns (too fast to be human)
-    const timeTaken = Date.now() - formStartTime;
-    const totalCharacters = Object.values(formData).join('').length;
-
-    if (totalCharacters > 0 && timeTaken > 0) {
-      const typingSpeed = (totalCharacters / timeTaken) * 1000 * 60; // Characters per minute
-      if (typingSpeed > 300) { // Faster than 300 characters per minute
-        return { isSuspicious: true, reason: 'Typing speed too fast' };
-      }
-    }
-
-    // Check for copy-paste patterns (identical values in different fields)
-    const values = [formData.name, formData.email, formData.location].filter(v => v.trim().length > 0);
-    const uniqueValues = new Set(values);
-    if (values.length > 1 && uniqueValues.size === 1) {
-      return { isSuspicious: true, reason: 'Identical values in multiple fields' };
-    }
-
-    // Check for random character sequences
-    const randomPattern = /^[a-z]{8,}$/i; // 8+ consecutive letters without spaces
-    if (randomPattern.test(formData.name.replace(/\s/g, ''))) {
-      return { isSuspicious: true, reason: 'Random character pattern in name' };
-    }
-
-    return { isSuspicious: false };
-  };
 
   const validateForm = (): boolean => {
     const newErrors: Partial<EnrollmentFormData> = {};
@@ -262,38 +181,6 @@ const EnrollmentModal: React.FC<EnrollmentModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Spam detection: Check honeypot field
-    if (formData.honeypot && formData.honeypot.trim() !== '') {
-      console.log('Spam detected: honeypot field filled');
-      return; // Silent fail for spam
-    }
-
-    // Spam detection: Check form completion time (should take at least 10 seconds)
-    const currentTime = Date.now();
-    const timeTaken = currentTime - formStartTime;
-    if (timeTaken < 10000) { // Less than 10 seconds
-      setErrors({ name: 'Please take time to fill the form properly' });
-      return;
-    }
-
-    // Check rate limiting (localStorage-based)
-    const lastSubmission = localStorage.getItem('lastEnrollmentSubmission');
-    if (lastSubmission) {
-      const timeSinceLastSubmission = currentTime - parseInt(lastSubmission);
-      if (timeSinceLastSubmission < 60000) { // Less than 1 minute
-        setErrors({ name: 'Please wait before submitting another enrollment request' });
-        return;
-      }
-    }
-
-    // Check for suspicious activity patterns
-    const suspiciousCheck = detectSuspiciousActivity();
-    if (suspiciousCheck.isSuspicious) {
-      console.log('Suspicious activity detected:', suspiciousCheck.reason);
-      setErrors({ name: 'Please fill the form naturally and try again' });
-      return;
-    }
-
     if (!validateForm()) {
       return;
     }
@@ -349,8 +236,6 @@ Security Note: All validations passed successfully.
 
       window.open(mailtoUrl);
 
-      // Update rate limiting timestamp
-      localStorage.setItem('lastEnrollmentSubmission', currentTime.toString());
 
       console.log('Enrollment submitted:', submissionData);
 
@@ -369,7 +254,6 @@ Security Note: All validations passed successfully.
           classMode: 'online',
           instrument: '',
           customInstrument: '',
-          honeypot: ''
         });
         setErrors({});
       }, 2000);
@@ -441,16 +325,6 @@ Security Note: All validations passed successfully.
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {/* Honeypot field - hidden from users but visible to bots */}
-              <input
-                type="text"
-                name="website"
-                value={formData.honeypot || ''}
-                onChange={(e) => handleInputChange('honeypot', e.target.value)}
-                style={{ display: 'none' }}
-                tabIndex={-1}
-                autoComplete="off"
-              />
 
               {/* Name */}
               <div>
