@@ -18,6 +18,7 @@ import {
   Mail,
   BookOpen
 } from 'lucide-react';
+import ClassScheduleSection from '../../components/common/ClassScheduleSection';
 
 const DrawingPage: React.FC = () => {
   const [ref, inView] = useInView({ threshold: 0.1, triggerOnce: true, initialInView: true });

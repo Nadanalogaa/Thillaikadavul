@@ -4,7 +4,15 @@ import { useInView } from 'react-intersection-observer';
 import { Star, Users, Clock, Calendar, Award, Music, Sparkles, Target } from 'lucide-react';
 
 const PerformanceWorkshopsPage: React.FC = () => {
-  const [ref, inView] = useInView({ threshold: 0.1 });
+  const [ref, inView] = useInView({ threshold: 0.1, triggerOnce: true, initialInView: true });
+  const [hasMounted, setHasMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    const id = requestAnimationFrame(() => setHasMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  const isContentVisible = hasMounted || inView;
 
   const workshops = [
     {
@@ -118,7 +126,7 @@ const PerformanceWorkshopsPage: React.FC = () => {
         <section className="mb-20">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
+            animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8 }}
             className="text-center mb-16"
           >
@@ -135,7 +143,7 @@ const PerformanceWorkshopsPage: React.FC = () => {
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 30 }}
-                animate={inView ? { opacity: 1, y: 0 } : {}}
+                animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.6, delay: index * 0.1 }}
                 className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-800 dark:to-gray-700 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-center"
               >
@@ -157,7 +165,7 @@ const PerformanceWorkshopsPage: React.FC = () => {
         <section className="mb-20">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
+            animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8 }}
             className="text-center mb-16"
           >
@@ -174,7 +182,7 @@ const PerformanceWorkshopsPage: React.FC = () => {
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 30 }}
-                animate={inView ? { opacity: 1, y: 0 } : {}}
+                animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.6, delay: index * 0.1 }}
                 className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300"
               >
@@ -227,7 +235,7 @@ const PerformanceWorkshopsPage: React.FC = () => {
         <section className="mb-20">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
+            animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8 }}
             className="text-center mb-16"
           >
@@ -244,7 +252,7 @@ const PerformanceWorkshopsPage: React.FC = () => {
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 30 }}
-                animate={inView ? { opacity: 1, y: 0 } : {}}
+                animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.6, delay: index * 0.1 }}
                 className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-800 dark:to-gray-700 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
               >
@@ -284,7 +292,7 @@ const PerformanceWorkshopsPage: React.FC = () => {
         <section>
           <motion.div
             initial={{ opacity: 0, y: 50 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
+            animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8 }}
             className="text-center bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl p-12 text-white"
           >
