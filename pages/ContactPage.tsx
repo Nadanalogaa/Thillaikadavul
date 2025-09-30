@@ -39,21 +39,21 @@ const ContactPage: React.FC = () => {
 
   const locations = [
     {
-      name: "Main Branch - Sembakkam",
-      address: "Nadanaloga Academy, Sembakkam Main Road, Chennai, Tamil Nadu 600073",
-      phone: "+91 98765 43210",
-      email: "sembakkam@nadanaloga.com",
+      name: "Main Branch",
+      address: "Plot no3, VIT Serasa avenue, beside VIT College Ponmar, Mambakkam, Chennai, Tamil Nadu 600127",
+      phone: "+91 95668 66588, +91 95668 66538",
+      email: "nadanalogaa@gmail.com",
       hours: "Mon - Sat: 9:00 AM - 8:00 PM",
-      mapUrl: "https://maps.google.com/?q=Nadanaloga+Sembakkam",
+      mapUrl: "https://maps.google.com/?q=Nadanaloga+Mambakkam+VIT+avenue",
       features: ['All Courses Available', 'Main Studio', 'Performance Hall', 'Parking Available']
     },
     {
-      name: "Branch - Mambakkam VIT Avenue",
-      address: "Nadanaloga Academy, VIT Avenue, Mambakkam, Chennai, Tamil Nadu 600127",
-      phone: "+91 98765 43211", 
-      email: "mambakkam@nadanaloga.com",
+      name: "Sembakkam Branch",
+      address: "4th St, Ayyappa Nagar, Sadasivam Nagar, Sembakkam Chennai, Tamil Nadu 600064",
+      phone: "+91 95668 66588, +91 78458 66588",
+      email: "nadanalogaa@gmail.com",
       hours: "Mon - Sat: 9:00 AM - 7:00 PM",
-      mapUrl: "https://maps.google.com/?q=Nadanaloga+Mambakkam+VIT+avenue",
+      mapUrl: "https://maps.google.com/?q=Nadanaloga+Sembakkam",
       features: ['Dance & Music', 'Modern Facilities', 'Easy Access', 'Student Parking']
     }
   ];
@@ -63,22 +63,22 @@ const ContactPage: React.FC = () => {
       icon: Phone,
       title: "Call Us",
       description: "Speak with our team",
-      value: "+91 98765 43210",
-      action: "tel:+919876543210"
+      value: "+91 95668 66588",
+      action: "tel:+919566866588"
     },
     {
       icon: Mail,
       title: "Email Us",
       description: "Send us a message",
-      value: "info@nadanaloga.com",
-      action: "mailto:info@nadanaloga.com"
+      value: "nadanalogaa@gmail.com",
+      action: "mailto:nadanalogaa@gmail.com"
     },
     {
       icon: MessageCircle,
       title: "WhatsApp",
       description: "Quick chat support",
       value: "Chat with us",
-      action: "https://wa.me/919876543210"
+      action: "https://wa.me/919566866588"
     }
   ];
 

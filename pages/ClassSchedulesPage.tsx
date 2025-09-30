@@ -104,7 +104,7 @@ const ClassSchedulesPage: React.FC = () => {
       name: 'Sembakkam Branch',
       address: '4th St, Ayyappa Nagar, Sadasivam Nagar, Sembakkam Chennai, Tamil Nadu 600064',
       facilities: ['Spacious classroom', 'Music room', 'Art supplies', 'Easy accessibility'],
-      contact: '+91 78458 66588'
+      contact: '+91 95668 66588, +91 78458 66588'
     }
   ];
 

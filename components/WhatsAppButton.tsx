@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { WhatsAppIcon, SendIcon, XIcon } from './icons';
 
 const WhatsAppButton: React.FC = () => {
-  const WHATSAPP_NUMBER = '919092908888';
+  const WHATSAPP_NUMBER = '919566866588';
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [message, setMessage] = useState('');
 

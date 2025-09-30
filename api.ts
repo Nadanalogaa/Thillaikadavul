@@ -423,9 +423,32 @@ const initializeBasicCourses = async (): Promise<Course[]> => {
 };
 
 export const submitContactForm = async (data: ContactFormData): Promise<{success: boolean}> => {
-  // Mock success for now
-  console.log('Contact form submitted:', data);
-  return { success: true };
+  try {
+    // Create mailto URL with the form data
+    const subject = encodeURIComponent(data.subject ? `Contact Form: ${data.subject}` : 'Contact Form Submission');
+    const body = encodeURIComponent(`
+Name: ${data.name}
+Email: ${data.email}
+Phone: ${data.phone || 'Not provided'}
+Subject: ${data.subject || 'General Inquiry'}
+
+Message:
+${data.message}
+
+---
+This message was sent from the Nadanaloga Fine Arts Academy contact form.
+    `);
+
+    // Open email client with pre-filled information
+    const mailtoUrl = `mailto:nadanalogaa@gmail.com?subject=${subject}&body=${body}`;
+    window.open(mailtoUrl);
+
+    console.log('Contact form submitted:', data);
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to submit contact form:', error);
+    throw new Error('Failed to send message. Please try again.');
+  }
 };
 
 // All other functions as placeholders to prevent errors
