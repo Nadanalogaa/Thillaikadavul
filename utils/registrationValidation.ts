@@ -211,47 +211,12 @@ export const validatePassword = (password: string, confirmPassword?: string): Fi
     return { isValid: false, error: 'Password is required' };
   }
 
-  if (password.length < 8) {
-    return { isValid: false, error: 'Password must be at least 8 characters long' };
+  if (password.length < 6) {
+    return { isValid: false, error: 'Password must be at least 6 characters long' };
   }
 
   if (password.length > 128) {
     return { isValid: false, error: 'Password is too long (maximum 128 characters)' };
-  }
-
-  // Check for password strength
-  const hasUpperCase = /[A-Z]/.test(password);
-  const hasLowerCase = /[a-z]/.test(password);
-  const hasNumbers = /\d/.test(password);
-  const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
-
-  const strengthChecks = [hasUpperCase, hasLowerCase, hasNumbers, hasSpecialChar];
-  const strengthScore = strengthChecks.filter(Boolean).length;
-
-  if (strengthScore < 3) {
-    return {
-      isValid: false,
-      error: 'Password must contain at least 3 of: uppercase letter, lowercase letter, number, special character'
-    };
-  }
-
-  // Check for common weak passwords
-  const commonPasswords = [
-    'password', 'password123', '123456', '12345678', 'qwerty', 'abc123',
-    'password1', 'admin123', 'welcome123', 'letmein', 'monkey123'
-  ];
-
-  if (commonPasswords.includes(password.toLowerCase())) {
-    return { isValid: false, error: 'This password is too common. Please choose a stronger password' };
-  }
-
-  // Check for sequential characters
-  if (/(.)\1{2,}/.test(password)) {
-    return { isValid: false, error: 'Password cannot contain more than 2 consecutive identical characters' };
-  }
-
-  if (/123|234|345|456|567|678|789|890|abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz/i.test(password)) {
-    return { isValid: false, error: 'Password cannot contain sequential characters' };
   }
 
   // Confirm password validation
@@ -259,12 +224,7 @@ export const validatePassword = (password: string, confirmPassword?: string): Fi
     return { isValid: false, error: 'Passwords do not match' };
   }
 
-  let warning = '';
-  if (strengthScore === 3) {
-    warning = 'Good password strength. Consider adding more character types for extra security.';
-  }
-
-  return { isValid: true, warning };
+  return { isValid: true };
 };
 
 export const validatePhoneNumber = (phone: string, country?: string): FieldValidationResult => {

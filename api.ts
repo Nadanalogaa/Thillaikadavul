@@ -622,15 +622,16 @@ export const registerUser = async (userData: Partial<User>[], sendEmails: boolea
             console.error('Failed to send registration emails:', emailError);
             // Don't fail the registration if emails fail
           }
+        }
 
-          // Also send in-app notifications
-          try {
-            // Get admin users for notification
-            const adminUsers = await notificationService.getAdminUsers();
-            const adminId = adminUsers.length > 0 ? adminUsers[0] : undefined;
+        // Also send in-app notifications
+        try {
+          // Get admin users for notification
+          const adminUsers = await notificationService.getAdminUsers();
+          const adminId = adminUsers.length > 0 ? adminUsers[0] : undefined;
 
-            // Convert database fields to User interface
-            const userForNotification: User = {
+          // Convert database fields to User interface
+          const userForNotification: User = {
               id: data.id,
               name: data.name,
               email: data.email,
@@ -658,11 +659,10 @@ export const registerUser = async (userData: Partial<User>[], sendEmails: boolea
               notes: data.notes
             };
 
-            await notificationService.notifyStudentRegistration(userForNotification, adminId);
-          } catch (notificationError) {
-            console.error('Failed to send in-app notification:', notificationError);
-            // Don't fail the registration if notification fails
-          }
+          await notificationService.notifyStudentRegistration(userForNotification, adminId);
+        } catch (notificationError) {
+          console.error('Failed to send in-app notification:', notificationError);
+          // Don't fail the registration if notification fails
         }
       }
 

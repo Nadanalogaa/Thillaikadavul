@@ -189,23 +189,90 @@ const EnrollmentModal: React.FC<EnrollmentModalProps> = ({
       const nameValidation = validateName(formData.name);
       const phoneValidation = validatePhoneNumber(formData.phone);
 
-      // Log enrollment data for admin to collect (in a real app, send to backend API)
-      console.log('🎓 New Enrollment Submitted:', {
-        course: courseTitle,
-        student: {
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          dateOfBirth: formData.dateOfBirth,
-          location: formData.location,
-          classMode: formData.classMode,
-          instrument: courseType === 'instrument' ? submissionData.finalInstrument : null
-        },
-        submittedAt: new Date().toISOString()
-      });
+      // Send enrollment email to admin
+      const emailBody = `
+New Course Enrollment Request
 
-      // In a real application, you would send this data to your backend API
-      // Example: await fetch('/api/enrollments', { method: 'POST', body: JSON.stringify(submissionData) })
+Course: ${courseTitle}
+${courseType === 'instrument' ? `Instrument: ${submissionData.finalInstrument}` : ''}
+
+Student Details:
+Name: ${formData.name}
+Email: ${formData.email}
+Phone: ${formData.phone}
+Date of Birth: ${formData.dateOfBirth}
+Location: ${formData.location}
+Preferred Mode: ${formData.classMode === 'online' ? 'Online Classes' : 'Offline Classes'}
+
+Submitted on: ${new Date().toLocaleString()}
+
+---
+This enrollment request was submitted through the Nadanaloga Fine Arts Academy website.
+      `;
+
+      // Send email to admin via backend API
+      try {
+        const response = await fetch('/api/send-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            to: 'nadanalogaa@gmail.com',
+            subject: `New Enrollment Request - ${courseTitle}`,
+            body: emailBody,
+            recipientName: 'Admin'
+          })
+        });
+
+        if (response.ok) {
+          console.log('Enrollment email sent successfully to admin');
+        } else {
+          console.error('Failed to send enrollment email to admin');
+        }
+      } catch (emailError) {
+        console.error('Error sending enrollment email:', emailError);
+      }
+
+      // Send confirmation email to student
+      try {
+        const confirmationBody = `
+Dear ${formData.name},
+
+Thank you for your enrollment request for ${courseTitle}!
+
+We have received your application and will contact you within 24 hours to confirm your enrollment and provide further details.
+
+Course Details:
+- Course: ${courseTitle}
+${courseType === 'instrument' ? `- Instrument: ${submissionData.finalInstrument}` : ''}
+- Preferred Mode: ${formData.classMode === 'online' ? 'Online Classes' : 'Offline Classes'}
+
+Best regards,
+Nadanaloga Fine Arts Academy Team
+        `;
+
+        const confirmationResponse = await fetch('/api/send-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            to: formData.email,
+            subject: `Enrollment Confirmation - ${courseTitle}`,
+            body: confirmationBody,
+            recipientName: formData.name
+          })
+        });
+
+        if (confirmationResponse.ok) {
+          console.log('Confirmation email sent successfully to student');
+        } else {
+          console.error('Failed to send confirmation email to student');
+        }
+      } catch (confirmationError) {
+        console.error('Error sending confirmation email:', confirmationError);
+      }
 
 
       console.log('Enrollment submitted:', submissionData);
