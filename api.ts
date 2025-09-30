@@ -2,7 +2,7 @@ import type { User, ContactFormData, Course, DashboardStats, Notification, Batch
 import { UserRole, ClassPreference } from './types';
 import { supabase } from './src/lib/supabase.js';
 import { notificationService } from './services/notificationService';
-import { sendEmailViaService } from './utils/emailService';
+// Removed local email service import - using backend SMTP
 
 // Simple session management
 let currentUser: User | null = null;
@@ -591,35 +591,32 @@ export const registerUser = async (userData: Partial<User>[], sendEmails: boolea
         }
         data = supabaseData;
 
-        // Send registration emails for students
+        // Send registration emails for students via backend SMTP
         if (sendEmails && data.role === 'Student') {
           try {
-            // Send emails via local email service
-            const emailResponse = await sendEmailViaService({
-              to: data.email,
-              subject: `Welcome to Nadanaloga Academy - Registration Confirmed`,
-              body: `Dear ${data.name},
-
-Welcome to Nadanaloga Fine Arts Academy!
-
-Your registration has been confirmed with the following details:
-- Name: ${data.name}
-- Email: ${data.email}
-- Courses: ${(data.courses || []).join(', ')}
-- Contact: ${data.contact_number}
-- Address: ${data.address}
-
-We're excited to have you join our academy family!
-
-Best regards,
-Nadanaloga Academy Team`,
-              recipientName: data.name
+            const response = await fetch('/api/send-registration-emails', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                userName: data.name,
+                userEmail: data.email,
+                courses: data.courses || [],
+                contactNumber: data.contact_number,
+                fatherName: data.father_name,
+                standard: data.standard,
+                schoolName: data.school_name,
+                address: data.address,
+                dateOfJoining: data.date_of_joining,
+                notes: data.notes
+              })
             });
 
-            if (emailResponse.ok) {
+            if (response.ok) {
               console.log('Registration emails sent successfully');
             } else {
-              console.error('Failed to send registration emails:', await emailResponse.text());
+              console.error('Failed to send registration emails:', response.statusText);
             }
           } catch (emailError) {
             console.error('Failed to send registration emails:', emailError);
@@ -3485,14 +3482,20 @@ const sendEmailNotifications = async (userIds: string[], subject: string, messag
       return;
     }
 
-    // Send email to each user via local email service
+    // Send email to each user via backend SMTP
     const emailPromises = users.map(async (user) => {
       try {
-        const response = await sendEmailViaService({
-          to: user.email,
-          subject: subject,
-          body: message,
-          recipientName: user.name
+        const response = await fetch('/api/send-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            to: user.email,
+            subject: subject,
+            body: message,
+            recipientName: user.name
+          })
         });
 
         if (!response.ok) {

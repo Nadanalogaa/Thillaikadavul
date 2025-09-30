@@ -19,9 +19,10 @@ export class EmailService {
 
       console.log('📧 Email Content:', emailData.body);
 
-      // Open mailto for actual email sending via user's email client
-      const mailtoUrl = `mailto:${emailData.to}?subject=${encodeURIComponent(emailData.subject)}&body=${encodeURIComponent(emailData.body)}`;
-      window.open(mailtoUrl);
+      // In development, you can optionally open mailto (but this can be annoying)
+      // Uncomment the next 3 lines if you want mailto functionality
+      // const mailtoUrl = `mailto:${emailData.to}?subject=${encodeURIComponent(emailData.subject)}&body=${encodeURIComponent(emailData.body)}`;
+      // window.open(mailtoUrl);
 
       return {
         success: true,
