@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import {
@@ -16,9 +16,19 @@ import {
   BookOpen,
   AlertCircle
 } from 'lucide-react';
+import EnrollmentModal from '../components/EnrollmentModal';
 
 const RegistrationInfoPage: React.FC = () => {
   const [ref, inView] = useInView({ threshold: 0.1 });
+  const [enrollmentModal, setEnrollmentModal] = useState<{
+    isOpen: boolean;
+    courseTitle: string;
+    courseType: 'instrument' | 'regular';
+  }>({
+    isOpen: false,
+    courseTitle: 'General Registration',
+    courseType: 'regular'
+  });
 
   const registrationSteps = [
     {
@@ -169,6 +179,22 @@ const RegistrationInfoPage: React.FC = () => {
       icon: <Award className="w-6 h-6" />
     }
   ];
+
+  const handleEnrollClick = (courseTitle: string, courseType: 'instrument' | 'regular') => {
+    setEnrollmentModal({
+      isOpen: true,
+      courseTitle,
+      courseType
+    });
+  };
+
+  const closeEnrollmentModal = () => {
+    setEnrollmentModal({
+      isOpen: false,
+      courseTitle: 'General Registration',
+      courseType: 'regular'
+    });
+  };
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
@@ -448,6 +474,15 @@ const RegistrationInfoPage: React.FC = () => {
               Contact us today to begin your registration process and join our community of passionate learners.
             </p>
             <div className="flex flex-wrap justify-center gap-4 mb-8">
+              <motion.button
+                onClick={() => handleEnrollClick('General Registration', 'regular')}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-yellow-400 text-purple-900 px-8 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2"
+              >
+                <UserPlus className="w-5 h-5" />
+                Enroll Now
+              </motion.button>
               <motion.a
                 href="tel:+919566866588"
                 whileHover={{ scale: 1.05 }}
@@ -478,6 +513,14 @@ const RegistrationInfoPage: React.FC = () => {
           </motion.div>
         </section>
       </div>
+
+      {/* Enrollment Modal */}
+      <EnrollmentModal
+        isOpen={enrollmentModal.isOpen}
+        onClose={closeEnrollmentModal}
+        courseTitle={enrollmentModal.courseTitle}
+        courseType={enrollmentModal.courseType}
+      />
     </div>
   );
 };

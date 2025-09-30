@@ -1,12 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { useNavigate } from 'react-router-dom';
-import { Clock, Users, Star, ArrowRight } from 'lucide-react';
+import { Clock, ArrowRight } from 'lucide-react';
+import EnrollmentModal from '../EnrollmentModal';
 
 const CoursesSection: React.FC = () => {
   const [ref, inView] = useInView({ threshold: 0.1 });
   const navigate = useNavigate();
+  const [enrollmentModal, setEnrollmentModal] = useState<{
+    isOpen: boolean;
+    courseTitle: string;
+    courseType: 'instrument' | 'regular';
+  }>({
+    isOpen: false,
+    courseTitle: '',
+    courseType: 'regular'
+  });
 
   const courses = [
     {
@@ -14,79 +24,99 @@ const CoursesSection: React.FC = () => {
       description: 'Learn the basic postures, hand gestures, and movements of this classical dance form',
       image: '/danceImages/responsive/large/DSC03395_DxO.webp',
       duration: '3 Months',
-      students: '25',
       level: 'Beginner',
-      rating: 4.9,
       features: ['Basic Adavus', 'Hand Gestures', 'Posture Training', 'Cultural Context'],
-      price: '$120'
+      type: 'regular' as const
     },
     {
       title: 'Advanced Bharatanatyam',
       description: 'Master complex choreographies and expressive storytelling through dance',
       image: '/danceImages/responsive/large/EGM_7524_DxO.webp',
       duration: '6 Months',
-      students: '15',
       level: 'Advanced',
-      rating: 4.8,
       features: ['Complex Choreography', 'Abhinaya', 'Performance Skills', 'Competition Prep'],
-      price: '$200'
+      type: 'regular' as const
     },
     {
       title: 'Drawing Classes',
       description: 'Develop your artistic skills through structured drawing lessons and creative expression',
       image: '/danceImages/responsive/large/EGM_7698_DxO.webp',
       duration: '4 Months',
-      students: '22',
       level: 'All Levels',
-      rating: 4.8,
       features: ['Basic Sketching', 'Color Theory', 'Creative Expression', 'Portfolio Development'],
-      price: '$120'
+      type: 'regular' as const
     },
     {
       title: 'Vocal Music Classes',
       description: 'Learn classical Carnatic music to complement your dance training',
       image: '/danceImages/responsive/large/PRAP3795_DxO.webp',
       duration: '6 Months',
-      students: '20',
       level: 'All Levels',
-      rating: 4.9,
       features: ['Carnatic Basics', 'Ragas', 'Compositions', 'Voice Training'],
-      price: '$100'
-    },
-    {
-      title: 'Kids Dance Program',
-      description: 'Fun and engaging introduction to classical dance for children ages 5-12',
-      image: '/danceImages/responsive/large/DSC07875~2.webp',
-      duration: '2 Months',
-      students: '30',
-      level: 'Kids',
-      rating: 5.0,
-      features: ['Age-appropriate', 'Fun Activities', 'Cultural Education', 'Performance Opportunities'],
-      price: '$80'
+      type: 'regular' as const
     },
     {
       title: 'Abacus Classes',
       description: 'Enhance mathematical skills and mental calculation abilities through traditional abacus training',
       image: '/danceImages/responsive/large/EGM_7745_DxO.webp',
       duration: '6 Months',
-      students: '25',
       level: 'All Levels',
-      rating: 4.9,
       features: ['Mental Math', 'Speed Calculation', 'Concentration Training', 'Problem Solving'],
-      price: '$90'
+      type: 'regular' as const
     },
     {
       title: 'Phonics Classes',
       description: 'Build strong reading foundations with systematic phonics instruction for early learners',
       image: '/danceImages/responsive/large/DSC03395_DxO.webp',
       duration: '4 Months',
-      students: '20',
       level: 'Beginner',
-      rating: 4.9,
       features: ['Letter Sounds', 'Reading Skills', 'Pronunciation', 'Language Development'],
-      price: '$100'
+      type: 'regular' as const
+    },
+    {
+      title: 'Private Classes',
+      description: 'Personalized one-on-one instruction tailored to your individual learning pace and goals',
+      image: '/danceImages/responsive/large/EGM_7524_DxO.webp',
+      duration: 'Flexible',
+      level: 'All Levels',
+      features: ['Personalized Attention', 'Flexible Schedule', 'Customized Curriculum', 'Faster Progress'],
+      type: 'regular' as const
+    },
+    {
+      title: 'Instrument Classes',
+      description: 'Learn to play traditional and modern instruments with expert guidance',
+      image: '/danceImages/responsive/large/PRAP3795_DxO.webp',
+      duration: '6 Months',
+      level: 'All Levels',
+      features: ['Multiple Instruments', 'Professional Training', 'Music Theory', 'Performance Skills'],
+      type: 'instrument' as const
+    },
+    {
+      title: 'Yoga Classes',
+      description: 'Enhance flexibility, mindfulness, and overall well-being through traditional yoga practices',
+      image: '/danceImages/responsive/large/DSC07875~2.webp',
+      duration: '3 Months',
+      level: 'All Levels',
+      features: ['Asanas & Pranayama', 'Meditation', 'Flexibility Training', 'Stress Relief'],
+      type: 'regular' as const
     }
   ];
+
+  const handleEnrollClick = (courseTitle: string, courseType: 'instrument' | 'regular') => {
+    setEnrollmentModal({
+      isOpen: true,
+      courseTitle,
+      courseType
+    });
+  };
+
+  const closeEnrollmentModal = () => {
+    setEnrollmentModal({
+      isOpen: false,
+      courseTitle: '',
+      courseType: 'regular'
+    });
+  };
 
   return (
     <section className="py-20 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-gray-900" ref={ref}>
@@ -128,9 +158,6 @@ const CoursesSection: React.FC = () => {
                 <div className="absolute top-4 right-4 bg-white dark:bg-gray-800 px-3 py-1 rounded-full text-sm font-semibold text-indigo-600 dark:text-indigo-400">
                   {course.level}
                 </div>
-                <div className="absolute bottom-4 left-4 bg-black/70 text-white px-3 py-1 rounded-full text-sm">
-                  {course.price}/month
-                </div>
               </div>
 
               {/* Course Content */}
@@ -145,20 +172,10 @@ const CoursesSection: React.FC = () => {
                   {course.description}
                 </p>
 
-                {/* Course Stats */}
-                <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    {course.duration}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Users className="w-4 h-4" />
-                    {course.students} students
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    {course.rating}
-                  </div>
+                {/* Course Duration */}
+                <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mb-4">
+                  <Clock className="w-4 h-4 mr-2" />
+                  Duration: {course.duration}
                 </div>
 
                 {/* Course Features */}
@@ -180,6 +197,7 @@ const CoursesSection: React.FC = () => {
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
+                  onClick={() => handleEnrollClick(course.title, course.type)}
                   className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-4 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2 group"
                 >
                   Enroll Now
@@ -210,6 +228,14 @@ const CoursesSection: React.FC = () => {
           </p>
         </motion.div>
       </div>
+
+      {/* Enrollment Modal */}
+      <EnrollmentModal
+        isOpen={enrollmentModal.isOpen}
+        onClose={closeEnrollmentModal}
+        courseTitle={enrollmentModal.courseTitle}
+        courseType={enrollmentModal.courseType}
+      />
     </section>
   );
 };
