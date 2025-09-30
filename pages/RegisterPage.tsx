@@ -8,12 +8,24 @@ import { XCircleIcon } from '../components/icons';
 import { COUNTRIES, TIMEZONES, WEEKDAY_MAP } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
-import { 
+import {
     Users, BookOpen, Clock, MapPin, Phone, Mail, User as UserIcon,
     ChevronLeft, ChevronRight, Check, X, Eye, EyeOff, ArrowRight,
-    Sparkles, Star, Heart, Globe
+    Sparkles, Star, Heart, Globe, AlertTriangle, CheckCircle2
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+import {
+  validateFullName,
+  validateEmail as validateEmailField,
+  validatePassword,
+  validatePhoneNumber,
+  validateAddress,
+  validateCity,
+  validateState,
+  validatePostalCode,
+  validateRegistrationForm,
+  type FieldValidationResult
+} from '../utils/registrationValidation';
 
 interface RegisterPageProps {
   onLoginNeeded: (email: string) => void;
@@ -36,11 +48,20 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
         isValid: boolean | null;
         message: string | null;
     }>({ isChecking: false, isValid: null, message: null });
-    
+
     const [timezoneValidation, setTimezoneValidation] = useState<{
         isValid: boolean;
         warning: string;
     }>({ isValid: true, warning: '' });
+
+    // Field validation states
+    const [fieldValidations, setFieldValidations] = useState<{
+        [key: string]: FieldValidationResult;
+    }>({});
+
+    const [showPasswordStrength, setShowPasswordStrength] = useState(false);
+    const [passwordVisible, setPasswordVisible] = useState(false);
+    const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
     
     // Guardian & Student Form State
     const [guardianData, setGuardianData] = useState({ 
@@ -110,19 +131,81 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
     // Helper function to validate country/timezone consistency
     const validateCountryTimezone = (country: string, timezone: string): { isValid: boolean; warning: string } => {
         const expectedCountry = getSuggestedCountry(timezone);
-        
+
         if (!expectedCountry || !country) {
             return { isValid: true, warning: '' };
         }
-        
+
         if (country !== expectedCountry) {
-            return { 
-                isValid: false, 
-                warning: `You selected ${country} but ${timezone.split('/')[1]?.replace('_', ' ')} timezone. Are you currently in ${expectedCountry}?` 
+            return {
+                isValid: false,
+                warning: `You selected ${country} but ${timezone.split('/')[1]?.replace('_', ' ')} timezone. Are you currently in ${expectedCountry}?`
             };
         }
-        
+
         return { isValid: true, warning: '' };
+    };
+
+    // Helper function to get validation styling for inputs
+    const getValidationStyle = (fieldName: string, theme: string) => {
+        const validation = fieldValidations[fieldName];
+        if (!validation) return '';
+
+        const baseStyle = theme === 'dark'
+            ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400'
+            : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white';
+
+        if (validation.isValid === false) {
+            return theme === 'dark'
+                ? 'bg-red-900/20 border-red-500 text-white placeholder-gray-400 focus:border-red-400'
+                : 'bg-red-50 border-red-300 text-gray-900 placeholder-gray-500 focus:border-red-500';
+        } else if (validation.isValid === true && !validation.warning) {
+            return theme === 'dark'
+                ? 'bg-green-900/20 border-green-500 text-white placeholder-gray-400 focus:border-green-400'
+                : 'bg-green-50 border-green-300 text-gray-900 placeholder-gray-500 focus:border-green-500';
+        }
+
+        return baseStyle;
+    };
+
+    // Helper function to render validation message
+    const renderValidationMessage = (fieldName: string) => {
+        const validation = fieldValidations[fieldName];
+        if (!validation || (!validation.error && !validation.warning)) return null;
+
+        return (
+            <motion.p
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`text-xs mt-1 flex items-center gap-1 ${
+                    validation.error ? 'text-red-600' : 'text-amber-600'
+                }`}
+            >
+                {validation.error ? <X className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                {validation.error || validation.warning}
+            </motion.p>
+        );
+    };
+
+    // Password strength calculator
+    const getPasswordStrength = (password: string) => {
+        if (!password) return { score: 0, label: '', color: '' };
+
+        let score = 0;
+        const checks = {
+            length: password.length >= 8,
+            lowercase: /[a-z]/.test(password),
+            uppercase: /[A-Z]/.test(password),
+            numbers: /\d/.test(password),
+            symbols: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+        };
+
+        score = Object.values(checks).filter(Boolean).length;
+
+        if (score <= 2) return { score, label: 'Weak', color: 'text-red-500' };
+        if (score === 3) return { score, label: 'Fair', color: 'text-amber-500' };
+        if (score === 4) return { score, label: 'Good', color: 'text-blue-500' };
+        return { score, label: 'Strong', color: 'text-green-500' };
     };
 
     // Auto-select first available course tab when data loads
@@ -193,6 +276,47 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
         };
     }, []);
 
+    // Real-time field validation helper
+    const validateField = (fieldName: string, value: string, additionalParams?: any) => {
+        let validation: FieldValidationResult = { isValid: true };
+
+        switch (fieldName) {
+            case 'name':
+                validation = validateFullName(value);
+                break;
+            case 'email':
+                validation = validateEmailField(value);
+                break;
+            case 'password':
+                validation = validatePassword(value, additionalParams?.confirmPassword);
+                break;
+            case 'contactNumber':
+                validation = validatePhoneNumber(value, additionalParams?.country);
+                break;
+            case 'address':
+                validation = validateAddress(value);
+                break;
+            case 'city':
+                validation = validateCity(value);
+                break;
+            case 'state':
+                validation = validateState(value);
+                break;
+            case 'postalCode':
+                validation = validatePostalCode(value, additionalParams?.country || '');
+                break;
+            default:
+                break;
+        }
+
+        setFieldValidations(prev => ({
+            ...prev,
+            [fieldName]: validation
+        }));
+
+        return validation;
+    };
+
     // Email validation with debouncing
     const validateEmail = async (email: string, isTeacher: boolean = false) => {
         if (!email.trim() || !email.includes('@')) {
@@ -226,34 +350,72 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
         }
     };
 
-    // Form handlers (keeping existing logic but simplified)
+    // Form handlers with enhanced validation
     const handleGuardianChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         const newGuardianData = { ...guardianData, [name]: value };
         setGuardianData(newGuardianData);
-        
-        // Validate country/timezone consistency
-        if (name === 'country' || name === 'timezone') {
-            const country = name === 'country' ? value : newGuardianData.country;
-            const timezone = name === 'timezone' ? value : newGuardianData.timezone;
-            
-            if (country && timezone) {
-                const validation = validateCountryTimezone(country, timezone);
-                setTimezoneValidation(validation);
-            }
+
+        // Real-time field validation
+        if (['name', 'contactNumber', 'address', 'city', 'state', 'postalCode'].includes(name)) {
+            validateField(name, value, {
+                country: newGuardianData.country,
+                confirmPassword: name === 'password' ? passwordConfirmation : undefined
+            });
         }
-        
-        // Debounced email validation
+
+        // Special handling for password
+        if (name === 'password') {
+            setShowPasswordStrength(value.length > 0);
+            validateField('password', value, { confirmPassword: passwordConfirmation });
+        }
+
+        // Email validation (both format and availability)
         if (name === 'email') {
+            // First validate format
+            validateField('email', value);
+
+            // Then check availability with debouncing
             if (emailCheckTimeoutRef.current) {
                 clearTimeout(emailCheckTimeoutRef.current);
             }
             emailCheckTimeoutRef.current = setTimeout(() => {
                 validateEmail(value, false);
-            }, 1200); // Increased debounce time for better performance
+            }, 1200);
+        }
+
+        // Validate country/timezone consistency
+        if (name === 'country' || name === 'timezone') {
+            const country = name === 'country' ? value : newGuardianData.country;
+            const timezone = name === 'timezone' ? value : newGuardianData.timezone;
+
+            if (country && timezone) {
+                const validation = validateCountryTimezone(country, timezone);
+                setTimezoneValidation(validation);
+            }
+
+            // Re-validate postal code when country changes
+            if (name === 'country' && newGuardianData.postalCode) {
+                validateField('postalCode', newGuardianData.postalCode, { country: value });
+            }
         }
     };
-    
+
+    // Password confirmation handler
+    const handlePasswordConfirmationChange = (value: string, isTeacher: boolean = false) => {
+        if (isTeacher) {
+            setTeacherPasswordConfirmation(value);
+            if (teacherData.password) {
+                validateField('password', teacherData.password, { confirmPassword: value });
+            }
+        } else {
+            setPasswordConfirmation(value);
+            if (guardianData.password) {
+                validateField('password', guardianData.password, { confirmPassword: value });
+            }
+        }
+    };
+
     const handleStudentDataChange = (index: number, field: keyof User, value: any) => setStudents(prev => {
         const newStudents = [...prev];
         const student = { ...newStudents[index], [field]: value };
@@ -285,28 +447,51 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
         if (name === 'classPreference' && value !== ClassPreference.Offline) {
             delete newTeacherData.locationId;
         }
-        
+
+        // Real-time field validation for teachers
+        if (['name', 'contactNumber', 'address', 'city', 'state', 'postalCode'].includes(name)) {
+            validateField(name, value, {
+                country: newTeacherData.country,
+                confirmPassword: name === 'password' ? teacherPasswordConfirmation : undefined
+            });
+        }
+
+        // Special handling for password
+        if (name === 'password') {
+            setShowPasswordStrength(value.length > 0);
+            validateField('password', value, { confirmPassword: teacherPasswordConfirmation });
+        }
+
         // Validate country/timezone consistency for teachers too
         if (name === 'country' || name === 'timezone') {
             const country = name === 'country' ? value : newTeacherData.country;
             const timezone = name === 'timezone' ? value : newTeacherData.timezone;
-            
+
             if (country && timezone) {
                 const validation = validateCountryTimezone(country, timezone);
                 setTimezoneValidation(validation);
             }
+
+            // Re-validate postal code when country changes
+            if (name === 'country' && newTeacherData.postalCode) {
+                validateField('postalCode', newTeacherData.postalCode, { country: value });
+            }
         }
-        
+
         setTeacherData(newTeacherData);
-        
-        // Debounced email validation for teachers
+
+        // Email validation (both format and availability)
         if (name === 'email') {
+            // First validate format
+            validateField('email', value);
+
+            // Then check availability with debouncing
             if (emailCheckTimeoutRef.current) {
                 clearTimeout(emailCheckTimeoutRef.current);
             }
             emailCheckTimeoutRef.current = setTimeout(() => {
                 validateEmail(value, true);
-            }, 1200); // Increased debounce time for better performance
+            }, 1200);
         }
     };
 
@@ -803,18 +988,20 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                             <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${
                                                 theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
                                             }`}>Full Name</label>
-                                            <input 
-                                                name="name" 
-                                                value={registrationType === 'student' ? guardianData.name : teacherData.name || ''} 
-                                                onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
-                                                required 
+                                            <input
+                                                name="name"
+                                                value={registrationType === 'student' ? guardianData.name : teacherData.name || ''}
+                                                onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange}
+                                                required
                                                 className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${
-                                                    theme === 'dark'
+                                                    getValidationStyle('name', theme) ||
+                                                    (theme === 'dark'
                                                         ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400'
-                                                        : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'
+                                                        : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white')
                                                 }`}
                                                 placeholder="Enter your full name"
                                             />
+                                            {renderValidationMessage('name')}
                                         </motion.div>
                                         <motion.div
                                             initial={{ opacity: 0, y: 20 }}
@@ -856,38 +1043,103 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                         </motion.div>
                                         <div>
                                             <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Password</label>
-                                            <input 
-                                                name="password" 
-                                                type="password" 
-                                                value={registrationType === 'student' ? guardianData.password : teacherData.password || ''} 
-                                                onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
-                                                required 
-                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'}`}
-                                                placeholder="Minimum 6 characters"
-                                            />
+                                            <div className="relative">
+                                                <input
+                                                    name="password"
+                                                    type={passwordVisible ? "text" : "password"}
+                                                    value={registrationType === 'student' ? guardianData.password : teacherData.password || ''}
+                                                    onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange}
+                                                    required
+                                                    className={`w-full px-4 py-3 pr-10 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${
+                                                        getValidationStyle('password', theme) ||
+                                                        (theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white')
+                                                    }`}
+                                                    placeholder="Minimum 6 characters"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setPasswordVisible(!passwordVisible)}
+                                                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                                >
+                                                    {passwordVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                </button>
+                                            </div>
+                                            {showPasswordStrength && (
+                                                <div className="mt-2">
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <span className="text-xs text-gray-500">Password strength:</span>
+                                                        <span className={`text-xs font-medium ${getPasswordStrength(registrationType === 'student' ? guardianData.password : teacherData.password || '').color}`}>
+                                                            {getPasswordStrength(registrationType === 'student' ? guardianData.password : teacherData.password || '').label}
+                                                        </span>
+                                                    </div>
+                                                    <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                                        <div
+                                                            className={`h-1.5 rounded-full transition-all duration-300 ${
+                                                                getPasswordStrength(registrationType === 'student' ? guardianData.password : teacherData.password || '').score <= 2 ? 'bg-red-500' :
+                                                                getPasswordStrength(registrationType === 'student' ? guardianData.password : teacherData.password || '').score === 3 ? 'bg-amber-500' :
+                                                                getPasswordStrength(registrationType === 'student' ? guardianData.password : teacherData.password || '').score === 4 ? 'bg-blue-500' : 'bg-green-500'
+                                                            }`}
+                                                            style={{ width: `${(getPasswordStrength(registrationType === 'student' ? guardianData.password : teacherData.password || '').score / 5) * 100}%` }}
+                                                        ></div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {renderValidationMessage('password')}
                                         </div>
                                         <div>
                                             <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Confirm Password</label>
-                                            <input 
-                                                type="password" 
-                                                value={registrationType === 'student' ? passwordConfirmation : teacherPasswordConfirmation} 
-                                                onChange={(e) => registrationType === 'student' ? setPasswordConfirmation(e.target.value) : setTeacherPasswordConfirmation(e.target.value)} 
-                                                required 
-                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'}`}
-                                                placeholder="Re-enter password"
-                                            />
+                                            <div className="relative">
+                                                <input
+                                                    type={confirmPasswordVisible ? "text" : "password"}
+                                                    value={registrationType === 'student' ? passwordConfirmation : teacherPasswordConfirmation}
+                                                    onChange={(e) => handlePasswordConfirmationChange(e.target.value, registrationType === 'teacher')}
+                                                    required
+                                                    className={`w-full px-4 py-3 pr-10 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${
+                                                        getValidationStyle('password', theme) ||
+                                                        (theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white')
+                                                    }`}
+                                                    placeholder="Re-enter password"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setConfirmPasswordVisible(!confirmPasswordVisible)}
+                                                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                                >
+                                                    {confirmPasswordVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                </button>
+                                            </div>
+                                            {/* Password match indicator */}
+                                            {(passwordConfirmation || teacherPasswordConfirmation) && (
+                                                <div className="mt-1 flex items-center gap-1">
+                                                    {(registrationType === 'student' ? guardianData.password === passwordConfirmation : teacherData.password === teacherPasswordConfirmation) ? (
+                                                        <>
+                                                            <CheckCircle2 className="w-3 h-3 text-green-500" />
+                                                            <span className="text-xs text-green-600">Passwords match</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <X className="w-3 h-3 text-red-500" />
+                                                            <span className="text-xs text-red-600">Passwords don't match</span>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                         <div>
                                             <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Contact Number</label>
-                                            <input 
-                                                name="contactNumber" 
-                                                type="tel" 
-                                                value={registrationType === 'student' ? guardianData.contactNumber : teacherData.contactNumber || ''} 
-                                                onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
-                                                required 
-                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'}`}
+                                            <input
+                                                name="contactNumber"
+                                                type="tel"
+                                                value={registrationType === 'student' ? guardianData.contactNumber : teacherData.contactNumber || ''}
+                                                onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange}
+                                                required
+                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${
+                                                    getValidationStyle('contactNumber', theme) ||
+                                                    (theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white')
+                                                }`}
                                                 placeholder="+1 234 567 8900"
                                             />
+                                            {renderValidationMessage('contactNumber')}
                                         </div>
                                         <div>
                                             <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Country</label>
@@ -907,50 +1159,66 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div>
                                             <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>State/Province</label>
-                                            <input 
-                                                name="state" 
-                                                value={registrationType === 'student' ? guardianData.state : teacherData.state || ''} 
-                                                onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
-                                                required 
-                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'}`}
+                                            <input
+                                                name="state"
+                                                value={registrationType === 'student' ? guardianData.state : teacherData.state || ''}
+                                                onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange}
+                                                required
+                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${
+                                                    getValidationStyle('state', theme) ||
+                                                    (theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white')
+                                                }`}
                                                 placeholder="State/Province"
                                             />
+                                            {renderValidationMessage('state')}
                                         </div>
                                         <div>
                                             <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>City</label>
-                                            <input 
-                                                name="city" 
-                                                value={registrationType === 'student' ? guardianData.city : teacherData.city || ''} 
-                                                onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
-                                                required 
-                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'}`}
+                                            <input
+                                                name="city"
+                                                value={registrationType === 'student' ? guardianData.city : teacherData.city || ''}
+                                                onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange}
+                                                required
+                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${
+                                                    getValidationStyle('city', theme) ||
+                                                    (theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white')
+                                                }`}
                                                 placeholder="City"
                                             />
+                                            {renderValidationMessage('city')}
                                         </div>
                                         <div>
                                             <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Postal Code</label>
-                                            <input 
-                                                name="postalCode" 
-                                                value={registrationType === 'student' ? guardianData.postalCode : teacherData.postalCode || ''} 
-                                                onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
-                                                required 
-                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'}`}
+                                            <input
+                                                name="postalCode"
+                                                value={registrationType === 'student' ? guardianData.postalCode : teacherData.postalCode || ''}
+                                                onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange}
+                                                required
+                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${
+                                                    getValidationStyle('postalCode', theme) ||
+                                                    (theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white')
+                                                }`}
                                                 placeholder="12345"
                                             />
+                                            {renderValidationMessage('postalCode')}
                                         </div>
                                     </div>
 
                                     <div>
                                         <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Address</label>
-                                        <textarea 
-                                            name="address" 
-                                            value={registrationType === 'student' ? guardianData.address : teacherData.address || ''} 
-                                            onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange} 
-                                            required 
-                                            className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 resize-none ${theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white'}`} 
+                                        <textarea
+                                            name="address"
+                                            value={registrationType === 'student' ? guardianData.address : teacherData.address || ''}
+                                            onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange}
+                                            required
+                                            className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 resize-none ${
+                                                getValidationStyle('address', theme) ||
+                                                (theme === 'dark' ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white')
+                                            }`}
                                             rows={3}
                                             placeholder="Enter your complete address"
                                         />
+                                        {renderValidationMessage('address')}
                                     </div>
 
                                     <div>
