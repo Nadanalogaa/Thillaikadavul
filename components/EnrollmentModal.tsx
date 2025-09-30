@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, User, Mail, Calendar, MapPin, Globe, Monitor, Users, Phone } from 'lucide-react';
+import { sendEmailViaService } from '../utils/emailService';
 
 interface EnrollmentModalProps {
   isOpen: boolean;
@@ -210,19 +211,13 @@ Submitted on: ${new Date().toLocaleString()}
 This enrollment request was submitted through the Nadanaloga Fine Arts Academy website.
       `;
 
-      // Send email to admin via backend API
+      // Send email to admin via local email service
       try {
-        const response = await fetch('/api/send-email', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            to: 'nadanalogaa@gmail.com',
-            subject: `New Enrollment Request - ${courseTitle}`,
-            body: emailBody,
-            recipientName: 'Admin'
-          })
+        const response = await sendEmailViaService({
+          to: 'nadanalogaa@gmail.com',
+          subject: `New Enrollment Request - ${courseTitle}`,
+          body: emailBody,
+          recipientName: 'Admin'
         });
 
         if (response.ok) {
@@ -252,17 +247,11 @@ Best regards,
 Nadanaloga Fine Arts Academy Team
         `;
 
-        const confirmationResponse = await fetch('/api/send-email', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            to: formData.email,
-            subject: `Enrollment Confirmation - ${courseTitle}`,
-            body: confirmationBody,
-            recipientName: formData.name
-          })
+        const confirmationResponse = await sendEmailViaService({
+          to: formData.email,
+          subject: `Enrollment Confirmation - ${courseTitle}`,
+          body: confirmationBody,
+          recipientName: formData.name
         });
 
         if (confirmationResponse.ok) {
