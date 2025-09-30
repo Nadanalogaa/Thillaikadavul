@@ -151,7 +151,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, delay: 0.2 }}
-            className="text-5xl md:text-7xl font-bold mb-4 bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 bg-clip-text text-transparent"
+            className="text-4xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 bg-clip-text text-transparent"
           >
             Nadanaloga Fine Arts Academy
           </motion.h1>
@@ -161,14 +161,32 @@ const HeroSection: React.FC<HeroSectionProps> = ({
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, delay: 0.5 }}
-            className="text-xl md:text-2xl mb-10 text-gray-200 dark:text-gray-300 max-w-3xl mx-auto"
+            className="text-xl md:text-2xl mb-6 text-gray-200 dark:text-gray-300 max-w-3xl mx-auto"
           >
             Where Tradition Meets Innovation in Classical Dance & Arts
-            <br />
-            <span className="text-lg md:text-xl font-semibold text-yellow-300">
-              ✨ Online & Offline Classes Available Worldwide ✨
-            </span>
           </motion.p>
+
+          {/* Online & Offline Availability Banner */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 1, delay: 0.8 }}
+            className="mb-8"
+          >
+            <div className="inline-block bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 p-1 rounded-2xl shadow-2xl">
+              <div className="bg-gradient-to-r from-purple-900 to-indigo-900 px-6 py-3 rounded-xl">
+                <motion.p
+                  animate={{
+                    textShadow: ["0 0 10px rgba(255,255,0,0.5)", "0 0 20px rgba(255,255,0,0.8)", "0 0 10px rgba(255,255,0,0.5)"]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  className="text-lg md:text-2xl font-bold text-white text-center"
+                >
+                  🌍 <span className="text-yellow-300">ONLINE</span> & <span className="text-orange-300">OFFLINE</span> Classes Available Worldwide 🌍
+                </motion.p>
+              </div>
+            </div>
+          </motion.div>
 
           {/* Conditional Content based on Authentication */}
           {!currentUser ? (
