@@ -1,5 +1,6 @@
 import { supabase } from '../src/lib/supabase.js';
 import type { User } from '../types';
+import { sendEmailViaService, type EmailData } from '../utils/emailService';
 
 export interface NotificationData {
   type: 'registration' | 'batch_allocation' | 'event' | 'material' | 'modification' | 'general' | 'demo_booking';
@@ -49,7 +50,7 @@ class NotificationService {
     }
   }
 
-  // Send email notification via backend API
+  // Send email notification via local email service
   private async sendEmailNotification(data: NotificationData): Promise<void> {
     try {
       // Get user email
@@ -64,26 +65,21 @@ class NotificationService {
         return;
       }
 
-      // Call backend email endpoint
-      const response = await fetch('/api/send-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          to: userData.email,
-          subject: data.title,
-          body: data.message,
-          recipientName: userData.name
-        })
-      });
+      // Use local email service
+      const emailData: EmailData = {
+        to: userData.email,
+        subject: data.title,
+        body: data.message,
+        recipientName: userData.name
+      };
+
+      const response = await sendEmailViaService(emailData);
 
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to send email');
       }
 
-      const result = await response.json();
       console.log('Notification sent successfully:', data.title);
 
     } catch (error) {
@@ -94,22 +90,28 @@ class NotificationService {
   // Send batch allocation email
   async sendBatchAllocationEmail(studentData: any, batchData: any): Promise<void> {
     try {
-      const response = await fetch('/api/send-batch-allocation-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          studentName: studentData.name,
-          studentEmail: studentData.email,
-          batchName: batchData.name,
-          courseName: batchData.courseName,
-          teacherName: batchData.teacherName,
-          schedule: batchData.schedule,
-          location: batchData.location,
-          startDate: batchData.startDate
-        })
-      });
+      const emailData: EmailData = {
+        to: studentData.email,
+        subject: `Batch Allocation Confirmed - ${batchData.courseName}`,
+        body: `Dear ${studentData.name},
+
+Congratulations! You have been allocated to the following batch:
+
+📚 Course: ${batchData.courseName}
+👥 Batch: ${batchData.name}
+👨‍🏫 Teacher: ${batchData.teacherName}
+📅 Schedule: ${batchData.schedule}
+📍 Location: ${batchData.location}
+🚀 Start Date: ${new Date(batchData.startDate).toLocaleDateString()}
+
+We look forward to your participation!
+
+Best regards,
+Nadanaloga Academy Team`,
+        recipientName: studentData.name
+      };
+
+      const response = await sendEmailViaService(emailData);
 
       if (response.ok) {
         console.log('Batch allocation email sent successfully');
@@ -124,22 +126,30 @@ class NotificationService {
   // Send grade exam email
   async sendGradeExamEmail(studentData: any, examData: any): Promise<void> {
     try {
-      const response = await fetch('/api/send-grade-exam-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          studentName: studentData.name,
-          studentEmail: studentData.email,
-          examName: examData.examName,
-          courseName: examData.courseName,
-          grade: examData.grade,
-          score: examData.score,
-          feedback: examData.feedback,
-          date: examData.date
-        })
-      });
+      const emailData: EmailData = {
+        to: studentData.email,
+        subject: `Exam Results - ${examData.courseName}`,
+        body: `Dear ${studentData.name},
+
+Your exam results are ready:
+
+📝 Exam: ${examData.examName}
+📚 Course: ${examData.courseName}
+🎯 Grade: ${examData.grade}
+📊 Score: ${examData.score}
+📅 Date: ${new Date(examData.date).toLocaleDateString()}
+
+Feedback:
+${examData.feedback}
+
+Keep up the great work!
+
+Best regards,
+Nadanaloga Academy Team`,
+        recipientName: studentData.name
+      };
+
+      const response = await sendEmailViaService(emailData);
 
       if (response.ok) {
         console.log('Grade exam email sent successfully');
@@ -154,21 +164,27 @@ class NotificationService {
   // Send book materials email
   async sendBookMaterialsEmail(studentData: any, materialData: any): Promise<void> {
     try {
-      const response = await fetch('/api/send-book-materials-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          studentName: studentData.name,
-          studentEmail: studentData.email,
-          materialTitle: materialData.title,
-          courseName: materialData.courseName,
-          description: materialData.description,
-          downloadLink: materialData.downloadLink,
-          sharedBy: materialData.sharedBy
-        })
-      });
+      const emailData: EmailData = {
+        to: studentData.email,
+        subject: `New Study Material - ${materialData.title}`,
+        body: `Dear ${studentData.name},
+
+New study material has been shared with you:
+
+📖 Title: ${materialData.title}
+📚 Course: ${materialData.courseName}
+📝 Description: ${materialData.description}
+👨‍🏫 Shared by: ${materialData.sharedBy}
+🔗 Download Link: ${materialData.downloadLink}
+
+Happy learning!
+
+Best regards,
+Nadanaloga Academy Team`,
+        recipientName: studentData.name
+      };
+
+      const response = await sendEmailViaService(emailData);
 
       if (response.ok) {
         console.log('Book materials email sent successfully');
@@ -183,22 +199,28 @@ class NotificationService {
   // Send event email
   async sendEventEmail(studentData: any, eventData: any): Promise<void> {
     try {
-      const response = await fetch('/api/send-event-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          studentName: studentData.name,
-          studentEmail: studentData.email,
-          eventTitle: eventData.title,
-          eventDescription: eventData.description,
-          eventDate: eventData.date,
-          eventTime: eventData.time,
-          location: eventData.location,
-          registrationRequired: eventData.registrationRequired
-        })
-      });
+      const emailData: EmailData = {
+        to: studentData.email,
+        subject: `Event Invitation - ${eventData.title}`,
+        body: `Dear ${studentData.name},
+
+You're invited to an upcoming event:
+
+🎉 Event: ${eventData.title}
+📝 Description: ${eventData.description}
+📅 Date: ${new Date(eventData.date).toLocaleDateString()}
+⏰ Time: ${eventData.time}
+📍 Location: ${eventData.location}
+📋 Registration Required: ${eventData.registrationRequired ? 'Yes' : 'No'}
+
+We hope to see you there!
+
+Best regards,
+Nadanaloga Academy Team`,
+        recipientName: studentData.name
+      };
+
+      const response = await sendEmailViaService(emailData);
 
       if (response.ok) {
         console.log('Event email sent successfully');
@@ -213,21 +235,27 @@ class NotificationService {
   // Send notice email
   async sendNoticeEmail(studentData: any, noticeData: any): Promise<void> {
     try {
-      const response = await fetch('/api/send-notice-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          studentName: studentData.name,
-          studentEmail: studentData.email,
-          noticeTitle: noticeData.title,
-          noticeContent: noticeData.content,
-          priority: noticeData.priority,
-          expiryDate: noticeData.expiryDate,
-          issuedBy: noticeData.issuedBy
-        })
-      });
+      const emailData: EmailData = {
+        to: studentData.email,
+        subject: `Important Notice - ${noticeData.title}`,
+        body: `Dear ${studentData.name},
+
+Important notice from Nadanaloga Academy:
+
+📢 Title: ${noticeData.title}
+📝 Content: ${noticeData.content}
+🚨 Priority: ${noticeData.priority}
+📅 Expires: ${noticeData.expiryDate ? new Date(noticeData.expiryDate).toLocaleDateString() : 'No expiry'}
+👤 Issued by: ${noticeData.issuedBy}
+
+Please take note of this information.
+
+Best regards,
+Nadanaloga Academy Team`,
+        recipientName: studentData.name
+      };
+
+      const response = await sendEmailViaService(emailData);
 
       if (response.ok) {
         console.log('Notice email sent successfully');
@@ -242,22 +270,28 @@ class NotificationService {
   // Send payment email
   async sendPaymentEmail(studentData: any, paymentData: any): Promise<void> {
     try {
-      const response = await fetch('/api/send-payment-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          studentName: studentData.name,
-          studentEmail: studentData.email,
-          transactionId: paymentData.transactionId,
-          amount: paymentData.amount,
-          paymentDate: paymentData.date,
-          description: paymentData.description,
-          status: paymentData.status,
-          invoiceLink: paymentData.invoiceLink
-        })
-      });
+      const emailData: EmailData = {
+        to: studentData.email,
+        subject: `Payment ${paymentData.status} - Nadanaloga Academy`,
+        body: `Dear ${studentData.name},
+
+Your payment details:
+
+💳 Transaction ID: ${paymentData.transactionId}
+💰 Amount: ${paymentData.amount}
+📅 Date: ${new Date(paymentData.date).toLocaleDateString()}
+📝 Description: ${paymentData.description}
+✅ Status: ${paymentData.status}
+${paymentData.invoiceLink ? `🧾 Invoice: ${paymentData.invoiceLink}` : ''}
+
+Thank you for your payment!
+
+Best regards,
+Nadanaloga Academy Team`,
+        recipientName: studentData.name
+      };
+
+      const response = await sendEmailViaService(emailData);
 
       if (response.ok) {
         console.log('Payment email sent successfully');
@@ -272,18 +306,25 @@ class NotificationService {
   // Send profile update email
   async sendProfileUpdateEmail(studentData: any, updateData: any): Promise<void> {
     try {
-      const response = await fetch('/api/send-profile-update-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          studentName: studentData.name,
-          studentEmail: studentData.email,
-          updatedFields: updateData.updatedFields,
-          updatedBy: updateData.updatedBy
-        })
-      });
+      const emailData: EmailData = {
+        to: studentData.email,
+        subject: `Profile Updated - Nadanaloga Academy`,
+        body: `Dear ${studentData.name},
+
+Your profile has been updated:
+
+📝 Updated Fields: ${updateData.updatedFields.join(', ')}
+👤 Updated by: ${updateData.updatedBy}
+📅 Date: ${new Date().toLocaleDateString()}
+
+If you did not request this change, please contact us immediately.
+
+Best regards,
+Nadanaloga Academy Team`,
+        recipientName: studentData.name
+      };
+
+      const response = await sendEmailViaService(emailData);
 
       if (response.ok) {
         console.log('Profile update email sent successfully');
