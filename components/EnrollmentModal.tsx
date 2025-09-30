@@ -86,21 +86,6 @@ const EnrollmentModal: React.FC<EnrollmentModalProps> = ({
       return { isValid: false, error: 'Name must be at least 2 characters long' };
     }
 
-    // Check for suspicious patterns
-    if (/^\d+$/.test(name.trim())) { // Only numbers
-      return { isValid: false, error: 'Please enter a valid name (letters only)' };
-    }
-
-    if (/^(test|fake|spam|temp|admin|user|demo)/i.test(name.trim())) {
-      return { isValid: false, error: 'Please enter your real name' };
-    }
-
-    // Check for minimum two parts (first and last name)
-    const nameParts = name.trim().split(/\s+/);
-    if (nameParts.length < 2) {
-      return { isValid: false, error: 'Please enter your full name (first and last name)' };
-    }
-
     return { isValid: true };
   };
 
@@ -219,7 +204,7 @@ Date of Birth: ${formData.dateOfBirth}
 Location: ${formData.location}
 Preferred Mode: ${formData.classMode === 'online' ? 'Online Classes' : 'Offline Classes'}
 
-Form Completion Time: ${Math.round(timeTaken / 1000)} seconds
+Submitted via: Online Form
 Email Domain: ${formData.email.split('@')[1]}
 
 Submitted on: ${new Date().toLocaleString()}
