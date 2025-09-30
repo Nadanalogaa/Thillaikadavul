@@ -189,44 +189,30 @@ const EnrollmentModal: React.FC<EnrollmentModalProps> = ({
       const nameValidation = validateName(formData.name);
       const phoneValidation = validatePhoneNumber(formData.phone);
 
-      // Create email body
-      const emailBody = `
-New Course Enrollment Request
+      // Log enrollment data for admin to collect (in a real app, send to backend API)
+      console.log('🎓 New Enrollment Submitted:', {
+        course: courseTitle,
+        student: {
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          dateOfBirth: formData.dateOfBirth,
+          location: formData.location,
+          classMode: formData.classMode,
+          instrument: courseType === 'instrument' ? submissionData.finalInstrument : null
+        },
+        submittedAt: new Date().toISOString()
+      });
 
-Course: ${courseTitle}
-${courseType === 'instrument' ? `Instrument: ${submissionData.finalInstrument}` : ''}
-
-Student Details:
-Name: ${formData.name}
-Email: ${formData.email}
-Phone: ${formData.phone}
-Date of Birth: ${formData.dateOfBirth}
-Location: ${formData.location}
-Preferred Mode: ${formData.classMode === 'online' ? 'Online Classes' : 'Offline Classes'}
-
-Submitted via: Online Form
-Email Domain: ${formData.email.split('@')[1]}
-
-Submitted on: ${new Date().toLocaleString()}
-
----
-This enrollment request was submitted through the Nadanaloga Fine Arts Academy website.
-Security Note: All validations passed successfully.
-      `;
-
-      // Send email
-      const subject = encodeURIComponent(`New Enrollment Request - ${courseTitle}`);
-      const body = encodeURIComponent(emailBody);
-      const mailtoUrl = `mailto:nadanalogaa@gmail.com?subject=${subject}&body=${body}`;
-
-      window.open(mailtoUrl);
+      // In a real application, you would send this data to your backend API
+      // Example: await fetch('/api/enrollments', { method: 'POST', body: JSON.stringify(submissionData) })
 
 
       console.log('Enrollment submitted:', submissionData);
 
       setSubmitSuccess(true);
 
-      // Reset form after 2 seconds
+      // Reset form after 4 seconds to give user time to read success message
       setTimeout(() => {
         setSubmitSuccess(false);
         onClose();
@@ -241,7 +227,7 @@ Security Note: All validations passed successfully.
           customInstrument: '',
         });
         setErrors({});
-      }, 2000);
+      }, 4000);
 
     } catch (error) {
       console.error('Failed to submit enrollment:', error);
@@ -302,9 +288,14 @@ Security Note: All validations passed successfully.
                 animate={{ opacity: 1, y: 0 }}
                 className="mx-6 mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg"
               >
-                <p className="text-green-800 dark:text-green-300 text-center font-medium">
-                  🎉 Enrollment submitted successfully! We'll contact you soon.
-                </p>
+                <div className="text-center">
+                  <p className="text-green-800 dark:text-green-300 font-medium text-lg mb-2">
+                    🎉 Enrollment submitted successfully!
+                  </p>
+                  <p className="text-green-700 dark:text-green-400 text-sm">
+                    Thank you, {formData.name}! We'll contact you at {formData.email} within 24 hours.
+                  </p>
+                </div>
               </motion.div>
             )}
 
