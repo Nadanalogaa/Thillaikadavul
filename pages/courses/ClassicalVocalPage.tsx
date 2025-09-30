@@ -17,6 +17,7 @@ import {
   Phone,
   Mail
 } from 'lucide-react';
+import ClassScheduleSection from '../../components/common/ClassScheduleSection';
 
 const ClassicalVocalPage: React.FC = () => {
   const [ref, inView] = useInView({ threshold: 0.1, triggerOnce: true, initialInView: true });
@@ -154,13 +155,6 @@ const ClassicalVocalPage: React.FC = () => {
     }
   ];
 
-  const feeStructure = {
-    registration: '₹500',
-    monthly: '₹1,200',
-    quarterly: '₹3,300',
-    materials: '₹500',
-    examFee: '₹200 - ₹600'
-  };
 
   const benefits = [
     'Enhanced vocal range and clarity',
@@ -404,101 +398,8 @@ const ClassicalVocalPage: React.FC = () => {
         </section>
 
         {/* Class Schedule */}
-        <section className="mb-20">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.8 }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Class <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Schedule</span>
-            </h2>
-            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-              Flexible timings to accommodate different age groups and skill levels
-            </p>
-          </motion.div>
+        <ClassScheduleSection inView={isContentVisible} />
 
-          <div className="grid md:grid-cols-2 gap-6">
-            {classSchedule.map((schedule, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 30 }}
-                animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 p-6 rounded-xl shadow-lg"
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                    {schedule.level}
-                  </h3>
-                  <span className="bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 px-3 py-1 rounded-full text-sm font-medium">
-                    {schedule.location}
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center text-gray-600 dark:text-gray-300">
-                    <Calendar className="w-4 h-4 mr-2" />
-                    {schedule.day}
-                  </div>
-                  <div className="flex items-center text-gray-600 dark:text-gray-300">
-                    <Clock className="w-4 h-4 mr-2" />
-                    {schedule.time}
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </section>
-
-        {/* Fee Structure */}
-        <section className="mb-20">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.8 }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Fee <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Structure</span>
-            </h2>
-            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-              Affordable pricing for quality classical vocal education
-            </p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 text-center">
-              <Music className="w-12 h-12 text-blue-600 dark:text-blue-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Registration Fee</h3>
-              <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">{feeStructure.registration}</p>
-              <p className="text-gray-600 dark:text-gray-300 text-sm">One-time payment</p>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 text-center">
-              <Calendar className="w-12 h-12 text-green-600 dark:text-green-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Monthly Fee</h3>
-              <p className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">{feeStructure.monthly}</p>
-              <p className="text-gray-600 dark:text-gray-300 text-sm">4 classes per month</p>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 text-center">
-              <Star className="w-12 h-12 text-orange-600 dark:text-orange-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Quarterly Fee</h3>
-              <p className="text-3xl font-bold text-orange-600 dark:text-orange-400 mb-2">{feeStructure.quarterly}</p>
-              <p className="text-gray-600 dark:text-gray-300 text-sm">Save ₹300</p>
-            </div>
-          </div>
-
-          <div className="mt-8 text-center">
-            <p className="text-gray-600 dark:text-gray-300 mb-2">
-              <strong>Additional:</strong> Materials ({feeStructure.materials}), Exam Fees ({feeStructure.examFee})
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Tanpura and other accompaniment instruments available for rent
-            </p>
-          </div>
-        </section>
 
         {/* Benefits */}
         <section className="mb-20">

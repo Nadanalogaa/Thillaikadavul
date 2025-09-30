@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
+import ClassScheduleSection from '../../components/common/ClassScheduleSection';
 
 const AdultsPage: React.FC = () => {
   const [ref, inView] = useInView({ threshold: 0.1, triggerOnce: true, initialInView: true });
@@ -368,127 +369,13 @@ const AdultsPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Class Schedules */}
+      {/* Class Schedule */}
       <section className={`py-16 ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
         <div className="container mx-auto px-6">
-          <h2 className={`text-3xl md:text-4xl font-bold text-center mb-12 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-            Flexible Class Schedules
-          </h2>
-
-          <div className="max-w-4xl mx-auto space-y-6">
-            {classSchedules.map((schedule, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 30 }}
-                animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                className={`p-6 rounded-xl ${
-                  theme === 'dark'
-                    ? 'bg-gray-800 border border-gray-700'
-                    : 'bg-white shadow-lg border border-gray-200'
-                }`}
-              >
-                <h3 className={`text-xl font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                  {schedule.program}
-                </h3>
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div>
-                    <h4 className="font-semibold text-blue-600 mb-2">Weekday Classes</h4>
-                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                      {schedule.weekday}
-                    </p>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-green-600 mb-2">Weekend Classes</h4>
-                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                      {schedule.weekend}
-                    </p>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-purple-600 mb-2">Special Options</h4>
-                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                      {schedule.special}
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+          <ClassScheduleSection inView={isContentVisible} />
         </div>
       </section>
 
-      {/* Fee Structure */}
-      <section className={`py-16 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
-        <div className="container mx-auto px-6">
-          <h2 className={`text-3xl md:text-4xl font-bold text-center mb-12 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-            Fee Structure
-          </h2>
-
-          <div className="max-w-2xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6 }}
-              className={`p-8 rounded-xl ${
-                theme === 'dark'
-                  ? 'bg-gray-700 border border-gray-600'
-                  : 'bg-gradient-to-br from-rose-50 to-purple-50 border border-rose-200'
-              }`}
-            >
-              <div className="text-center mb-8">
-                <h3 className={`text-2xl font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                  Adult Classes
-                </h3>
-                <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                  Flexible programs designed for adult learners
-                </p>
-              </div>
-
-              <div className="space-y-6">
-                <div className={`flex justify-between items-center p-4 rounded-lg ${
-                  theme === 'dark' ? 'bg-gray-600' : 'bg-white'
-                }`}>
-                  <span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                    Registration Fee
-                  </span>
-                  <span className="flex items-center text-2xl font-bold text-rose-600">
-                    <IndianRupee className="w-6 h-6" />
-                    800
-                  </span>
-                </div>
-
-                <div className={`flex justify-between items-center p-4 rounded-lg ${
-                  theme === 'dark' ? 'bg-gray-600' : 'bg-white'
-                }`}>
-                  <span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                    Monthly Fee
-                  </span>
-                  <span className="flex items-center text-2xl font-bold text-rose-600">
-                    <IndianRupee className="w-6 h-6" />
-                    2,000
-                  </span>
-                </div>
-
-                <div className={`p-4 rounded-lg ${
-                  theme === 'dark' ? 'bg-gray-600' : 'bg-rose-50'
-                } border-l-4 border-rose-600`}>
-                  <h4 className={`font-semibold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                    What's Included:
-                  </h4>
-                  <ul className={`space-y-1 text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                    <li>• Flexible class timings (weekdays/weekends)</li>
-                    <li>• Personalized attention and progress tracking</li>
-                    <li>• Access to practice sessions and workshops</li>
-                    <li>• Performance opportunities in adult showcases</li>
-                    <li>• Wellness and meditation sessions</li>
-                    <li>• Cultural education and context</li>
-                  </ul>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
 
       {/* Testimonials */}
       <section className={`py-16 ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>

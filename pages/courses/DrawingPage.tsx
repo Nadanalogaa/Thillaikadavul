@@ -170,13 +170,6 @@ const DrawingPage: React.FC = () => {
     'Personal expression projects'
   ];
 
-  const feeStructure = {
-    registration: '₹300',
-    monthly: '₹800',
-    quarterly: '₹2,200',
-    materials: '₹500 - ₹1,000',
-    portfolio: '₹200'
-  };
 
   const benefits = [
     'Enhanced creativity and imagination',
@@ -413,52 +406,7 @@ const DrawingPage: React.FC = () => {
         </section>
 
         {/* Class Schedule */}
-        <section className="mb-20">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.8 }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Class <span className="bg-gradient-to-r from-orange-600 to-pink-600 bg-clip-text text-transparent">Schedule</span>
-            </h2>
-            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-              Age-appropriate class timings for optimal learning and engagement
-            </p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            {classSchedule.map((schedule, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 30 }}
-                animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                className="bg-gradient-to-br from-orange-50 to-pink-50 dark:from-gray-800 dark:to-gray-700 p-6 rounded-xl shadow-lg"
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                    {schedule.level}
-                  </h3>
-                  <span className="bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-300 px-3 py-1 rounded-full text-sm font-medium">
-                    {schedule.location}
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center text-gray-600 dark:text-gray-300">
-                    <Calendar className="w-4 h-4 mr-2" />
-                    {schedule.day}
-                  </div>
-                  <div className="flex items-center text-gray-600 dark:text-gray-300">
-                    <Clock className="w-4 h-4 mr-2" />
-                    {schedule.time}
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </section>
+        <ClassScheduleSection inView={isContentVisible} />
 
         {/* Art Supplies */}
         <section className="mb-20">
@@ -506,54 +454,6 @@ const DrawingPage: React.FC = () => {
           </div>
         </section>
 
-        {/* Fee Structure */}
-        <section className="mb-20">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.8 }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Fee <span className="bg-gradient-to-r from-orange-600 to-pink-600 bg-clip-text text-transparent">Structure</span>
-            </h2>
-            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-              Affordable pricing for comprehensive art education
-            </p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 text-center">
-              <Palette className="w-12 h-12 text-orange-600 dark:text-orange-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Registration Fee</h3>
-              <p className="text-3xl font-bold text-orange-600 dark:text-orange-400 mb-2">{feeStructure.registration}</p>
-              <p className="text-gray-600 dark:text-gray-300 text-sm">One-time payment</p>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 text-center">
-              <Calendar className="w-12 h-12 text-green-600 dark:text-green-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Monthly Fee</h3>
-              <p className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">{feeStructure.monthly}</p>
-              <p className="text-gray-600 dark:text-gray-300 text-sm">4 classes per month</p>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 text-center">
-              <Star className="w-12 h-12 text-purple-600 dark:text-purple-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Quarterly Fee</h3>
-              <p className="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-2">{feeStructure.quarterly}</p>
-              <p className="text-gray-600 dark:text-gray-300 text-sm">Save ₹200</p>
-            </div>
-          </div>
-
-          <div className="mt-8 text-center">
-            <p className="text-gray-600 dark:text-gray-300 mb-2">
-              <strong>Additional:</strong> Art Materials ({feeStructure.materials}), Portfolio Review ({feeStructure.portfolio})
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Basic art supplies available for purchase at the academy
-            </p>
-          </div>
-        </section>
 
         {/* Benefits */}
         <section className="mb-20">

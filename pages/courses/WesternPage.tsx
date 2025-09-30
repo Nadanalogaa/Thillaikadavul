@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
+import ClassScheduleSection from '../../components/common/ClassScheduleSection';
 
 const WesternPage: React.FC = () => {
   const [ref, inView] = useInView({ threshold: 0.1, triggerOnce: true, initialInView: true });
@@ -412,126 +413,8 @@ const WesternPage: React.FC = () => {
       </section>
 
       {/* Class Schedules */}
-      <section className={`py-16 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
-        <div className="container mx-auto px-6">
-          <h2 className={`text-3xl md:text-4xl font-bold text-center mb-12 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-            Class Schedules
-          </h2>
+      <ClassScheduleSection inView={isContentVisible} />
 
-          <div className="max-w-4xl mx-auto space-y-6">
-            {classSchedules.map((schedule, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 30 }}
-                animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                className={`p-6 rounded-xl ${
-                  theme === 'dark'
-                    ? 'bg-gray-700 border border-gray-600'
-                    : 'bg-gray-50 shadow-lg border border-gray-200'
-                }`}
-              >
-                <h3 className={`text-xl font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                  {schedule.program}
-                </h3>
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div>
-                    <h4 className="font-semibold text-green-600 mb-2">Beginner Level</h4>
-                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                      {schedule.beginner}
-                    </p>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-blue-600 mb-2">Intermediate Level</h4>
-                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                      {schedule.intermediate}
-                    </p>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-purple-600 mb-2">Advanced Level</h4>
-                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                      {schedule.advanced}
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Fee Structure */}
-      <section className={`py-16 ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
-        <div className="container mx-auto px-6">
-          <h2 className={`text-3xl md:text-4xl font-bold text-center mb-12 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-            Fee Structure
-          </h2>
-
-          <div className="max-w-2xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={isContentVisible ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6 }}
-              className={`p-8 rounded-xl ${
-                theme === 'dark'
-                  ? 'bg-gray-800 border border-gray-700'
-                  : 'bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200'
-              }`}
-            >
-              <div className="text-center mb-8">
-                <h3 className={`text-2xl font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                  Western Music Classes
-                </h3>
-                <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                  Contemporary music education for all ages
-                </p>
-              </div>
-
-              <div className="space-y-6">
-                <div className={`flex justify-between items-center p-4 rounded-lg ${
-                  theme === 'dark' ? 'bg-gray-700' : 'bg-white'
-                }`}>
-                  <span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                    Registration Fee
-                  </span>
-                  <span className="flex items-center text-2xl font-bold text-blue-600">
-                    <IndianRupee className="w-6 h-6" />
-                    800
-                  </span>
-                </div>
-
-                <div className={`flex justify-between items-center p-4 rounded-lg ${
-                  theme === 'dark' ? 'bg-gray-700' : 'bg-white'
-                }`}>
-                  <span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                    Monthly Fee
-                  </span>
-                  <span className="flex items-center text-2xl font-bold text-blue-600">
-                    <IndianRupee className="w-6 h-6" />
-                    1,800
-                  </span>
-                </div>
-
-                <div className={`p-4 rounded-lg ${
-                  theme === 'dark' ? 'bg-gray-700' : 'bg-blue-50'
-                } border-l-4 border-blue-600`}>
-                  <h4 className={`font-semibold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                    What's Included:
-                  </h4>
-                  <ul className={`space-y-1 text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                    <li>• 3 classes per week (45-60 minutes each)</li>
-                    <li>• Access to professional instruments and equipment</li>
-                    <li>• Band sessions and ensemble opportunities</li>
-                    <li>• Recording studio access for advanced students</li>
-                    <li>• Performance opportunities and recitals</li>
-                    <li>• Music theory and composition guidance</li>
-                  </ul>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
 
       {/* Benefits */}
       <section className={`py-16 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
