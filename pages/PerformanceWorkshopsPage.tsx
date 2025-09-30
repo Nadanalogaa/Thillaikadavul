@@ -8,6 +8,8 @@ const PerformanceWorkshopsPage: React.FC = () => {
   const [hasMounted, setHasMounted] = React.useState(false);
 
   React.useEffect(() => {
+    // Using requestAnimationFrame ensures the mounted flag flips after first paint,
+    // so the animation state matches other course pages right away.
     const id = requestAnimationFrame(() => setHasMounted(true));
     return () => cancelAnimationFrame(id);
   }, []);
