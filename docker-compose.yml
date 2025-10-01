@@ -32,7 +32,7 @@ services:
       dockerfile: Dockerfile
       args:
         - BUILDKIT_INLINE_CACHE=1
-        - CACHE_BUST=2025-09-26-local-postgres-migration
+        - CACHE_BUST=2025-10-01-fix-vite-build-final
         - FORCE_REBUILD=true
         - LOCAL_POSTGRES_SETUP=enabled
         - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
