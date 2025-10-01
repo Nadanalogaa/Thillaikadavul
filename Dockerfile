@@ -21,8 +21,9 @@ RUN npm ci
 COPY . .
 
 # Set environment variables for Vite build
-ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
-ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
+# These need to be set at build time for Vite to embed them in the frontend
+ENV VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-https://ojuybeasovauzkntbydd.supabase.co}
+ENV VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qdXliZWFzb3ZhdXprbnRieWRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNzMwNjQsImV4cCI6MjA3MTk0OTA2NH0.UlGxceKspC5mDgQkENV19hhppEGaNB8iAZQMnkL1Mag}
 
 # Build frontend
 RUN npm run build
