@@ -491,12 +491,12 @@ const GalleryPage: React.FC = () => {
               onClick={(e) => e.stopPropagation()}
             >
               <iframe
-                src={`https://www.youtube.com/embed/${selectedVideo}?autoplay=1&rel=0&modestbranding=1&showinfo=0&controls=1&enablejsapi=1&origin=${window.location.origin}`}
+                src={`https://www.youtube.com/embed/${selectedVideo}?autoplay=1&rel=0&modestbranding=1&controls=1&enablejsapi=1`}
                 title="YouTube video player"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
-                className="w-full h-full rounded-2xl shadow-2xl"
-                frameBorder="0"
+                className="w-full h-full rounded-2xl shadow-2xl border-0"
+                style={{ border: 0 }}
               />
               <motion.button
                 whileHover={{ scale: 1.1 }}
