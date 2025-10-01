@@ -1,13 +1,94 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml"
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
 
-  <!-- Home Page -->
+  <!-- Home Page - Highest Priority with International Targeting -->
   <url>
     <loc>https://nadanaloga.com/</loc>
     <lastmod>2025-10-01</lastmod>
-    <changefreq>weekly</changefreq>
+    <changefreq>daily</changefreq>
     <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="en-in" href="https://nadanaloga.com/" />
+    <xhtml:link rel="alternate" hreflang="en-us" href="https://nadanaloga.com/" />
+    <xhtml:link rel="alternate" hreflang="en-gb" href="https://nadanaloga.com/" />
+    <xhtml:link rel="alternate" hreflang="en-ca" href="https://nadanaloga.com/" />
+    <xhtml:link rel="alternate" hreflang="en-sg" href="https://nadanaloga.com/" />
+    <xhtml:link rel="alternate" hreflang="en-my" href="https://nadanaloga.com/" />
+    <xhtml:link rel="alternate" hreflang="ta" href="https://nadanaloga.com/" />
+  </url>
+
+  <!-- Courses Main Page - Very High Priority -->
+  <url>
+    <loc>https://nadanaloga.com/courses</loc>
+    <lastmod>2025-10-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+
+  <!-- Bharatanatyam - HIGHEST PRIORITY COURSE (Primary keyword target) -->
+  <url>
+    <loc>https://nadanaloga.com/courses/bharatanatyam</loc>
+    <lastmod>2025-10-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+    <xhtml:link rel="alternate" hreflang="en-in" href="https://nadanaloga.com/courses/bharatanatyam" />
+    <xhtml:link rel="alternate" hreflang="en-us" href="https://nadanaloga.com/courses/bharatanatyam" />
+    <xhtml:link rel="alternate" hreflang="en-gb" href="https://nadanaloga.com/courses/bharatanatyam" />
+    <xhtml:link rel="alternate" hreflang="en-ca" href="https://nadanaloga.com/courses/bharatanatyam" />
+    <xhtml:link rel="alternate" hreflang="ta" href="https://nadanaloga.com/courses/bharatanatyam" />
+  </url>
+
+  <!-- Carnatic Vocal - SECOND HIGHEST PRIORITY (Primary keyword target) -->
+  <url>
+    <loc>https://nadanaloga.com/courses/carnatic-vocal</loc>
+    <lastmod>2025-10-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+    <xhtml:link rel="alternate" hreflang="en-in" href="https://nadanaloga.com/courses/carnatic-vocal" />
+    <xhtml:link rel="alternate" hreflang="en-us" href="https://nadanaloga.com/courses/carnatic-vocal" />
+    <xhtml:link rel="alternate" hreflang="en-gb" href="https://nadanaloga.com/courses/carnatic-vocal" />
+    <xhtml:link rel="alternate" hreflang="ta" href="https://nadanaloga.com/courses/carnatic-vocal" />
+  </url>
+
+  <!-- Musical Instruments -->
+  <url>
+    <loc>https://nadanaloga.com/courses/instruments</loc>
+    <lastmod>2025-10-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+
+  <!-- Western Dance -->
+  <url>
+    <loc>https://nadanaloga.com/courses/western-dance</loc>
+    <lastmod>2025-10-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+
+  <!-- Drawing Classes -->
+  <url>
+    <loc>https://nadanaloga.com/courses/drawing</loc>
+    <lastmod>2025-10-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.70</priority>
+  </url>
+
+  <!-- Phonics -->
+  <url>
+    <loc>https://nadanaloga.com/courses/phonics</loc>
+    <lastmod>2025-10-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.70</priority>
+  </url>
+
+  <!-- Abacus -->
+  <url>
+    <loc>https://nadanaloga.com/courses/abacus</loc>
+    <lastmod>2025-10-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.70</priority>
   </url>
 
   <!-- About Us -->
@@ -15,81 +96,23 @@
     <loc>https://nadanaloga.com/about</loc>
     <lastmod>2025-10-01</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.80</priority>
   </url>
 
-  <!-- Courses -->
-  <url>
-    <loc>https://nadanaloga.com/courses</loc>
-    <lastmod>2025-10-01</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-  </url>
-
-  <!-- Individual Courses -->
-  <url>
-    <loc>https://nadanaloga.com/courses/bharatanatyam</loc>
-    <lastmod>2025-10-01</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://nadanaloga.com/courses/carnatic-vocal</loc>
-    <lastmod>2025-10-01</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://nadanaloga.com/courses/instruments</loc>
-    <lastmod>2025-10-01</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://nadanaloga.com/courses/western-dance</loc>
-    <lastmod>2025-10-01</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://nadanaloga.com/courses/drawing</loc>
-    <lastmod>2025-10-01</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://nadanaloga.com/courses/phonics</loc>
-    <lastmod>2025-10-01</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://nadanaloga.com/courses/abacus</loc>
-    <lastmod>2025-10-01</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <!-- Team -->
+  <!-- Team - Important for trust/credibility -->
   <url>
     <loc>https://nadanaloga.com/team</loc>
     <lastmod>2025-10-01</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.75</priority>
   </url>
 
-  <!-- Branches -->
+  <!-- Branches - Important for local SEO -->
   <url>
     <loc>https://nadanaloga.com/branches</loc>
     <lastmod>2025-10-01</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.85</priority>
   </url>
 
   <!-- Performance Workshops -->
@@ -97,38 +120,39 @@
     <loc>https://nadanaloga.com/performance-workshops</loc>
     <lastmod>2025-10-01</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.70</priority>
   </url>
 
-  <!-- Gallery -->
+  <!-- Gallery - Updated frequently -->
   <url>
     <loc>https://nadanaloga.com/gallery</loc>
     <lastmod>2025-10-01</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.65</priority>
   </url>
 
-  <!-- Contact -->
+  <!-- Contact - Important for conversions -->
   <url>
     <loc>https://nadanaloga.com/contact</loc>
     <lastmod>2025-10-01</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.80</priority>
   </url>
 
-  <!-- Legal Pages -->
+  <!-- Privacy Policy -->
   <url>
     <loc>https://nadanaloga.com/privacy-policy</loc>
     <lastmod>2025-10-01</lastmod>
     <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
+    <priority>0.25</priority>
   </url>
 
+  <!-- Terms of Service -->
   <url>
     <loc>https://nadanaloga.com/terms-of-service</loc>
     <lastmod>2025-10-01</lastmod>
     <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
+    <priority>0.25</priority>
   </url>
 
 </urlset>
