@@ -425,9 +425,9 @@ const initializeBasicCourses = async (): Promise<Course[]> => {
 
 export const submitContactForm = async (data: ContactFormData): Promise<{success: boolean}> => {
   try {
-    // Create mailto URL with the form data
-    const subject = encodeURIComponent(data.subject ? `Contact Form: ${data.subject}` : 'Contact Form Submission');
-    const body = encodeURIComponent(`
+    const emailBody = `
+New Contact Form Submission
+
 Name: ${data.name}
 Email: ${data.email}
 Phone: ${data.phone || 'Not provided'}
@@ -438,11 +438,62 @@ ${data.message}
 
 ---
 This message was sent from the Nadanaloga Fine Arts Academy contact form.
-    `);
+    `;
 
-    // Open email client with pre-filled information
-    const mailtoUrl = `mailto:nadanalogaa@gmail.com?subject=${subject}&body=${body}`;
-    window.open(mailtoUrl);
+    // Send email to admin via backend SMTP
+    const response = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        to: 'nadanalogaa@gmail.com',
+        subject: data.subject ? `Contact Form: ${data.subject}` : 'Contact Form Submission',
+        body: emailBody,
+        recipientName: 'Admin'
+      })
+    });
+
+    if (!response.ok) {
+      console.error('Failed to send contact form email');
+      throw new Error('Failed to send message. Please try again.');
+    }
+
+    // Send confirmation email to the user
+    try {
+      const confirmationBody = `
+Dear ${data.name},
+
+Thank you for contacting Nadanaloga Fine Arts Academy!
+
+We have received your message and will get back to you within 24 hours.
+
+Your Message:
+${data.message}
+
+Best regards,
+Nadanaloga Fine Arts Academy Team
+      `;
+
+      const confirmationResponse = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: data.email,
+          subject: 'We received your message - Nadanaloga Fine Arts Academy',
+          body: confirmationBody,
+          recipientName: data.name
+        })
+      });
+
+      if (confirmationResponse.ok) {
+        console.log('Confirmation email sent to user');
+      }
+    } catch (confirmationError) {
+      console.error('Error sending confirmation email:', confirmationError);
+    }
 
     console.log('Contact form submitted:', data);
     return { success: true };
