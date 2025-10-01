@@ -65,13 +65,15 @@ const AnimatedFooter: React.FC = () => {
       layout: 'default',
       items: [
         { text: 'Head Office Branch:', isHeader: true },
-        { icon: <MapPin className="w-4 h-4" />, text: 'Plot no3, VIT Serasa Ave, beside VIT College Ponmar, Chennai 600127', multiline: true },
+        { icon: <MapPin className="w-4 h-4" />, text: 'Plot no3, VIT Serasa Ave,\nbeside VIT College Ponmar,\nChennai 600127', multiline: true },
         { icon: <Mail className="w-4 h-4" />, text: 'nadanalogaa@gmail.com' },
-        { icon: <Phone className="w-4 h-4" />, text: '+91 95668 66588, +91 90929 08888' },
+        { icon: <Phone className="w-4 h-4" />, text: '+91 95668 66588', isPhone: true },
+        { icon: <Phone className="w-4 h-4" />, text: '+91 90929 08888', isPhone: true },
         { text: 'Branches:', isHeader: true },
-        { icon: <MapPin className="w-4 h-4" />, text: '4th St, Ayyappa Nagar, Sadasivam Nagar, Sembakkam Chennai 600064', multiline: true },
+        { icon: <MapPin className="w-4 h-4" />, text: '4th St, Ayyappa Nagar,\nSadasivam Nagar,\nSembakkam Chennai 600064', multiline: true },
         { icon: <Mail className="w-4 h-4" />, text: 'nadanalogaa@gmail.com' },
-        { icon: <Phone className="w-4 h-4" />, text: '+91 95668 66588, +91 78458 66588' }
+        { icon: <Phone className="w-4 h-4" />, text: '+91 95668 66588', isPhone: true },
+        { icon: <Phone className="w-4 h-4" />, text: '+91 78458 66588', isPhone: true }
       ]
     }
   ];
@@ -159,23 +161,23 @@ const AnimatedFooter: React.FC = () => {
           </motion.div>
 
           {/* Footer Sections Grid */}
-          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4 mb-12">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-12">
             {footerSections.map((section, index) => (
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 30 }}
                 animate={inView ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.6, delay: 0.2 + index * 0.1 }}
-                className="space-y-4"
+                className="space-y-3"
               >
-                <h4 className="text-lg font-semibold text-yellow-400 mb-4">
+                <h4 className="text-lg font-semibold text-yellow-400 mb-3">
                   {section.title}
                 </h4>
-                <ul className="space-y-2">
+                <ul className="space-y-1.5">
                   {section.items.map((item, itemIndex) => {
                     const baseClasses = item.isHeader
-                      ? 'text-white font-semibold uppercase tracking-wide text-xs sm:text-sm mt-4 mb-1 text-left'
-                      : 'text-gray-300 hover:text-white transition-all duration-300 flex items-start gap-3 text-sm leading-relaxed text-left break-words';
+                      ? 'text-white font-semibold uppercase tracking-wide text-xs sm:text-sm mt-3 mb-1 text-left'
+                      : 'text-gray-300 hover:text-white transition-all duration-300 flex items-start gap-2 text-sm leading-relaxed text-left';
 
                     return (
                       <motion.li
@@ -184,7 +186,7 @@ const AnimatedFooter: React.FC = () => {
                         className={baseClasses}
                       >
                         {!item.isHeader && item.icon ? (
-                          <span className="mt-1 text-yellow-300">{item.icon}</span>
+                          <span className="mt-0.5 text-yellow-300 flex-shrink-0">{item.icon}</span>
                         ) : null}
                         {item.isHeader ? (
                           <span className="w-full">{item.text}</span>
@@ -193,7 +195,7 @@ const AnimatedFooter: React.FC = () => {
                             {item.text}
                           </Link>
                         ) : (
-                          <span className="w-full">{item.text}</span>
+                          <span className="w-full whitespace-pre-line">{item.text}</span>
                         )}
                       </motion.li>
                     );
