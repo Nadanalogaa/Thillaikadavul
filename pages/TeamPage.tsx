@@ -17,6 +17,7 @@ type CourseCategory =
 interface CourseMember {
   name: string;
   education?: string;
+  experienceYears?: number;
   course: string;
   image: string;
 }
@@ -40,22 +41,26 @@ const courseSections: CourseSection[] = [
     members: [
       {
         name: 'Mrs. Geetha',
+        experienceYears: 14,
         course: 'Senior Bharathanatyam Instructor',
         image: 'Mrs.Geetha_Bharatahanatyam.jpeg',
       },
       {
         name: 'Mrs. M. Shri Bhuvaneshwari',
         education: 'B.Sc',
+        experienceYears: 11,
         course: 'Bharathanatyam Instructor',
         image: 'Mrs.M.shri bhuvaneshwari_Bharathanatyam,B.sc.jpeg',
       },
       {
         name: 'Mrs. Reshma Balasubramani',
+        experienceYears: 9,
         course: 'Bharathanatyam Instructor',
         image: 'Mrs.Reshma Balasubramani_bharathanatyam.jpeg',
       },
       {
         name: 'Ms. Subhashini',
+        experienceYears: 8,
         course: 'Bharathanatyam Instructor',
         image: 'Subhashini_bharathanatyam.jpeg',
       },
@@ -70,11 +75,13 @@ const courseSections: CourseSection[] = [
     members: [
       {
         name: 'Ms. Aishwarya',
+        experienceYears: 10,
         course: 'Carnatic Vocal Instructor',
         image: 'Aishwarya_vocal.jpeg',
       },
       {
         name: 'Mrs. Kasthuri',
+        experienceYears: 12,
         course: 'Carnatic Vocal Instructor',
         image: 'Mrs.Kasthuri_Vocal.jpeg',
       },
@@ -90,6 +97,7 @@ const courseSections: CourseSection[] = [
       {
         name: 'Mr. Arun',
         education: 'MCA',
+        experienceYears: 9,
         course: 'Western Dance Master',
         image: 'Mr.Arun_MCA_Western dance master.jpeg',
       },
@@ -104,6 +112,7 @@ const courseSections: CourseSection[] = [
     members: [
       {
         name: 'Mr. Pravin',
+        experienceYears: 15,
         course: 'Keyboard Instructor',
         image: 'Mr.Pravin_Keyboard.jpeg',
       },
@@ -118,11 +127,13 @@ const courseSections: CourseSection[] = [
     members: [
       {
         name: 'Mrs. Yuvasree',
+        experienceYears: 13,
         course: 'Senior Drawing Instructor',
         image: 'Mrs.Yuvasree_drawing.jpeg',
       },
       {
         name: 'Ms. Yuvasree',
+        experienceYears: 7,
         course: 'Drawing Instructor',
         image: 'Yuvasree_drawing.jpeg',
       },
@@ -137,6 +148,7 @@ const courseSections: CourseSection[] = [
     members: [
       {
         name: 'Mrs. Vanitha',
+        experienceYears: 10,
         course: 'Abacus & Phonics Trainer',
         image: 'Mrs.Vanitha_Abacus_Phonics.jpeg',
       },
@@ -151,6 +163,7 @@ const courseSections: CourseSection[] = [
     members: [
       {
         name: 'Mrs. Suganya',
+        experienceYears: 8,
         course: 'Phonics Instructor',
         image: 'Mrs.Suganya_phonics.jpeg',
       },
@@ -166,22 +179,26 @@ const courseSections: CourseSection[] = [
       {
         name: 'Mrs. Amutha S.',
         education: 'MBA',
+        experienceYears: 12,
         course: 'Academy Administration',
         image: 'Mrs.Amutha.S_Admin_MBA.jpeg',
       },
       {
         name: 'Mrs. K. Suganya',
         education: 'DCE, BCA',
+        experienceYears: 11,
         course: 'Administration & Technical Support',
         image: 'Mrs.K.Suganya_Admin_DCE.,BCA.jpeg',
       },
       {
         name: 'Mrs. Suganya (Admin)',
+        experienceYears: 9,
         course: 'Administrative Coordinator',
         image: 'Mrs.Suganya_admin.jpeg',
       },
       {
         name: 'Mrs. B. Tamil Thendral',
+        experienceYears: 15,
         course: 'Managing Director',
         image: 'Mrs.B.TamilThendral_Managing Director.jpeg',
       },
@@ -209,53 +226,44 @@ const TeacherCard: React.FC<TeacherCardProps> = ({ member, index, inView, theme,
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 50, scale: 0.9 }}
+      initial={{ opacity: 0, y: 50, scale: 0.95 }}
       animate={inView ? { opacity: 1, y: 0, scale: 1 } : {}}
       transition={{ duration: 0.8, delay: index * 0.1 }}
-      whileHover={{ scale: 1.02, y: -5 }}
-      className={`relative p-8 rounded-3xl ${theme === 'dark' ? 'bg-gray-800/80 border-gray-700' : 'bg-white/80 border-purple-200'} border-2 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden`}
+      whileHover={{ y: -4 }}
+      className={`relative flex h-full flex-col rounded-3xl border-2 ${theme === 'dark' ? 'bg-gray-800/80 border-gray-700' : 'bg-white/90 border-purple-200'} backdrop-blur-sm shadow-lg transition-all duration-300 hover:shadow-2xl`}
     >
-      <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${section.gradient} opacity-10 rounded-full -translate-y-8 translate-x-8`}></div>
+      <div className={`absolute top-0 right-0 h-40 w-40 -translate-y-16 translate-x-16 rounded-full bg-gradient-to-br ${section.gradient} opacity-10`} />
 
-      <motion.div
-        whileHover={{ scale: 1.1 }}
-        transition={{ duration: 0.3 }}
-        className="relative w-32 h-32 mx-auto mb-6"
-      >
-        <img
-          src={imageSrc}
-          alt={member.name}
-          loading="lazy"
-          className="w-full h-full rounded-full object-cover border-4 border-white shadow-lg"
-        />
-        <div className={`absolute -bottom-2 -right-2 w-10 h-10 bg-gradient-to-br ${section.gradient} rounded-full flex items-center justify-center shadow-lg`}>
-          <span className="text-white text-lg">{section.emoji}</span>
-        </div>
-      </motion.div>
-
-      <div className="text-center space-y-4">
-        <h3 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-          {member.name}
-        </h3>
-        {member.education && (
-          <div className="flex items-center justify-center space-x-2">
-            <GraduationCap className={`w-4 h-4 ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`} />
-            <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} leading-relaxed text-center`}>
-              {member.education}
-            </p>
-          </div>
-        )}
-
-        <div className="flex items-center justify-center space-x-2">
-          <span className="text-lg">{section.emoji}</span>
-          <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} font-medium`}>
-            {member.course}
-          </p>
+      <div className="relative m-6 mb-0 overflow-hidden rounded-2xl shadow-md">
+        <div className="relative h-80 w-full overflow-hidden">
+          <img
+            src={imageSrc}
+            alt={member.name}
+            loading="lazy"
+            className="h-full w-full object-cover object-top"
+          />
+          <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/60 to-transparent" />
         </div>
       </div>
 
-      <div className={`absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-opacity-30 ${section.accent} dark:border-opacity-60`}></div>
-      <div className={`absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-opacity-30 ${section.accent} dark:border-opacity-60`}></div>
+      <div className="flex flex-1 flex-col justify-between p-6">
+        <div className="space-y-3 text-center">
+          <h3 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+            {member.name}
+          </h3>
+          {member.education && (
+            <div className="flex items-center justify-center gap-2 text-sm">
+              <GraduationCap className={`h-4 w-4 ${theme === 'dark' ? 'text-purple-300' : 'text-purple-600'}`} />
+              <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{member.education}</p>
+            </div>
+          )}
+          {member.experienceYears && (
+            <p className={`text-sm font-medium ${theme === 'dark' ? 'text-purple-200' : 'text-purple-600'}`}>
+              {member.experienceYears}+ years experience
+            </p>
+          )}
+        </div>
+      </div>
     </motion.div>
   );
 };
@@ -301,14 +309,13 @@ const CategorySection: React.FC<CategorySectionProps> = ({ section, theme }) => 
           transition={{ duration: 1 }}
           className="text-center max-w-3xl mx-auto mb-16"
         >
-          <h2 className={`text-4xl md:text-5xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6 flex items-center justify-center gap-4`}>
-            <span className="text-5xl">{section.emoji}</span>
+          <h2 className={`text-3xl md:text-4xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>
             {section.title}
           </h2>
           <div className={`w-24 h-1 bg-gradient-to-r ${section.gradient} mx-auto rounded-full`} />
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3">
           {section.members.map((member, index) => (
             <TeacherCard
               key={`${section.key}-${member.name}-${index}`}
