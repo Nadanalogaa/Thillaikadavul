@@ -4,18 +4,18 @@ services:
   # Local PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: nadanaloga-sub-postgres
+    container_name: nadanaloga-${BRANCH_NAME:-main}-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: nadanaloga
       POSTGRES_USER: nadanaloga_user
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-SecurePassword123!}
     volumes:
-      - postgres_data_sub:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
       # Note: Backup import removed for Portainer Git deployment
       # Database will start empty - import data manually if needed
     networks:
-      - nadanaloga-sub-network
+      - nadanaloga-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U nadanaloga_user -d nadanaloga"]
       interval: 30s
@@ -23,7 +23,7 @@ services:
       retries: 10
       start_period: 40s
     # ports:
-    #   - "5433:5432"  # Use different port if you want to expose it
+    #   - "${POSTGRES_PORT:-5432}:5432"  # Use different port per branch if needed
 
   # Main Application
   app:
@@ -37,10 +37,10 @@ services:
         - LOCAL_POSTGRES_SETUP=enabled
         - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
         - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
-    container_name: nadanaloga-sub-app
+    container_name: nadanaloga-${BRANCH_NAME:-main}-app
     restart: unless-stopped
     ports:
-      - "3001:3000"  # Use port 3001 for sub branch
+      - "${APP_PORT:-3000}:3000"  # Use different port per branch
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -73,15 +73,17 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - nadanaloga-sub-network
+      - nadanaloga-network
 
 volumes:
-  postgres_data_sub:
+  postgres_data:
+    name: nadanaloga-${BRANCH_NAME:-main}-postgres-data
     driver: local
   app_uploads:
+    name: nadanaloga-${BRANCH_NAME:-main}-uploads
     driver: local
 
 networks:
-  nadanaloga-sub-network:
+  nadanaloga-network:
     driver: bridge
-    name: nadanaloga-sub-network
+    name: nadanaloga-${BRANCH_NAME:-main}-network
