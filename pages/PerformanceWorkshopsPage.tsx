@@ -188,11 +188,16 @@ const PerformanceWorkshopsPage: React.FC = () => {
                 transition={{ duration: 0.6, delay: index * 0.1 }}
                 className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300"
               >
-                <div className="h-64 overflow-hidden">
+                <div className="h-64 overflow-hidden bg-gradient-to-br from-purple-100 to-pink-100 dark:from-gray-700 dark:to-gray-600">
                   <img
                     src={workshop.image}
                     alt={workshop.title}
                     className="w-full h-full object-cover"
+                    loading="lazy"
+                    onError={(e) => {
+                      console.error('Failed to load image:', workshop.image);
+                      e.currentTarget.style.display = 'none';
+                    }}
                   />
                 </div>
                 <div className="p-6">
