@@ -17,8 +17,11 @@ import {
   Guitar,
   Piano,
   Heart,
-  Sparkles
+  Sparkles,
+  Phone,
+  Mail
 } from 'lucide-react';
+import { MessageCircle } from 'lucide-react';
 import { NAV_LINKS } from '../constants';
 import type { User } from '../types';
 import { UserRole } from '../types';
@@ -154,7 +157,66 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
           </NavLink>
 
           {/* User Info and Social - Desktop Only */}
-          <div className="hidden md:flex items-center space-x-4">
+          <div className="hidden lg:flex items-center space-x-4">
+            {/* Contact Information */}
+            <div className="flex items-center space-x-4 mr-2 text-xs">
+              {/* Phone Numbers */}
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-1">
+                  <a
+                    href="https://wa.me/919566866588"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-green-600 hover:text-green-700 transition-colors"
+                    title="WhatsApp +91 95668 66588"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                  </a>
+                  <a
+                    href="tel:+919566866588"
+                    className={`${theme === 'dark' ? 'text-gray-300 hover:text-indigo-400' : 'text-gray-700 hover:text-indigo-600'} transition-colors flex items-center space-x-1`}
+                    title="Call +91 95668 66588"
+                  >
+                    <Phone className="w-3 h-3" />
+                    <span className="font-medium">+91 95668 66588</span>
+                  </a>
+                </div>
+
+                <div className="flex items-center space-x-1">
+                  <a
+                    href="https://wa.me/919092908888"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-green-600 hover:text-green-700 transition-colors"
+                    title="WhatsApp +91 90929 08888"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                  </a>
+                  <a
+                    href="tel:+919092908888"
+                    className={`${theme === 'dark' ? 'text-gray-300 hover:text-indigo-400' : 'text-gray-700 hover:text-indigo-600'} transition-colors flex items-center space-x-1`}
+                    title="Call +91 90929 08888"
+                  >
+                    <Phone className="w-3 h-3" />
+                    <span className="font-medium">+91 90929 08888</span>
+                  </a>
+                </div>
+              </div>
+
+              {/* Email */}
+              <a
+                href="mailto:nadanalogaa@gmail.com"
+                className={`${theme === 'dark' ? 'text-gray-300 hover:text-indigo-400' : 'text-gray-700 hover:text-indigo-600'} transition-colors flex items-center space-x-1`}
+                title="Email us"
+              >
+                <Mail className="w-3 h-3" />
+                <span className="font-medium">nadanalogaa@gmail.com</span>
+              </a>
+            </div>
+
+            {/* Divider */}
+            <div className={`h-6 w-px ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
+
             {/* Social Media Icons */}
             <div className="flex items-center space-x-2">
               {socialLinks.map((social) => (
@@ -174,6 +236,9 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                 </motion.a>
               ))}
             </div>
+
+            {/* Divider */}
+            <div className={`h-6 w-px ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
 
             {/* User Actions */}
             {currentUser ? (
@@ -210,7 +275,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
           </div>
 
           {/* Mobile: User Info Only */}
-          <div className="md:hidden flex items-center space-x-3">
+          <div className="lg:hidden flex items-center space-x-3">
             {currentUser && (
               <>
                 <UnifiedNotificationBell user={currentUser} />
@@ -219,8 +284,8 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                 </span>
               </>
             )}
-            <button 
-              onClick={() => setIsMenuOpen(!isMenuOpen)} 
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
               className={`${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400 hover:bg-gray-800' : 'text-gray-700 hover:text-indigo-600 hover:bg-indigo-50'} focus:outline-none p-2 rounded-lg transition-all duration-300`}
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -236,7 +301,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
       </div>
 
       {/* Row 2: Navigation - Desktop Only */}
-      <div className="hidden md:block border-t border-opacity-20 border-gray-300 dark:border-gray-600">
+      <div className="hidden lg:block border-t border-opacity-20 border-gray-300 dark:border-gray-600">
         <nav className="container mx-auto px-6 py-2">
           <div className="flex justify-center items-center space-x-8">
             {visibleNavLinks.map((link) => {
@@ -344,7 +409,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
 
       {/* Mobile Menu */}
       {isMenuOpen && (
-        <div 
+        <div
           style={{
             background: theme === 'dark'
               ? 'linear-gradient(135deg, rgba(17, 24, 39, 0.98) 0%, rgba(31, 41, 55, 0.98) 100%)'
@@ -354,7 +419,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
               ? '1px solid rgba(75, 85, 99, 0.3)'
               : '1px solid rgba(199, 210, 254, 0.3)'
           }}
-          className="md:hidden px-6 pb-6"
+          className="lg:hidden px-6 pb-6"
         >
           <div className="flex flex-col space-y-4">
             {visibleNavLinks.map((link) => {
@@ -455,7 +520,59 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                   Dashboard
                 </NavLink>
              )}
-            
+
+            {/* Contact Information - Mobile */}
+            <div className={`pt-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-indigo-100'}`}>
+              <div className="space-y-3">
+                {/* Phone Numbers */}
+                <div className="flex flex-col space-y-2">
+                  <div className="flex items-center justify-between px-4 py-2 rounded-lg bg-opacity-50">
+                    <a
+                      href="tel:+919566866588"
+                      className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} flex items-center space-x-2 text-sm`}
+                    >
+                      <Phone className="w-4 h-4" />
+                      <span>+91 95668 66588</span>
+                    </a>
+                    <a
+                      href="https://wa.me/919566866588"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-green-600 hover:text-green-700 transition-colors"
+                    >
+                      <MessageCircle className="w-5 h-5" />
+                    </a>
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-2 rounded-lg bg-opacity-50">
+                    <a
+                      href="tel:+919092908888"
+                      className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} flex items-center space-x-2 text-sm`}
+                    >
+                      <Phone className="w-4 h-4" />
+                      <span>+91 90929 08888</span>
+                    </a>
+                    <a
+                      href="https://wa.me/919092908888"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-green-600 hover:text-green-700 transition-colors"
+                    >
+                      <MessageCircle className="w-5 h-5" />
+                    </a>
+                  </div>
+                </div>
+
+                {/* Email */}
+                <a
+                  href="mailto:nadanalogaa@gmail.com"
+                  className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} flex items-center space-x-2 px-4 py-2 text-sm`}
+                >
+                  <Mail className="w-4 h-4" />
+                  <span>nadanalogaa@gmail.com</span>
+                </a>
+              </div>
+            </div>
+
             {/* Social Media Icons - Mobile */}
             <div className={`pt-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-indigo-100'}`}>
               <div className="flex items-center justify-center space-x-6 mb-4">

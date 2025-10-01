@@ -27,7 +27,6 @@ interface CourseSection {
   title: string;
   emoji: string;
   gradient: string;
-  accent: string;
   members: CourseMember[];
 }
 
@@ -37,7 +36,6 @@ const courseSections: CourseSection[] = [
     title: 'Bharathanatyam Faculty',
     emoji: '💃',
     gradient: 'from-orange-500 to-red-500',
-    accent: 'border-orange-400',
     members: [
       {
         name: 'Mrs. Geetha',
@@ -71,7 +69,6 @@ const courseSections: CourseSection[] = [
     title: 'Vocal Faculty',
     emoji: '🎵',
     gradient: 'from-purple-500 to-pink-500',
-    accent: 'border-purple-400',
     members: [
       {
         name: 'Ms. Aishwarya',
@@ -92,7 +89,6 @@ const courseSections: CourseSection[] = [
     title: 'Western Dance Faculty',
     emoji: '🩰',
     gradient: 'from-blue-500 to-indigo-500',
-    accent: 'border-indigo-400',
     members: [
       {
         name: 'Mr. Arun',
@@ -108,7 +104,6 @@ const courseSections: CourseSection[] = [
     title: 'Instrumental Faculty',
     emoji: '🎹',
     gradient: 'from-amber-500 to-yellow-500',
-    accent: 'border-amber-400',
     members: [
       {
         name: 'Mr. Pravin',
@@ -123,7 +118,6 @@ const courseSections: CourseSection[] = [
     title: 'Drawing Faculty',
     emoji: '🎨',
     gradient: 'from-rose-500 to-fuchsia-500',
-    accent: 'border-rose-400',
     members: [
       {
         name: 'Mrs. Yuvasree',
@@ -151,7 +145,6 @@ const courseSections: CourseSection[] = [
     title: 'Abacus Faculty',
     emoji: '🧮',
     gradient: 'from-emerald-500 to-teal-500',
-    accent: 'border-emerald-400',
     members: [
       {
         name: 'Mrs. Vanitha',
@@ -166,7 +159,6 @@ const courseSections: CourseSection[] = [
     title: 'Phonics Faculty',
     emoji: '🔤',
     gradient: 'from-teal-500 to-cyan-500',
-    accent: 'border-teal-400',
     members: [
       {
         name: 'Mrs. Suganya',
@@ -181,7 +173,6 @@ const courseSections: CourseSection[] = [
     title: 'Leadership & Administration',
     emoji: '🖥️',
     gradient: 'from-slate-500 to-purple-500',
-    accent: 'border-slate-400',
     members: [
       {
         name: 'Mrs. Amutha S.',
@@ -233,30 +224,31 @@ const TeacherCard: React.FC<TeacherCardProps> = ({ member, index, inView, theme,
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 50, scale: 0.95 }}
+      initial={{ opacity: 0, y: 40, scale: 0.97 }}
       animate={inView ? { opacity: 1, y: 0, scale: 1 } : {}}
-      transition={{ duration: 0.8, delay: index * 0.1 }}
-      whileHover={{ y: -4 }}
-      className={`relative flex h-full flex-col rounded-3xl border-2 ${theme === 'dark' ? 'bg-gray-800/80 border-gray-700' : 'bg-white/90 border-purple-200'} backdrop-blur-sm shadow-lg transition-all duration-300 hover:shadow-2xl`}
+      transition={{ duration: 0.6, delay: index * 0.08 }}
+      whileHover={{ y: -6 }}
+      className={`relative flex flex-col rounded-2xl border ${theme === 'dark' ? 'bg-gray-800/80 border-gray-700/80' : 'bg-white/95 border-purple-100'} px-5 pb-6 pt-5 shadow-lg backdrop-blur-sm transition-all duration-300 hover:shadow-2xl`}
     >
-      <div className={`absolute top-0 right-0 h-40 w-40 -translate-y-16 translate-x-16 rounded-full bg-gradient-to-br ${section.gradient} opacity-10`} />
+      <div className={`pointer-events-none absolute -top-10 right-0 h-28 w-28 translate-x-8 rounded-full bg-gradient-to-br ${section.gradient} opacity-10`} />
 
-      <div className="relative m-6 mb-0 overflow-hidden rounded-2xl border border-white/40 bg-white/40 shadow-md dark:border-gray-700/60 dark:bg-gray-900/50">
-        <div className="relative aspect-[4/5] w-full">
-          <img
-            src={imageSrc}
-            alt={member.name}
-            loading="lazy"
-            className="absolute inset-0 h-full w-full object-contain object-center"
-          />
+      <div className="mx-auto flex flex-col items-center">
+        <div className="relative w-28 overflow-hidden rounded-xl border-2 border-white bg-white shadow-md sm:w-32">
+          <div className="aspect-[3/4] w-full">
+            <img
+              src={imageSrc}
+              alt={member.name}
+              loading="lazy"
+              className="h-full w-full object-cover object-top"
+            />
+          </div>
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col justify-between p-6">
-        <div className="space-y-3 text-center">
-          <h3 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-            {member.name}
-          </h3>
+      <div className="mt-5 space-y-3 text-center">
+        <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+          {member.name}
+        </h3>
           {member.education && (
             <div className="flex items-center justify-center gap-2 text-sm">
               <GraduationCap className={`h-4 w-4 ${theme === 'dark' ? 'text-purple-300' : 'text-purple-600'}`} />
@@ -268,8 +260,8 @@ const TeacherCard: React.FC<TeacherCardProps> = ({ member, index, inView, theme,
               {member.experienceYears}+ years experience
             </p>
           )}
+          <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{member.course}</p>
         </div>
-      </div>
     </motion.div>
   );
 };
