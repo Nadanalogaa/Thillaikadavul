@@ -15,8 +15,8 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({
 
   const baseClasses = "bg-white dark:bg-gray-800 text-gray-800 dark:text-white p-3 rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-300 border border-gray-200 dark:border-gray-700";
   
-  const positionClasses = position === 'fixed' 
-    ? "fixed top-4 right-4 z-50" 
+  const positionClasses = position === 'fixed'
+    ? "fixed bottom-20 right-4 z-40"
     : "relative z-10";
 
   return (
