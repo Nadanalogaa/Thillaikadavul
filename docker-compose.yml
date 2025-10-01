@@ -35,6 +35,8 @@ services:
         - CACHE_BUST=2025-09-26-local-postgres-migration
         - FORCE_REBUILD=true
         - LOCAL_POSTGRES_SETUP=enabled
+        - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
+        - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
     container_name: nadanaloga-sub-app
     restart: unless-stopped
     ports:

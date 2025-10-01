@@ -4,6 +4,9 @@ FROM node:18-alpine AS frontend-builder
 # Cache bust arguments to force rebuild
 ARG CACHE_BUST
 ARG FORCE_REBUILD
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY
+
 RUN echo "Cache bust: $CACHE_BUST"
 RUN echo "Force rebuild: $FORCE_REBUILD"
 RUN echo "SSL FIX SHOULD BE INCLUDED NOW"
@@ -16,6 +19,10 @@ RUN npm ci
 
 # Copy frontend source
 COPY . .
+
+# Set environment variables for Vite build
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 
 # Build frontend
 RUN npm run build
