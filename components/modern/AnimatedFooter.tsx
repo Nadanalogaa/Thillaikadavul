@@ -279,12 +279,16 @@ const AnimatedFooter: React.FC = () => {
             </p>
             
             <div className="flex items-center space-x-6 text-sm text-gray-400">
-              <motion.a href="#" whileHover={{ scale: 1.05 }} className="hover:text-white transition-colors">
-                Privacy Policy
-              </motion.a>
-              <motion.a href="#" whileHover={{ scale: 1.05 }} className="hover:text-white transition-colors">
-                Terms of Service
-              </motion.a>
+              <Link to="/privacy-policy">
+                <motion.span whileHover={{ scale: 1.05 }} className="hover:text-white transition-colors cursor-pointer">
+                  Privacy Policy
+                </motion.span>
+              </Link>
+              <Link to="/terms-of-service">
+                <motion.span whileHover={{ scale: 1.05 }} className="hover:text-white transition-colors cursor-pointer">
+                  Terms of Service
+                </motion.span>
+              </Link>
             </div>
           </div>
         </motion.div>

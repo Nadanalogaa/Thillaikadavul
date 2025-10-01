@@ -35,6 +35,8 @@ import StudentPortalInfoPage from './pages/StudentPortalInfoPage';
 import RegistrationInfoPage from './pages/RegistrationInfoPage';
 import BlogPage from './pages/BlogPage';
 import CareersPage from './pages/CareersPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import TermsOfServicePage from './pages/TermsOfServicePage';
 
 // Course Pages
 import BharatanatyamPage from './pages/courses/BharatanatyamPage';
@@ -261,7 +263,9 @@ function App() {
             <Route path="/registration-info" element={<RegistrationInfoPage />} />
             <Route path="/blog" element={<BlogPage />} />
             <Route path="/careers" element={<CareersPage />} />
-            
+            <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+
             <Route 
               path="/dashboard/student" 
               element={
