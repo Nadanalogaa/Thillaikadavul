@@ -1,0 +1,14 @@
+# Robots.txt for Nadanaloga Academy
+User-agent: *
+Allow: /
+
+# Sitemaps
+Sitemap: https://nadanaloga.com/sitemap.xml
+
+# Disallow admin or sensitive paths (if any in future)
+Disallow: /admin/
+Disallow: /api/
+
+# Allow Google AdSense bot
+User-agent: Mediapartners-Google
+Allow: /
