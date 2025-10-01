@@ -27,6 +27,7 @@ import type { User } from '../types';
 import { UserRole } from '../types';
 import UnifiedNotificationBell from './UnifiedNotificationBell';
 import { useTheme } from '../contexts/ThemeContext';
+import ThemeToggle from './ThemeToggle';
 
 interface HeaderProps {
   currentUser: User | null;
@@ -147,14 +148,17 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
       {/* Row 1: Brand and User Info */}
       <div className="w-full px-4 sm:px-6 py-2">
         <div className="flex items-center justify-between w-full">
-          {/* Logo and Brand */}
-          <NavLink to="/" className="flex items-center mr-auto hover:scale-105 transition-transform duration-300">
-            <img
-              src="/danceImages/Nadanaloga.png"
-              alt="Nadanaloga Academy"
-              className="h-12 sm:h-14 md:h-16 w-auto"
-            />
-          </NavLink>
+          {/* Logo, Theme Toggle */}
+          <div className="flex items-center gap-3 sm:gap-4 mr-auto">
+            <NavLink to="/" className="flex items-center hover:scale-105 transition-transform duration-300">
+              <img
+                src="/danceImages/Nadanaloga.png"
+                alt="Nadanaloga Academy"
+                className="h-12 sm:h-14 md:h-16 w-auto"
+              />
+            </NavLink>
+            <ThemeToggle className="p-2 sm:p-2.5 md:p-3 text-indigo-600 dark:text-indigo-200" />
+          </div>
 
           {/* User Info and Social - Desktop Only */}
           <div className="hidden lg:flex items-center space-x-4">

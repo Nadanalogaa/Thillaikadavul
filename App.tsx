@@ -25,7 +25,6 @@ import type { User } from './types';
 import { UserRole } from './types';
 import { getCurrentUser, logout } from './api';
 import WhatsAppButton from './components/WhatsAppButton';
-import ThemeToggle from './components/ThemeToggle';
 import StudentProfileViewPage from './pages/admin/StudentProfileViewPage';
 import TrashPage from './pages/admin/TrashPage';
 import AddFamilyStudentPage from './pages/AddFamilyStudentPage';
@@ -306,7 +305,6 @@ function App() {
         </main>
         <AnimatedFooter />
         <WhatsAppButton />
-        <ThemeToggle position="fixed" />
 
         <Modal isOpen={isLoginModalOpen} onClose={closeLoginModal}>
           <LoginForm 
