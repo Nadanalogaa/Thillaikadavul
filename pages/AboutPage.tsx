@@ -237,18 +237,14 @@ const AboutPage: React.FC = () => {
                 transition={{ duration: 1.2, delay: 0.3 }}
                 className="relative"
               >
-                <div className={`relative rounded-2xl overflow-hidden shadow-2xl p-8 ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'} border-2 ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
-                  {/* Placeholder for Guru Tamil Thendral image */}
-                  <div className="w-full h-[400px] bg-gradient-to-br from-purple-200 to-pink-200 dark:from-purple-800 dark:to-pink-800 rounded-xl flex items-center justify-center">
-                    <div className="text-center">
-                      <Users className="w-24 h-24 text-purple-600 dark:text-purple-400 mx-auto mb-4" />
-                      <p className={`text-lg font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                        Smt. B. Tamil Thendral
-                      </p>
-                      <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} mt-2`}>
-                        [Photo to be added]
-                      </p>
-                    </div>
+                <div className={`relative rounded-2xl overflow-hidden shadow-2xl p-6 ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'} border-2 ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <div className="relative aspect-[4/5] w-full overflow-hidden rounded-xl bg-black/5 dark:bg-black/40">
+                    <img
+                      src="/NadanalogaTeachers/Mrs.B.TamilThendral_Managing%20Director.jpeg"
+                      alt="Smt. B. Tamil Thendral"
+                      className="h-full w-full object-contain"
+                      loading="lazy"
+                    />
                   </div>
                 </div>
                 <motion.div

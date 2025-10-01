@@ -137,6 +137,13 @@ const courseSections: CourseSection[] = [
         course: 'Drawing Instructor',
         image: 'Yuvasree_drawing.jpeg',
       },
+      {
+        name: 'Ms. Lavanya V',
+        education: 'B.E',
+        experienceYears: 5,
+        course: 'Drawing Instructor',
+        image: 'Lavanya_V_drawing.jpeg',
+      },
     ],
   },
   {
@@ -234,15 +241,14 @@ const TeacherCard: React.FC<TeacherCardProps> = ({ member, index, inView, theme,
     >
       <div className={`absolute top-0 right-0 h-40 w-40 -translate-y-16 translate-x-16 rounded-full bg-gradient-to-br ${section.gradient} opacity-10`} />
 
-      <div className="relative m-6 mb-0 overflow-hidden rounded-2xl shadow-md">
-        <div className="relative h-80 w-full overflow-hidden">
+      <div className="relative m-6 mb-0 overflow-hidden rounded-2xl border border-white/40 bg-white/40 shadow-md dark:border-gray-700/60 dark:bg-gray-900/50">
+        <div className="relative aspect-[4/5] w-full">
           <img
             src={imageSrc}
             alt={member.name}
             loading="lazy"
-            className="h-full w-full object-cover object-top"
+            className="absolute inset-0 h-full w-full object-contain object-center"
           />
-          <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/60 to-transparent" />
         </div>
       </div>
 
@@ -315,7 +321,7 @@ const CategorySection: React.FC<CategorySectionProps> = ({ section, theme }) => 
           <div className={`w-24 h-1 bg-gradient-to-r ${section.gradient} mx-auto rounded-full`} />
         </motion.div>
 
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {section.members.map((member, index) => (
             <TeacherCard
               key={`${section.key}-${member.name}-${index}`}
