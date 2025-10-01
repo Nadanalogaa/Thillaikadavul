@@ -5,13 +5,12 @@ import { GraduationCap } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
 type CourseCategory =
+  | 'Founder'
   | 'Bharathanatyam'
   | 'Vocal'
+  | 'Instruments'
   | 'Drawing'
   | 'Abacus'
-  | 'Phonics'
-  | 'Instruments'
-  | 'Western Class'
   | 'Admin';
 
 interface CourseMember {
@@ -32,6 +31,20 @@ interface CourseSection {
 
 const courseSections: CourseSection[] = [
   {
+    key: 'Founder',
+    title: 'Founder & Managing Director',
+    emoji: '👑',
+    gradient: 'from-amber-500 to-orange-500',
+    members: [
+      {
+        name: 'Mrs. B. Tamil Thendral',
+        experienceYears: 15,
+        course: 'Managing Director',
+        image: 'Mrs.B.TamilThendral_Managing Director.jpeg',
+      },
+    ],
+  },
+  {
     key: 'Bharathanatyam',
     title: 'Bharathanatyam Faculty',
     emoji: '💃',
@@ -40,7 +53,7 @@ const courseSections: CourseSection[] = [
       {
         name: 'Mrs. Geetha',
         experienceYears: 14,
-        course: 'Senior Bharathanatyam Instructor',
+        course: 'Bharathanatyam Instructor',
         image: 'Mrs.Geetha_Bharatahanatyam.jpeg',
       },
       {
@@ -85,31 +98,23 @@ const courseSections: CourseSection[] = [
     ],
   },
   {
-    key: 'Western Class',
-    title: 'Western Dance Faculty',
-    emoji: '🩰',
-    gradient: 'from-blue-500 to-indigo-500',
-    members: [
-      {
-        name: 'Mr. Arun',
-        education: 'MCA',
-        experienceYears: 9,
-        course: 'Western Dance Master',
-        image: 'Mr.Arun_MCA_Western dance master.jpeg',
-      },
-    ],
-  },
-  {
     key: 'Instruments',
-    title: 'Instrumental Faculty',
+    title: 'Instruments & Western Dance Faculty',
     emoji: '🎹',
-    gradient: 'from-amber-500 to-yellow-500',
+    gradient: 'from-blue-500 to-indigo-500',
     members: [
       {
         name: 'Mr. Pravin',
         experienceYears: 15,
         course: 'Keyboard Instructor',
         image: 'Mr.Pravin_Keyboard.jpeg',
+      },
+      {
+        name: 'Mr. Arun',
+        education: 'MCA',
+        experienceYears: 9,
+        course: 'Western Dance Master',
+        image: 'Mr.Arun_MCA_Western dance master.jpeg',
       },
     ],
   },
@@ -136,7 +141,7 @@ const courseSections: CourseSection[] = [
   },
   {
     key: 'Abacus',
-    title: 'Abacus Faculty',
+    title: 'Abacus & Phonics Faculty',
     emoji: '🧮',
     gradient: 'from-emerald-500 to-teal-500',
     members: [
@@ -146,14 +151,6 @@ const courseSections: CourseSection[] = [
         course: 'Abacus & Phonics Trainer',
         image: 'Mrs.Vanitha_Abacus_Phonics.jpeg',
       },
-    ],
-  },
-  {
-    key: 'Phonics',
-    title: 'Phonics Faculty',
-    emoji: '🔤',
-    gradient: 'from-teal-500 to-cyan-500',
-    members: [
       {
         name: 'Mrs. Suganya',
         experienceYears: 8,
@@ -164,7 +161,7 @@ const courseSections: CourseSection[] = [
   },
   {
     key: 'Admin',
-    title: 'Leadership & Administration',
+    title: 'Administration Team',
     emoji: '🖥️',
     gradient: 'from-slate-500 to-purple-500',
     members: [
@@ -188,12 +185,6 @@ const courseSections: CourseSection[] = [
         course: 'Administrative Coordinator',
         image: 'Mrs.Suganya_admin.jpeg',
       },
-      {
-        name: 'Mrs. B. Tamil Thendral',
-        experienceYears: 15,
-        course: 'Managing Director',
-        image: 'Mrs.B.TamilThendral_Managing Director.jpeg',
-      },
     ],
   },
 ];
@@ -214,7 +205,7 @@ interface CategorySectionProps {
 const TeacherCard: React.FC<TeacherCardProps> = ({ member, index, inView, theme, section }) => {
   const imageSrc = member.image.startsWith('/')
     ? member.image
-    : `/NadanalogaTeachers/${encodeURIComponent(member.image)}`;
+    : `/NadanalogaTeachers/${member.image}`;
 
   return (
     <motion.div
