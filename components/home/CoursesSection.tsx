@@ -3,6 +3,7 @@ import type { Course } from '../../types';
 import { getCourses } from '../../api';
 import { CourseIcon } from '../icons';
 import Tooltip from '../Tooltip';
+import { getOrFetch, CACHE_KEYS, CACHE_DURATIONS } from '../../utils/cache';
 
 const CoursesSection: React.FC = () => {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -12,7 +13,12 @@ const CoursesSection: React.FC = () => {
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const fetchedCourses = await getCourses();
+        // Use cache utility to get or fetch courses
+        const fetchedCourses = await getOrFetch(
+          CACHE_KEYS.COURSES,
+          CACHE_DURATIONS.ONE_HOUR,
+          getCourses
+        );
         setCourses(fetchedCourses);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Could not load courses.');

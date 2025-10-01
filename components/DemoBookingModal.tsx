@@ -5,6 +5,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { getCourses } from '../api';
 import { COUNTRIES } from '../constants';
 import type { Course } from '../types';
+import { getOrFetch, CACHE_KEYS, CACHE_DURATIONS } from '../utils/cache';
 
 interface DemoBookingModalProps {
   isOpen: boolean;
@@ -63,7 +64,12 @@ const DemoBookingModal: React.FC<DemoBookingModalProps> = ({ isOpen, onClose, on
 
   const fetchCourses = async () => {
     try {
-      const fetchedCourses = await getCourses();
+      // Use cache utility to get or fetch courses
+      const fetchedCourses = await getOrFetch(
+        CACHE_KEYS.COURSES,
+        CACHE_DURATIONS.ONE_HOUR,
+        getCourses
+      );
       setCourses(fetchedCourses);
     } catch (err) {
       console.error('Error fetching courses:', err);

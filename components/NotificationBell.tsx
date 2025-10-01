@@ -88,10 +88,28 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ user }) => {
   useEffect(() => {
     if (user?.id) {
       fetchNotifications();
-      
-      // Poll for new notifications every 30 seconds
-      const interval = setInterval(fetchNotifications, 30000);
-      return () => clearInterval(interval);
+
+      // Poll for new notifications every 5 minutes (300000ms) - optimized to reduce API calls
+      // Only poll when tab is visible to save resources
+      const interval = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          fetchNotifications();
+        }
+      }, 300000);
+
+      // Also fetch when tab becomes visible after being hidden
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+          fetchNotifications();
+        }
+      };
+
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+
+      return () => {
+        clearInterval(interval);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      };
     }
   }, [user?.id]);
 
