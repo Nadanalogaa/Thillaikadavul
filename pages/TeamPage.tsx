@@ -4,258 +4,337 @@ import { useInView } from 'react-intersection-observer';
 import { GraduationCap } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
-interface Teacher {
+type CourseCategory =
+  | 'Bharathanatyam'
+  | 'Vocal'
+  | 'Drawing'
+  | 'Abacus'
+  | 'Phonics'
+  | 'Instruments'
+  | 'Western Class'
+  | 'Admin';
+
+interface CourseMember {
   name: string;
-  qualification: string;
+  education?: string;
   course: string;
   image: string;
-  category: string;
 }
 
+interface CourseSection {
+  key: CourseCategory;
+  title: string;
+  emoji: string;
+  gradient: string;
+  accent: string;
+  members: CourseMember[];
+}
+
+const courseSections: CourseSection[] = [
+  {
+    key: 'Bharathanatyam',
+    title: 'Bharathanatyam Faculty',
+    emoji: '💃',
+    gradient: 'from-orange-500 to-red-500',
+    accent: 'border-orange-400',
+    members: [
+      {
+        name: 'Mrs. Geetha',
+        course: 'Senior Bharathanatyam Instructor',
+        image: 'Mrs.Geetha_Bharatahanatyam.jpeg',
+      },
+      {
+        name: 'Mrs. M. Shri Bhuvaneshwari',
+        education: 'B.Sc',
+        course: 'Bharathanatyam Instructor',
+        image: 'Mrs.M.shri bhuvaneshwari_Bharathanatyam,B.sc.jpeg',
+      },
+      {
+        name: 'Mrs. Reshma Balasubramani',
+        course: 'Bharathanatyam Instructor',
+        image: 'Mrs.Reshma Balasubramani_bharathanatyam.jpeg',
+      },
+      {
+        name: 'Ms. Subhashini',
+        course: 'Bharathanatyam Instructor',
+        image: 'Subhashini_bharathanatyam.jpeg',
+      },
+    ],
+  },
+  {
+    key: 'Vocal',
+    title: 'Vocal Faculty',
+    emoji: '🎵',
+    gradient: 'from-purple-500 to-pink-500',
+    accent: 'border-purple-400',
+    members: [
+      {
+        name: 'Ms. Aishwarya',
+        course: 'Carnatic Vocal Instructor',
+        image: 'Aishwarya_vocal.jpeg',
+      },
+      {
+        name: 'Mrs. Kasthuri',
+        course: 'Carnatic Vocal Instructor',
+        image: 'Mrs.Kasthuri_Vocal.jpeg',
+      },
+    ],
+  },
+  {
+    key: 'Western Class',
+    title: 'Western Dance Faculty',
+    emoji: '🩰',
+    gradient: 'from-blue-500 to-indigo-500',
+    accent: 'border-indigo-400',
+    members: [
+      {
+        name: 'Mr. Arun',
+        education: 'MCA',
+        course: 'Western Dance Master',
+        image: 'Mr.Arun_MCA_Western dance master.jpeg',
+      },
+    ],
+  },
+  {
+    key: 'Instruments',
+    title: 'Instrumental Faculty',
+    emoji: '🎹',
+    gradient: 'from-amber-500 to-yellow-500',
+    accent: 'border-amber-400',
+    members: [
+      {
+        name: 'Mr. Pravin',
+        course: 'Keyboard Instructor',
+        image: 'Mr.Pravin_Keyboard.jpeg',
+      },
+    ],
+  },
+  {
+    key: 'Drawing',
+    title: 'Drawing Faculty',
+    emoji: '🎨',
+    gradient: 'from-rose-500 to-fuchsia-500',
+    accent: 'border-rose-400',
+    members: [
+      {
+        name: 'Mrs. Yuvasree',
+        course: 'Senior Drawing Instructor',
+        image: 'Mrs.Yuvasree_drawing.jpeg',
+      },
+      {
+        name: 'Ms. Yuvasree',
+        course: 'Drawing Instructor',
+        image: 'Yuvasree_drawing.jpeg',
+      },
+    ],
+  },
+  {
+    key: 'Abacus',
+    title: 'Abacus Faculty',
+    emoji: '🧮',
+    gradient: 'from-emerald-500 to-teal-500',
+    accent: 'border-emerald-400',
+    members: [
+      {
+        name: 'Mrs. Vanitha',
+        course: 'Abacus & Phonics Trainer',
+        image: 'Mrs.Vanitha_Abacus_Phonics.jpeg',
+      },
+    ],
+  },
+  {
+    key: 'Phonics',
+    title: 'Phonics Faculty',
+    emoji: '🔤',
+    gradient: 'from-teal-500 to-cyan-500',
+    accent: 'border-teal-400',
+    members: [
+      {
+        name: 'Mrs. Suganya',
+        course: 'Phonics Instructor',
+        image: 'Mrs.Suganya_phonics.jpeg',
+      },
+    ],
+  },
+  {
+    key: 'Admin',
+    title: 'Leadership & Administration',
+    emoji: '🖥️',
+    gradient: 'from-slate-500 to-purple-500',
+    accent: 'border-slate-400',
+    members: [
+      {
+        name: 'Mrs. Amutha S.',
+        education: 'MBA',
+        course: 'Academy Administration',
+        image: 'Mrs.Amutha.S_Admin_MBA.jpeg',
+      },
+      {
+        name: 'Mrs. K. Suganya',
+        education: 'DCE, BCA',
+        course: 'Administration & Technical Support',
+        image: 'Mrs.K.Suganya_Admin_DCE.,BCA.jpeg',
+      },
+      {
+        name: 'Mrs. Suganya (Admin)',
+        course: 'Administrative Coordinator',
+        image: 'Mrs.Suganya_admin.jpeg',
+      },
+      {
+        name: 'Mrs. B. Tamil Thendral',
+        course: 'Managing Director',
+        image: 'Mrs.B.TamilThendral_Managing Director.jpeg',
+      },
+    ],
+  },
+];
+
 interface TeacherCardProps {
-  teacher: Teacher;
+  member: CourseMember;
   index: number;
   inView: boolean;
   theme: string;
+  section: CourseSection;
 }
 
 interface CategorySectionProps {
-  title: string;
-  emoji: string;
-  teachers: Teacher[];
-  sectionRef: (node?: Element | null) => void;
-  inView: boolean;
-  gradientColor: string;
+  section: CourseSection;
   theme: string;
 }
 
-const getCategoryIcon = (category: string) => {
-  switch (category) {
-    case 'Vocal':
-      return '🎵';
-    case 'Bharathanatyam':
-      return '💃';
-    case 'Admin':
-      return '🖥️';
-    case 'Abacus':
-      return '🧮';
-    default:
-      return '👥';
-  }
-};
+const TeacherCard: React.FC<TeacherCardProps> = ({ member, index, inView, theme, section }) => {
+  const imageSrc = member.image.startsWith('/')
+    ? member.image
+    : `/NadanalogaTeachers/${encodeURIComponent(member.image)}`;
 
-const getCategoryColor = (category: string) => {
-  switch (category) {
-    case 'Vocal':
-      return 'from-purple-500 to-pink-500';
-    case 'Bharathanatyam':
-      return 'from-orange-500 to-red-500';
-    case 'Admin':
-      return 'from-blue-500 to-indigo-500';
-    case 'Abacus':
-      return 'from-green-500 to-teal-500';
-    default:
-      return 'from-gray-500 to-gray-600';
-  }
-};
-
-const TeacherCard: React.FC<TeacherCardProps> = ({ teacher, index, inView, theme }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 50, scale: 0.9 }}
-    animate={inView ? { opacity: 1, y: 0, scale: 1 } : {}}
-    transition={{ duration: 0.8, delay: index * 0.1 }}
-    whileHover={{ scale: 1.02, y: -5 }}
-    className={`relative p-8 rounded-3xl ${theme === 'dark' ? 'bg-gray-800/80 border-gray-700' : 'bg-white/80 border-purple-200'} border-2 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden`}
-  >
-    {/* Background gradient */}
-    <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${getCategoryColor(teacher.category)} opacity-10 rounded-full -translate-y-8 translate-x-8`}></div>
-    
-    {/* Profile Image */}
+  return (
     <motion.div
-      whileHover={{ scale: 1.1 }}
-      transition={{ duration: 0.3 }}
-      className="relative w-32 h-32 mx-auto mb-6"
+      initial={{ opacity: 0, y: 50, scale: 0.9 }}
+      animate={inView ? { opacity: 1, y: 0, scale: 1 } : {}}
+      transition={{ duration: 0.8, delay: index * 0.1 }}
+      whileHover={{ scale: 1.02, y: -5 }}
+      className={`relative p-8 rounded-3xl ${theme === 'dark' ? 'bg-gray-800/80 border-gray-700' : 'bg-white/80 border-purple-200'} border-2 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden`}
     >
-      <img
-        src={teacher.image}
-        alt={teacher.name}
-        className="w-full h-full rounded-full object-cover border-4 border-white shadow-lg"
-      />
-      <div className={`absolute -bottom-2 -right-2 w-10 h-10 bg-gradient-to-br ${getCategoryColor(teacher.category)} rounded-full flex items-center justify-center shadow-lg`}>
-        <span className="text-white text-lg">{getCategoryIcon(teacher.category)}</span>
-      </div>
-    </motion.div>
+      <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${section.gradient} opacity-10 rounded-full -translate-y-8 translate-x-8`}></div>
 
-    {/* Teacher Info */}
-    <div className="text-center space-y-4">
-      <h3 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-        {teacher.name}
-      </h3>
-      
-      <div className="flex items-center justify-center space-x-2">
-        <GraduationCap className={`w-4 h-4 ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`} />
-        <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} leading-relaxed text-center`}>
-          {teacher.qualification}
-        </p>
-      </div>
-
-      <div className="flex items-center justify-center space-x-2">
-        <span className="text-lg">{getCategoryIcon(teacher.category)}</span>
-        <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} font-medium`}>
-          {teacher.course}
-        </p>
-      </div>
-    </div>
-
-    {/* Decorative corner elements */}
-    <div className={`absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-opacity-30 ${getCategoryColor(teacher.category).includes('purple') ? 'border-purple-300' : getCategoryColor(teacher.category).includes('orange') ? 'border-orange-300' : getCategoryColor(teacher.category).includes('blue') ? 'border-blue-300' : 'border-green-300'} dark:border-opacity-60`}></div>
-    <div className={`absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-opacity-30 ${getCategoryColor(teacher.category).includes('purple') ? 'border-purple-300' : getCategoryColor(teacher.category).includes('orange') ? 'border-orange-300' : getCategoryColor(teacher.category).includes('blue') ? 'border-blue-300' : 'border-green-300'} dark:border-opacity-60`}></div>
-  </motion.div>
-);
-
-const CategorySection: React.FC<CategorySectionProps> = ({ title, emoji, teachers, sectionRef, inView, gradientColor, theme }) => (
-  <section className="py-12 relative overflow-hidden" ref={sectionRef}>
-    <div className="absolute inset-0">
-      <div className={`absolute inset-0 bg-gradient-to-br ${gradientColor} opacity-5`}></div>
-      
-      {/* Floating decorative elements */}
       <motion.div
-        animate={{
-          y: [0, -20, 0],
-          rotate: [0, 5, 0],
-        }}
-        transition={{
-          duration: 6,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-        className={`absolute top-20 right-20 w-16 h-16 bg-gradient-to-br ${gradientColor} rounded-full opacity-20`}
-      />
-      <motion.div
-        animate={{
-          y: [0, 15, 0],
-          rotate: [0, -5, 0],
-        }}
-        transition={{
-          duration: 8,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-        className={`absolute bottom-20 left-20 w-12 h-12 bg-gradient-to-br ${gradientColor} rounded-full opacity-20`}
-      />
-    </div>
-
-    <div className="container mx-auto px-6 relative z-10">
-      <motion.div
-        initial={{ opacity: 0, y: 50 }}
-        animate={inView ? { opacity: 1, y: 0 } : {}}
-        transition={{ duration: 1 }}
-        className="text-center max-w-3xl mx-auto mb-16"
+        whileHover={{ scale: 1.1 }}
+        transition={{ duration: 0.3 }}
+        className="relative w-32 h-32 mx-auto mb-6"
       >
-        <h2 className={`text-4xl md:text-5xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6 flex items-center justify-center gap-4`}>
-          <span className="text-5xl">{emoji}</span>
-          {title}
-        </h2>
-        <div className={`w-24 h-1 bg-gradient-to-r ${gradientColor} mx-auto rounded-full`} />
+        <img
+          src={imageSrc}
+          alt={member.name}
+          loading="lazy"
+          className="w-full h-full rounded-full object-cover border-4 border-white shadow-lg"
+        />
+        <div className={`absolute -bottom-2 -right-2 w-10 h-10 bg-gradient-to-br ${section.gradient} rounded-full flex items-center justify-center shadow-lg`}>
+          <span className="text-white text-lg">{section.emoji}</span>
+        </div>
       </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {teachers.map((teacher, index) => (
-          <TeacherCard
-            key={teacher.name}
-            teacher={teacher}
-            index={index}
-            inView={inView}
-            theme={theme}
-          />
-        ))}
+      <div className="text-center space-y-4">
+        <h3 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+          {member.name}
+        </h3>
+        {member.education && (
+          <div className="flex items-center justify-center space-x-2">
+            <GraduationCap className={`w-4 h-4 ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`} />
+            <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} leading-relaxed text-center`}>
+              {member.education}
+            </p>
+          </div>
+        )}
+
+        <div className="flex items-center justify-center space-x-2">
+          <span className="text-lg">{section.emoji}</span>
+          <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} font-medium`}>
+            {member.course}
+          </p>
+        </div>
       </div>
-    </div>
-  </section>
-);
+
+      <div className={`absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-opacity-30 ${section.accent} dark:border-opacity-60`}></div>
+      <div className={`absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-opacity-30 ${section.accent} dark:border-opacity-60`}></div>
+    </motion.div>
+  );
+};
+
+const CategorySection: React.FC<CategorySectionProps> = ({ section, theme }) => {
+  const [sectionRef, inView] = useInView({ threshold: 0.1, triggerOnce: true });
+
+  return (
+    <section className="py-12 relative overflow-hidden" ref={sectionRef}>
+      <div className="absolute inset-0">
+        <div className={`absolute inset-0 bg-gradient-to-br ${section.gradient} opacity-5`}></div>
+
+        <motion.div
+          animate={{
+            y: [0, -20, 0],
+            rotate: [0, 5, 0],
+          }}
+          transition={{
+            duration: 6,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
+          className={`absolute top-20 right-20 w-16 h-16 bg-gradient-to-br ${section.gradient} rounded-full opacity-20`}
+        />
+        <motion.div
+          animate={{
+            y: [0, 15, 0],
+            rotate: [0, -5, 0],
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
+          className={`absolute bottom-20 left-20 w-12 h-12 bg-gradient-to-br ${section.gradient} rounded-full opacity-20`}
+        />
+      </div>
+
+      <div className="container mx-auto px-6 relative z-10">
+        <motion.div
+          initial={{ opacity: 0, y: 50 }}
+          animate={inView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 1 }}
+          className="text-center max-w-3xl mx-auto mb-16"
+        >
+          <h2 className={`text-4xl md:text-5xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6 flex items-center justify-center gap-4`}>
+            <span className="text-5xl">{section.emoji}</span>
+            {section.title}
+          </h2>
+          <div className={`w-24 h-1 bg-gradient-to-r ${section.gradient} mx-auto rounded-full`} />
+        </motion.div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {section.members.map((member, index) => (
+            <TeacherCard
+              key={`${section.key}-${member.name}-${index}`}
+              member={member}
+              index={index}
+              inView={inView}
+              theme={theme}
+              section={section}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
 
 const TeamPage: React.FC = () => {
   const { theme } = useTheme();
-  
   const [heroRef, heroInView] = useInView({ threshold: 0.1, triggerOnce: true });
-  const [vocalRef, vocalInView] = useInView({ threshold: 0.1, triggerOnce: true });
-  const [bharatanatyamRef, bharatanatyamInView] = useInView({ threshold: 0.1, triggerOnce: true });
-  const [adminRef, adminInView] = useInView({ threshold: 0.1, triggerOnce: true });
-  const [abacusRef, abacusInView] = useInView({ threshold: 0.1, triggerOnce: true });
-
-  const teachers: Teacher[] = [
-    // Vocal Teachers
-    {
-      name: "R. Aiswarya",
-      qualification: "BA (Vocal), DMT (Diploma in Music Teaching)",
-      course: "Carnatic Vocal Music",
-      image: "https://images.unsplash.com/photo-1494790108755-2616b332c2cd?w=400&h=400&fit=crop&crop=face&auto=format&q=80",
-      category: "Vocal"
-    },
-    {
-      name: "S. Revathi",
-      qualification: "B.Com, MSc (Yoga), Abacus, Phonics, Vedic Maths, Mid Brain Activation",
-      course: "Vocal Music & Comprehensive Skills",
-      image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&h=400&fit=crop&crop=face&auto=format&q=80",
-      category: "Vocal"
-    },
-    // Bharathanatyam Teachers
-    {
-      name: "B. Geetha",
-      qualification: "BFA, MA Bharathanatyam",
-      course: "Classical Bharathanatyam",
-      image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop&crop=face&auto=format&q=80",
-      category: "Bharathanatyam"
-    },
-    {
-      name: "Reshma A.V",
-      qualification: "M.Com",
-      course: "Bharathanatyam Dance",
-      image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop&crop=face&auto=format&q=80",
-      category: "Bharathanatyam"
-    },
-    {
-      name: "M. Subashini",
-      qualification: "M.Com",
-      course: "Bharathanatyam Dance",
-      image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=face&auto=format&q=80",
-      category: "Bharathanatyam"
-    },
-    // Admin Staff
-    {
-      name: "K. Suganya",
-      qualification: "Diploma in Computer Engineering, BCA",
-      course: "Administration & Technical Support",
-      image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&h=400&fit=crop&crop=face&auto=format&q=80",
-      category: "Admin"
-    },
-    {
-      name: "Sivakami Kailasam",
-      qualification: "M.Com",
-      course: "Administrative Operations",
-      image: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=400&h=400&fit=crop&crop=face&auto=format&q=80",
-      category: "Admin"
-    },
-    // Abacus Teacher
-    {
-      name: "R. Vanitha",
-      qualification: "B.Com, DAMT",
-      course: "Mental Arithmetic & Abacus",
-      image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=face&auto=format&q=80",
-      category: "Abacus"
-    }
-  ];
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
-      
-      {/* Hero Section with Parallax */}
       <section className="relative min-h-[50vh] overflow-hidden">
-        {/* Animated Background */}
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 dark:from-gray-800 dark:via-gray-900 dark:to-indigo-900"></div>
-          
-          {/* Floating Elements */}
+
           <motion.div
             className="absolute top-20 left-10 w-20 h-20 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full opacity-20"
             animate={{
@@ -265,7 +344,7 @@ const TeamPage: React.FC = () => {
             transition={{
               duration: 8,
               repeat: Infinity,
-              ease: "easeInOut"
+              ease: 'easeInOut',
             }}
           />
           <motion.div
@@ -277,7 +356,7 @@ const TeamPage: React.FC = () => {
             transition={{
               duration: 10,
               repeat: Infinity,
-              ease: "easeInOut"
+              ease: 'easeInOut',
             }}
           />
           <motion.div
@@ -289,7 +368,7 @@ const TeamPage: React.FC = () => {
             transition={{
               duration: 12,
               repeat: Infinity,
-              ease: "easeInOut"
+              ease: 'easeInOut',
             }}
           />
         </div>
@@ -299,7 +378,7 @@ const TeamPage: React.FC = () => {
             ref={heroRef}
             initial={{ opacity: 0, y: 50 }}
             animate={heroInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 1, ease: "easeOut" }}
+            transition={{ duration: 1, ease: 'easeOut' }}
             className="text-center max-w-4xl"
           >
             <motion.h1
@@ -326,52 +405,13 @@ const TeamPage: React.FC = () => {
             />
           </motion.div>
         </div>
-
       </section>
 
-      {/* Bharathanatyam Teachers Section */}
-      <CategorySection
-        title="Bharathanatyam Teachers"
-        emoji="💃"
-        teachers={teachers.filter(t => t.category === 'Bharathanatyam')}
-        sectionRef={bharatanatyamRef}
-        inView={bharatanatyamInView}
-        gradientColor="from-orange-500 to-red-500"
-        theme={theme}
-      />
-
-      {/* Vocal Teachers Section */}
-      <CategorySection
-        title="Vocal Teachers"
-        emoji="🎵"
-        teachers={teachers.filter(t => t.category === 'Vocal')}
-        sectionRef={vocalRef}
-        inView={vocalInView}
-        gradientColor="from-purple-500 to-pink-500"
-        theme={theme}
-      />
-
-      {/* Admin Staff Section */}
-      <CategorySection
-        title="Administrative Staff"
-        emoji="🖥️"
-        teachers={teachers.filter(t => t.category === 'Admin')}
-        sectionRef={adminRef}
-        inView={adminInView}
-        gradientColor="from-blue-500 to-indigo-500"
-        theme={theme}
-      />
-
-      {/* Abacus Teachers Section */}
-      <CategorySection
-        title="Abacus Teacher"
-        emoji="🧮"
-        teachers={teachers.filter(t => t.category === 'Abacus')}
-        sectionRef={abacusRef}
-        inView={abacusInView}
-        gradientColor="from-green-500 to-teal-500"
-        theme={theme}
-      />
+      {courseSections
+        .filter((section) => section.members.length > 0)
+        .map((section) => (
+          <CategorySection key={section.key} section={section} theme={theme} />
+        ))}
     </div>
   );
 };
