@@ -62,14 +62,14 @@ const AnimatedFooter: React.FC = () => {
     },
     {
       title: 'Contact Us',
-      layout: 'contact',
+      layout: 'default',
       items: [
         { text: 'Head Office Branch:', isHeader: true },
-        { icon: <MapPin className="w-4 h-4" />, text: 'Plot no3, VIT Serasa Ave, beside VIT College Ponmar, Chennai 600127' },
+        { icon: <MapPin className="w-4 h-4" />, text: 'Plot no3, VIT Serasa Ave, beside VIT College Ponmar, Chennai 600127', multiline: true },
         { icon: <Mail className="w-4 h-4" />, text: 'nadanalogaa@gmail.com' },
-        { icon: <Phone className="w-4 h-4" />, text: '+91 95668 66588, +91 95668 66538' },
+        { icon: <Phone className="w-4 h-4" />, text: '+91 95668 66588, +91 90929 08888' },
         { text: 'Branches:', isHeader: true },
-        { icon: <MapPin className="w-4 h-4" />, text: '4th St, Ayyappa Nagar, Sadasivam Nagar, Sembakkam Chennai 600064' },
+        { icon: <MapPin className="w-4 h-4" />, text: '4th St, Ayyappa Nagar, Sadasivam Nagar, Sembakkam Chennai 600064', multiline: true },
         { icon: <Mail className="w-4 h-4" />, text: 'nadanalogaa@gmail.com' },
         { icon: <Phone className="w-4 h-4" />, text: '+91 95668 66588, +91 78458 66588' }
       ]
@@ -166,9 +166,7 @@ const AnimatedFooter: React.FC = () => {
                 initial={{ opacity: 0, y: 30 }}
                 animate={inView ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.6, delay: 0.2 + index * 0.1 }}
-                className={`space-y-4 max-w-xs sm:max-w-sm mx-auto sm:mx-0 ${
-                  section.layout === 'contact' ? 'lg:col-span-2 lg:max-w-2xl' : ''
-                }`}
+                className="space-y-4"
               >
                 <h4 className="text-lg font-semibold text-yellow-400 mb-4">
                   {section.title}
