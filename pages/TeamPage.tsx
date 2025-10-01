@@ -134,7 +134,7 @@ const courseSections: CourseSection[] = [
         name: 'Ms. Lavanya',
         experienceYears: 7,
         course: 'Drawing Instructor',
-        image: 'lavanya_Drawing.jpeg',
+        image: 'Ms.Lavanya_Drawing.jpeg',
       },
     ],
   },

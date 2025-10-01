@@ -22,7 +22,7 @@ const PerformanceWorkshopsPage: React.FC = () => {
       duration: '3 Days Intensive',
       description: 'Master the art of stage performance with our comprehensive Bharatanatyam workshop focusing on expressions, stage presence, and classical repertoire.',
       features: ['Stage makeup and costume', 'Classical items and Varnams', 'Expression techniques', 'Stage presence training'],
-      image: '/danceimages/responsive/large/DSC07521~3.webp',
+      image: '/danceimages/responsive/large/DSC07566.webp',
       level: 'Intermediate to Advanced'
     },
     {
@@ -38,7 +38,7 @@ const PerformanceWorkshopsPage: React.FC = () => {
       duration: '5 Days',
       description: 'Specialized workshop designed to prepare students for dance and music competitions with expert coaching and performance strategies.',
       features: ['Competition choreography', 'Judges\' expectations', 'Performance confidence', 'Winning strategies'],
-      image: '/danceimages/responsive/large/DSC02946~2.webp',
+      image: '/danceimages/responsive/large/EGM_7424_DxO.webp',
       level: 'Advanced'
     },
     {
@@ -46,7 +46,7 @@ const PerformanceWorkshopsPage: React.FC = () => {
       duration: '1 Day',
       description: 'Perfect for school and college cultural events, this workshop covers group performances, quick choreography, and event management.',
       features: ['Group choreography', 'Quick learning techniques', 'Event coordination', 'Costume guidance'],
-      image: '/danceimages/responsive/large/DSC03919_DxO.webp',
+      image: '/danceimages/responsive/large/EGM_7549_DxO.webp',
       level: 'Beginner to Intermediate'
     }
   ];
