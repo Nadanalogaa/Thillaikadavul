@@ -329,7 +329,7 @@ const GalleryPage: React.FC = () => {
                       </div>
                       
                       {/* Hover Effect Glow */}
-                      <div className="absolute -inset-1 bg-gradient-to-r from-red-500 to-pink-500 rounded-2xl opacity-0 group-hover:opacity-20 blur transition-opacity duration-300"></div>
+                      <div className="absolute -inset-1 bg-gradient-to-r from-red-500 to-pink-500 rounded-2xl opacity-0 group-hover:opacity-20 blur transition-opacity duration-300 pointer-events-none"></div>
                     </motion.div>
                   ))}
                 </div>
