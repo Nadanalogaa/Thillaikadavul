@@ -120,12 +120,6 @@ const courseSections: CourseSection[] = [
     gradient: 'from-rose-500 to-fuchsia-500',
     members: [
       {
-        name: 'Mrs. Yuvasree',
-        experienceYears: 13,
-        course: 'Senior Drawing Instructor',
-        image: 'Mrs.Yuvasree_drawing.jpeg',
-      },
-      {
         name: 'Ms. Yuvasree',
         experienceYears: 7,
         course: 'Drawing Instructor',
@@ -224,16 +218,16 @@ const TeacherCard: React.FC<TeacherCardProps> = ({ member, index, inView, theme,
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 40, scale: 0.97 }}
+      initial={{ opacity: 0, y: 30, scale: 0.97 }}
       animate={inView ? { opacity: 1, y: 0, scale: 1 } : {}}
-      transition={{ duration: 0.6, delay: index * 0.08 }}
-      whileHover={{ y: -6 }}
-      className={`relative flex flex-col rounded-2xl border ${theme === 'dark' ? 'bg-gray-800/80 border-gray-700/80' : 'bg-white/95 border-purple-100'} px-5 pb-6 pt-5 shadow-lg backdrop-blur-sm transition-all duration-300 hover:shadow-2xl`}
+      transition={{ duration: 0.5, delay: index * 0.06 }}
+      whileHover={{ y: -4 }}
+      className={`relative flex flex-col rounded-xl border ${theme === 'dark' ? 'bg-gray-800/80 border-gray-700/80' : 'bg-white/95 border-purple-100'} px-4 pb-4 pt-4 shadow-lg backdrop-blur-sm transition-all duration-300 hover:shadow-xl`}
     >
-      <div className={`pointer-events-none absolute -top-10 right-0 h-28 w-28 translate-x-8 rounded-full bg-gradient-to-br ${section.gradient} opacity-10`} />
+      <div className={`pointer-events-none absolute -top-6 right-0 h-20 w-20 translate-x-6 rounded-full bg-gradient-to-br ${section.gradient} opacity-10`} />
 
       <div className="mx-auto flex flex-col items-center">
-        <div className="relative w-28 overflow-hidden rounded-xl border-2 border-white bg-white shadow-md sm:w-32">
+        <div className="relative w-24 overflow-hidden rounded-xl border-2 border-white bg-white shadow-md sm:w-28">
           <div className="aspect-[3/4] w-full">
             <img
               src={imageSrc}
@@ -245,22 +239,22 @@ const TeacherCard: React.FC<TeacherCardProps> = ({ member, index, inView, theme,
         </div>
       </div>
 
-      <div className="mt-5 space-y-3 text-center">
-        <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+      <div className="mt-3 space-y-2 text-center">
+        <h3 className={`text-base font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
           {member.name}
         </h3>
           {member.education && (
-            <div className="flex items-center justify-center gap-2 text-sm">
-              <GraduationCap className={`h-4 w-4 ${theme === 'dark' ? 'text-purple-300' : 'text-purple-600'}`} />
+            <div className="flex items-center justify-center gap-1.5 text-xs">
+              <GraduationCap className={`h-3.5 w-3.5 ${theme === 'dark' ? 'text-purple-300' : 'text-purple-600'}`} />
               <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{member.education}</p>
             </div>
           )}
           {member.experienceYears && (
-            <p className={`text-sm font-medium ${theme === 'dark' ? 'text-purple-200' : 'text-purple-600'}`}>
+            <p className={`text-xs font-medium ${theme === 'dark' ? 'text-purple-200' : 'text-purple-600'}`}>
               {member.experienceYears}+ years experience
             </p>
           )}
-          <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{member.course}</p>
+          <p className={`text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{member.course}</p>
         </div>
     </motion.div>
   );
@@ -270,7 +264,7 @@ const CategorySection: React.FC<CategorySectionProps> = ({ section, theme }) => 
   const [sectionRef, inView] = useInView({ threshold: 0.1, triggerOnce: true });
 
   return (
-    <section className="py-12 relative overflow-hidden" ref={sectionRef}>
+    <section className="py-8 relative overflow-hidden" ref={sectionRef}>
       <div className="absolute inset-0">
         <div className={`absolute inset-0 bg-gradient-to-br ${section.gradient} opacity-5`}></div>
 
@@ -302,18 +296,18 @@ const CategorySection: React.FC<CategorySectionProps> = ({ section, theme }) => 
 
       <div className="container mx-auto px-6 relative z-10">
         <motion.div
-          initial={{ opacity: 0, y: 50 }}
+          initial={{ opacity: 0, y: 30 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 1 }}
-          className="text-center max-w-3xl mx-auto mb-16"
+          transition={{ duration: 0.8 }}
+          className="text-center max-w-3xl mx-auto mb-8"
         >
-          <h2 className={`text-3xl md:text-4xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-6`}>
+          <h2 className={`text-2xl md:text-3xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-4`}>
             {section.title}
           </h2>
-          <div className={`w-24 h-1 bg-gradient-to-r ${section.gradient} mx-auto rounded-full`} />
+          <div className={`w-20 h-0.5 bg-gradient-to-r ${section.gradient} mx-auto rounded-full`} />
         </motion.div>
 
-        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {section.members.map((member, index) => (
             <TeacherCard
               key={`${section.key}-${member.name}-${index}`}
