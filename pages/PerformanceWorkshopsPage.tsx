@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
-import { Star, Users, Clock, Calendar, Award, Music, Sparkles, Target } from 'lucide-react';
+import { Star, Users, Clock, Calendar, Award, Sparkles, Target } from 'lucide-react';
 
 const PerformanceWorkshopsPage: React.FC = () => {
   const [ref, inView] = useInView({ threshold: 0.1, triggerOnce: true, initialInView: true });
@@ -22,7 +22,7 @@ const PerformanceWorkshopsPage: React.FC = () => {
       duration: '3 Days Intensive',
       description: 'Master the art of stage performance with our comprehensive Bharatanatyam workshop focusing on expressions, stage presence, and classical repertoire.',
       features: ['Stage makeup and costume', 'Classical items and Varnams', 'Expression techniques', 'Stage presence training'],
-      image: '/danceImages/bharatanatyam1.jpg',
+      image: '/danceimages/responsive/large/DSC07521~3.webp',
       level: 'Intermediate to Advanced'
     },
     {
@@ -30,7 +30,7 @@ const PerformanceWorkshopsPage: React.FC = () => {
       duration: '2 Days',
       description: 'Enhance your vocal performance skills with training in classical compositions, breath control, and concert presentation techniques.',
       features: ['Voice projection techniques', 'Classical compositions', 'Concert etiquette', 'Audience engagement'],
-      image: '/danceImages/vocal1.jpg',
+      image: '/danceimages/responsive/large/EGM_7361_DxO.webp',
       level: 'All Levels'
     },
     {
@@ -38,7 +38,7 @@ const PerformanceWorkshopsPage: React.FC = () => {
       duration: '5 Days',
       description: 'Specialized workshop designed to prepare students for dance and music competitions with expert coaching and performance strategies.',
       features: ['Competition choreography', 'Judges\' expectations', 'Performance confidence', 'Winning strategies'],
-      image: '/danceImages/competition.jpg',
+      image: '/danceimages/responsive/large/DSC02946~2.webp',
       level: 'Advanced'
     },
     {
@@ -46,7 +46,7 @@ const PerformanceWorkshopsPage: React.FC = () => {
       duration: '1 Day',
       description: 'Perfect for school and college cultural events, this workshop covers group performances, quick choreography, and event management.',
       features: ['Group choreography', 'Quick learning techniques', 'Event coordination', 'Costume guidance'],
-      image: '/danceImages/cultural.jpg',
+      image: '/danceimages/responsive/large/DSC03919_DxO.webp',
       level: 'Beginner to Intermediate'
     }
   ];
@@ -188,8 +188,12 @@ const PerformanceWorkshopsPage: React.FC = () => {
                 transition={{ duration: 0.6, delay: index * 0.1 }}
                 className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300"
               >
-                <div className="h-48 bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                  <Music className="w-16 h-16 text-white" />
+                <div className="h-64 overflow-hidden">
+                  <img
+                    src={workshop.image}
+                    alt={workshop.title}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 <div className="p-6">
                   <div className="flex justify-between items-start mb-4">
@@ -211,7 +215,7 @@ const PerformanceWorkshopsPage: React.FC = () => {
                     </span>
                   </div>
 
-                  <ul className="space-y-2 mb-6">
+                  <ul className="space-y-2">
                     {workshop.features.map((feature, featureIndex) => (
                       <li key={featureIndex} className="flex items-center text-sm text-gray-600 dark:text-gray-300">
                         <Sparkles className="w-4 h-4 text-purple-500 mr-2" />
@@ -219,14 +223,6 @@ const PerformanceWorkshopsPage: React.FC = () => {
                       </li>
                     ))}
                   </ul>
-
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 px-6 rounded-lg font-semibold hover:shadow-lg transition-all duration-300"
-                  >
-                    Register Now
-                  </motion.button>
                 </div>
               </motion.div>
             ))}
@@ -275,16 +271,9 @@ const PerformanceWorkshopsPage: React.FC = () => {
                     {workshop.venue}
                   </div>
                 </div>
-                <div className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-3 py-2 rounded-lg text-sm font-medium mb-4">
+                <div className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-3 py-2 rounded-lg text-sm font-medium">
                   {workshop.seats}
                 </div>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="w-full border-2 border-purple-600 text-purple-600 dark:text-purple-400 dark:border-purple-400 py-2 px-4 rounded-lg font-semibold hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all duration-300"
-                >
-                  Book Now
-                </motion.button>
               </motion.div>
             ))}
           </div>
