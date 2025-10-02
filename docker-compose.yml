@@ -6,6 +6,10 @@ services:
     image: postgres:15-alpine
     container_name: nadanaloga-${BRANCH_NAME:-main}-postgres
     restart: unless-stopped
+    labels:
+      - "com.docker.compose.project=nadanaloga-critical"
+      - "environment=production"
+      - "protected=true"
     environment:
       POSTGRES_DB: nadanaloga
       POSTGRES_USER: nadanaloga_user
@@ -39,6 +43,10 @@ services:
         - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
     container_name: nadanaloga-${BRANCH_NAME:-main}-app
     restart: unless-stopped
+    labels:
+      - "com.docker.compose.project=nadanaloga-critical"
+      - "environment=production"
+      - "protected=true"
     ports:
       - "${APP_PORT:-3000}:3000"  # Use different port per branch
     environment:
