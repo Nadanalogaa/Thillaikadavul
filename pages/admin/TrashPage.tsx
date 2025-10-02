@@ -3,10 +3,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import type { User } from '../../types';
 import { getTrashedUsers, restoreUser, deleteUserPermanently } from '../../api';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
-import AdminNav from '../../components/admin/AdminNav';
+import AdminLayout from '../../components/admin/AdminLayout';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const TrashPage: React.FC = () => {
-    const { theme } = useTheme();    const [trashedUsers, setTrashedUsers] = useState<User[]>([]);
+    const { theme } = useTheme();
+    const [trashedUsers, setTrashedUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -50,16 +52,11 @@ const TrashPage: React.FC = () => {
     };
     
     return (
-        <div className="bg-gray-50 min-h-full py-3">
-            <div className="container mx-auto px-6 lg:px-8">
-                <div className="max-w-full mx-auto">
-                    <AdminPageHeader
-                        title="Trash"
-                        subtitle="Manage deleted records. You can restore them or delete them permanently."
-                        backLinkPath="/admin/dashboard"
-                        backTooltipText="Back to Dashboard"
-                    />
-                    <AdminNav />
+        <AdminLayout>
+            <AdminPageHeader
+                title="Trash"
+                subtitle="Manage deleted records. You can restore them or delete them permanently."
+            />
 
                     {isLoading && <p className="text-center text-gray-500 py-8">Loading trashed items...</p>}
                     {error && <p className="text-center text-red-500 bg-red-100 p-3 rounded-md mt-6">{error}</p>}
@@ -99,9 +96,7 @@ const TrashPage: React.FC = () => {
                             </div>
                         </div>
                     )}
-                </div>
-            </div>
-        </div>
+        </AdminLayout>
     );
 };
 

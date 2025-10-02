@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import type { GradeExam } from '../../types';
 import { getAdminGradeExams, addGradeExam, updateGradeExam, deleteGradeExam } from '../../api';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
-import AdminNav from '../../components/admin/AdminNav';
+import AdminLayout from '../../components/admin/AdminLayout';
+import { useTheme } from '../../contexts/ThemeContext';
 import Modal from '../../components/Modal';
 import ModalHeader from '../../components/ModalHeader';
 import SendContentNotificationModal from '../../components/admin/SendContentNotificationModal';
@@ -65,7 +66,8 @@ const GradeExamForm: React.FC<{ exam?: Partial<GradeExam>, onSave: (exam: Partia
 
 
 const GradeExamsManagementPage: React.FC = () => {
-    const { theme } = useTheme();    const [exams, setExams] = useState<GradeExam[]>([]);
+    const { theme } = useTheme();
+    const [exams, setExams] = useState<GradeExam[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isFormLoading, setIsFormLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -117,10 +119,8 @@ const GradeExamsManagementPage: React.FC = () => {
     };
 
     return (
-        <div className="bg-gray-50 min-h-full py-3">
-            <div className="container mx-auto px-6 lg:px-8">
-                <AdminPageHeader title="Grade Exams Management" subtitle="Manage information about grade exams." backLinkPath="/admin/dashboard" backTooltipText="Back to Dashboard" />
-                <AdminNav />
+        <AdminLayout>
+            <AdminPageHeader title="Grade Exams" subtitle="Manage information about grade exams." />
 
                 <div className="mt-8">
                     <div className="flex justify-end mb-4">
@@ -183,7 +183,7 @@ const GradeExamsManagementPage: React.FC = () => {
                 .btn-danger { background-color: #fee2e2; color: #b91c1c; padding: 6px 12px; border-radius: 6px; font-weight: 500; transition: background-color 0.2s; }
                  .btn-send { background-color: #dbeafe; color: #1e40af; padding: 6px 12px; border-radius: 6px; font-weight: 500; transition: background-color 0.2s; }
             `}</style>
-        </div>
+        </AdminLayout>
     );
 };
 

@@ -19,10 +19,10 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { getDemoBookings, updateDemoBookingStatus, deleteDemoBooking, getDemoBookingStats } from '../../api';
 import type { DemoBooking } from '../../types';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
-import AdminNav from '../../components/admin/AdminNav';
+import AdminLayout from '../../components/admin/AdminLayout';
 
 const DemoBookingsManagementPage: React.FC = () => {
-    const { theme } = useTheme();  const { theme } = useTheme();
+  const { theme } = useTheme();
   const [bookings, setBookings] = useState<DemoBooking[]>([]);
   const [filteredBookings, setFilteredBookings] = useState<DemoBooking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -167,18 +167,11 @@ const DemoBookingsManagementPage: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-full py-3 transition-colors duration-300 ${
-      theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
-    }`}>
-      <div className="container mx-auto px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <AdminPageHeader 
-            title="Demo Bookings"
-            subtitle="Manage demo class booking requests"
-            backLinkPath="/admin/dashboard"
-            backTooltipText="Back to Dashboard"
-          />
-          <AdminNav />
+    <AdminLayout>
+      <AdminPageHeader
+        title="Demo Bookings"
+        subtitle="Manage demo class booking requests"
+      />
 
           {error && (
             <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
@@ -469,8 +462,7 @@ const DemoBookingsManagementPage: React.FC = () => {
             </motion.div>
           </div>
         )}
-      </div>
-    </div>
+    </AdminLayout>
   );
 };
 
