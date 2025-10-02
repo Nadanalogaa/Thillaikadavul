@@ -385,10 +385,40 @@ const StudentDashboardHomePage: React.FC = () => {
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -50 }}
                             transition={{ duration: 0.3 }}
-                            className="p-6"
+                            className="p-3 sm:p-6"
                         >
-                            {/* Student Header */}
-                            <div className="flex items-center space-x-4 mb-6">
+                            {/* Mobile Navigation Menu - Show only on mobile */}
+                            <div className="md:hidden mb-4">
+                                <div className="grid grid-cols-4 gap-2">
+                                    <Link to="courses" className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
+                                        theme === 'dark' ? 'bg-gray-700/50 hover:bg-gray-600/50' : 'bg-white hover:bg-gray-50'
+                                    }`}>
+                                        <BookOpen className="w-5 h-5 text-purple-500 mb-1" />
+                                        <span className={`text-[10px] font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Courses</span>
+                                    </Link>
+                                    <Link to="events" className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
+                                        theme === 'dark' ? 'bg-gray-700/50 hover:bg-gray-600/50' : 'bg-white hover:bg-gray-50'
+                                    }`}>
+                                        <Calendar className="w-5 h-5 text-blue-500 mb-1" />
+                                        <span className={`text-[10px] font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Events</span>
+                                    </Link>
+                                    <Link to="book-materials" className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
+                                        theme === 'dark' ? 'bg-gray-700/50 hover:bg-gray-600/50' : 'bg-white hover:bg-gray-50'
+                                    }`}>
+                                        <BookOpen className="w-5 h-5 text-green-500 mb-1" />
+                                        <span className={`text-[10px] font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Materials</span>
+                                    </Link>
+                                    <Link to="notices" className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
+                                        theme === 'dark' ? 'bg-gray-700/50 hover:bg-gray-600/50' : 'bg-white hover:bg-gray-50'
+                                    }`}>
+                                        <Bell className="w-5 h-5 text-orange-500 mb-1" />
+                                        <span className={`text-[10px] font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Notices</span>
+                                    </Link>
+                                </div>
+                            </div>
+
+                            {/* Student Header - Hidden on mobile */}
+                            <div className="hidden md:flex items-center space-x-4 mb-6">
                                 <div className="relative">
                                     <img
                                         src={currentStudent?.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(studentName)}&background=7B61FF&color=fff`}

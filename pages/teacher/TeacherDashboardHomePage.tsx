@@ -369,7 +369,36 @@ const TeacherDashboardHomePage: React.FC = () => {
                     </div>
 
                     {/* Course Content */}
-                    <div className="p-6">
+                    <div className="p-3 sm:p-6">
+                        {/* Mobile Navigation Menu - Show only on mobile */}
+                        <div className="md:hidden mb-4">
+                            <div className="grid grid-cols-4 gap-2">
+                                <Link to="batches" className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
+                                    theme === 'dark' ? 'bg-gray-700/50 hover:bg-gray-600/50' : 'bg-white hover:bg-gray-50'
+                                }`}>
+                                    <Users className="w-5 h-5 text-purple-500 mb-1" />
+                                    <span className={`text-[10px] font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Batches</span>
+                                </Link>
+                                <Link to="events" className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
+                                    theme === 'dark' ? 'bg-gray-700/50 hover:bg-gray-600/50' : 'bg-white hover:bg-gray-50'
+                                }`}>
+                                    <Calendar className="w-5 h-5 text-blue-500 mb-1" />
+                                    <span className={`text-[10px] font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Events</span>
+                                </Link>
+                                <Link to="book-materials" className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
+                                    theme === 'dark' ? 'bg-gray-700/50 hover:bg-gray-600/50' : 'bg-white hover:bg-gray-50'
+                                }`}>
+                                    <BookOpen className="w-5 h-5 text-green-500 mb-1" />
+                                    <span className={`text-[10px] font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Materials</span>
+                                </Link>
+                                <Link to="notice" className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
+                                    theme === 'dark' ? 'bg-gray-700/50 hover:bg-gray-600/50' : 'bg-white hover:bg-gray-50'
+                                }`}>
+                                    <Bell className="w-5 h-5 text-orange-500 mb-1" />
+                                    <span className={`text-[10px] font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Notices</span>
+                                </Link>
+                            </div>
+                        </div>
                         {(() => {
                             const teacherCourses = user?.courseExpertise || [];
                             const teacherPreferredTimings = user?.availableTimeSlots || user?.preferredTimings || [];
