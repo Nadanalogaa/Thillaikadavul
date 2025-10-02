@@ -114,9 +114,20 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 </div>
 
                 {/* Page content */}
-                <main className="p-3 sm:p-4 lg:p-6">
+                <main className="p-3 sm:p-4 lg:p-6 pb-16">
                     {children}
                 </main>
+
+                {/* Admin Footer - Simple single line */}
+                <footer className={`fixed bottom-0 left-0 right-0 lg:left-64 h-12 flex items-center justify-center border-t ${
+                    theme === 'dark'
+                        ? 'bg-gray-800 border-gray-700 text-gray-400'
+                        : 'bg-white border-gray-200 text-gray-600'
+                }`}>
+                    <p className="text-xs sm:text-sm">
+                        © {new Date().getFullYear()} Nadanaloga Fine Arts Academy. All rights reserved.
+                    </p>
+                </footer>
             </div>
         </div>
     );

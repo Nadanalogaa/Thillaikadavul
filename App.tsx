@@ -311,8 +311,8 @@ function App() {
 
           </Routes>
         </main>
-        <AnimatedFooter />
-        <WhatsAppButton />
+        {!isAdminRoute && <AnimatedFooter />}
+        {!isAdminRoute && <WhatsAppButton />}
 
         <Modal isOpen={isLoginModalOpen} onClose={closeLoginModal}>
           <LoginForm 
