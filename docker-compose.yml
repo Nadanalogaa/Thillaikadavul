@@ -85,5 +85,5 @@ volumes:
 
 networks:
   nadanaloga-network:
-    driver: bridge
     name: nadanaloga-${BRANCH_NAME:-main}-network
+    external: false
