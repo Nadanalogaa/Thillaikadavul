@@ -1724,16 +1724,16 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                         />
                                     </div>
 
-                                    <div className="space-y-4">
+                                    <div className="space-y-2 sm:space-y-4">
                                         <div>
-                                            <h4 className={`text-lg font-semibold mb-1 ${
+                                            <h4 className={`text-sm sm:text-base md:text-lg font-semibold mb-1 ${
                                                 theme === 'dark' ? 'text-white' : 'text-gray-900'
                                             }`}>Course Expertise</h4>
-                                            <p className={`text-sm mb-6 ${
+                                            <p className={`text-xs sm:text-sm mb-3 sm:mb-6 ${
                                                 theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                                             }`}>Select your areas of expertise (you can choose multiple courses)</p>
                                         </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
                                             {courses.map(course => {
                                                 const courseName = course.name;
                                                 const courseSlots = (Array.isArray(teacherData.availableTimeSlots)
@@ -1743,49 +1743,50 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                 return (
                                                     <div
                                                         key={course.id}
-                                                        className={`relative overflow-hidden rounded-xl border transition-all duration-300 cursor-pointer transform hover:scale-105 ${
+                                                        className={`relative overflow-hidden rounded-lg sm:rounded-xl border transition-all duration-300 cursor-pointer transform hover:scale-105 ${
                                                             isSelected ? (theme === 'dark' ? 'border-blue-400 bg-blue-900/30 shadow-lg' : 'border-blue-300 bg-blue-50 shadow-lg') : (theme === 'dark' ? 'border-gray-600 bg-gray-700/50 hover:border-gray-500 hover:shadow-md' : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md')
                                                         }`}
                                                         onClick={() => handleTeacherExpertiseChange(courseName, !isSelected)}
                                                     >
-                                                        {/* Course Image */}
-                                                        <div className="aspect-w-16 aspect-h-12 bg-gradient-to-br from-orange-100 via-yellow-50 to-pink-100">
+                                                        {/* Course Image - Reduced height for mobile */}
+                                                        <div className="bg-gradient-to-br from-orange-100 via-yellow-50 to-pink-100 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700">
                                                             {course.image ? (
-                                                                <img 
-                                                                    src={course.image} 
+                                                                <img
+                                                                    src={course.image}
                                                                     alt={courseName}
-                                                                    className="w-full h-32 object-contain p-4"
+                                                                    className="w-full h-16 sm:h-24 md:h-32 object-contain p-2 sm:p-3 md:p-4"
                                                                 />
                                                             ) : (
-                                                                <div className="flex items-center justify-center h-32 p-4">
-                                                                    <div className="text-center text-gray-500">
-                                                                        <svg className="w-12 h-12 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <div className="flex items-center justify-center h-16 sm:h-24 md:h-32 p-2 sm:p-3 md:p-4">
+                                                                    <div className="text-center text-gray-500 dark:text-gray-400">
+                                                                        <svg className="w-6 h-6 sm:w-8 sm:h-8 md:w-12 md:h-12 mx-auto mb-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
                                                                         </svg>
-                                                                        <p className="text-xs font-medium">{courseName}</p>
-                                                                        <p className="text-xs text-gray-400">No image uploaded</p>
+                                                                        <p className="text-[10px] sm:text-xs font-medium">{courseName}</p>
                                                                     </div>
                                                                 </div>
                                                             )}
                                                         </div>
-                                                        
+
                                                         {/* Course Content */}
-                                                        <div className="p-4">
-                                                            <div className="flex items-center justify-between mb-2">
-                                                                <h3 className="text-sm font-bold text-gray-900 truncate">{courseName}</h3>
+                                                        <div className="p-2 sm:p-3 md:p-4">
+                                                            <div className="flex items-center justify-between mb-1 sm:mb-2">
+                                                                <h3 className={`text-xs sm:text-sm font-bold truncate ${
+                                                                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                                                }`}>{courseName}</h3>
                                                                 {isSelected && (
-                                                                    <div className="flex-shrink-0 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                                                                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <div className="flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                                                                        <svg className="w-2 h-2 sm:w-3 sm:h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
                                                                         </svg>
                                                                     </div>
                                                                 )}
                                                             </div>
-                                                            
-                                                            <div className={`flex items-center justify-between text-xs ${
-                                                                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+
+                                                            <div className={`flex items-center justify-between text-[10px] sm:text-xs ${
+                                                                theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
                                                             }`}>
-                                                                <span>Time Slots: {courseSlots.length}</span>
+                                                                <span>Slots: {courseSlots.length}</span>
                                                                 <span className={`font-medium ${
                                                                     theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
                                                                 }`}>
