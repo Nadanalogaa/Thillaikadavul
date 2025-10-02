@@ -896,55 +896,54 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                 ) : (
                     <div>
                         {/* Compact Header */}
-                        <motion.div 
+                        {/* Header - Desktop only */}
+                        <motion.div
                             initial={{ opacity: 0, y: -20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className={`rounded-2xl shadow-lg mb-6 p-6 backdrop-blur-sm border transition-all duration-300 ${
+                            className={`hidden md:block rounded-2xl shadow-lg mb-6 p-4 md:p-6 backdrop-blur-sm border transition-all duration-300 ${
                                 theme === 'dark'
                                     ? 'bg-gray-800/80 border-gray-700/50'
                                     : 'bg-white/90 border-white/20'
                             }`}
                         >
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-                                <div className="flex items-center gap-2 sm:gap-3">
-                                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
-                                        <Star className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                                        <Star className="w-5 h-5 text-white" />
                                     </div>
-                                    <h1 className={`text-base sm:text-lg md:text-xl font-bold ${
+                                    <h1 className={`text-lg md:text-xl font-bold ${
                                         theme === 'dark' ? 'text-white' : 'text-gray-900'
                                     }`}>
                                         {registrationType === 'student' ? 'Student Registration' : 'Instructor Application'}
                                     </h1>
                                 </div>
 
-                                {/* Compact steps and info */}
-                                <div className="flex items-center justify-between sm:gap-3">
-                                    <div className="flex items-center gap-1.5 sm:gap-2">
-                                        <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-semibold transition-all ${
+                                <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2">
+                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${
                                             currentStep >= 1 ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white' : 'bg-gray-200 text-gray-500'
                                         }`}>1</div>
-                                        <div className={`w-6 sm:w-8 h-0.5 ${currentStep > 1 ? 'bg-gradient-to-r from-purple-500 to-blue-500' : 'bg-gray-200'}`}></div>
-                                        <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-semibold transition-all ${
+                                        <div className={`w-8 h-0.5 ${currentStep > 1 ? 'bg-gradient-to-r from-purple-500 to-blue-500' : 'bg-gray-200'}`}></div>
+                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${
                                             currentStep >= 2 ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white' : 'bg-gray-200 text-gray-500'
                                         }`}>2</div>
                                     </div>
 
-                                    <div className="text-right ml-3 sm:ml-0">
-                                        <div className={`text-xs sm:text-sm font-medium ${
+                                    <div className="text-right">
+                                        <div className={`text-sm font-medium ${
                                             theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
                                         }`}>
-                                            <span className="hidden sm:inline">{currentStep === 1 ? (registrationType === 'student' ? 'Guardian Account Details' : 'Your Account Details') : 'Additional Information'}</span>
-                                            <span className="sm:hidden">Step {currentStep} of 2</span>
+                                            {currentStep === 1 ? (registrationType === 'student' ? 'Guardian Account Details' : 'Your Account Details') : 'Additional Information'}
                                         </div>
-                                        <div className={`text-[10px] sm:text-xs ${
+                                        <div className={`text-xs ${
                                             theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                                        } hidden sm:block`}>Step {currentStep} of 2</div>
+                                        }`}>Step {currentStep} of 2</div>
                                     </div>
                                 </div>
                             </div>
                         </motion.div>
 
-                        <div className="flex flex-col lg:flex-row gap-8">
+                        <div className="flex flex-col-reverse md:flex-row gap-4 md:gap-8">
                             {/* Main Form */}
                             <div className="flex-1 lg:order-1 order-2">
                                 <motion.div 
@@ -971,12 +970,12 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                         </motion.div>
                                     )}
 
-                                <form onSubmit={handleSubmit} className="p-6">
+                                <form onSubmit={handleSubmit} className="p-3 sm:p-4 md:p-6">
                             {currentStep === 1 && (
-                                <div className="space-y-6">
-                                    <h3 className={`text-lg font-semibold border-b pb-2 ${
-                                        theme === 'dark' 
-                                            ? 'text-white border-gray-700' 
+                                <div className="space-y-3 sm:space-y-4 md:space-y-6">
+                                    <h3 className={`text-sm sm:text-base md:text-lg font-semibold border-b pb-2 ${
+                                        theme === 'dark'
+                                            ? 'text-white border-gray-700'
                                             : 'text-gray-900 border-gray-200'
                                     }`}>
                                         {registrationType === 'student' ? 'Guardian Account Details' : 'Your Account Details'}
@@ -987,23 +986,26 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                             initial={{ opacity: 0, y: 20 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             transition={{ delay: 0.1 }}
+                                            className="relative"
                                         >
-                                            <label className={`block text-xs font-semibold mb-2 uppercase tracking-wider ${
-                                                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                                            }`}>Full Name</label>
                                             <input
                                                 name="name"
                                                 value={registrationType === 'student' ? guardianData.name : teacherData.name || ''}
                                                 onChange={registrationType === 'student' ? handleGuardianChange : handleTeacherChange}
                                                 required
-                                                className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-4 focus:ring-indigo-500/30 ${
+                                                placeholder=" "
+                                                className={`peer w-full px-3 sm:px-4 py-2 sm:py-3 rounded-lg sm:rounded-xl border-2 text-sm font-medium transition-all duration-300 focus:ring-2 sm:focus:ring-4 focus:ring-indigo-500/30 ${
                                                     getValidationStyle('name', theme) ||
                                                     (theme === 'dark'
-                                                        ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-400'
-                                                        : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:bg-white')
+                                                        ? 'bg-gray-700/50 border-gray-600 text-white placeholder-transparent focus:border-indigo-400'
+                                                        : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-transparent focus:border-indigo-500 focus:bg-white')
                                                 }`}
-                                                placeholder="Enter your full name"
                                             />
+                                            <label className={`absolute left-3 sm:left-4 -top-2 sm:-top-2.5 px-1 text-[10px] sm:text-xs font-semibold transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:top-2 sm:peer-placeholder-shown:top-3 peer-placeholder-shown:left-3 sm:peer-placeholder-shown:left-4 peer-focus:-top-2 sm:peer-focus:-top-2.5 peer-focus:left-3 sm:peer-focus:left-4 peer-focus:text-[10px] sm:peer-focus:text-xs ${
+                                                theme === 'dark' ? 'bg-gray-800 text-gray-300 peer-focus:text-indigo-400' : 'bg-white text-gray-600 peer-focus:text-indigo-600'
+                                            }`}>
+                                                Full Name
+                                            </label>
                                             {renderValidationMessage('name')}
                                         </motion.div>
                                         <motion.div
@@ -1870,10 +1872,10 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                         )}
                                     </button>
                                 ) : (
-                                    <button 
-                                        type="submit" 
-                                        disabled={isLoading} 
-                                        className="px-8 py-4 rounded-xl text-white font-semibold bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                    <button
+                                        type="submit"
+                                        disabled={isLoading}
+                                        className="px-6 sm:px-8 py-3 sm:py-4 rounded-lg sm:rounded-xl text-sm sm:text-base text-white font-semibold bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                     >
                                         {isLoading ? 'Creating Account...' : (
                                             <>
