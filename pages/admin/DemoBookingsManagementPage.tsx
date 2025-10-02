@@ -146,23 +146,16 @@ const DemoBookingsManagementPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className={`min-h-full py-3 transition-colors duration-300 ${
-        theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
-      }`}>
-        <div className="container mx-auto px-6 lg:px-8">
-          <AdminPageHeader 
-            title="Demo Bookings"
-            subtitle="Manage demo class booking requests"
-            backLinkPath="/admin/dashboard"
-            backTooltipText="Back to Dashboard"
-          />
-          <AdminNav />
-          <div className="text-center py-8">
-            <div className="w-8 h-8 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-400">Loading demo bookings...</p>
-          </div>
+      <AdminLayout>
+        <AdminPageHeader
+          title="Demo Bookings"
+          subtitle="Manage demo class booking requests"
+        />
+        <div className="text-center py-8">
+          <div className="w-8 h-8 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Loading demo bookings...</p>
         </div>
-      </div>
+      </AdminLayout>
     );
   }
 
