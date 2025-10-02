@@ -538,9 +538,7 @@ const TeacherListPage: React.FC = () => {
                             </div>
                         </div>
                     )}
-                </div>
-            </div>
-            
+
             <EditUserModal 
                 isOpen={!!editingUser}
                 onClose={() => setEditingUser(null)}

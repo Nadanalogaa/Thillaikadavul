@@ -665,9 +665,7 @@ const StudentListPage: React.FC = () => {
                             </div>
                         </div>
                     )}
-                </div>
-            </div>
-            
+
             <EditUserModal 
                 isOpen={!!editingUser}
                 onClose={handleCloseEditModal}

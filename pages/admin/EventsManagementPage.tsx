@@ -327,7 +327,6 @@ const EventsManagementPage: React.FC = () => {
                         </div>
                     )}
                 </div>
-            </div>
 
             <Modal isOpen={!!editingEvent} onClose={() => setEditingEvent(null)} size="4xl">
                 <ModalHeader title={editingEvent?.id ? 'Edit Event' : 'Add New Event'} />

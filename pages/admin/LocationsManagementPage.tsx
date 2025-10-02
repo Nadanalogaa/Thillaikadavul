@@ -164,7 +164,6 @@ const LocationsManagementPage: React.FC = () => {
                         </div>
                     )}
                 </div>
-            </div>
 
             <Modal isOpen={!!editingLocation} onClose={() => setEditingLocation(null)} size="lg">
                 <ModalHeader title={editingLocation?.id ? 'Edit Location' : 'Add New Location'} />

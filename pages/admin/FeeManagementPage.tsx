@@ -173,8 +173,6 @@ const FeeManagementPage: React.FC = () => {
                             )}
                         </div>
                     )}
-                </div>
-            </div>
 
             <EditFeeStructureModal
                 isOpen={!!editingStructure}

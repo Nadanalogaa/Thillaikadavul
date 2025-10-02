@@ -140,7 +140,6 @@ const NoticesManagementPage: React.FC = () => {
                         </div>
                     )}
                 </div>
-            </div>
 
             <Modal isOpen={!!editingNotice} onClose={() => setEditingNotice(null)} size="lg">
                 <ModalHeader title={editingNotice?.id ? 'Edit Notice' : 'Add New Notice'} />

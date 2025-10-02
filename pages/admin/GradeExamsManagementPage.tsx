@@ -159,7 +159,6 @@ const GradeExamsManagementPage: React.FC = () => {
                         </div>
                     )}
                 </div>
-            </div>
 
             <Modal isOpen={!!editingExam} onClose={() => setEditingExam(null)} size="lg">
                 <ModalHeader title={editingExam?.id ? 'Edit Grade Exam' : 'Add New Grade Exam'} />

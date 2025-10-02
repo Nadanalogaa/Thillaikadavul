@@ -377,7 +377,6 @@ const DemoBookingsManagementPage: React.FC = () => {
               </div>
             )}
           </div>
-        </div>
 
         {/* Management Modal */}
         {isModalOpen && selectedBooking && (

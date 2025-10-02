@@ -326,9 +326,7 @@ const BatchesPage: React.FC = () => {
                             onAddStudents={setAddingStudentsToBatch}
                         />
                     )}
-                </div>
-            </div>
-            
+
             <EditBatchModal 
                 isOpen={!!editingBatch}
                 onClose={() => setEditingBatch(null)}
