@@ -203,14 +203,18 @@ function App() {
     return <StudentProfileViewPage studentId={studentId} />;
   };
 
+  const isAdminRoute = location.pathname.startsWith('/admin');
+
   return (
     <ThemeProvider>
       <div className="flex flex-col min-h-screen bg-brand-light/20 dark:bg-gray-900">
-        <Header
-          currentUser={currentUser}
-          onLogout={handleLogout}
-          onLoginClick={() => setLoginModalOpen(true)}
-        />
+        {!isAdminRoute && (
+          <Header
+            currentUser={currentUser}
+            onLogout={handleLogout}
+            onLoginClick={() => setLoginModalOpen(true)}
+          />
+        )}
         <main className="flex-grow">
           <Routes>
             <Route path="/" element={

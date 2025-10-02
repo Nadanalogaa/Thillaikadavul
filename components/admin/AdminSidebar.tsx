@@ -36,15 +36,15 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ isOpen, onClose }) => {
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         lg:translate-x-0
         ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}
-        shadow-xl lg:shadow-none border-r
+        border-r
         ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}
     `;
 
     const linkClasses = (isActive: boolean) => `
-        flex items-center px-4 py-3 text-base font-medium rounded-lg mx-2 my-1
-        transition-all duration-200
+        flex items-center px-3 py-2 text-sm font-medium rounded-md mx-2 my-0.5
+        transition-all duration-150
         ${isActive
-            ? 'bg-brand-primary text-white shadow-md'
+            ? 'bg-brand-primary text-white'
             : theme === 'dark'
                 ? 'text-gray-300 hover:bg-gray-700 hover:text-white'
                 : 'text-gray-700 hover:bg-gray-100 hover:text-brand-primary'
@@ -53,38 +53,38 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ isOpen, onClose }) => {
 
     return (
         <aside className={sidebarClasses}>
-            {/* Sidebar Header */}
-            <div className={`flex items-center justify-between p-4 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+            {/* Sidebar Header - Compact */}
+            <div className={`flex items-center justify-between px-3 py-3 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
                 <div className="flex items-center space-x-2">
                     <Tooltip content="Back to Home" position="right">
                         <Link
                             to="/"
-                            className={`p-2 rounded-lg ${theme === 'dark'
-                                ? 'hover:bg-gray-700 text-gray-300'
-                                : 'hover:bg-gray-100 text-gray-700'
+                            className={`p-1.5 rounded-md ${theme === 'dark'
+                                ? 'hover:bg-gray-700 text-gray-400'
+                                : 'hover:bg-gray-100 text-gray-600'
                                 }`}
                         >
-                            <ArrowLeftIcon className="h-5 w-5" />
+                            <ArrowLeftIcon className="h-4 w-4" />
                         </Link>
                     </Tooltip>
-                    <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                    <h2 className={`text-base font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                         Admin
                     </h2>
                 </div>
                 <button
                     onClick={onClose}
-                    className={`lg:hidden p-2 rounded-lg ${theme === 'dark'
-                        ? 'hover:bg-gray-700 text-gray-300'
-                        : 'hover:bg-gray-100 text-gray-700'
+                    className={`lg:hidden p-1.5 rounded-md ${theme === 'dark'
+                        ? 'hover:bg-gray-700 text-gray-400'
+                        : 'hover:bg-gray-100 text-gray-600'
                         }`}
                 >
-                    <XIcon className="h-5 w-5" />
+                    <XIcon className="h-4 w-4" />
                 </button>
             </div>
 
-            {/* Navigation Links */}
-            <nav className="flex-1 overflow-y-auto py-4">
-                <div className="space-y-1">
+            {/* Navigation Links - Compact */}
+            <nav className="flex-1 overflow-y-auto py-3 px-1">
+                <div className="space-y-0.5">
                     {links.map((link) => (
                         <NavLink
                             key={link.path}
@@ -93,17 +93,17 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ isOpen, onClose }) => {
                             onClick={onClose}
                             className={({ isActive }) => linkClasses(isActive)}
                         >
-                            <link.icon className="h-5 w-5 mr-3 flex-shrink-0" />
-                            <span className="truncate">{link.name}</span>
+                            <link.icon className="h-4 w-4 mr-2.5 flex-shrink-0" />
+                            <span className="truncate text-sm">{link.name}</span>
                         </NavLink>
                     ))}
                 </div>
             </nav>
 
-            {/* Footer */}
-            <div className={`p-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
-                <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Admin Panel v1.0
+            {/* Footer - Minimal */}
+            <div className={`px-3 py-2 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+                <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
+                    v1.0
                 </p>
             </div>
         </aside>

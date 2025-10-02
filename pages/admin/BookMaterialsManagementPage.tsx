@@ -3,7 +3,8 @@ import type { BookMaterial, Course } from '../../types';
 import { BookMaterialType } from '../../types';
 import { getAdminBookMaterials, addBookMaterial, updateBookMaterial, deleteBookMaterial, getAdminCourses } from '../../api';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
-import AdminNav from '../../components/admin/AdminNav';
+import AdminLayout from '../../components/admin/AdminLayout';
+import { useTheme } from '../../contexts/ThemeContext';
 import Modal from '../../components/Modal';
 import ModalHeader from '../../components/ModalHeader';
 import SendContentNotificationModal from '../../components/admin/SendContentNotificationModal';
@@ -101,6 +102,7 @@ const BookMaterialForm: React.FC<{ material?: Partial<BookMaterial>, courses: Co
 
 
 const BookMaterialsManagementPage: React.FC = () => {
+    const { theme } = useTheme();
     const [materials, setMaterials] = useState<BookMaterial[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -156,12 +158,10 @@ const BookMaterialsManagementPage: React.FC = () => {
     };
 
     return (
-        <div className="bg-gray-50 min-h-full py-3">
-            <div className="container mx-auto px-6 lg:px-8">
-                <AdminPageHeader title="Book Materials" subtitle="Upload and manage course materials." backLinkPath="/admin/dashboard" backTooltipText="Back to Dashboard" />
-                <AdminNav />
+        <AdminLayout>
+            <AdminPageHeader title="Book Materials" subtitle="Upload and manage course materials." />
 
-                <div className="mt-8">
+                <div className="mt-4">
                     <div className="flex justify-end mb-4">
                         <button onClick={() => setEditingMaterial({})} className="btn-primary">
                             + Add New Material
@@ -198,7 +198,6 @@ const BookMaterialsManagementPage: React.FC = () => {
                         </div>
                     )}
                 </div>
-            </div>
 
             <Modal isOpen={!!editingMaterial} onClose={() => setEditingMaterial(null)} size="lg">
                 <ModalHeader title={editingMaterial?.id ? 'Edit Material' : 'Add New Material'} />
@@ -224,7 +223,7 @@ const BookMaterialsManagementPage: React.FC = () => {
                 .badge { font-size: 12px; font-weight: 500; padding: 4px 8px; border-radius: 12px; }
                 .badge-green { background-color: #D1FAE5; color: #065F46; }
             `}</style>
-        </div>
+        </AdminLayout>
     );
 };
 
