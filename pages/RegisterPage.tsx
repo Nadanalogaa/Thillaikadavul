@@ -1438,16 +1438,16 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                             )}
 
                                             {/* Course Selection */}
-                                            <div className="space-y-4">
+                                            <div className="space-y-2 sm:space-y-4">
                                                 <div>
-                                                    <h4 className={`text-lg font-semibold mb-1 ${
+                                                    <h4 className={`text-sm sm:text-base md:text-lg font-semibold mb-1 ${
                                                         theme === 'dark' ? 'text-white' : 'text-gray-900'
                                                     }`}>Select your Course</h4>
-                                                    <p className={`text-sm mb-6 ${
+                                                    <p className={`text-xs sm:text-sm mb-3 sm:mb-6 ${
                                                         theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                                                     }`}>You can select multiple courses</p>
                                                 </div>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
                                                     {courses.map(course => {
                                                         const courseName = course.name;
                                                         const courseSlots = (Array.isArray(students[activeStudentIndex].preferredTimings)
@@ -1458,63 +1458,64 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                         return (
                                                             <div
                                                                 key={course.id}
-                                                                className={`relative overflow-hidden rounded-xl border transition-all duration-300 cursor-pointer transform hover:scale-105 ${
+                                                                className={`relative overflow-hidden rounded-lg sm:rounded-xl border transition-all duration-300 cursor-pointer transform hover:scale-105 ${
                                                                     isSelected ? (theme === 'dark' ? 'border-blue-400 bg-blue-900/30 shadow-lg' : 'border-blue-300 bg-blue-50 shadow-lg') : (theme === 'dark' ? 'border-gray-600 bg-gray-700/50 hover:border-gray-500 hover:shadow-md' : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md')
                                                                 } ${isActive ? 'ring-2 ring-blue-300 ring-offset-2' : ''}`}
                                                                 onClick={() => {
                                                                     // Toggle course selection
                                                                     const currentCourses = students[activeStudentIndex].courses || [];
-                                                                    const newCourses = currentCourses.includes(courseName) 
+                                                                    const newCourses = currentCourses.includes(courseName)
                                                                         ? currentCourses.filter(c => c !== courseName)
                                                                         : [...currentCourses, courseName];
                                                                     handleStudentDataChange(activeStudentIndex, 'courses', newCourses);
-                                                                    
+
                                                                     // Set for timing selection if selected
                                                                     if (!currentCourses.includes(courseName)) {
                                                                         setTimingSelectedCourse(courseName);
                                                                     }
                                                                 }}
                                                             >
-                                                                {/* Course Image */}
-                                                                <div className="aspect-w-16 aspect-h-12 bg-gradient-to-br from-orange-100 via-yellow-50 to-pink-100">
+                                                                {/* Course Image - Reduced height for mobile */}
+                                                                <div className="bg-gradient-to-br from-orange-100 via-yellow-50 to-pink-100 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700">
                                                                     {course.image ? (
-                                                                        <img 
-                                                                            src={course.image} 
+                                                                        <img
+                                                                            src={course.image}
                                                                             alt={courseName}
-                                                                            className="w-full h-32 object-contain p-4"
+                                                                            className="w-full h-16 sm:h-24 md:h-32 object-contain p-2 sm:p-3 md:p-4"
                                                                         />
                                                                     ) : (
-                                                                        <div className="flex items-center justify-center h-32 p-4">
-                                                                            <div className="text-center text-gray-500">
-                                                                                <svg className="w-12 h-12 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <div className="flex items-center justify-center h-16 sm:h-24 md:h-32 p-2 sm:p-3 md:p-4">
+                                                                            <div className="text-center text-gray-500 dark:text-gray-400">
+                                                                                <svg className="w-6 h-6 sm:w-8 sm:h-8 md:w-12 md:h-12 mx-auto mb-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
                                                                                 </svg>
-                                                                                <p className="text-xs font-medium">{courseName}</p>
-                                                                                <p className="text-xs text-gray-400">No image uploaded</p>
+                                                                                <p className="text-[10px] sm:text-xs font-medium">{courseName}</p>
                                                                             </div>
                                                                         </div>
                                                                     )}
                                                                 </div>
-                                                                
+
                                                                 {/* Course Content */}
-                                                                <div className="p-4">
-                                                                    <div className="flex items-center justify-between mb-2">
-                                                                        <h3 className="text-sm font-bold text-gray-900 truncate">{courseName}</h3>
+                                                                <div className="p-2 sm:p-3 md:p-4">
+                                                                    <div className="flex items-center justify-between mb-1 sm:mb-2">
+                                                                        <h3 className={`text-xs sm:text-sm font-bold truncate ${
+                                                                            theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                                                        }`}>{courseName}</h3>
                                                                         {isSelected && (
-                                                                            <div className="flex-shrink-0 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                                                                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <div className="flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                                                                                <svg className="w-2 h-2 sm:w-3 sm:h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
                                                                                 </svg>
                                                                             </div>
                                                                         )}
                                                                     </div>
-                                                                    
-                                                                    <div className={`flex items-center justify-between text-xs ${
-                                                                        theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+
+                                                                    <div className={`flex items-center justify-between text-[10px] sm:text-xs ${
+                                                                        theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
                                                                     }`}>
-                                                                        <span>Time Slots: {courseSlots.length}/2</span>
+                                                                        <span>Slots: {courseSlots.length}/2</span>
                                                                         <span className={`font-medium ${
-                                                                            theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                                                                            theme === 'dark' ? 'text-blue-300' : 'text-blue-600'
                                                                         }`}>
                                                                             {isSelected ? 'Selected' : 'Select'}
                                                                         </span>
@@ -1530,7 +1531,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                                                 setTimingSelectedCourse(courseName);
                                                                                 setIsTimeModalOpen(true);
                                                                             }}
-                                                                            className="mt-3 w-full flex items-center justify-center gap-2 py-2 px-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs font-medium rounded-md hover:from-purple-600 hover:to-blue-600 transition-all duration-200 shadow-sm hover:shadow-md"
+                                                                            className="mt-2 sm:mt-3 w-full flex items-center justify-center gap-1 sm:gap-2 py-1.5 sm:py-2 px-2 sm:px-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white text-[10px] sm:text-xs font-medium rounded-md hover:from-purple-600 hover:to-blue-600 transition-all duration-200 shadow-sm hover:shadow-md"
                                                                         >
                                                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -1830,25 +1831,25 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                             <div className={`flex justify-between items-center pt-8 border-t ${
                                 theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
                             }`}>
-                                <div className="flex space-x-3">
-                                    <button 
-                                        type="button" 
-                                        onClick={() => setRegistrationType(null)} 
-                                        className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 border-2 ${
-                                            theme === 'dark' 
-                                                ? 'border-gray-600 text-gray-300 hover:border-gray-500 hover:bg-gray-700/50' 
+                                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setRegistrationType(null)}
+                                        className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-semibold transition-all duration-300 border-2 ${
+                                            theme === 'dark'
+                                                ? 'border-gray-600 text-gray-300 hover:border-gray-500 hover:bg-gray-700/50'
                                                 : 'border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
                                         }`}
                                     >
                                         ← Back to Selection
                                     </button>
                                     {currentStep > 1 && (
-                                        <button 
-                                            type="button" 
-                                            onClick={() => setCurrentStep(prev => prev - 1)} 
-                                            className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 border-2 ${
-                                            theme === 'dark' 
-                                                ? 'border-gray-600 text-gray-300 hover:border-gray-500 hover:bg-gray-700/50' 
+                                        <button
+                                            type="button"
+                                            onClick={() => setCurrentStep(prev => prev - 1)}
+                                            className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-semibold transition-all duration-300 border-2 ${
+                                            theme === 'dark'
+                                                ? 'border-gray-600 text-gray-300 hover:border-gray-500 hover:bg-gray-700/50'
                                                 : 'border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
                                         }`}
                                         >
@@ -2077,8 +2078,8 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                             </div>
                         )}
 
-                        {/* Right Sidebar */}
-                        <div className="w-full lg:w-96 lg:order-2 order-1 space-y-6">
+                        {/* Right Sidebar - Hidden on mobile */}
+                        <div className="hidden md:block w-full lg:w-96 lg:order-2 order-1 space-y-6">
                             <div className={`rounded-2xl shadow-lg backdrop-blur-sm border transition-all duration-300 ${
                                     theme === 'dark'
                                         ? 'bg-gray-800/90 border-gray-700/50'
