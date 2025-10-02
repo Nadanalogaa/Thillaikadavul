@@ -48,7 +48,7 @@ const NoticeForm: React.FC<{ notice?: Partial<Notice>, onSave: (notice: Partial<
 
 
 const NoticesManagementPage: React.FC = () => {
-    const [notices, setNotices] = useState<Notice[]>([]);
+    const { theme } = useTheme();    const [notices, setNotices] = useState<Notice[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isFormLoading, setIsFormLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);

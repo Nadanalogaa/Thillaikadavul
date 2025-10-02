@@ -10,7 +10,8 @@ import SendNotificationModal from '../../components/admin/SendNotificationModal'
 import { WEEKDAYS, TIME_SLOTS } from '../../constants';
 import type { AssignmentChanges } from '../../components/admin/AddTeacherModal';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
-import AdminNav from '../../components/admin/AdminNav';
+import AdminLayout from '../../components/admin/AdminLayout';
+import { useTheme } from '../../contexts/ThemeContext';
 
 type SortDirection = 'ascending' | 'descending';
 type SortConfig = { key: keyof User; direction: SortDirection } | null;
@@ -33,6 +34,7 @@ const SortableHeader: React.FC<{ columnKey: keyof User, title: string, sortConfi
 );
 
 const TeacherListPage: React.FC = () => {
+    const { theme } = useTheme();
     const [allUsers, setAllUsers] = useState<User[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -356,18 +358,13 @@ const TeacherListPage: React.FC = () => {
 
 
     return (
-        <div className="bg-gray-50 min-h-full py-3">
-            <div className="container mx-auto px-6 lg:px-8">
-                <div className="max-w-full mx-auto">
-                    <AdminPageHeader
-                        title="Teacher Management"
-                        subtitle={`Showing ${filteredAndSortedTeachers.length} of ${teachers.length} total teachers.`}
-                        backLinkPath="/admin/dashboard"
-                        backTooltipText="Back to Dashboard"
-                    />
-                     <AdminNav />
+        <AdminLayout>
+            <AdminPageHeader
+                title="Teachers"
+                subtitle={`Showing ${filteredAndSortedTeachers.length} of ${teachers.length} total teachers.`}
+            />
 
-                    <div className="bg-white p-4 rounded-lg shadow-md my-8">
+            <div className={`p-4 rounded-lg shadow-md mb-4 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div className="lg:col-span-1">
                                 <input
@@ -562,7 +559,7 @@ const TeacherListPage: React.FC = () => {
                 onSend={handleSendNotification}
                 userType="teacher"
             />
-        </div>
+        </AdminLayout>
     );
 };
 

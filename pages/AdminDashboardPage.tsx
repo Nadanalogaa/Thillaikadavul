@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import type { Course, DashboardStats } from '../types';
-import { 
+import {
     getAdminCourses, addCourseByAdmin, updateCourseByAdmin, deleteCourseByAdmin, getAdminStats
 } from '../api';
 import CourseTable from '../components/admin/CourseTable';
 import EditCourseModal from '../components/admin/EditCourseModal';
 import StatCard from '../components/admin/StatCard';
 import AdminPageHeader from '../components/admin/AdminPageHeader';
-import AdminNav from '../components/admin/AdminNav';
+import AdminLayout from '../components/admin/AdminLayout';
 import { useTheme } from '../contexts/ThemeContext';
 
 const AdminDashboardPage: React.FC = () => {
@@ -70,59 +70,60 @@ const AdminDashboardPage: React.FC = () => {
     };
     
     return (
-        <div className={`min-h-full py-3 transition-colors duration-300 ${
-            theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
-        }`}>
-            <div className="container mx-auto px-6 lg:px-8">
-                <div className="max-w-7xl mx-auto">
-                    <AdminPageHeader 
-                        title="Admin Dashboard"
-                        subtitle="Manage users, courses, and view system statistics."
-                        backLinkPath="/"
-                        backTooltipText="Back to Home"
-                    />
-                    <AdminNav />
-                    
-                    {isLoading && <p className="text-center text-gray-500 py-8">Loading dashboard...</p>}
-                    {error && <p className="text-center text-red-500 bg-red-100 p-3 rounded-md">{error}</p>}
-                    
-                    {!isLoading && !error && stats && (
-                        <>
-                            {/* Stats Section */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 my-8">
-                                <StatCard title="Total Users" value={stats.totalUsers} />
-                                <Link to="/admin/students">
-                                    <StatCard title="Students" value={stats.studentCount} isLink />
-                                </Link>
+        <AdminLayout>
+            <AdminPageHeader
+                title="Dashboard"
+                subtitle="Manage users, courses, and view system statistics."
+            />
 
-                                <Link to="/admin/teachers">
-                                    <StatCard title="Teachers" value={stats.teacherCount} isLink />
-                                </Link>
-                                <StatCard title="Online Pref." value={stats.onlinePreference} />
-                                <StatCard title="Offline Pref." value={stats.offlinePreference} />
-                            </div>
-                            
-                            {/* Course Management Section */}
-                            <div className="mt-12">
-                                <CourseTable 
-                                    courses={courses} 
-                                    onEdit={handleEditCourse} 
-                                    onDelete={handleDeleteCourse} 
-                                    onAddNew={handleAddNewCourse}
-                                />
-                            </div>
-                        </>
-                    )}
+            {isLoading && (
+                <div className="flex justify-center items-center py-12">
+                    <div className={`text-base ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                        Loading dashboard...
+                    </div>
                 </div>
-            </div>
-            
+            )}
+
+            {error && (
+                <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-200 px-4 py-3 rounded-lg">
+                    {error}
+                </div>
+            )}
+
+            {!isLoading && !error && stats && (
+                <>
+                    {/* Stats Section */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
+                        <StatCard title="Total Users" value={stats.totalUsers} />
+                        <Link to="/admin/students">
+                            <StatCard title="Students" value={stats.studentCount} isLink />
+                        </Link>
+                        <Link to="/admin/teachers">
+                            <StatCard title="Teachers" value={stats.teacherCount} isLink />
+                        </Link>
+                        <StatCard title="Online Pref." value={stats.onlinePreference} />
+                        <StatCard title="Offline Pref." value={stats.offlinePreference} />
+                    </div>
+
+                    {/* Course Management Section */}
+                    <div className="mt-6 sm:mt-8">
+                        <CourseTable
+                            courses={courses}
+                            onEdit={handleEditCourse}
+                            onDelete={handleDeleteCourse}
+                            onAddNew={handleAddNewCourse}
+                        />
+                    </div>
+                </>
+            )}
+
             <EditCourseModal
                 isOpen={!!editingCourse}
                 onClose={() => setEditingCourse(null)}
                 course={editingCourse}
                 onSave={handleSaveCourse}
             />
-        </div>
+        </AdminLayout>
     );
 };
 

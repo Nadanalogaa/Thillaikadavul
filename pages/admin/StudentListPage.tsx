@@ -11,7 +11,8 @@ import { GRADES } from '../../constants';
 import { CourseIcon } from '../../components/icons';
 import Tooltip from '../../components/Tooltip';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
-import AdminNav from '../../components/admin/AdminNav';
+import AdminLayout from '../../components/admin/AdminLayout';
+import { useTheme } from '../../contexts/ThemeContext';
 
 type SortDirection = 'ascending' | 'descending';
 type SortConfig = { key: keyof User; direction: SortDirection } | null;
@@ -35,6 +36,7 @@ const SortableHeader: React.FC<{ columnKey: keyof User, title: string, sortConfi
 
 
 const StudentListPage: React.FC = () => {
+    const { theme } = useTheme();
     const [allUsers, setAllUsers] = useState<User[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
     const [batches, setBatches] = useState<Batch[]>([]);
@@ -434,19 +436,14 @@ const StudentListPage: React.FC = () => {
 
 
     return (
-        <div className="bg-gray-50 min-h-full py-3">
-            <div className="container mx-auto px-6 lg:px-8">
-                <div className="max-w-full mx-auto">
-                    <AdminPageHeader
-                        title="Student Management"
-                        subtitle={`Showing ${filteredAndSortedStudents.length} of ${students.length} total students.`}
-                        backLinkPath="/admin/dashboard"
-                        backTooltipText="Back to Dashboard"
-                    />
-                    <AdminNav />
+        <AdminLayout>
+            <AdminPageHeader
+                title="Students"
+                subtitle={`Showing ${filteredAndSortedStudents.length} of ${students.length} total students.`}
+            />
 
-                    {/* Toolbar */}
-                    <div className="bg-white p-4 rounded-lg shadow-md my-8">
+            {/* Toolbar */}
+            <div className={`p-4 rounded-lg shadow-md mb-4 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                             <div className="lg:col-span-5">
                                 <input
@@ -690,7 +687,7 @@ const StudentListPage: React.FC = () => {
                 onSend={handleSendNotification}
                 userType="student"
             />
-        </div>
+        </AdminLayout>
     );
 };
 

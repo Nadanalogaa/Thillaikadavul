@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import type { Event } from '../../types';
 import { getAdminEvents, addEvent, updateEvent, deleteEvent, getEventResponseStats } from '../../api';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
-import AdminNav from '../../components/admin/AdminNav';
+import AdminLayout from '../../components/admin/AdminLayout';
+import { useTheme } from '../../contexts/ThemeContext';
 import Modal from '../../components/Modal';
 import ModalHeader from '../../components/ModalHeader';
 import SendContentNotificationModal from '../../components/admin/SendContentNotificationModal';
@@ -151,6 +152,7 @@ const EventForm: React.FC<{ event?: Partial<Event>, onSave: (event: Partial<Even
 
 
 const EventsManagementPage: React.FC = () => {
+    const { theme } = useTheme();
     const [events, setEvents] = useState<Event[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isFormLoading, setIsFormLoading] = useState(false);
@@ -224,10 +226,8 @@ const EventsManagementPage: React.FC = () => {
     };
 
     return (
-        <div className="bg-gray-50 min-h-full py-3">
-            <div className="container mx-auto px-6 lg:px-8">
-                <AdminPageHeader title="Events Management" subtitle="Create and manage school events." backLinkPath="/admin/dashboard" backTooltipText="Back to Dashboard" />
-                <AdminNav />
+        <AdminLayout>
+            <AdminPageHeader title="Events" subtitle="Create and manage school events." />
 
                 <div className="mt-8">
                     <div className="flex justify-end mb-4">
@@ -447,7 +447,7 @@ const EventsManagementPage: React.FC = () => {
                 .form-input, .form-textarea { width: 100%; padding: 8px 12px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px; transition: border-color 0.2s; }
                 .form-input:focus, .form-textarea:focus { outline: none; border-color: #1a237e; box-shadow: 0 0 0 3px rgba(26, 35, 126, 0.1); }
             `}</style>
-        </div>
+        </AdminLayout>
     );
 };
 

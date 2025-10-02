@@ -65,7 +65,7 @@ const GradeExamForm: React.FC<{ exam?: Partial<GradeExam>, onSave: (exam: Partia
 
 
 const GradeExamsManagementPage: React.FC = () => {
-    const [exams, setExams] = useState<GradeExam[]>([]);
+    const { theme } = useTheme();    const [exams, setExams] = useState<GradeExam[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isFormLoading, setIsFormLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);

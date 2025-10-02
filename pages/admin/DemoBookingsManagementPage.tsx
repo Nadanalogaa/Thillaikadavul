@@ -22,7 +22,7 @@ import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import AdminNav from '../../components/admin/AdminNav';
 
 const DemoBookingsManagementPage: React.FC = () => {
-  const { theme } = useTheme();
+    const { theme } = useTheme();  const { theme } = useTheme();
   const [bookings, setBookings] = useState<DemoBooking[]>([]);
   const [filteredBookings, setFilteredBookings] = useState<DemoBooking[]>([]);
   const [isLoading, setIsLoading] = useState(true);

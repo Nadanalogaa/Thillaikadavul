@@ -3,7 +3,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import type { Location } from '../../types';
 import { getLocations, addLocation, updateLocation, deleteLocation } from '../../api';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
-import AdminNav from '../../components/admin/AdminNav';
+import AdminLayout from '../../components/admin/AdminLayout';
+import { useTheme } from '../../contexts/ThemeContext';
 import Modal from '../../components/Modal';
 import ModalHeader from '../../components/ModalHeader';
 
@@ -69,6 +70,7 @@ const LocationForm: React.FC<{ location?: Partial<Location>, onSave: (location: 
 
 
 const LocationsManagementPage: React.FC = () => {
+    const { theme } = useTheme();
     const [locations, setLocations] = useState<Location[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isFormLoading, setIsFormLoading] = useState(false);
@@ -120,10 +122,8 @@ const LocationsManagementPage: React.FC = () => {
     };
 
     return (
-        <div className="bg-gray-50 min-h-full py-3">
-            <div className="container mx-auto px-6 lg:px-8">
-                <AdminPageHeader title="Location Management" subtitle="Manage physical locations for offline classes." backLinkPath="/admin/dashboard" backTooltipText="Back to Dashboard" />
-                <AdminNav />
+        <AdminLayout>
+            <AdminPageHeader title="Locations" subtitle="Manage physical locations for offline classes." />
 
                 <div className="mt-8">
                     <div className="flex justify-end mb-4">
@@ -170,7 +170,7 @@ const LocationsManagementPage: React.FC = () => {
                 <ModalHeader title={editingLocation?.id ? 'Edit Location' : 'Add New Location'} />
                 <LocationForm location={editingLocation || {}} onSave={handleSave} isLoading={isFormLoading} />
             </Modal>
-        </div>
+        </AdminLayout>
     );
 };
 

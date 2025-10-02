@@ -7,8 +7,9 @@ import {
     getAdminCourses, getAdminUsers
 } from '../../api';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
-import AdminNav from '../../components/admin/AdminNav';
+import AdminLayout from '../../components/admin/AdminLayout';
 import TabButton from '../../components/admin/TabButton';
+import { useTheme } from '../../contexts/ThemeContext';
 import FeeStructureTable from '../../components/admin/FeeStructureTable';
 import EditFeeStructureModal from '../../components/admin/EditFeeStructureModal';
 import InvoiceTable from '../../components/admin/InvoiceTable';
@@ -17,8 +18,9 @@ import RecordPaymentModal from '../../components/admin/RecordPaymentModal';
 type ActiveTab = 'structures' | 'invoices';
 
 const FeeManagementPage: React.FC = () => {
+    const { theme } = useTheme();
     const [activeTab, setActiveTab] = useState<ActiveTab>('structures');
-    
+
     // Data states
     const [structures, setStructures] = useState<FeeStructure[]>([]);
     const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -120,24 +122,23 @@ const FeeManagementPage: React.FC = () => {
     };
 
     return (
-        <div className="bg-gray-50 min-h-full py-3">
-            <div className="container mx-auto px-6 lg:px-8">
-                <div className="max-w-full mx-auto">
-                    <AdminPageHeader
-                        title="Fee Management"
-                        subtitle="Define fee structures and manage student invoices."
-                        backLinkPath="/admin/dashboard"
-                        backTooltipText="Back to Dashboard"
-                    />
-                    <AdminNav />
-                    
-                    {actionMessage && (
-                        <div className={`p-4 mb-4 rounded-md text-sm ${actionMessage.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                            {actionMessage.text}
-                        </div>
-                    )}
+        <AdminLayout>
+            <AdminPageHeader
+                title="Fee Management"
+                subtitle="Define fee structures and manage student invoices."
+            />
 
-                    <div className="border-b border-gray-200 mb-6">
+            {actionMessage && (
+                <div className={`p-4 mb-4 rounded-md text-sm ${
+                    actionMessage.type === 'success'
+                        ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                        : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+                }`}>
+                    {actionMessage.text}
+                </div>
+            )}
+
+            <div className={`border-b mb-6 ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
                         <nav className="-mb-px flex space-x-6" aria-label="Tabs">
                             <TabButton isActive={activeTab === 'structures'} onClick={() => setActiveTab('structures')}>
                                 Fee Structures
@@ -190,7 +191,7 @@ const FeeManagementPage: React.FC = () => {
                 invoice={payingInvoice}
                 onSave={handleRecordPayment}
             />
-        </div>
+        </AdminLayout>
     );
 };
 

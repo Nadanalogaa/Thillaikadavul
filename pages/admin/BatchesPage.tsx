@@ -3,7 +3,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Batch, Course, User } from '../../types';
 import { getBatches, getAdminCourses, getAdminUsers, deleteBatch, addBatch, updateBatch } from '../../api';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
-import AdminNav from '../../components/admin/AdminNav';
+import AdminLayout from '../../components/admin/AdminLayout';
+import { useTheme } from '../../contexts/ThemeContext';
 import EditBatchModal from '../../components/admin/EditBatchModal';
 import ViewBatchModal from '../../components/admin/ViewBatchModal';
 import AddStudentsToBatchModal from '../../components/admin/AddStudentsToBatchModal';
@@ -12,6 +13,7 @@ import { UsersIcon, UserAddIcon } from '../../components/icons';
 import Tooltip from '../../components/Tooltip';
 
 const BatchesPage: React.FC = () => {
+    const { theme } = useTheme();
     const [batches, setBatches] = useState<Batch[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
     const [users, setUsers] = useState<User[]>([]);
@@ -248,19 +250,14 @@ const BatchesPage: React.FC = () => {
     );
 
     return (
-        <div className="bg-gray-50 min-h-full py-3">
-            <div className="container mx-auto px-6 lg:px-8">
-                <div className="max-w-full mx-auto">
-                    <AdminPageHeader
-                        title="Batch Management"
-                        subtitle="Organize students and teachers into scheduled batches."
-                        backLinkPath="/admin/dashboard"
-                        backTooltipText="Back to Dashboard"
-                    />
-                    <AdminNav />
+        <AdminLayout>
+            <AdminPageHeader
+                title="Batches"
+                subtitle="Organize students and teachers into scheduled batches."
+            />
 
-                    {/* Toolbar */}
-                    <div className="bg-white p-4 rounded-lg shadow-md my-8">
+            {/* Toolbar */}
+            <div className={`p-4 rounded-lg shadow-md mb-4 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
                         <div className="flex justify-between items-center mb-4">
                             {/* View Toggle */}
                             <div className="flex items-center space-x-1 bg-gray-200 p-1 rounded-lg">
@@ -357,7 +354,7 @@ const BatchesPage: React.FC = () => {
                 allBatches={batches}
                 onSave={handleSaveBatch}
             />
-        </div>
+        </AdminLayout>
     );
 };
 

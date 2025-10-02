@@ -1,30 +1,29 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeftIcon } from '../icons';
-import Tooltip from '../Tooltip';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface AdminPageHeaderProps {
     title: string;
-    subtitle: string;
-    backLinkPath: string;
-    backTooltipText: string;
+    subtitle?: string;
 }
 
-const AdminPageHeader: React.FC<AdminPageHeaderProps> = ({ title, subtitle, backLinkPath, backTooltipText }) => {
+const AdminPageHeader: React.FC<AdminPageHeaderProps> = ({ title, subtitle }) => {
+    const { theme } = useTheme();
+
     return (
-        <div className="mb-6 flex items-start">
-            <Tooltip content={backTooltipText} position="right">
-                <Link to={backLinkPath} className="text-brand-primary hover:text-brand-dark p-2 rounded-full hover:bg-brand-light mr-2 mt-1 md:mt-0">
-                    <ArrowLeftIcon />
-                </Link>
-            </Tooltip>
-            <div className="flex-grow">
-                <div className="flex flex-col md:flex-row md:items-baseline md:justify-between">
-                    <h1 className="text-3xl font-bold text-brand-primary">{title}</h1>
-                    <p className="text-gray-500 mt-1 md:mt-0 md:ml-4">{subtitle}</p>
-                </div>
-            </div>
+        <div className="mb-4 sm:mb-6">
+            <h1 className={`text-2xl sm:text-3xl font-bold mb-1 sm:mb-2
+                ${theme === 'dark' ? 'text-white' : 'text-gray-900'}
+            `}>
+                {title}
+            </h1>
+            {subtitle && (
+                <p className={`text-sm sm:text-base
+                    ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}
+                `}>
+                    {subtitle}
+                </p>
+            )}
         </div>
     );
 };

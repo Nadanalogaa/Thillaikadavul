@@ -6,7 +6,7 @@ import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import AdminNav from '../../components/admin/AdminNav';
 
 const TrashPage: React.FC = () => {
-    const [trashedUsers, setTrashedUsers] = useState<User[]>([]);
+    const { theme } = useTheme();    const [trashedUsers, setTrashedUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
