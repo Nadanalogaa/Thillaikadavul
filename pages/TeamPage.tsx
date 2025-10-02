@@ -179,7 +179,7 @@ const courseSections: CourseSection[] = [
         image: 'Mrs.K.Suganya_Admin_DCE.,BCA.jpeg',
       },
       {
-        name: 'Mrs. Suganya (Admin)',
+        name: 'Mrs. Sivagami',
         experienceYears: 9,
         course: 'Administrative Coordinator',
         image: 'Mrs.Suganya_admin.jpeg',
