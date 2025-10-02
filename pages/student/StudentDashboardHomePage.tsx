@@ -160,10 +160,10 @@ const StudentDashboardHomePage: React.FC = () => {
                         transition={{ duration: 0.6 }}
                         className="flex flex-col"
                     >
-                        <h1 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-1`}>
+                        <h1 className={`text-lg sm:text-xl md:text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-1`}>
                             Welcome back, {guardianName?.split(' ')[0]}!
                         </h1>
-                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                        <p className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                             {dateString}
                         </p>
                     </motion.div>
@@ -224,7 +224,7 @@ const StudentDashboardHomePage: React.FC = () => {
                 {/* Professional Stats Cards */}
                 <motion.section
                     ref={statsRef}
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
+                    className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 mb-4 sm:mb-6"
                 >
                     {[
                         {
@@ -268,29 +268,29 @@ const StudentDashboardHomePage: React.FC = () => {
                             whileHover={{ scale: 1.02 }}
                             className="group"
                         >
-                            <Link 
+                            <Link
                                 to={stat.linkTo}
-                                className={`block p-4 rounded-lg transition-all duration-300 border ${
-                                    theme === 'dark' 
-                                        ? 'bg-gray-800/50 border-gray-700/50 hover:bg-gray-700/50 hover:border-gray-600' 
+                                className={`block p-3 sm:p-4 rounded-lg transition-all duration-300 border ${
+                                    theme === 'dark'
+                                        ? 'bg-gray-800/50 border-gray-700/50 hover:bg-gray-700/50 hover:border-gray-600'
                                         : 'bg-white border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md'
                                 }`}
                             >
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className={`text-sm font-medium ${
+                                        <p className={`text-[10px] sm:text-xs md:text-sm font-medium ${
                                             theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                                         }`}>
                                             {stat.title}
                                         </p>
-                                        <p className={`text-2xl font-bold ${
+                                        <p className={`text-xl sm:text-2xl font-bold ${
                                             theme === 'dark' ? 'text-white' : 'text-gray-900'
                                         }`}>
                                             {stat.value}
                                         </p>
                                     </div>
-                                    <div className={`p-3 rounded-lg ${stat.bg} group-hover:scale-110 transition-transform duration-300`}>
-                                        <stat.icon className={`w-6 h-6 ${stat.color}`} />
+                                    <div className={`p-2 sm:p-3 rounded-lg ${stat.bg} group-hover:scale-110 transition-transform duration-300`}>
+                                        <stat.icon className={`w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 ${stat.color}`} />
                                     </div>
                                 </div>
                             </Link>
@@ -311,24 +311,24 @@ const StudentDashboardHomePage: React.FC = () => {
                     }`}
                 >
                     {/* Tab Header */}
-                    <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-purple-200'}`}>
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-4">
-                                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
-                                    <Users className="w-6 h-6 text-white" />
+                    <div className={`p-4 sm:p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-purple-200'}`}>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div className="flex items-center space-x-3 sm:space-x-4">
+                                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+                                    <Users className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                                 </div>
                                 <div>
-                                    <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                    <h2 className={`text-lg sm:text-xl md:text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                                         Family Students ({family.length})
                                     </h2>
-                                    <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                    <p className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                                         Manage your children's learning journey
                                     </p>
                                 </div>
                             </div>
                             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                                <Link to="add" className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all duration-300 flex items-center space-x-2">
-                                    <Sparkles className="w-4 h-4" />
+                                <Link to="add" className="px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-sm sm:text-base font-semibold rounded-xl hover:shadow-lg transition-all duration-300 flex items-center space-x-2">
+                                    <Sparkles className="w-3 h-3 sm:w-4 sm:h-4" />
                                     <span>Add Student</span>
                                 </Link>
                             </motion.div>
@@ -336,8 +336,8 @@ const StudentDashboardHomePage: React.FC = () => {
                     </div>
 
                     {/* Student Navigation Tabs */}
-                    <div className={`px-6 py-4 ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gradient-to-r from-purple-50/50 to-blue-50/50'}`}>
-                        <div className="flex space-x-2 overflow-x-auto">
+                    <div className={`px-3 sm:px-6 py-3 sm:py-4 ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gradient-to-r from-purple-50/50 to-blue-50/50'}`}>
+                        <div className="flex space-x-1.5 sm:space-x-2 overflow-x-auto pb-1">
                             {family.map((student, idx) => {
                                 const active = idx === activeIdx;
                                 const name = student.name || `Student ${idx + 1}`;
@@ -349,9 +349,9 @@ const StudentDashboardHomePage: React.FC = () => {
                                         initial={{ opacity: 0, x: 50 }}
                                         animate={tabsInView ? { opacity: 1, x: 0 } : {}}
                                         transition={{ duration: 0.6, delay: idx * 0.1 }}
-                                        className={`flex items-center space-x-3 px-6 py-3 rounded-xl transition-all duration-300 whitespace-nowrap font-semibold min-w-fit ${
-                                            active 
-                                                ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg ring-2 ring-purple-300 dark:ring-purple-600 transform scale-105' 
+                                        className={`flex items-center space-x-2 sm:space-x-3 px-3 sm:px-6 py-2 sm:py-3 rounded-xl transition-all duration-300 whitespace-nowrap text-sm sm:text-base font-semibold min-w-fit ${
+                                            active
+                                                ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg ring-2 ring-purple-300 dark:ring-purple-600 transform scale-105'
                                                 : theme === 'dark'
                                                     ? 'bg-gray-600/50 text-gray-300 hover:bg-gray-500/50 hover:text-white'
                                                     : 'bg-white/70 text-gray-700 hover:bg-white hover:text-purple-600 border border-gray-200 hover:border-purple-300'
@@ -361,15 +361,16 @@ const StudentDashboardHomePage: React.FC = () => {
                                         <div className="relative">
                                             <img
                                                 src={student.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${active ? 'fff' : '7B61FF'}&color=${active ? '7B61FF' : 'fff'}`}
-                                                className="w-10 h-10 rounded-full object-cover shadow-md"
+                                                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover shadow-md"
                                                 alt={name}
                                             />
                                             {active && (
-                                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 border-2 border-white rounded-full"></div>
+                                                <div className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 w-3 h-3 sm:w-4 sm:h-4 bg-green-400 border-2 border-white rounded-full"></div>
                                             )}
                                         </div>
-                                        <span>{name}</span>
-                                        {active && <Star className="w-4 h-4 text-yellow-300" fill="currentColor" />}
+                                        <span className="hidden sm:inline">{name}</span>
+                                        <span className="sm:hidden">{name.split(' ')[0]}</span>
+                                        {active && <Star className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-300" fill="currentColor" />}
                                     </motion.button>
                                 );
                             })}
@@ -415,7 +416,7 @@ const StudentDashboardHomePage: React.FC = () => {
                                 initial={{ opacity: 0, y: 30 }}
                                 animate={coursesInView ? { opacity: 1, y: 0 } : {}}
                                 transition={{ duration: 0.8 }}
-                                className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-6"
+                                className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-6"
                             >
                                 {/* Show preferred courses first, then enrolled courses */}
                                 {(() => {
@@ -594,7 +595,7 @@ const StudentDashboardHomePage: React.FC = () => {
                             </motion.div>
 
                             {/* Quick Actions */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
                                 {[
                                     { icon: Calendar, title: 'Events', count: recentEvents.length, link: 'events', gradient: 'from-blue-500 to-cyan-500' },
                                     { icon: BookOpen, title: 'Materials', count: '📚', link: 'book-materials', gradient: 'from-green-500 to-emerald-500' },
@@ -609,10 +610,10 @@ const StudentDashboardHomePage: React.FC = () => {
                                         whileHover={{ scale: 1.05 }}
                                         className="group"
                                     >
-                                        <Link to={item.link} className={`block p-4 rounded-xl bg-gradient-to-br ${item.gradient} text-white shadow-lg hover:shadow-xl transition-all duration-300 text-center`}>
-                                            <item.icon className="w-6 h-6 mx-auto mb-2 group-hover:scale-110 transition-transform duration-300" />
-                                            <h5 className="font-semibold text-sm mb-1">{item.title}</h5>
-                                            <p className="text-lg font-bold">{item.count}</p>
+                                        <Link to={item.link} className={`block p-3 sm:p-4 rounded-xl bg-gradient-to-br ${item.gradient} text-white shadow-lg hover:shadow-xl transition-all duration-300 text-center`}>
+                                            <item.icon className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 group-hover:scale-110 transition-transform duration-300" />
+                                            <h5 className="font-semibold text-xs sm:text-sm mb-0.5 sm:mb-1">{item.title}</h5>
+                                            <p className="text-base sm:text-lg font-bold">{item.count}</p>
                                         </Link>
                                     </motion.div>
                                 ))}

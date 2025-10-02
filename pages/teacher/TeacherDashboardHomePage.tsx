@@ -222,10 +222,10 @@ const TeacherDashboardHomePage: React.FC = () => {
                         transition={{ duration: 0.6 }}
                         className="flex flex-col"
                     >
-                        <h1 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-1`}>
+                        <h1 className={`text-lg sm:text-xl md:text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-1`}>
                             Welcome back, {user?.name?.split(' ')[0] || 'Teacher'}!
                         </h1>
-                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                        <p className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                             {dateString}
                         </p>
                     </motion.div>
@@ -238,7 +238,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                 {/* Professional Stats Cards */}
                 <motion.section
                     ref={statsRef}
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
+                    className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 mb-4 sm:mb-6"
                 >
                     {[
                         {
@@ -283,53 +283,53 @@ const TeacherDashboardHomePage: React.FC = () => {
                             className="group"
                         >
                             {stat.linkTo ? (
-                                <Link 
+                                <Link
                                     to={stat.linkTo}
-                                    className={`block p-4 rounded-lg transition-all duration-300 border ${
-                                        theme === 'dark' 
-                                            ? 'bg-gray-800/50 border-gray-700/50 hover:bg-gray-700/50 hover:border-gray-600' 
+                                    className={`block p-3 sm:p-4 rounded-lg transition-all duration-300 border ${
+                                        theme === 'dark'
+                                            ? 'bg-gray-800/50 border-gray-700/50 hover:bg-gray-700/50 hover:border-gray-600'
                                             : 'bg-white border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md'
                                     }`}
                                 >
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <p className={`text-sm font-medium ${
+                                            <p className={`text-[10px] sm:text-xs md:text-sm font-medium ${
                                                 theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                                             }`}>
                                                 {stat.title}
                                             </p>
-                                            <p className={`text-2xl font-bold ${
+                                            <p className={`text-xl sm:text-2xl font-bold ${
                                                 theme === 'dark' ? 'text-white' : 'text-gray-900'
                                             }`}>
                                                 {stat.value}
                                             </p>
                                         </div>
-                                        <div className={`p-3 rounded-lg ${stat.bg} group-hover:scale-110 transition-transform duration-300`}>
-                                            <stat.icon className={`w-6 h-6 ${stat.color}`} />
+                                        <div className={`p-2 sm:p-3 rounded-lg ${stat.bg} group-hover:scale-110 transition-transform duration-300`}>
+                                            <stat.icon className={`w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 ${stat.color}`} />
                                         </div>
                                     </div>
                                 </Link>
                             ) : (
-                                <div className={`p-4 rounded-lg border ${
-                                    theme === 'dark' 
-                                        ? 'bg-gray-800/50 border-gray-700/50' 
+                                <div className={`p-3 sm:p-4 rounded-lg border ${
+                                    theme === 'dark'
+                                        ? 'bg-gray-800/50 border-gray-700/50'
                                         : 'bg-white border-gray-200 shadow-sm'
                                 }`}>
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <p className={`text-sm font-medium ${
+                                            <p className={`text-[10px] sm:text-xs md:text-sm font-medium ${
                                                 theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                                             }`}>
                                                 {stat.title}
                                             </p>
-                                            <p className={`text-2xl font-bold ${
+                                            <p className={`text-xl sm:text-2xl font-bold ${
                                                 theme === 'dark' ? 'text-white' : 'text-gray-900'
                                             }`}>
                                                 {stat.value}
                                             </p>
                                         </div>
-                                        <div className={`p-3 rounded-lg ${stat.bg}`}>
-                                            <stat.icon className={`w-6 h-6 ${stat.color}`} />
+                                        <div className={`p-2 sm:p-3 rounded-lg ${stat.bg}`}>
+                                            <stat.icon className={`w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 ${stat.color}`} />
                                         </div>
                                     </div>
                                 </div>
