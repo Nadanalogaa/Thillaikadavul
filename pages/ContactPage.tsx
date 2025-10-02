@@ -151,8 +151,8 @@ const ContactPage: React.FC = () => {
               transition={{ duration: 1.2, delay: 0.2 }}
               className="mb-8"
             >
-              <MessageCircle className="w-20 h-20 mx-auto mb-6 text-emerald-600 dark:text-emerald-400" />
-              <h1 className="text-6xl md:text-7xl font-bold bg-gradient-to-r from-emerald-600 via-blue-600 to-purple-600 bg-clip-text text-transparent mb-8">
+              <MessageCircle className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 sm:mb-6 text-emerald-600 dark:text-emerald-400" />
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold bg-gradient-to-r from-emerald-600 via-blue-600 to-purple-600 bg-clip-text text-transparent mb-6 sm:mb-8">
                 Get In Touch
               </h1>
             </motion.div>
@@ -160,7 +160,7 @@ const ContactPage: React.FC = () => {
               initial={{ opacity: 0, y: 30 }}
               animate={heroInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 1, delay: 0.4 }}
-              className={`text-xl md:text-2xl ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} leading-relaxed mb-8`}
+              className={`text-base sm:text-lg md:text-xl lg:text-2xl ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} leading-relaxed mb-6 sm:mb-8`}
             >
               Ready to begin your artistic journey? We're here to help you take the first step
             </motion.p>

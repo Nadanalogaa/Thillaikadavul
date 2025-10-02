@@ -695,20 +695,20 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                 : 'bg-white/90 border-white/20'
                         }`}
                     >
-                        <div className="text-center p-8 border-b border-gray-200 dark:border-gray-700">
-                            <motion.h1 
+                        <div className="text-center p-4 sm:p-8 border-b border-gray-200 dark:border-gray-700">
+                            <motion.h1
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={heroInView ? { opacity: 1, y: 0 } : {}}
                                 transition={{ duration: 0.8, delay: 0.2 }}
-                                className={`text-3xl font-bold mb-3 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent`}
+                                className={`text-xl sm:text-2xl md:text-3xl font-bold mb-2 sm:mb-3 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent`}
                             >
                                 Join Nadanaloga Fine Arts Academy
                             </motion.h1>
-                            <motion.p 
+                            <motion.p
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={heroInView ? { opacity: 1, y: 0 } : {}}
                                 transition={{ duration: 0.8, delay: 0.3 }}
-                                className={`text-lg ${
+                                className={`text-sm sm:text-base md:text-lg ${
                                     theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
                                 }`}
                             >
@@ -905,38 +905,41 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                     : 'bg-white/90 border-white/20'
                             }`}
                         >
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
-                                        <Star className="w-5 h-5 text-white" />
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+                                <div className="flex items-center gap-2 sm:gap-3">
+                                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                                        <Star className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                                     </div>
-                                    <h1 className={`text-xl font-bold ${
+                                    <h1 className={`text-base sm:text-lg md:text-xl font-bold ${
                                         theme === 'dark' ? 'text-white' : 'text-gray-900'
                                     }`}>
                                         {registrationType === 'student' ? 'Student Registration' : 'Instructor Application'}
                                     </h1>
                                 </div>
-                                
-                                {/* Cute compact steps in center */}
-                                <div className="flex items-center gap-2">
-                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${
-                                        currentStep >= 1 ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white' : 'bg-gray-200 text-gray-500'
-                                    }`}>1</div>
-                                    <div className={`w-8 h-0.5 ${currentStep > 1 ? 'bg-gradient-to-r from-purple-500 to-blue-500' : 'bg-gray-200'}`}></div>
-                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${
-                                        currentStep >= 2 ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white' : 'bg-gray-200 text-gray-500'
-                                    }`}>2</div>
-                                </div>
-                                
-                                <div className="text-right">
-                                    <div className={`text-sm font-medium ${
-                                        theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                                    }`}>
-                                        {currentStep === 1 ? (registrationType === 'student' ? 'Guardian Account Details' : 'Your Account Details') : 'Additional Information'}
+
+                                {/* Compact steps and info */}
+                                <div className="flex items-center justify-between sm:gap-3">
+                                    <div className="flex items-center gap-1.5 sm:gap-2">
+                                        <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-semibold transition-all ${
+                                            currentStep >= 1 ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white' : 'bg-gray-200 text-gray-500'
+                                        }`}>1</div>
+                                        <div className={`w-6 sm:w-8 h-0.5 ${currentStep > 1 ? 'bg-gradient-to-r from-purple-500 to-blue-500' : 'bg-gray-200'}`}></div>
+                                        <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-semibold transition-all ${
+                                            currentStep >= 2 ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white' : 'bg-gray-200 text-gray-500'
+                                        }`}>2</div>
                                     </div>
-                                    <div className={`text-xs ${
-                                        theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                                    }`}>Step {currentStep} of 2</div>
+
+                                    <div className="text-right ml-3 sm:ml-0">
+                                        <div className={`text-xs sm:text-sm font-medium ${
+                                            theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                                        }`}>
+                                            <span className="hidden sm:inline">{currentStep === 1 ? (registrationType === 'student' ? 'Guardian Account Details' : 'Your Account Details') : 'Additional Information'}</span>
+                                            <span className="sm:hidden">Step {currentStep} of 2</span>
+                                        </div>
+                                        <div className={`text-[10px] sm:text-xs ${
+                                            theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                                        } hidden sm:block`}>Step {currentStep} of 2</div>
+                                    </div>
                                 </div>
                             </div>
                         </motion.div>
@@ -1972,21 +1975,21 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                                     : 'Select days when you are available to teach:'
                                                 }
                                             </label>
-                                            <div className="grid grid-cols-7 gap-2">
+                                            <div className="grid grid-cols-7 gap-1 sm:gap-2">
                                                 {Object.keys(WEEKDAY_MAP).map((dayKey) => (
                                                     <button
                                                         type="button"
                                                         key={dayKey}
                                                         onClick={() => setTimingActiveDay(prev => prev === dayKey ? null : dayKey)}
-                                                        className={`px-3 py-3 text-sm font-medium rounded-lg border-2 transition-all duration-200 ${
-                                                            timingActiveDay === dayKey 
-                                                                ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white border-transparent shadow-lg' 
+                                                        className={`px-1 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm font-medium rounded-lg border-2 transition-all duration-200 ${
+                                                            timingActiveDay === dayKey
+                                                                ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white border-transparent shadow-lg'
                                                                 : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:bg-blue-50'
                                                         }`}
                                                     >
                                                         <div className="text-center">
                                                             <div className="font-bold">{dayKey}</div>
-                                                            <div className="text-xs opacity-75 mt-1">{WEEKDAY_MAP[dayKey as keyof typeof WEEKDAY_MAP]}</div>
+                                                            <div className="text-[10px] sm:text-xs opacity-75 mt-0.5 sm:mt-1 hidden sm:block">{WEEKDAY_MAP[dayKey as keyof typeof WEEKDAY_MAP]}</div>
                                                         </div>
                                                     </button>
                                                 ))}
