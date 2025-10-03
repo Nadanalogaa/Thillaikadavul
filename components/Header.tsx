@@ -455,28 +455,43 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
         </nav>
       </div>
 
-      {/* Mobile Menu - Completely Rewritten */}
+      {/* Mobile Menu - Complete Rewrite with Fixed Overlay */}
       {isMenuOpen && (
-        <div
-          style={{
-            top: menuOffset,
-            height: `calc(100vh - ${Math.max(menuOffset, 0)}px)`
-          }}
-          className="lg:hidden fixed inset-x-0 z-40 flex flex-col"
-        >
-          {/* Scrollable Content Area */}
+        <>
+          {/* Backdrop Overlay */}
           <div
+            className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-[45]"
+            style={{ top: menuOffset }}
+            onClick={() => setIsMenuOpen(false)}
+          />
+
+          {/* Fixed Menu Container */}
+          <div
+            className="lg:hidden fixed inset-x-0 z-50"
             style={{
-              background: theme === 'dark'
-                ? 'linear-gradient(135deg, rgba(17, 24, 39, 0.98) 0%, rgba(31, 41, 55, 0.98) 100%)'
-                : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%)',
-              backdropFilter: 'blur(20px)',
-              borderTop: theme === 'dark'
-                ? '1px solid rgba(75, 85, 99, 0.3)'
-                : '1px solid rgba(199, 210, 254, 0.3)'
+              top: menuOffset,
+              bottom: 0,
+              display: 'flex',
+              flexDirection: 'column'
             }}
-            className="flex-1 overflow-y-auto"
           >
+            {/* Scrollable Content */}
+            <div
+              style={{
+                background: theme === 'dark'
+                  ? 'linear-gradient(135deg, rgba(17, 24, 39, 0.98) 0%, rgba(31, 41, 55, 0.98) 100%)'
+                  : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%)',
+                backdropFilter: 'blur(20px)',
+                borderTop: theme === 'dark'
+                  ? '1px solid rgba(75, 85, 99, 0.3)'
+                  : '1px solid rgba(199, 210, 254, 0.3)',
+                flex: '1 1 0%',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+            >
+              <div style={{ flex: '1 1 0%', overflowY: 'auto', overflowX: 'hidden' }}>
             <div className="px-4 py-3 space-y-1">
               {/* Navigation Links */}
               {visibleNavLinks.map((link) => {
@@ -645,13 +660,16 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                 ))}
               </div>
             </div>
-          </div>
+              </div>
 
-          {/* Fixed Bottom Action Bar */}
-          <div
-            className="flex-shrink-0 px-4 py-3"
-            style={mobileActionBarStyle}
-          >
+              {/* Fixed Bottom Buttons */}
+              <div
+                style={{
+                  ...mobileActionBarStyle,
+                  flex: '0 0 auto',
+                  padding: '1rem'
+                }}
+              >
             {currentUser ? (
               <div className="space-y-2">
                 <button
@@ -680,8 +698,10 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                 </Link>
               </div>
             )}
+              </div>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </header>
   );
