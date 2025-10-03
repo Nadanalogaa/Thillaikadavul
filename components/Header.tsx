@@ -459,19 +459,25 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
       {isMenuOpen && (
         <div
           style={{
-            background: theme === 'dark'
-              ? 'linear-gradient(135deg, rgba(17, 24, 39, 0.98) 0%, rgba(31, 41, 55, 0.98) 100%)'
-              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%)',
-            backdropFilter: 'blur(20px)',
-            borderTop: theme === 'dark'
-              ? '1px solid rgba(75, 85, 99, 0.3)'
-              : '1px solid rgba(199, 210, 254, 0.3)',
             top: menuOffset,
             height: `calc(100vh - ${Math.max(menuOffset, 0)}px)`
           }}
-          className="lg:hidden fixed inset-x-0 z-40 px-4 pb-5 overflow-y-auto"
+          className="lg:hidden fixed inset-x-0 z-40 flex flex-col"
         >
-          <div className="flex flex-col space-y-4 pb-24 pt-4">
+          {/* Scrollable menu content */}
+          <div
+            style={{
+              background: theme === 'dark'
+                ? 'linear-gradient(135deg, rgba(17, 24, 39, 0.98) 0%, rgba(31, 41, 55, 0.98) 100%)'
+                : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%)',
+              backdropFilter: 'blur(20px)',
+              borderTop: theme === 'dark'
+                ? '1px solid rgba(75, 85, 99, 0.3)'
+                : '1px solid rgba(199, 210, 254, 0.3)'
+            }}
+            className="flex-1 overflow-y-auto px-4"
+          >
+            <div className="flex flex-col space-y-4 pt-4 pb-4">
             {visibleNavLinks.map((link) => {
               if (link.name === 'Our Courses') {
                 return (
@@ -640,10 +646,12 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                 ))}
               </div>
             </div>
+            </div>
           </div>
 
+          {/* Fixed bottom action bar */}
           <div
-            className="sticky bottom-0 left-0 right-0 -mx-4 px-4 sm:-mx-6 sm:px-6"
+            className="flex-shrink-0 px-4"
             style={mobileActionBarStyle}
           >
             <div className="flex flex-col gap-3 py-4">
