@@ -188,6 +188,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
   };
 
   return (
+    <>
     <header ref={headerRef} style={headerStyle} className="sticky top-0 z-40 border-0">
       {/* Row 1: Brand and User Info */}
       <div className="w-full px-4 sm:px-6 py-1.5 sm:py-2">
@@ -454,32 +455,37 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
           </div>
         </nav>
       </div>
+    </header>
 
-      {/* Mobile Menu - Complete Rewrite with Fixed Overlay */}
-      {isMenuOpen && (
-        <>
-          {/* Backdrop Overlay */}
-          <div
-            className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-[45]"
-            style={{ top: menuOffset }}
-            onClick={() => setIsMenuOpen(false)}
-          />
+    {/* Mobile Menu - Outside Header for Proper Z-Index */}
+    {isMenuOpen && (
+      <>
+        {/* Backdrop Overlay */}
+        <div
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50"
+          style={{
+            top: menuOffset,
+            zIndex: 9998
+          }}
+          onClick={() => setIsMenuOpen(false)}
+        />
 
-          {/* Fixed Menu Container */}
+        {/* Fixed Menu Container */}
+        <div
+          className="lg:hidden fixed inset-x-0"
+          style={{
+            top: menuOffset,
+            bottom: 0,
+            zIndex: 9999,
+            display: 'flex',
+            flexDirection: 'column'
+          }}
+        >
+          {/* Scrollable Content */}
           <div
-            className="lg:hidden fixed inset-x-0 z-50"
             style={{
-              top: menuOffset,
-              bottom: 0,
-              display: 'flex',
-              flexDirection: 'column'
-            }}
-          >
-            {/* Scrollable Content */}
-            <div
-              style={{
-                background: theme === 'dark'
-                  ? 'linear-gradient(135deg, rgba(17, 24, 39, 0.98) 0%, rgba(31, 41, 55, 0.98) 100%)'
+              background: theme === 'dark'
+                ? 'linear-gradient(135deg, rgba(17, 24, 39, 0.98) 0%, rgba(31, 41, 55, 0.98) 100%)'
                   : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%)',
                 backdropFilter: 'blur(20px)',
                 borderTop: theme === 'dark'
@@ -698,12 +704,12 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                 </Link>
               </div>
             )}
-              </div>
-            </div>
           </div>
-        </>
-      )}
-    </header>
+        </div>
+      </div>
+      </>
+    )}
+    </>
   );
 };
 
