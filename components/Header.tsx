@@ -43,6 +43,8 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
   const isAdminPage = location.pathname.startsWith('/admin');
   const { theme } = useTheme();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [menuOffset, setMenuOffset] = useState(0);
 
   const visibleNavLinks = NAV_LINKS.filter(link => !isAdminPage);
 
@@ -62,6 +64,32 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isCoursesDropdownOpen]);
+
+  useEffect(() => {
+    const updateMenuOffset = () => {
+      if (headerRef.current) {
+        setMenuOffset(headerRef.current.getBoundingClientRect().height);
+      }
+    };
+
+    updateMenuOffset();
+    window.addEventListener('resize', updateMenuOffset);
+    return () => window.removeEventListener('resize', updateMenuOffset);
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const originalOverflow = document.body.style.overflow;
+    if (isMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = originalOverflow || '';
+    }
+
+    return () => {
+      document.body.style.overflow = originalOverflow || '';
+    };
+  }, [isMenuOpen]);
 
   const courseMenuItems = [
     { name: 'All Courses', path: '/courses', icon: <GraduationCap className="w-4 h-4" /> },
@@ -154,7 +182,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
   };
 
   return (
-    <header style={headerStyle} className="sticky top-0 z-40 border-0">
+    <header ref={headerRef} style={headerStyle} className="sticky top-0 z-40 border-0">
       {/* Row 1: Brand and User Info */}
       <div className="w-full px-4 sm:px-6 py-1.5 sm:py-2">
         <div className="flex items-center justify-between w-full">
@@ -431,11 +459,12 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
             backdropFilter: 'blur(20px)',
             borderTop: theme === 'dark'
               ? '1px solid rgba(75, 85, 99, 0.3)'
-              : '1px solid rgba(199, 210, 254, 0.3)'
+              : '1px solid rgba(199, 210, 254, 0.3)',
+            top: menuOffset,
           }}
-          className="lg:hidden px-4 pb-5"
+          className="lg:hidden fixed inset-x-0 bottom-0 z-40 px-4 pb-5 overflow-y-auto"
         >
-          <div className="flex flex-col space-y-4 pb-20">
+          <div className="flex flex-col space-y-4 pb-24 pt-4">
             {visibleNavLinks.map((link) => {
               if (link.name === 'Our Courses') {
                 return (
