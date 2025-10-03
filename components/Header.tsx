@@ -143,6 +143,16 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
     transition: 'all 0.3s ease'
   };
 
+  const mobileActionBarStyle = {
+    background: theme === 'dark'
+      ? 'rgba(17, 24, 39, 0.96)'
+      : 'rgba(255, 255, 255, 0.96)',
+    backdropFilter: 'blur(12px)',
+    borderTop: theme === 'dark'
+      ? '1px solid rgba(75, 85, 99, 0.45)'
+      : '1px solid rgba(199, 210, 254, 0.6)'
+  };
+
   return (
     <header style={headerStyle} className="sticky top-0 z-40 border-0">
       {/* Row 1: Brand and User Info */}
@@ -425,7 +435,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
           }}
           className="lg:hidden px-4 pb-5"
         >
-          <div className="flex flex-col space-y-4">
+          <div className="flex flex-col space-y-4 pb-20">
             {visibleNavLinks.map((link) => {
               if (link.name === 'Our Courses') {
                 return (
@@ -594,36 +604,43 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                 ))}
               </div>
             </div>
-            
-            <div className={`flex flex-col space-y-4 pt-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-indigo-100'}`}>
+          </div>
+
+          <div
+            className="sticky bottom-0 left-0 right-0 -mx-4 px-4 sm:-mx-6 sm:px-6"
+            style={mobileActionBarStyle}
+          >
+            <div className="flex flex-col gap-3 py-4">
               {currentUser ? (
                 <>
-                  <span className={`px-4 py-2 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} font-medium`}>Welcome, {displayName.split(' ')[0]}!</span>
-                  <button 
-                    onClick={() => { onLogout(); setIsMenuOpen(false); }} 
+                  <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
+                    Welcome, {displayName.split(' ')[0]}!
+                  </span>
+                  <button
+                    onClick={() => { onLogout(); setIsMenuOpen(false); }}
                     style={outlineButtonStyle}
-                    className="text-indigo-600 font-semibold px-6 py-3 rounded-xl hover:bg-gradient-to-r hover:from-indigo-600 hover:to-purple-600 hover:text-white transition-all duration-300"
+                    className="w-full text-indigo-600 font-semibold px-5 py-2.5 rounded-xl hover:bg-gradient-to-r hover:from-indigo-600 hover:to-purple-600 hover:text-white transition-all duration-300"
                   >
                     Logout
                   </button>
                 </>
               ) : (
-                <>
-                  <button 
-                    onClick={() => { onLoginClick(); setIsMenuOpen(false); }} 
-                    className={`px-5 py-2.5 ${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400 hover:bg-gray-800' : 'text-gray-700 hover:text-indigo-600 hover:bg-indigo-50'} rounded-xl text-left font-medium transition-all duration-300`}
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={() => { onLoginClick(); setIsMenuOpen(false); }}
+                    className={`w-full px-5 py-2.5 ${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400 hover:bg-gray-800' : 'text-gray-700 hover:text-indigo-600 hover:bg-indigo-50'} rounded-xl text-center font-medium transition-all duration-300`}
                   >
                     Login
                   </button>
-                  <Link 
-                    to="/register" 
-                    onClick={() => setIsMenuOpen(false)} 
+                  <Link
+                    to="/register"
+                    onClick={() => setIsMenuOpen(false)}
                     style={buttonStyle}
-                    className="text-white font-semibold px-5 py-2.5 rounded-xl text-center hover:shadow-lg transition-all duration-300"
+                    className="w-full text-white font-semibold px-5 py-2.5 rounded-xl text-center hover:shadow-lg transition-all duration-300"
                   >
                     Register
                   </Link>
-                </>
+                </div>
               )}
             </div>
           </div>
