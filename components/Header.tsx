@@ -626,20 +626,22 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                 </>
               ) : (
                 <div className="flex flex-col gap-3">
-                  <button
-                    onClick={() => { onLoginClick(); setIsMenuOpen(false); }}
-                    className={`w-full px-5 py-2.5 ${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400 hover:bg-gray-800' : 'text-gray-700 hover:text-indigo-600 hover:bg-indigo-50'} rounded-xl text-center font-medium transition-all duration-300`}
-                  >
-                    Login
-                  </button>
-                  <Link
-                    to="/register"
-                    onClick={() => setIsMenuOpen(false)}
-                    style={buttonStyle}
-                    className="w-full text-white font-semibold px-5 py-2.5 rounded-xl text-center hover:shadow-lg transition-all duration-300"
-                  >
-                    Register
-                  </Link>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => { onLoginClick(); setIsMenuOpen(false); }}
+                      className={`w-1/2 px-4 py-2.5 ${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400 hover:bg-gray-800' : 'text-gray-700 hover:text-indigo-600 hover:bg-indigo-50'} rounded-xl text-center font-medium transition-all duration-300`}
+                    >
+                      Login
+                    </button>
+                    <Link
+                      to="/register"
+                      onClick={() => setIsMenuOpen(false)}
+                      style={buttonStyle}
+                      className="w-1/2 text-white font-semibold px-4 py-2.5 rounded-xl text-center hover:shadow-lg transition-all duration-300"
+                    >
+                      Register
+                    </Link>
+                  </div>
                 </div>
               )}
             </div>

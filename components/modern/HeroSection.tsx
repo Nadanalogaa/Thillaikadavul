@@ -21,8 +21,9 @@ const HeroSection: React.FC<HeroSectionProps> = ({
 }) => {
   const { theme } = useTheme();
   const { scrollY } = useScroll();
-  const y = useTransform(scrollY, [0, 500], [0, 150]);
-  const opacity = useTransform(scrollY, [0, 300], [1, 0]);
+  const [isCompactScreen, setIsCompactScreen] = useState(false);
+  const y = useTransform(scrollY, [0, isCompactScreen ? 400 : 500], [0, isCompactScreen ? 90 : 150]);
+  const opacity = useTransform(scrollY, [0, isCompactScreen ? 220 : 300], [1, isCompactScreen ? 0.65 : 0]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
 
@@ -63,6 +64,24 @@ const HeroSection: React.FC<HeroSectionProps> = ({
     }, 4000);
     return () => clearInterval(interval);
   }, [heroImages.length]);
+
+  useEffect(() => {
+    const updateScreenFlag = () => {
+      if (typeof window !== 'undefined') {
+        setIsCompactScreen(window.innerWidth < 768);
+      }
+    };
+
+    updateScreenFlag();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', updateScreenFlag);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('resize', updateScreenFlag);
+      }
+    };
+  }, []);
 
   const handleDemoBooking = async (bookingData: DemoBookingData) => {
     try {
