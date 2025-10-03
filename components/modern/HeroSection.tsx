@@ -75,11 +75,11 @@ const HeroSection: React.FC<HeroSectionProps> = ({
   };
 
   return (
-    <div className="relative h-screen overflow-hidden bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 dark:from-gray-900 dark:via-gray-800 dark:to-black">
+    <div className="relative min-h-[70vh] md:min-h-[90vh] lg:h-screen overflow-hidden bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 dark:from-gray-900 dark:via-gray-800 dark:to-black">
       {/* Parallax Background Images */}
       <motion.div
         style={{ y }}
-        className="absolute inset-0 w-full h-full"
+        className="absolute inset-0 w-full h-full hidden sm:block"
       >
         {heroImages.map((image, index) => (
           <motion.div
@@ -101,7 +101,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
       </motion.div>
 
       {/* Animated Background Elements */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 hidden sm:block">
         <motion.div
           className="absolute top-20 left-20 w-4 h-4 bg-yellow-400 rounded-full animate-float"
           animate={{
@@ -143,7 +143,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
       {/* Content */}
       <motion.div 
         style={{ opacity }}
-        className="relative z-10 flex items-center justify-center h-full text-center text-white px-4"
+        className="relative z-10 flex items-center justify-center min-h-[70vh] md:min-h-[80vh] text-center text-white px-4 pb-16 sm:pb-0"
       >
         <div className="max-w-6xl mx-auto w-full">
           {/* Main Title */}
@@ -151,7 +151,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, delay: 0.2 }}
-            className="text-4xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 bg-clip-text text-transparent"
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4 bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 bg-clip-text text-transparent"
           >
             Nadanaloga Fine Arts Academy
           </motion.h1>
@@ -161,7 +161,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, delay: 0.5 }}
-            className="text-xl md:text-2xl mb-6 text-gray-200 dark:text-gray-300 max-w-3xl mx-auto"
+            className="text-base sm:text-lg md:text-xl mb-6 sm:mb-8 text-gray-200 dark:text-gray-300 max-w-3xl mx-auto"
           >
             Where Tradition Meets Innovation in Classical Dance & Arts
           </motion.p>
@@ -171,16 +171,16 @@ const HeroSection: React.FC<HeroSectionProps> = ({
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 1, delay: 0.8 }}
-            className="mb-8"
+            className="mb-6 sm:mb-8"
           >
             <div className="inline-block bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 p-1 rounded-2xl shadow-2xl">
-              <div className="bg-gradient-to-r from-purple-900 to-indigo-900 px-6 py-3 rounded-xl">
+              <div className="bg-gradient-to-r from-purple-900 to-indigo-900 px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl">
                 <motion.p
                   animate={{
                     textShadow: ["0 0 10px rgba(255,255,0,0.5)", "0 0 20px rgba(255,255,0,0.8)", "0 0 10px rgba(255,255,0,0.5)"]
                   }}
                   transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                  className="text-lg md:text-2xl font-bold text-white text-center"
+                  className="text-sm sm:text-lg md:text-2xl font-bold text-white text-center"
                 >
                   🌍 <span className="text-yellow-300">ONLINE</span> & <span className="text-orange-300">OFFLINE</span> Classes Available Worldwide 🌍
                 </motion.p>
@@ -195,28 +195,28 @@ const HeroSection: React.FC<HeroSectionProps> = ({
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 1, delay: 0.8 }}
-              className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-12"
+              className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 max-w-4xl mx-auto mb-10 sm:mb-12"
             >
               {/* Book Demo Class Card */}
               <motion.div
                 whileHover={{ scale: 1.03, y: -5 }}
                 whileTap={{ scale: 0.98 }}
-                className={`rounded-2xl p-8 backdrop-blur-lg border transition-all duration-300 cursor-pointer ${
+                className={`rounded-2xl p-6 md:p-8 backdrop-blur-lg border transition-all duration-300 cursor-pointer ${
                   theme === 'dark'
                     ? 'bg-white/10 border-white/20 hover:bg-white/15'
                     : 'bg-white/15 border-white/30 hover:bg-white/20'
                 }`}
               >
-                <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-orange-400 to-pink-500 rounded-2xl">
-                  <Calendar className="w-8 h-8 text-white" />
+                <div className="flex items-center justify-center w-14 h-14 mx-auto mb-3 bg-gradient-to-r from-orange-400 to-pink-500 rounded-2xl">
+                  <Calendar className="w-7 h-7 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold mb-3 text-white">Book Demo Class</h3>
-                <p className="text-gray-200 mb-6">Experience our teaching methodology with a free demo class</p>
+                <h3 className="text-xl sm:text-2xl font-bold mb-2.5 text-white">Book Demo Class</h3>
+                <p className="text-gray-200 text-sm sm:text-base mb-5">Experience our teaching methodology with a free demo class</p>
                 <motion.button
                   onClick={() => setIsDemoModalOpen(true)}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="w-full bg-gradient-to-r from-orange-400 to-pink-500 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2"
+                  className="w-full bg-gradient-to-r from-orange-400 to-pink-500 text-white px-4 py-2.5 sm:py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2"
                 >
                   <BookOpen className="w-5 h-5" />
                   Book Now
@@ -227,23 +227,23 @@ const HeroSection: React.FC<HeroSectionProps> = ({
               <motion.div
                 whileHover={{ scale: 1.03, y: -5 }}
                 whileTap={{ scale: 0.98 }}
-                className={`rounded-2xl p-8 backdrop-blur-lg border transition-all duration-300 cursor-pointer ${
+                className={`rounded-2xl p-6 md:p-8 backdrop-blur-lg border transition-all duration-300 cursor-pointer ${
                   theme === 'dark'
                     ? 'bg-white/10 border-white/20 hover:bg-white/15'
                     : 'bg-white/15 border-white/30 hover:bg-white/20'
                 }`}
               >
-                <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-blue-400 to-purple-500 rounded-2xl">
-                  <UserPlus className="w-8 h-8 text-white" />
+                <div className="flex items-center justify-center w-14 h-14 mx-auto mb-3 bg-gradient-to-r from-blue-400 to-purple-500 rounded-2xl">
+                  <UserPlus className="w-7 h-7 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold mb-3 text-white">Join Our Community</h3>
-                <p className="text-gray-200 mb-6">Login to your account or register as a new student or teacher</p>
+                <h3 className="text-xl sm:text-2xl font-bold mb-2.5 text-white">Join Our Community</h3>
+                <p className="text-gray-200 text-sm sm:text-base mb-5">Login to your account or register as a new student or teacher</p>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <motion.button
                     onClick={onLoginClick}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className="flex-1 bg-gradient-to-r from-blue-400 to-purple-500 text-white px-4 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2"
+                    className="flex-1 bg-gradient-to-r from-blue-400 to-purple-500 text-white px-4 py-2.5 sm:py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2"
                   >
                     <LogIn className="w-4 h-4" />
                     Login
@@ -252,7 +252,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                     onClick={onRegisterClick}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className="flex-1 border-2 border-white text-white px-4 py-3 rounded-xl font-semibold backdrop-blur-sm bg-white/10 hover:bg-white/20 transition-all duration-300 flex items-center justify-center gap-2"
+                    className="flex-1 border-2 border-white text-white px-4 py-2.5 sm:py-3 rounded-xl font-semibold backdrop-blur-sm bg-white/10 hover:bg-white/20 transition-all duration-300 flex items-center justify-center gap-2"
                   >
                     <UserPlus className="w-4 h-4" />
                     Register
@@ -266,7 +266,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 1, delay: 0.8 }}
-              className="w-full mb-12"
+              className="w-full mb-10 sm:mb-12"
             >
               {/* Full Width Slider - Left to Right */}
               <motion.div
@@ -318,7 +318,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 1, delay: 1.5 }}
-        className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-white cursor-pointer"
+        className="absolute bottom-6 sm:bottom-8 left-1/2 transform -translate-x-1/2 text-white cursor-pointer hidden sm:block"
       >
         <motion.div
           animate={{ y: [0, 10, 0] }}

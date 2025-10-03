@@ -146,7 +146,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
   return (
     <header style={headerStyle} className="sticky top-0 z-40 border-0">
       {/* Row 1: Brand and User Info */}
-      <div className="w-full px-4 sm:px-6 py-2">
+      <div className="w-full px-4 sm:px-6 py-1.5 sm:py-2">
         <div className="flex items-center justify-between w-full">
           {/* Logo, Theme Toggle */}
           <div className="flex items-center gap-3 sm:gap-4 mr-auto">
@@ -154,10 +154,10 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
               <img
                 src="/danceImages/Nadanaloga.png"
                 alt="Nadanaloga Academy"
-                className="h-12 sm:h-14 md:h-16 w-auto"
+                className="h-10 sm:h-14 md:h-16 w-auto"
               />
             </NavLink>
-            <ThemeToggle className="p-2 sm:p-2.5 md:p-3 text-indigo-600 dark:text-indigo-200" />
+            <ThemeToggle className="p-1.5 sm:p-2.5 md:p-3 text-indigo-600 dark:text-indigo-200" />
           </div>
 
           {/* User Info and Social - Desktop Only */}
@@ -279,7 +279,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
           </div>
 
           {/* Mobile: User Info Only */}
-          <div className="lg:hidden flex items-center space-x-3">
+          <div className="lg:hidden flex items-center space-x-2">
             {currentUser && (
               <>
                 <UnifiedNotificationBell user={currentUser} />
@@ -423,7 +423,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
               ? '1px solid rgba(75, 85, 99, 0.3)'
               : '1px solid rgba(199, 210, 254, 0.3)'
           }}
-          className="lg:hidden px-6 pb-6"
+          className="lg:hidden px-4 pb-5"
         >
           <div className="flex flex-col space-y-4">
             {visibleNavLinks.map((link) => {
@@ -432,7 +432,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                   <div key={link.name}>
                     <button
                       onClick={() => setIsMobileCoursesOpen(!isMobileCoursesOpen)}
-                      className={`w-full text-left py-3 px-4 rounded-lg transition-all duration-300 font-medium flex items-center justify-between ${
+                      className={`w-full text-left py-2.5 px-4 rounded-lg transition-all duration-300 font-medium flex items-center justify-between ${
                         location.pathname.startsWith('/courses') || location.pathname === '/private-class' || location.pathname === '/performance-workshops'
                           ? `${theme === 'dark' ? 'text-indigo-400 bg-gray-800' : 'text-indigo-600 bg-indigo-50'}`
                           : `${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400 hover:bg-gray-800' : 'text-gray-700 hover:text-indigo-600 hover:bg-indigo-50'}`
@@ -470,7 +470,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                                 setIsMenuOpen(false);
                                 setIsMobileCoursesOpen(false);
                               }}
-                              className={`flex items-center gap-3 py-3 px-4 rounded-lg text-sm transition-all duration-200 ${
+                              className={`flex items-center gap-3 py-2.5 px-4 rounded-lg text-sm transition-all duration-200 ${
                                 isCurrentPage
                                   ? theme === 'dark'
                                     ? 'bg-indigo-900 text-indigo-300 border-l-2 border-indigo-400'
@@ -611,7 +611,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                 <>
                   <button 
                     onClick={() => { onLoginClick(); setIsMenuOpen(false); }} 
-                    className={`px-6 py-3 ${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400 hover:bg-gray-800' : 'text-gray-700 hover:text-indigo-600 hover:bg-indigo-50'} rounded-xl text-left font-medium transition-all duration-300`}
+                    className={`px-5 py-2.5 ${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400 hover:bg-gray-800' : 'text-gray-700 hover:text-indigo-600 hover:bg-indigo-50'} rounded-xl text-left font-medium transition-all duration-300`}
                   >
                     Login
                   </button>
@@ -619,7 +619,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                     to="/register" 
                     onClick={() => setIsMenuOpen(false)} 
                     style={buttonStyle}
-                    className="text-white font-semibold px-6 py-3 rounded-xl text-center hover:shadow-lg transition-all duration-300"
+                    className="text-white font-semibold px-5 py-2.5 rounded-xl text-center hover:shadow-lg transition-all duration-300"
                   >
                     Register
                   </Link>

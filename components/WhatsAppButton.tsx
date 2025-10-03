@@ -28,7 +28,7 @@ const WhatsAppButton: React.FC = () => {
     <>
       {/* Chat Widget */}
       <div 
-        className={`fixed bottom-24 right-4 sm:right-8 z-40 w-[calc(100vw-2rem)] max-w-sm bg-white rounded-xl shadow-2xl flex flex-col transition-all duration-300 ease-in-out transform-gpu ${isChatOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}
+        className={`fixed bottom-24 sm:bottom-28 right-4 sm:right-8 z-40 w-[calc(100vw-2rem)] max-w-sm max-h-[75vh] bg-white rounded-xl shadow-2xl flex flex-col transition-all duration-300 ease-in-out transform-gpu ${isChatOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}
         aria-hidden={!isChatOpen}
       >
         {/* Header */}
@@ -50,7 +50,7 @@ const WhatsAppButton: React.FC = () => {
         </div>
 
         {/* Messages Area */}
-        <div className="p-4 flex-grow h-64 bg-[#E5DDD5] bg-opacity-80 bg-[url('https://i.pinimg.com/736x/8c/98/99/8c98994518b575bfd8c949e91d20548b.jpg')] bg-cover bg-center overflow-y-auto">
+        <div className="p-4 flex-grow h-[45vh] sm:h-64 bg-[#E5DDD5] bg-opacity-80 bg-[url('https://i.pinimg.com/736x/8c/98/99/8c98994518b575bfd8c949e91d20548b.jpg')] bg-cover bg-center overflow-y-auto">
           <div className="bg-white p-3 rounded-lg shadow-sm self-start max-w-[85%] rounded-tl-none">
             <p className="text-sm text-gray-800">Hi there! 👋</p>
             <p className="text-sm text-gray-800 mt-1">How can we help you today? Type your message below to start a chat on WhatsApp.</p>
@@ -72,7 +72,7 @@ const WhatsAppButton: React.FC = () => {
           <button
             type="submit"
             aria-label="Send message"
-            className="bg-[#128C7E] text-white w-10 h-10 flex items-center justify-center rounded-full shadow-md hover:bg-[#075E54] transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex-shrink-0"
+            className="bg-[#128C7E] text-white w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full shadow-md hover:bg-[#075E54] transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex-shrink-0"
             disabled={!message.trim()}
           >
             <SendIcon />
@@ -84,7 +84,7 @@ const WhatsAppButton: React.FC = () => {
       <button
         onClick={() => setIsChatOpen(prev => !prev)}
         aria-label={isChatOpen ? "Close chat" : "Open WhatsApp chat"}
-        className="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white w-16 h-16 flex items-center justify-center rounded-full shadow-xl hover:bg-[#128C7E] transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-green-300"
+        className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-50 bg-[#25D366] text-white w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center rounded-full shadow-xl hover:bg-[#128C7E] transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-green-300"
         aria-expanded={isChatOpen}
       >
         <div className={`transition-all duration-300 ease-in-out absolute ${isChatOpen ? 'opacity-0 transform rotate-45 scale-0' : 'opacity-100 transform rotate-0 scale-100'}`}>

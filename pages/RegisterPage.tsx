@@ -715,8 +715,8 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                 Discover your artistic potential with expert guidance
                             </motion.p>
                         </div>
-                        <div className="p-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="p-6 sm:p-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                                 <motion.button 
                                     initial={{ opacity: 0, scale: 0.9 }}
                                     animate={heroInView ? { opacity: 1, scale: 1 } : {}}
@@ -724,21 +724,21 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                     whileHover={{ y: -5, scale: 1.02 }}
                                     whileTap={{ scale: 0.98 }}
                                     onClick={() => setRegistrationType('student')} 
-                                    className={`p-8 text-center rounded-2xl border-2 transition-all duration-300 group ${
+                                    className={`p-5 sm:p-8 text-center rounded-2xl border-2 transition-all duration-300 group ${
                                         theme === 'dark'
                                             ? 'border-gray-600 bg-gray-700/50 hover:border-blue-400 hover:bg-blue-900/20'
                                             : 'border-gray-200 bg-white/80 hover:border-blue-400 hover:bg-blue-50'
                                     }`}
                                 >
-                                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors duration-300 ${
+                                    <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 transition-colors duration-300 ${
                                         theme === 'dark' ? 'bg-blue-800/50 group-hover:bg-blue-700/70' : 'bg-blue-100 group-hover:bg-blue-200'
                                     }`}>
-                                        <BookOpen className="w-8 h-8 text-blue-600" />
+                                        <BookOpen className="w-7 h-7 sm:w-8 sm:h-8 text-blue-600" />
                                     </div>
-                                    <h2 className={`text-xl font-bold mb-2 ${
+                                    <h2 className={`text-lg sm:text-xl font-bold mb-2 ${
                                         theme === 'dark' ? 'text-white' : 'text-gray-900'
                                     }`}>Student & Guardian</h2>
-                                    <p className={`text-sm ${
+                                    <p className={`text-xs sm:text-sm ${
                                         theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
                                     }`}>Enroll in our arts programs and begin your creative journey</p>
                                 </motion.button>
@@ -749,21 +749,21 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                     whileHover={{ y: -5, scale: 1.02 }}
                                     whileTap={{ scale: 0.98 }}
                                     onClick={() => setRegistrationType('teacher')} 
-                                    className={`p-8 text-center rounded-2xl border-2 transition-all duration-300 group ${
+                                    className={`p-5 sm:p-8 text-center rounded-2xl border-2 transition-all duration-300 group ${
                                         theme === 'dark'
                                             ? 'border-gray-600 bg-gray-700/50 hover:border-purple-400 hover:bg-purple-900/20'
                                             : 'border-gray-200 bg-white/80 hover:border-purple-400 hover:bg-purple-50'
                                     }`}
                                 >
-                                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors duration-300 ${
+                                    <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 transition-colors duration-300 ${
                                         theme === 'dark' ? 'bg-purple-800/50 group-hover:bg-purple-700/70' : 'bg-purple-100 group-hover:bg-purple-200'
                                     }`}>
-                                        <Users className="w-8 h-8 text-purple-600" />
+                                        <Users className="w-7 h-7 sm:w-8 sm:h-8 text-purple-600" />
                                     </div>
-                                    <h2 className={`text-xl font-bold mb-2 ${
+                                    <h2 className={`text-lg sm:text-xl font-bold mb-2 ${
                                         theme === 'dark' ? 'text-white' : 'text-gray-900'
                                     }`}>Instructor</h2>
-                                    <p className={`text-sm ${
+                                    <p className={`text-xs sm:text-sm ${
                                         theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
                                     }`}>Join our team of passionate arts educators</p>
                                 </motion.button>
@@ -820,21 +820,21 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                             setTeacherData(prev => ({ ...prev, classPreference: ClassPreference.Online }));
                                         }
                                     }} 
-                                    className={`p-8 text-center rounded-2xl border-2 transition-all duration-300 group ${
+                                    className={`p-5 sm:p-8 text-center rounded-2xl border-2 transition-all duration-300 group ${
                                         theme === 'dark'
                                             ? 'border-gray-600 bg-gray-700/50 hover:border-green-400 hover:bg-green-900/20'
                                             : 'border-gray-200 bg-white/80 hover:border-green-400 hover:bg-green-50'
                                     }`}
                                 >
-                                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors duration-300 ${
+                                    <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 transition-colors duration-300 ${
                                         theme === 'dark' ? 'bg-green-800/50 group-hover:bg-green-700/70' : 'bg-green-100 group-hover:bg-green-200'
                                     }`}>
-                                        <Globe className="w-8 h-8 text-green-600" />
+                                        <Globe className="w-7 h-7 sm:w-8 sm:h-8 text-green-600" />
                                     </div>
-                                    <h2 className={`text-xl font-bold mb-2 ${
+                                    <h2 className={`text-lg sm:text-xl font-bold mb-2 ${
                                         theme === 'dark' ? 'text-white' : 'text-gray-900'
                                     }`}>Online Classes</h2>
-                                    <p className={`text-sm ${
+                                    <p className={`text-xs sm:text-sm ${
                                         theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
                                     }`}>{registrationType === 'student' ? 'Learn from anywhere with live virtual sessions and interactive lessons' : 'Teach from anywhere with live virtual sessions and interactive lessons'}</p>
                                 </motion.button>
@@ -854,21 +854,21 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
                                             setTeacherData(prev => ({ ...prev, classPreference: ClassPreference.Offline }));
                                         }
                                     }} 
-                                    className={`p-8 text-center rounded-2xl border-2 transition-all duration-300 group ${
+                                    className={`p-5 sm:p-8 text-center rounded-2xl border-2 transition-all duration-300 group ${
                                         theme === 'dark'
                                             ? 'border-gray-600 bg-gray-700/50 hover:border-blue-400 hover:bg-blue-900/20'
                                             : 'border-gray-200 bg-white/80 hover:border-blue-400 hover:bg-blue-50'
                                     }`}
                                 >
-                                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors duration-300 ${
+                                    <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 transition-colors duration-300 ${
                                         theme === 'dark' ? 'bg-blue-800/50 group-hover:bg-blue-700/70' : 'bg-blue-100 group-hover:bg-blue-200'
                                     }`}>
-                                        <MapPin className="w-8 h-8 text-blue-600" />
+                                        <MapPin className="w-7 h-7 sm:w-8 sm:h-8 text-blue-600" />
                                     </div>
-                                    <h2 className={`text-xl font-bold mb-2 ${
+                                    <h2 className={`text-lg sm:text-xl font-bold mb-2 ${
                                         theme === 'dark' ? 'text-white' : 'text-gray-900'
                                     }`}>In-Person Classes</h2>
-                                    <p className={`text-sm ${
+                                    <p className={`text-xs sm:text-sm ${
                                         theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
                                     }`}>{registrationType === 'student' ? 'Experience hands-on learning in our beautiful studio spaces with direct guidance' : 'Provide hands-on instruction in our beautiful studio spaces with direct student interaction'}</p>
                                 </motion.button>

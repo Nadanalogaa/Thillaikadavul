@@ -88,7 +88,7 @@ const AnimatedFooter: React.FC = () => {
   return (
     <footer className="relative bg-gradient-to-br from-gray-900 via-indigo-900 to-purple-900 text-white overflow-hidden" ref={ref}>
       {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden hidden md:block">
         <motion.div
           animate={{
             scale: [1, 1.2, 1],
@@ -120,13 +120,13 @@ const AnimatedFooter: React.FC = () => {
 
       <div className="relative z-10">
         {/* Main Footer Content */}
-        <div className="container mx-auto px-6 md:px-10 lg:px-14 py-16">
+        <div className="container mx-auto px-4 sm:px-6 md:px-10 lg:px-14 py-14 sm:py-16">
           {/* Top Section */}
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             animate={inView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8 }}
-            className="text-center mb-16"
+            className="text-center mb-12 sm:mb-16"
           >
             <motion.div
               initial={{ scale: 0 }}
@@ -145,7 +145,7 @@ const AnimatedFooter: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="text-2xl font-bold mb-4"
+              className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4"
             >
               Nadanaloga Academy
             </motion.h3>
@@ -154,14 +154,14 @@ const AnimatedFooter: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.6, delay: 0.6 }}
-              className="text-gray-300 max-w-2xl mx-auto"
+              className="text-sm sm:text-base text-gray-300 max-w-2xl mx-auto"
             >
               Preserving the beauty and tradition of classical Indian dance through dedicated teaching and passionate performances.
             </motion.p>
           </motion.div>
 
           {/* Footer Sections Grid */}
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-12">
+          <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-10 sm:mb-12">
             {footerSections.map((section, index) => (
               <motion.div
                 key={index}
@@ -210,7 +210,7 @@ const AnimatedFooter: React.FC = () => {
             initial={{ opacity: 0, y: 30 }}
             animate={inView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8, delay: 0.8 }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-8 py-12 border-t border-gray-700"
+            className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-8 py-8 sm:py-12 border-t border-gray-700"
           >
             {[
               { icon: <Users className="w-8 h-8" />, value: '500+', label: 'Happy Students' },
@@ -303,7 +303,7 @@ const AnimatedFooter: React.FC = () => {
           whileHover={{ scale: 1.1, y: -2 }}
           whileTap={{ scale: 0.9 }}
           onClick={scrollToTop}
-          className="absolute bottom-8 right-8 bg-gradient-to-r from-yellow-400 to-orange-500 text-black p-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+          className="absolute bottom-6 right-6 sm:bottom-8 sm:right-8 bg-gradient-to-r from-yellow-400 to-orange-500 text-black p-2.5 sm:p-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
         >
           <ArrowUp className="w-5 h-5" />
         </motion.button>
