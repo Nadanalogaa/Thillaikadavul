@@ -65,17 +65,23 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
     };
   }, [isCoursesDropdownOpen]);
 
-  useEffect(() => {
-    const updateMenuOffset = () => {
-      if (headerRef.current) {
-        setMenuOffset(headerRef.current.getBoundingClientRect().height);
-      }
-    };
+  const updateMenuOffset = React.useCallback(() => {
+    if (headerRef.current) {
+      setMenuOffset(headerRef.current.getBoundingClientRect().height);
+    }
+  }, []);
 
+  useEffect(() => {
     updateMenuOffset();
     window.addEventListener('resize', updateMenuOffset);
     return () => window.removeEventListener('resize', updateMenuOffset);
-  }, []);
+  }, [updateMenuOffset]);
+
+  useEffect(() => {
+    if (isMenuOpen) {
+      updateMenuOffset();
+    }
+  }, [isMenuOpen, updateMenuOffset]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -461,8 +467,9 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
               ? '1px solid rgba(75, 85, 99, 0.3)'
               : '1px solid rgba(199, 210, 254, 0.3)',
             top: menuOffset,
+            height: `calc(100vh - ${Math.max(menuOffset, 0)}px)`
           }}
-          className="lg:hidden fixed inset-x-0 bottom-0 z-40 px-4 pb-5 overflow-y-auto"
+          className="lg:hidden fixed inset-x-0 z-40 px-4 pb-5 overflow-y-auto"
         >
           <div className="flex flex-col space-y-4 pb-24 pt-4">
             {visibleNavLinks.map((link) => {
