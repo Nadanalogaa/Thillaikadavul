@@ -43,6 +43,8 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
   const isAdminPage = location.pathname.startsWith('/admin');
   const { theme } = useTheme();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [menuOffset, setMenuOffset] = useState(0);
 
   const visibleNavLinks = NAV_LINKS.filter(link => !isAdminPage);
 
@@ -62,6 +64,38 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isCoursesDropdownOpen]);
+
+  const updateMenuOffset = React.useCallback(() => {
+    if (headerRef.current) {
+      setMenuOffset(headerRef.current.getBoundingClientRect().height);
+    }
+  }, []);
+
+  useEffect(() => {
+    updateMenuOffset();
+    window.addEventListener('resize', updateMenuOffset);
+    return () => window.removeEventListener('resize', updateMenuOffset);
+  }, [updateMenuOffset]);
+
+  useEffect(() => {
+    if (isMenuOpen) {
+      updateMenuOffset();
+    }
+  }, [isMenuOpen, updateMenuOffset]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const originalOverflow = document.body.style.overflow;
+    if (isMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = originalOverflow || '';
+    }
+
+    return () => {
+      document.body.style.overflow = originalOverflow || '';
+    };
+  }, [isMenuOpen]);
 
   const courseMenuItems = [
     { name: 'All Courses', path: '/courses', icon: <GraduationCap className="w-4 h-4" /> },
@@ -143,10 +177,21 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
     transition: 'all 0.3s ease'
   };
 
+  const mobileActionBarStyle = {
+    background: theme === 'dark'
+      ? 'rgba(17, 24, 39, 0.96)'
+      : 'rgba(255, 255, 255, 0.96)',
+    backdropFilter: 'blur(12px)',
+    borderTop: theme === 'dark'
+      ? '1px solid rgba(75, 85, 99, 0.45)'
+      : '1px solid rgba(199, 210, 254, 0.6)'
+  };
+
   return (
-    <header style={headerStyle} className="sticky top-0 z-40 border-0">
+    <>
+    <header ref={headerRef} style={headerStyle} className="sticky top-0 z-40 border-0">
       {/* Row 1: Brand and User Info */}
-      <div className="w-full px-4 sm:px-6 py-2">
+      <div className="w-full px-4 sm:px-6 py-1.5 sm:py-2">
         <div className="flex items-center justify-between w-full">
           {/* Logo, Theme Toggle */}
           <div className="flex items-center gap-3 sm:gap-4 mr-auto">
@@ -154,10 +199,10 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
               <img
                 src="/danceImages/Nadanaloga.png"
                 alt="Nadanaloga Academy"
-                className="h-12 sm:h-14 md:h-16 w-auto"
+                className="h-10 sm:h-14 md:h-16 w-auto"
               />
             </NavLink>
-            <ThemeToggle className="p-2 sm:p-2.5 md:p-3 text-indigo-600 dark:text-indigo-200" />
+            <ThemeToggle className="p-1.5 sm:p-2.5 md:p-3 text-indigo-600 dark:text-indigo-200" />
           </div>
 
           {/* User Info and Social - Desktop Only */}
@@ -279,7 +324,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
           </div>
 
           {/* Mobile: User Info Only */}
-          <div className="lg:hidden flex items-center space-x-3">
+          <div className="lg:hidden flex items-center space-x-2">
             {currentUser && (
               <>
                 <UnifiedNotificationBell user={currentUser} />
@@ -410,226 +455,261 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
           </div>
         </nav>
       </div>
+    </header>
 
-      {/* Mobile Menu */}
-      {isMenuOpen && (
+    {/* Mobile Menu - Outside Header for Proper Z-Index */}
+    {isMenuOpen && (
+      <>
+        {/* Backdrop Overlay */}
         <div
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50"
           style={{
-            background: theme === 'dark'
-              ? 'linear-gradient(135deg, rgba(17, 24, 39, 0.98) 0%, rgba(31, 41, 55, 0.98) 100%)'
-              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%)',
-            backdropFilter: 'blur(20px)',
-            borderTop: theme === 'dark'
-              ? '1px solid rgba(75, 85, 99, 0.3)'
-              : '1px solid rgba(199, 210, 254, 0.3)'
+            top: menuOffset,
+            zIndex: 9998
           }}
-          className="lg:hidden px-6 pb-6"
+          onClick={() => setIsMenuOpen(false)}
+        />
+
+        {/* Fixed Menu Container */}
+        <div
+          className="lg:hidden fixed inset-x-0"
+          style={{
+            top: menuOffset,
+            bottom: 0,
+            zIndex: 9999,
+            display: 'flex',
+            flexDirection: 'column'
+          }}
         >
-          <div className="flex flex-col space-y-4">
-            {visibleNavLinks.map((link) => {
-              if (link.name === 'Our Courses') {
+          {/* Scrollable Content */}
+          <div
+            style={{
+              background: theme === 'dark'
+                ? 'linear-gradient(135deg, rgba(17, 24, 39, 0.98) 0%, rgba(31, 41, 55, 0.98) 100%)'
+                  : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%)',
+                backdropFilter: 'blur(20px)',
+                borderTop: theme === 'dark'
+                  ? '1px solid rgba(75, 85, 99, 0.3)'
+                  : '1px solid rgba(199, 210, 254, 0.3)',
+                flex: '1 1 0%',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+            >
+              <div style={{ flex: '1 1 0%', overflowY: 'auto', overflowX: 'hidden' }}>
+            <div className="px-4 py-3 space-y-1">
+              {/* Navigation Links */}
+              {visibleNavLinks.map((link) => {
+                if (link.name === 'Our Courses') {
+                  return (
+                    <div key={link.name}>
+                      <button
+                        onClick={() => setIsMobileCoursesOpen(!isMobileCoursesOpen)}
+                        className={`w-full text-left py-2 px-3 rounded-lg transition-all duration-200 font-medium text-sm flex items-center justify-between ${
+                          location.pathname.startsWith('/courses') || location.pathname === '/private-class' || location.pathname === '/performance-workshops'
+                            ? `${theme === 'dark' ? 'text-indigo-400 bg-gray-800' : 'text-indigo-600 bg-indigo-50'}`
+                            : `${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400 hover:bg-gray-800' : 'text-gray-700 hover:text-indigo-600 hover:bg-indigo-50'}`
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <GraduationCap className="w-4 h-4" />
+                          {link.name}
+                        </div>
+                        <svg
+                          className={`w-4 h-4 transition-transform duration-200 ${isMobileCoursesOpen ? 'rotate-180' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+
+                      {isMobileCoursesOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="mt-1 ml-3 space-y-0.5"
+                        >
+                          {courseMenuItems.map((courseItem) => {
+                            const isCurrentPage = location.pathname === courseItem.path;
+                            return (
+                              <Link
+                                key={courseItem.name}
+                                to={courseItem.path}
+                                onClick={() => {
+                                  setIsMenuOpen(false);
+                                  setIsMobileCoursesOpen(false);
+                                }}
+                                className={`flex items-center gap-2 py-1.5 px-3 rounded-lg text-sm transition-all duration-200 ${
+                                  isCurrentPage
+                                    ? theme === 'dark'
+                                      ? 'bg-indigo-900 text-indigo-300 border-l-2 border-indigo-400'
+                                      : 'bg-indigo-100 text-indigo-700 border-l-2 border-indigo-500'
+                                    : theme === 'dark'
+                                      ? 'text-gray-300 hover:text-indigo-400 hover:bg-gray-800'
+                                      : 'text-gray-600 hover:text-indigo-600 hover:bg-indigo-50'
+                                }`}
+                              >
+                                <span className={`${isCurrentPage ? 'text-indigo-500' : theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                                  {courseItem.icon}
+                                </span>
+                                <span className="font-medium flex-1">{courseItem.name}</span>
+                                {isCurrentPage && (
+                                  <Sparkles className="w-3 h-3 text-indigo-500" />
+                                )}
+                              </Link>
+                            );
+                          })}
+                        </motion.div>
+                      )}
+                    </div>
+                  );
+                }
+
                 return (
-                  <div key={link.name}>
-                    <button
-                      onClick={() => setIsMobileCoursesOpen(!isMobileCoursesOpen)}
-                      className={`w-full text-left py-3 px-4 rounded-lg transition-all duration-300 font-medium flex items-center justify-between ${
-                        location.pathname.startsWith('/courses') || location.pathname === '/private-class' || location.pathname === '/performance-workshops'
-                          ? `${theme === 'dark' ? 'text-indigo-400 bg-gray-800' : 'text-indigo-600 bg-indigo-50'}`
-                          : `${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400 hover:bg-gray-800' : 'text-gray-700 hover:text-indigo-600 hover:bg-indigo-50'}`
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <GraduationCap className="w-4 h-4" />
-                        {link.name}
-                      </div>
-                      <svg
-                        className={`w-4 h-4 transition-transform duration-200 ${isMobileCoursesOpen ? 'rotate-180' : ''}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-
-                    {isMobileCoursesOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="mt-2 ml-4 space-y-2"
-                      >
-                        {courseMenuItems.map((courseItem) => {
-                          const isCurrentPage = location.pathname === courseItem.path;
-                          return (
-                            <Link
-                              key={courseItem.name}
-                              to={courseItem.path}
-                              onClick={() => {
-                                setIsMenuOpen(false);
-                                setIsMobileCoursesOpen(false);
-                              }}
-                              className={`flex items-center gap-3 py-3 px-4 rounded-lg text-sm transition-all duration-200 ${
-                                isCurrentPage
-                                  ? theme === 'dark'
-                                    ? 'bg-indigo-900 text-indigo-300 border-l-2 border-indigo-400'
-                                    : 'bg-indigo-100 text-indigo-700 border-l-2 border-indigo-500'
-                                  : theme === 'dark'
-                                    ? 'text-gray-300 hover:text-indigo-400 hover:bg-gray-800'
-                                    : 'text-gray-600 hover:text-indigo-600 hover:bg-indigo-50'
-                              }`}
-                            >
-                              <span className={`${isCurrentPage ? 'text-indigo-500' : theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                                {courseItem.icon}
-                              </span>
-                              <span className="font-medium flex-1">{courseItem.name}</span>
-                              {isCurrentPage && (
-                                <Sparkles className="w-3 h-3 text-indigo-500" />
-                              )}
-                            </Link>
-                          );
-                        })}
-                      </motion.div>
-                    )}
-                  </div>
+                  <NavLink
+                    key={link.name}
+                    to={link.path}
+                    onClick={() => setIsMenuOpen(false)}
+                    className={({ isActive }) =>
+                      `${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400' : 'text-gray-700 hover:text-indigo-600'} py-2 px-3 rounded-lg transition-all duration-200 font-medium text-sm block ${
+                        isActive ? `${theme === 'dark' ? 'text-indigo-400 bg-gray-800' : 'text-indigo-600 bg-indigo-50'}` : `${theme === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-indigo-50'}`
+                      }`
+                    }
+                  >
+                    {link.name}
+                  </NavLink>
                 );
-              }
+              })}
 
-              return (
-                <NavLink
-                  key={link.name}
-                  to={link.path}
-                  onClick={() => setIsMenuOpen(false)}
-                  className={({ isActive }) =>
-                    `${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400' : 'text-gray-700 hover:text-indigo-600'} py-3 px-4 rounded-lg transition-all duration-300 font-medium ${
-                      isActive ? `${theme === 'dark' ? 'text-indigo-400 bg-gray-800' : 'text-indigo-600 bg-indigo-50'}` : `${theme === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-indigo-50'}`
-                    }`
-                  }
-                >
-                  {link.name}
-                </NavLink>
-              );
-            })}
-             {currentUser && (
+              {/* Dashboard Link */}
+              {currentUser && (
                 <NavLink
                   to={getDashboardPath()}
                   onClick={() => setIsMenuOpen(false)}
                   className={({ isActive }) =>
-                    `${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400' : 'text-gray-700 hover:text-indigo-600'} py-3 px-4 rounded-lg transition-all duration-300 font-medium ${
+                    `${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400' : 'text-gray-700 hover:text-indigo-600'} py-2 px-3 rounded-lg transition-all duration-200 font-medium text-sm block ${
                       isActive ? `${theme === 'dark' ? 'text-indigo-400 bg-gray-800' : 'text-indigo-600 bg-indigo-50'}` : `${theme === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-indigo-50'}`
                     }`
                   }
                 >
                   Dashboard
                 </NavLink>
-             )}
+              )}
+            </div>
 
-            {/* Contact Information - Mobile */}
-            <div className={`pt-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-indigo-100'}`}>
-              <div className="space-y-3">
-                {/* Phone Numbers */}
-                <div className="flex flex-col space-y-2">
-                  <div className="flex items-center justify-between px-4 py-2 rounded-lg bg-opacity-50">
-                    <a
-                      href="tel:+919566866588"
-                      className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} flex items-center space-x-2 text-sm`}
-                    >
-                      <Phone className="w-4 h-4" />
-                      <span>+91 95668 66588</span>
-                    </a>
-                    <a
-                      href="https://wa.me/919566866588"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-green-600 hover:text-green-700 transition-colors"
-                    >
-                      <MessageCircle className="w-5 h-5" />
-                    </a>
-                  </div>
-                  <div className="flex items-center justify-between px-4 py-2 rounded-lg bg-opacity-50">
-                    <a
-                      href="tel:+919092908888"
-                      className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} flex items-center space-x-2 text-sm`}
-                    >
-                      <Phone className="w-4 h-4" />
-                      <span>+91 90929 08888</span>
-                    </a>
-                    <a
-                      href="https://wa.me/919092908888"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-green-600 hover:text-green-700 transition-colors"
-                    >
-                      <MessageCircle className="w-5 h-5" />
-                    </a>
-                  </div>
+            {/* Contact Information */}
+            <div className={`mx-4 mt-3 pt-3 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-indigo-100'}`}>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between py-1.5 px-2 rounded-lg">
+                  <a
+                    href="tel:+919566866588"
+                    className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} flex items-center space-x-2 text-xs`}
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    <span>+91 95668 66588</span>
+                  </a>
+                  <a
+                    href="https://wa.me/919566866588"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-green-600 hover:text-green-700 transition-colors"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                  </a>
                 </div>
-
-                {/* Email */}
+                <div className="flex items-center justify-between py-1.5 px-2 rounded-lg">
+                  <a
+                    href="tel:+919092908888"
+                    className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} flex items-center space-x-2 text-xs`}
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    <span>+91 90929 08888</span>
+                  </a>
+                  <a
+                    href="https://wa.me/919092908888"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-green-600 hover:text-green-700 transition-colors"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                  </a>
+                </div>
                 <a
                   href="mailto:nadanalogaa@gmail.com"
-                  className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} flex items-center space-x-2 px-4 py-2 text-sm`}
+                  className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} flex items-center space-x-2 py-1.5 px-2 text-xs`}
                 >
-                  <Mail className="w-4 h-4" />
+                  <Mail className="w-3.5 h-3.5" />
                   <span>nadanalogaa@gmail.com</span>
                 </a>
               </div>
             </div>
 
-            {/* Social Media Icons - Mobile */}
-            <div className={`pt-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-indigo-100'}`}>
-              <div className="flex items-center justify-center space-x-6 mb-4">
+            {/* Social Media Icons */}
+            <div className={`mx-4 mt-3 pt-3 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-indigo-100'}`}>
+              <div className="flex items-center justify-center space-x-6 pb-3">
                 {socialLinks.map((social) => (
                   <motion.a
                     key={social.name}
                     href={social.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    whileHover={{ scale: 1.2 }}
-                    whileTap={{ scale: 0.9 }}
+                    whileHover={{ scale: 1.15 }}
+                    whileTap={{ scale: 0.95 }}
                   >
-                    <social.icon className={`w-6 h-6 ${social.brandColor} transition-colors duration-300`} strokeWidth={1.5} />
+                    <social.icon className={`w-5 h-5 ${social.brandColor} transition-colors duration-300`} strokeWidth={1.5} />
                   </motion.a>
                 ))}
               </div>
             </div>
-            
-            <div className={`flex flex-col space-y-4 pt-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-indigo-100'}`}>
-              {currentUser ? (
-                <>
-                  <span className={`px-4 py-2 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} font-medium`}>Welcome, {displayName.split(' ')[0]}!</span>
-                  <button 
-                    onClick={() => { onLogout(); setIsMenuOpen(false); }} 
-                    style={outlineButtonStyle}
-                    className="text-indigo-600 font-semibold px-6 py-3 rounded-xl hover:bg-gradient-to-r hover:from-indigo-600 hover:to-purple-600 hover:text-white transition-all duration-300"
-                  >
-                    Logout
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button 
-                    onClick={() => { onLoginClick(); setIsMenuOpen(false); }} 
-                    className={`px-6 py-3 ${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400 hover:bg-gray-800' : 'text-gray-700 hover:text-indigo-600 hover:bg-indigo-50'} rounded-xl text-left font-medium transition-all duration-300`}
-                  >
-                    Login
-                  </button>
-                  <Link 
-                    to="/register" 
-                    onClick={() => setIsMenuOpen(false)} 
-                    style={buttonStyle}
-                    className="text-white font-semibold px-6 py-3 rounded-xl text-center hover:shadow-lg transition-all duration-300"
-                  >
-                    Register
-                  </Link>
-                </>
-              )}
-            </div>
+              </div>
+
+              {/* Fixed Bottom Buttons */}
+              <div
+                style={{
+                  ...mobileActionBarStyle,
+                  flex: '0 0 auto',
+                  padding: '1rem'
+                }}
+              >
+            {currentUser ? (
+              <div className="space-y-2">
+                <button
+                  onClick={() => { onLogout(); setIsMenuOpen(false); }}
+                  style={outlineButtonStyle}
+                  className="w-full text-indigo-600 font-semibold px-4 py-2.5 rounded-lg hover:bg-gradient-to-r hover:from-indigo-600 hover:to-purple-600 hover:text-white transition-all duration-300 text-sm"
+                >
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { onLoginClick(); setIsMenuOpen(false); }}
+                  className={`flex-1 px-4 py-2.5 ${theme === 'dark' ? 'text-gray-200 hover:text-indigo-400 hover:bg-gray-800' : 'text-gray-700 hover:text-indigo-600 hover:bg-indigo-50'} rounded-lg text-center font-medium transition-all duration-300 text-sm`}
+                >
+                  Login
+                </button>
+                <Link
+                  to="/register"
+                  onClick={() => setIsMenuOpen(false)}
+                  style={buttonStyle}
+                  className="flex-1 text-white font-semibold px-4 py-2.5 rounded-lg text-center hover:shadow-lg transition-all duration-300 text-sm"
+                >
+                  Register
+                </Link>
+              </div>
+            )}
           </div>
         </div>
-      )}
-    </header>
+      </div>
+      </>
+    )}
+    </>
   );
 };
 

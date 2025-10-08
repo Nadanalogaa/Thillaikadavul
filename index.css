@@ -3,6 +3,11 @@
 @tailwind utilities;
 
 /* General Body Styles */
+html,
+body {
+  overflow-x: hidden;
+}
+
 body {
   font-family: 'Poppins', sans-serif;
   background-color: #f8fafc; /* Cool Gray 50 */

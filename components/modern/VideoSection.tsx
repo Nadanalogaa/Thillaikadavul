@@ -81,22 +81,22 @@ const VideoSection: React.FC = () => {
   };
 
   return (
-    <section className="py-12 bg-gradient-to-br from-gray-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900" ref={ref}>
+    <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-gray-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900" ref={ref}>
       <div className="container mx-auto px-4">
         {/* Section Header */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.8 }}
-          className="text-center mb-16"
+          className="text-center mb-12 sm:mb-16"
         >
           <div className="flex items-center justify-center gap-3 mb-6">
             <Youtube className="w-8 h-8 text-red-500" />
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 dark:text-white">
               Watch Our <span className="bg-gradient-to-r from-red-500 to-pink-600 bg-clip-text text-transparent">Performances</span>
             </h2>
           </div>
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+          <p className="text-base sm:text-lg md:text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
             Experience the beauty and grace of classical Indian dance through our carefully curated video collection.
           </p>
         </motion.div>
@@ -110,7 +110,7 @@ const VideoSection: React.FC = () => {
             className="lg:col-span-2"
           >
             {/* YouTube Embed */}
-            <div className="aspect-video rounded-2xl overflow-hidden shadow-2xl mb-6 bg-black">
+            <div className="aspect-video rounded-2xl overflow-hidden shadow-2xl mb-5 sm:mb-6 bg-black">
               <iframe
                 key={selectedVideo} // Force re-render on video change
                 src={`https://www.youtube.com/embed/${videos[selectedVideo].id}?autoplay=0&rel=0&modestbranding=1&showinfo=0`}
@@ -128,17 +128,17 @@ const VideoSection: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg"
+              className="bg-white dark:bg-gray-800 rounded-xl p-5 sm:p-6 shadow-lg"
             >
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4">
                 {videos[selectedVideo].title}
               </h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-6 leading-relaxed">
+              <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base mb-5 sm:mb-6 leading-relaxed">
                 {videos[selectedVideo].description}
               </p>
               
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500 dark:text-gray-400">
+              <div className="flex items-center justify-between text-sm sm:text-base">
+                <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                   Duration: {videos[selectedVideo].duration}
                 </span>
                 <motion.a
@@ -188,8 +188,8 @@ const VideoSection: React.FC = () => {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="space-y-4"
           >
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">More Videos</h3>
-            <div className="max-h-[650px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent space-y-4 pr-2">
+            <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">More Videos</h3>
+            <div className="max-h-[520px] sm:max-h-[650px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent space-y-4 pr-1 sm:pr-2">
             {videos.map((video, index) => (
               <motion.div
                 key={index}

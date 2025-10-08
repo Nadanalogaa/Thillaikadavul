@@ -24,7 +24,7 @@ const ParallaxImageSlider: React.FC<ParallaxImageSliderProps> = ({
   const animationDirection = direction === 'left-to-right' ? '100%' : '-100%';
 
   return (
-    <div className="overflow-hidden w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] py-6">
+    <div className="overflow-hidden w-full md:w-screen md:relative md:left-1/2 md:right-1/2 md:-ml-[50vw] md:-mr-[50vw] py-6">
       <motion.div
         className="flex gap-8 will-change-transform"
         animate={{

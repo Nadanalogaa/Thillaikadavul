@@ -53,19 +53,19 @@ const ImageGallery: React.FC = () => {
   };
 
   return (
-    <section className="py-20 bg-white dark:bg-gray-900" ref={ref}>
+    <section className="py-16 md:py-20 bg-white dark:bg-gray-900" ref={ref}>
       <div className="container mx-auto px-4">
         {/* Section Header */}
         <motion.div
           initial={{ opacity: 0, y: 50 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.8 }}
-          className="text-center mb-16"
+          className="text-center mb-12 sm:mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-5 sm:mb-6">
             Our <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Gallery</span>
           </h2>
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+          <p className="text-base sm:text-lg md:text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
             Capturing moments of grace, tradition, and artistic excellence through our students' performances
           </p>
         </motion.div>
@@ -78,12 +78,12 @@ const ImageGallery: React.FC = () => {
           className="relative"
         >
           {/* Navigation Buttons */}
-          <div className="flex justify-center gap-4 mb-8">
+          <div className="flex justify-center gap-3 sm:gap-4 mb-6 sm:mb-8">
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={prevSlide}
-              className="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+              className="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-2.5 sm:p-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
             >
               <ChevronLeft className="w-6 h-6" />
             </motion.button>
@@ -91,14 +91,14 @@ const ImageGallery: React.FC = () => {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={nextSlide}
-              className="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+              className="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-2.5 sm:p-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
             >
               <ChevronRight className="w-6 h-6" />
             </motion.button>
           </div>
 
           {/* Image Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 h-96 overflow-hidden">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 h-[320px] sm:h-96 overflow-hidden">
             <AnimatePresence>
               {getCurrentSlideImages().map((image, index) => (
                 <motion.div
@@ -142,7 +142,7 @@ const ImageGallery: React.FC = () => {
           </div>
 
           {/* Slide Indicators */}
-          <div className="flex justify-center gap-2 mt-8">
+          <div className="flex justify-center gap-2 mt-6 sm:mt-8">
             {Array.from({ length: totalSlides }).map((_, index) => (
               <motion.button
                 key={index}
