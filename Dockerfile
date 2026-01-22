@@ -59,6 +59,7 @@ COPY --from=frontend-builder /app/dist ./dist
 
 # Copy restoration scripts and backup
 COPY restore-from-container.cjs ./
+COPY restore-smart.cjs ./
 COPY supabase_backup.sql ./
 
 # Set ownership
