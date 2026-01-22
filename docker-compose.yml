@@ -26,8 +26,8 @@ services:
       timeout: 10s
       retries: 10
       start_period: 40s
-    # ports:
-    #   - "${POSTGRES_PORT:-5432}:5432"  # Use different port per branch if needed
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"  # Temporarily expose for schema migration
 
   # Main Application
   app:
