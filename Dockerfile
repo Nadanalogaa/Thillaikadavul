@@ -61,6 +61,7 @@ COPY --from=frontend-builder /app/dist ./dist
 COPY restore-from-container.cjs ./
 COPY restore-smart.cjs ./
 COPY fresh-start.cjs ./
+COPY correct-schema.cjs ./
 COPY supabase_backup.sql ./
 COPY minimal-schema.sql ./
 
