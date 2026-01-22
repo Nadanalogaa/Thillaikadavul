@@ -3625,7 +3625,7 @@ export const getUserNotifications = async (userId: string): Promise<any[]> => {
 // Get unread notification count for a user
 export const getUnreadNotificationCount = async (userId: string): Promise<number> => {
   try {
-    const response = await fetch(`/api/notifications/${userId}?unread=true`, {
+    const response = await fetch(`/api/notifications/${userId}/unread-count`, {
       method: 'GET',
       credentials: 'include'
     });
@@ -3636,7 +3636,7 @@ export const getUnreadNotificationCount = async (userId: string): Promise<number
     }
 
     const data = await response.json();
-    return data.count || (data || []).length;
+    return data.count || 0;
   } catch (error) {
     console.error('Error in getUnreadNotificationCount:', error);
     return 0;

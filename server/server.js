@@ -1418,7 +1418,7 @@ Please review and approve this registration in the admin panel.`;
         try {
             const { userId } = req.params;
             const result = await pool.query(
-                'SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND read = false',
+                'SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND is_read = false',
                 [userId]
             );
             res.json({ count: parseInt(result.rows[0].count) });
@@ -1432,7 +1432,7 @@ Please review and approve this registration in the admin panel.`;
         try {
             const { id } = req.params;
             const result = await pool.query(
-                'UPDATE notifications SET read = true WHERE id = $1 RETURNING *',
+                'UPDATE notifications SET is_read = true WHERE id = $1 RETURNING *',
                 [id]
             );
             if (result.rows.length === 0) {
