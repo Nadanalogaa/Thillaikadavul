@@ -1848,10 +1848,67 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
+    // --- Invoice API Endpoints ---
+    app.get('/api/invoices', async (req, res) => {
+        try {
+            const result = await pool.query(`
+                SELECT i.*, u.id as student_id, u.name as student_name, u.email as student_email
+                FROM invoices i
+                LEFT JOIN users u ON i.student_id = u.id
+                ORDER BY i.created_at DESC
+            `);
+            const invoices = result.rows.map(row => ({
+                ...row,
+                student: row.student_id ? {
+                    id: row.student_id,
+                    name: row.student_name,
+                    email: row.student_email
+                } : null
+            }));
+            res.json(invoices);
+        } catch (error) {
+            console.error('Error fetching invoices:', error);
+            res.status(500).json({ message: 'Server error fetching invoices.' });
+        }
+    });
+
+    app.post('/api/invoices', async (req, res) => {
+        try {
+            const { student_id, fee_structure_id, course_name, amount, currency, issue_date, due_date, billing_period, status, payment_details } = req.body;
+            const result = await pool.query(
+                `INSERT INTO invoices (student_id, fee_structure_id, course_name, amount, currency, issue_date, due_date, billing_period, status, payment_details)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+                [student_id, fee_structure_id, course_name, amount, currency, issue_date, due_date, billing_period, status || 'pending', payment_details]
+            );
+            res.status(201).json(result.rows[0]);
+        } catch (error) {
+            console.error('Error creating invoice:', error);
+            res.status(500).json({ message: 'Server error creating invoice.' });
+        }
+    });
+
+    app.put('/api/invoices/:id', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { status, payment_details } = req.body;
+            const result = await pool.query(
+                `UPDATE invoices SET status = $1, payment_details = $2, updated_at = NOW() WHERE id = $3 RETURNING *`,
+                [status, payment_details, id]
+            );
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Invoice not found' });
+            }
+            res.json(result.rows[0]);
+        } catch (error) {
+            console.error('Error updating invoice:', error);
+            res.status(500).json({ message: 'Server error updating invoice.' });
+        }
+    });
+
     // --- Serve Static Files (React Frontend) ---
     const distPath = path.join(__dirname, '..', 'dist');
     app.use(express.static(distPath));
-    
+
     // Catch-all handler: send back React's index.html file for any non-API routes
     app.get('*', (req, res) => {
         res.sendFile(path.join(distPath, 'index.html'));

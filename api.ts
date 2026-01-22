@@ -127,15 +127,19 @@ export const loginUser = async (email: string, password: string): Promise<User> 
     }
 
     // Check if user exists in database
-    const { data: users, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', normalizedEmail);
+    const response = await fetch('/api/users/by-email', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: normalizedEmail })
+    });
 
-    if (error) {
-      console.error('Login query error:', error);
+    if (!response.ok) {
+      console.error('Login query error:', response.statusText);
       throw new Error('Login failed. Please try again.');
     }
+
+    const users = await response.json();
 
     if (!users || users.length === 0) {
       throw new Error('Invalid email or password. Please check your credentials or register first.');
@@ -229,23 +233,23 @@ export const refreshCurrentUser = async (): Promise<User | null> => {
 
   try {
     console.log('Refreshing user data from database for:', currentUser.email);
-    
-    const { data: users, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', currentUser.id);
 
-    if (error) {
-      console.error('Error refreshing user data:', error);
+    const response = await fetch(`/api/users/${currentUser.id}`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      console.error('Error refreshing user data:', response.statusText);
       return currentUser; // Return cached data if refresh fails
     }
 
-    if (!users || users.length === 0) {
+    const user = await response.json();
+
+    if (!user) {
       console.warn('User not found in database during refresh');
       return currentUser; // Return cached data if user not found
     }
-
-    const user = users[0];
     console.log('Raw user data from database:', user);
     console.log('Raw course_expertise:', user.course_expertise);
     console.log('Raw available_time_slots:', user.available_time_slots);
@@ -384,13 +388,15 @@ const initializeBasicCourses = async (): Promise<Course[]> => {
   ];
 
   try {
-    const { data, error } = await supabase
-      .from('courses')
-      .insert(basicCourses)
-      .select();
+    const response = await fetch('/api/courses', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(basicCourses)
+    });
 
-    if (error) {
-      console.error('Error initializing courses:', error);
+    if (!response.ok) {
+      console.error('Error initializing courses:', response.statusText);
       // Return basic courses with generated IDs as fallback
       return basicCourses.map((course, index) => ({
         id: `course-${index + 1}`,
@@ -400,12 +406,19 @@ const initializeBasicCourses = async (): Promise<Course[]> => {
       }));
     }
 
-    return data.map(course => ({
+    const data = await response.json();
+
+    return Array.isArray(data) ? data.map(course => ({
       id: course.id,
       name: course.name,
       description: course.description,
       icon: course.icon || course.name
-    }));
+    })) : [{
+      id: data.id,
+      name: data.name,
+      description: data.description,
+      icon: data.icon || data.name
+    }];
 
   } catch (error) {
     console.error('Error in initializeBasicCourses:', error);
@@ -591,52 +604,53 @@ export const registerUser = async (userData: Partial<User>[], sendEmails: boolea
 
           const result = await response.json();
           // Since backend returns userId, we need to fetch the complete user data
-          const { data: userData, error: fetchError } = await supabase
-            .from('users')
-            .select()
-            .eq('id', result.userId)
-            .single();
+          const userResponse = await fetch(`/api/users/${result.userId}`, {
+            method: 'GET',
+            credentials: 'include'
+          });
 
-          if (fetchError) {
+          if (!userResponse.ok) {
             throw new Error('Failed to fetch user data after registration');
           }
 
-          data = userData;
+          data = await userResponse.json();
           console.log('User registered with emails successfully:', data);
         } catch (backendError) {
-          console.error('Backend registration with emails failed, falling back to Supabase:', backendError);
-          // Fallback to direct Supabase registration
-          const { data: supabaseData, error } = await supabase
-            .from('users')
-            .insert([completeUserData])
-            .select()
-            .single();
+          console.error('Backend registration with emails failed, falling back to Express API:', backendError);
+          // Fallback to direct Express API registration
+          const fallbackResponse = await fetch('/api/users', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(completeUserData)
+          });
 
-          if (error) {
-            console.error('Supabase registration error:', error);
-            throw new Error(`Registration failed: ${error.message}`);
+          if (!fallbackResponse.ok) {
+            const errorText = await fallbackResponse.text();
+            console.error('Express API registration error:', errorText);
+            throw new Error(`Registration failed: ${errorText}`);
           }
-          data = supabaseData;
+          data = await fallbackResponse.json();
         }
       } else {
-        // Direct Supabase registration for teachers or when emails are disabled
-        const { data: supabaseData, error } = await supabase
-          .from('users')
-          .insert([completeUserData])
-          .select()
-          .single();
+        // Direct Express API registration for teachers or when emails are disabled
+        const registerResponse = await fetch('/api/users', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(completeUserData)
+        });
 
-        if (error) {
+        if (!registerResponse.ok) {
+          const errorText = await registerResponse.text();
           console.error('Registration error details:', {
-            message: error.message,
-            details: error.details,
-            hint: error.hint,
-            code: error.code,
+            statusText: registerResponse.statusText,
+            errorText,
             userData: completeUserData
           });
-          throw new Error(`Registration failed: ${error.message}. Details: ${error.details || 'No additional details'}`);
+          throw new Error(`Registration failed: ${errorText || registerResponse.statusText}`);
         }
-        data = supabaseData;
+        data = await registerResponse.json();
 
         // Send registration emails for students via backend SMTP
         if (sendEmails && data.role === 'Student') {
@@ -736,17 +750,20 @@ export const registerAdmin = async (userData: Partial<User>): Promise<any> => {
       created_at: new Date().toISOString()
     };
 
-    const { data, error } = await supabase
-      .from('users')
-      .insert([adminData])
-      .select()
-      .single();
+    const response = await fetch('/api/users', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(adminData)
+    });
 
-    if (error) {
-      console.error('Admin registration error:', error);
-      throw new Error(`Admin registration failed: ${error.message}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Admin registration error:', errorText);
+      throw new Error(`Admin registration failed: ${errorText || response.statusText}`);
     }
 
+    const data = await response.json();
     console.log('Admin registered successfully:', data);
     return { message: 'Admin registration successful', admin: data };
   } catch (error) {
@@ -839,16 +856,17 @@ export const getAdminUsers = async (): Promise<User[]> => {
 };
 export const getAdminUserById = async (userId: string): Promise<User> => {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .single();
+    const response = await fetch(`/api/users/${userId}`, {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error fetching user by ID:', error);
-      throw new Error(`Failed to fetch user: ${error.message}`);
+    if (!response.ok) {
+      console.error('Error fetching user by ID:', response.statusText);
+      throw new Error(`Failed to fetch user: ${response.statusText}`);
     }
+
+    const data = await response.json();
 
     if (!data) {
       throw new Error('User not found');
@@ -955,13 +973,13 @@ export const updateUserByAdmin = async (userId: string, userData: Partial<User>)
     // Get the current user data to compare for schedule changes
     let currentUser: User | null = null;
     if (userData.schedules !== undefined) {
-      const { data: currentUserData, error: fetchError } = await supabase
-        .from('users')
-        .select('schedules, name, email, role')
-        .eq('id', userId)
-        .single();
+      const userResponse = await fetch(`/api/users/${userId}`, {
+        method: 'GET',
+        credentials: 'include'
+      });
 
-      if (!fetchError && currentUserData) {
+      if (userResponse.ok) {
+        const currentUserData = await userResponse.json();
         currentUser = {
           id: userId,
           name: currentUserData.name,
@@ -1017,17 +1035,20 @@ export const updateUserByAdmin = async (userId: string, userData: Partial<User>)
     // Always update the updated_at timestamp
     updateData.updated_at = new Date().toISOString();
 
-    const { data, error } = await supabase
-      .from('users')
-      .update(updateData)
-      .eq('id', userId)
-      .select()
-      .single();
+    const response = await fetch(`/api/users/${userId}`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData)
+    });
 
-    if (error) {
-      console.error('Error updating user:', error);
-      throw new Error(`Failed to update user: ${error.message}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error updating user:', errorText);
+      throw new Error(`Failed to update user: ${errorText || response.statusText}`);
     }
+
+    const data = await response.json();
 
     // Map database fields back to User interface
     const userResult = {
@@ -1089,12 +1110,12 @@ export const updateUserByAdmin = async (userId: string, userData: Partial<User>)
           // New teacher assignment
           if (newSchedule.teacherId && (!oldSchedule || oldSchedule.teacherId !== newSchedule.teacherId)) {
             // Get teacher name for notification
-            const { data: teacherData } = await supabase
-              .from('users')
-              .select('name')
-              .eq('id', newSchedule.teacherId)
-              .single();
+            const teacherResponse = await fetch(`/api/users/${newSchedule.teacherId}`, {
+              method: 'GET',
+              credentials: 'include'
+            });
 
+            const teacherData = teacherResponse.ok ? await teacherResponse.json() : null;
             const teacherName = teacherData?.name || 'Unknown Teacher';
 
             await notificationService.notifyBatchAllocation(
@@ -1110,12 +1131,12 @@ export const updateUserByAdmin = async (userId: string, userData: Partial<User>)
           // Teacher unassignment (when teacherId is removed)
           if (oldSchedule?.teacherId && !newSchedule.teacherId) {
             // Notify about unassignment
-            const { data: oldTeacherData } = await supabase
-              .from('users')
-              .select('name')
-              .eq('id', oldSchedule.teacherId)
-              .single();
+            const oldTeacherResponse = await fetch(`/api/users/${oldSchedule.teacherId}`, {
+              method: 'GET',
+              credentials: 'include'
+            });
 
+            const oldTeacherData = oldTeacherResponse.ok ? await oldTeacherResponse.json() : null;
             const oldTeacherName = oldTeacherData?.name || 'Previous Teacher';
 
             // Send unassignment notification to admin and old teacher
@@ -1151,12 +1172,12 @@ export const updateUserByAdmin = async (userId: string, userData: Partial<User>)
         for (const oldSchedule of oldSchedules) {
           if (!newSchedules.find(s => s.course === oldSchedule.course) && oldSchedule.teacherId) {
             // Course completely removed - notify teacher and admin
-            const { data: teacherData } = await supabase
-              .from('users')
-              .select('name')
-              .eq('id', oldSchedule.teacherId)
-              .single();
+            const teacherResponse = await fetch(`/api/users/${oldSchedule.teacherId}`, {
+              method: 'GET',
+              credentials: 'include'
+            });
 
+            const teacherData = teacherResponse.ok ? await teacherResponse.json() : null;
             const teacherName = teacherData?.name || 'Unknown Teacher';
             const adminIds = await notificationService.getAdminUsers();
 
@@ -1220,18 +1241,15 @@ export const updateUserByAdmin = async (userId: string, userData: Partial<User>)
 export const deleteUserByAdmin = async (userId: string): Promise<void> => {
   try {
     // Soft delete - mark as deleted instead of hard delete
-    const { error } = await supabase
-      .from('users')
-      .update({ 
-        is_deleted: true, 
-        deleted_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', userId);
+    const response = await fetch(`/api/users/${userId}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error soft deleting user:', error);
-      throw new Error(`Failed to delete user: ${error.message}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error soft deleting user:', errorText);
+      throw new Error(`Failed to delete user: ${errorText || response.statusText}`);
     }
 
     console.log('User soft deleted successfully:', userId);
@@ -1244,23 +1262,27 @@ export const sendNotification = async (userIds: string[], subject: string, messa
 export const getAdminCourses = async (): Promise<Course[]> => getCourses();
 export const addCourseByAdmin = async (courseData: Omit<Course, 'id'>): Promise<Course> => {
   try {
-    const { data, error } = await supabase
-      .from('courses')
-      .insert([{
+    const response = await fetch('/api/courses', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         name: courseData.name,
         description: courseData.description,
         icon: courseData.icon,
         image: courseData.image,
         icon_url: courseData.icon_url,
         created_at: new Date().toISOString()
-      }])
-      .select()
-      .single();
+      })
+    });
 
-    if (error) {
-      console.error('Error adding course:', error);
-      throw new Error(`Failed to add course: ${error.message}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error adding course:', errorText);
+      throw new Error(`Failed to add course: ${errorText || response.statusText}`);
     }
+
+    const data = await response.json();
 
     const newCourse = {
       id: data.id,
@@ -1277,12 +1299,13 @@ export const addCourseByAdmin = async (courseData: Omit<Course, 'id'>): Promise<
       const allStudents = await notificationService.getAllStudents();
 
       // Get all teachers
-      const { data: teachersData } = await supabase
-        .from('users')
-        .select('id')
-        .eq('role', 'Teacher');
+      const teachersResponse = await fetch('/api/users', {
+        method: 'GET',
+        credentials: 'include'
+      });
 
-      const teacherIds = teachersData?.map(t => t.id) || [];
+      const teachersData = teachersResponse.ok ? await teachersResponse.json() : [];
+      const teacherIds = teachersData.filter(t => t.role === 'Teacher').map(t => t.id) || [];
 
       // Notify all users about new course
       const allUserIds = [...adminIds, ...allStudents, ...teacherIds];
@@ -1318,17 +1341,20 @@ export const updateCourseByAdmin = async (courseId: string, courseData: Partial<
     if (courseData.icon_url !== undefined) updateData.icon_url = courseData.icon_url;
     updateData.updated_at = new Date().toISOString();
 
-    const { data, error } = await supabase
-      .from('courses')
-      .update(updateData)
-      .eq('id', courseId)
-      .select()
-      .single();
+    const response = await fetch(`/api/courses/${courseId}`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData)
+    });
 
-    if (error) {
-      console.error('Error updating course:', error);
-      throw new Error(`Failed to update course: ${error.message}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error updating course:', errorText);
+      throw new Error(`Failed to update course: ${errorText || response.statusText}`);
     }
+
+    const data = await response.json();
 
     const updatedCourse = {
       id: data.id,
@@ -1342,12 +1368,14 @@ export const updateCourseByAdmin = async (courseId: string, courseData: Partial<
     // Send notifications about course update to all users who are enrolled in this course
     try {
       // Get all users who have this course in their courses array
-      const { data: enrolledUsers } = await supabase
-        .from('users')
-        .select('id, name')
-        .contains('courses', [data.name]);
+      const usersResponse = await fetch('/api/users', {
+        method: 'GET',
+        credentials: 'include'
+      });
 
-      const enrolledUserIds = enrolledUsers?.map(u => u.id) || [];
+      const allUsers = usersResponse.ok ? await usersResponse.json() : [];
+      const enrolledUsers = allUsers.filter(u => u.courses && u.courses.includes(data.name));
+      const enrolledUserIds = enrolledUsers.map(u => u.id) || [];
 
       // Also notify admin
       const adminIds = await notificationService.getAdminUsers();
@@ -1377,32 +1405,36 @@ export const updateCourseByAdmin = async (courseId: string, courseData: Partial<
 export const deleteCourseByAdmin = async (courseId: string): Promise<void> => {
   try {
     // Get course details before deletion for notification
-    const { data: courseData } = await supabase
-      .from('courses')
-      .select('name')
-      .eq('id', courseId)
-      .single();
+    const courseResponse = await fetch(`/api/courses/${courseId}`, {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    const { error } = await supabase
-      .from('courses')
-      .delete()
-      .eq('id', courseId);
+    const courseData = courseResponse.ok ? await courseResponse.json() : null;
 
-    if (error) {
-      console.error('Error deleting course:', error);
-      throw new Error(`Failed to delete course: ${error.message}`);
+    const response = await fetch(`/api/courses/${courseId}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error deleting course:', errorText);
+      throw new Error(`Failed to delete course: ${errorText || response.statusText}`);
     }
 
     // Send notifications about course deletion
     if (courseData?.name) {
       try {
         // Get all users who had this course in their courses array
-        const { data: affectedUsers } = await supabase
-          .from('users')
-          .select('id, name')
-          .contains('courses', [courseData.name]);
+        const usersResponse = await fetch('/api/users', {
+          method: 'GET',
+          credentials: 'include'
+        });
 
-        const affectedUserIds = affectedUsers?.map(u => u.id) || [];
+        const allUsers = usersResponse.ok ? await usersResponse.json() : [];
+        const affectedUsers = allUsers.filter(u => u.courses && u.courses.includes(courseData.name));
+        const affectedUserIds = affectedUsers.map(u => u.id) || [];
 
         // Also notify admin
         const adminIds = await notificationService.getAdminUsers();
@@ -1497,16 +1529,19 @@ export const getUsersByIds = async (ids: string[]): Promise<User[]> => {
       return [];
     }
 
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .in('id', uniqueIds)
-      .eq('is_deleted', false);
+    const response = await fetch('/api/users/by-ids', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: uniqueIds })
+    });
 
-    if (error) {
-      console.error('Error fetching users by IDs:', error);
+    if (!response.ok) {
+      console.error('Error fetching users by IDs:', response.statusText);
       return [];
     }
+
+    const data = await response.json();
 
     return (data || []).map(user => ({
       id: user.id,
@@ -1582,16 +1617,20 @@ export const addBatch = async (batchData: Partial<Batch>): Promise<Batch> => {
       insertData.end_date = batchData.endDate;
     }
 
-    const { data, error } = await supabase
-      .from('batches')
-      .insert([insertData])
-      .select()
-      .single();
+    const response = await fetch('/api/batches', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(insertData)
+    });
 
-    if (error) {
-      console.error('Error adding batch:', error);
-      throw new Error(`Failed to add batch: ${error.message}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error adding batch:', errorText);
+      throw new Error(`Failed to add batch: ${errorText || response.statusText}`);
     }
+
+    const data = await response.json();
 
     return {
       id: data.id,
@@ -1618,15 +1657,18 @@ export const addBatch = async (batchData: Partial<Batch>): Promise<Batch> => {
 export const updateBatch = async (batchId: string, batchData: Partial<Batch>): Promise<Batch> => {
   try {
     // Get the current batch data to compare changes
-    const { data: currentBatch } = await supabase
-      .from('batches')
-      .select('*, courses(name), users!batches_teacher_id_fkey(name)')
-      .eq('id', batchId)
-      .single();
+    const batchResponse = await fetch(`/api/batches/${batchId}`, {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    const { data, error } = await supabase
-      .from('batches')
-      .update({
+    const currentBatch = batchResponse.ok ? await batchResponse.json() : null;
+
+    const response = await fetch(`/api/batches/${batchId}`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         name: batchData.name,
         description: batchData.description,
         course_id: batchData.courseId,
@@ -1640,14 +1682,15 @@ export const updateBatch = async (batchId: string, batchData: Partial<Batch>): P
         is_active: batchData.isActive,
         updated_at: new Date().toISOString()
       })
-      .eq('id', batchId)
-      .select('*, courses(name), users!batches_teacher_id_fkey(name)')
-      .single();
+    });
 
-    if (error) {
-      console.error('Error updating batch:', error);
-      throw new Error(`Failed to update batch: ${error.message}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error updating batch:', errorText);
+      throw new Error(`Failed to update batch: ${errorText || response.statusText}`);
     }
+
+    const data = await response.json();
 
     // Send batch allocation notifications for newly added students
     if (batchData.schedule && currentBatch) {
@@ -1732,14 +1775,15 @@ export const updateBatch = async (batchId: string, batchData: Partial<Batch>): P
 
 export const deleteBatch = async (batchId: string): Promise<void> => {
   try {
-    const { error } = await supabase
-      .from('batches')
-      .delete()
-      .eq('id', batchId);
+    const response = await fetch(`/api/batches/${batchId}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error deleting batch:', error);
-      throw new Error(`Failed to delete batch: ${error.message}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error deleting batch:', errorText);
+      throw new Error(`Failed to delete batch: ${errorText || response.statusText}`);
     }
   } catch (error) {
     console.error('Error in deleteBatch:', error);
@@ -1755,16 +1799,17 @@ export const getNotifications = async (): Promise<Notification[]> => {
       return [];
     }
 
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', currentUserData.id)
-      .order('created_at', { ascending: false });
+    const response = await fetch(`/api/notifications/${currentUserData.id}`, {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error fetching notifications:', error);
+    if (!response.ok) {
+      console.error('Error fetching notifications:', response.statusText);
       return [];
     }
+
+    const data = await response.json();
 
     return (data || []).map(notification => ({
       id: notification.id,
@@ -1782,17 +1827,18 @@ export const getNotifications = async (): Promise<Notification[]> => {
 };
 export const markNotificationAsRead = async (notificationId: string): Promise<Notification> => {
   try {
-    const { data, error } = await supabase
-      .from('notifications')
-      .update({ read: true })
-      .eq('id', notificationId)
-      .select()
-      .single();
+    const response = await fetch(`/api/notifications/${notificationId}/mark-read`, {
+      method: 'PUT',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error marking notification as read:', error);
-      throw new Error(`Failed to mark notification as read: ${error.message}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error marking notification as read:', errorText);
+      throw new Error(`Failed to mark notification as read: ${errorText || response.statusText}`);
     }
+
+    const data = await response.json();
 
     return {
       id: data.id,
@@ -1839,23 +1885,27 @@ export const getFeeStructures = async (): Promise<FeeStructure[]> => {
 };
 export const addFeeStructure = async (structureData: Omit<FeeStructure, 'id'>): Promise<FeeStructure> => {
   try {
-    const { data, error } = await supabase
-      .from('fee_structures')
-      .insert([{
+    const response = await fetch('/api/fee-structures', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         course_id: structureData.courseId,
         course_name: structureData.courseName,
         amount: structureData.amount,
         currency: structureData.currency,
         billing_cycle: structureData.billingCycle,
         created_at: new Date().toISOString()
-      }])
-      .select()
-      .single();
+      })
+    });
 
-    if (error) {
-      console.error('Error adding fee structure:', error);
-      throw new Error(`Failed to add fee structure: ${error.message}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error adding fee structure:', errorText);
+      throw new Error(`Failed to add fee structure: ${errorText || response.statusText}`);
     }
+
+    const data = await response.json();
 
     return {
       id: data.id,
@@ -1880,17 +1930,20 @@ export const updateFeeStructure = async (structureId: string, structureData: Par
     if (structureData.billingCycle !== undefined) updateData.billing_cycle = structureData.billingCycle;
     updateData.updated_at = new Date().toISOString();
 
-    const { data, error } = await supabase
-      .from('fee_structures')
-      .update(updateData)
-      .eq('id', structureId)
-      .select()
-      .single();
+    const response = await fetch(`/api/fee-structures/${structureId}`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData)
+    });
 
-    if (error) {
-      console.error('Error updating fee structure:', error);
-      throw new Error(`Failed to update fee structure: ${error.message}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error updating fee structure:', errorText);
+      throw new Error(`Failed to update fee structure: ${errorText || response.statusText}`);
     }
+
+    const data = await response.json();
 
     return {
       id: data.id,
@@ -1907,14 +1960,15 @@ export const updateFeeStructure = async (structureId: string, structureData: Par
 };
 export const deleteFeeStructure = async (structureId: string): Promise<void> => {
   try {
-    const { error } = await supabase
-      .from('fee_structures')
-      .delete()
-      .eq('id', structureId);
+    const response = await fetch(`/api/fee-structures/${structureId}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error deleting fee structure:', error);
-      throw new Error(`Failed to delete fee structure: ${error.message}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error deleting fee structure:', errorText);
+      throw new Error(`Failed to delete fee structure: ${errorText || response.statusText}`);
     }
   } catch (error) {
     console.error('Error in deleteFeeStructure:', error);
@@ -1923,20 +1977,19 @@ export const deleteFeeStructure = async (structureId: string): Promise<void> => 
 };
 export const getAdminInvoices = async (): Promise<Invoice[]> => {
   try {
-    const { data, error } = await supabase
-      .from('invoices')
-      .select(`
-        *,
-        student:users(id, name, email)
-      `)
-      .order('created_at', { ascending: false });
+    const response = await fetch('/api/invoices', {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error fetching invoices:', error);
+    if (!response.ok) {
+      console.error('Error fetching invoices:', response.statusText);
       return [];
     }
 
-    return (data || []).map(invoice => ({
+    const data = await response.json();
+
+    return (data || []).map((invoice: any) => ({
       id: invoice.id,
       studentId: invoice.student_id,
       student: invoice.student ? {
@@ -2015,16 +2068,17 @@ export const getFamilyStudents = async (): Promise<User[]> => {
         const currentUser = JSON.parse(currentUserData);
         
         // Query database for family students
-        const { data, error } = await supabase
-          .from('users')
-          .select('*')
-          .eq('role', 'Student')
-          .eq('is_deleted', false);
-        
-        if (error) {
-          console.error('Error fetching family students:', error);
+        const response = await fetch('/api/users', {
+          method: 'GET',
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          console.error('Error fetching family students:', response.statusText);
           return [];
         }
+
+        const data = await response.json();
         
         // Find students that belong to this family
         const familyStudents = (data || []).filter((user: any) => {
@@ -2163,16 +2217,17 @@ export const getStudentEnrollmentsForFamily = async (studentId: string): Promise
 // Trash functions
 export const getTrashedUsers = async (): Promise<User[]> => {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('is_deleted', true)
-      .order('deleted_at', { ascending: false });
+    const response = await fetch('/api/users/trashed/all', {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error fetching trashed users:', error);
+    if (!response.ok) {
+      console.error('Error fetching trashed users:', response.statusText);
       return [];
     }
+
+    const data = await response.json();
 
     return (data || []).map(user => ({
       id: user.id,
@@ -2219,21 +2274,18 @@ export const getTrashedUsers = async (): Promise<User[]> => {
 
 export const restoreUser = async (userId: string): Promise<User> => {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .update({ 
-        is_deleted: false, 
-        deleted_at: null,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', userId)
-      .select()
-      .single();
+    const response = await fetch(`/api/users/${userId}/restore`, {
+      method: 'POST',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error restoring user:', error);
-      throw new Error(`Failed to restore user: ${error.message}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error restoring user:', errorText);
+      throw new Error(`Failed to restore user: ${errorText || response.statusText}`);
     }
+
+    const data = await response.json();
 
     return {
       id: data.id,
@@ -2280,14 +2332,15 @@ export const restoreUser = async (userId: string): Promise<User> => {
 
 export const deleteUserPermanently = async (userId: string): Promise<void> => {
   try {
-    const { error } = await supabase
-      .from('users')
-      .delete()
-      .eq('id', userId);
+    const response = await fetch(`/api/users/${userId}/permanent`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error permanently deleting user:', error);
-      throw new Error(`Failed to permanently delete user: ${error.message}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error permanently deleting user:', errorText);
+      throw new Error(`Failed to permanently delete user: ${errorText || response.statusText}`);
     }
 
     console.log('User permanently deleted:', userId);
@@ -2346,13 +2399,15 @@ const initializeBasicLocations = async (): Promise<Location[]> => {
   ];
 
   try {
-    const { data, error } = await supabase
-      .from('locations')
-      .insert(basicLocations)
-      .select();
+    const response = await fetch('/api/locations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ locations: basicLocations })
+    });
 
-    if (error) {
-      console.error('Error initializing locations:', error);
+    if (!response.ok) {
+      console.error('Error initializing locations');
       // Return basic locations with generated IDs as fallback
       return basicLocations.map((location, index) => ({
         id: `loc-${index + 1}`,
@@ -2361,6 +2416,7 @@ const initializeBasicLocations = async (): Promise<Location[]> => {
       }));
     }
 
+    const data = await response.json();
     return data.map(location => ({
       id: location.id,
       name: location.name,
@@ -2382,22 +2438,22 @@ export const getLocations = async (): Promise<Location[]> => getPublicLocations(
 
 export const addLocation = async (location: Omit<Location, 'id'>): Promise<Location> => {
   try {
-    const { data, error } = await supabase
-      .from('locations')
-      .insert([{
+    const response = await fetch('/api/locations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
         name: location.name,
-        address: location.address,
-        is_active: true,
-        created_at: new Date().toISOString()
-      }])
-      .select()
-      .single();
+        address: location.address
+      })
+    });
 
-    if (error) {
-      console.error('Error adding location:', error);
-      throw new Error(`Failed to add location: ${error.message}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to add location: ${errorData.error || response.statusText}`);
     }
 
+    const data = await response.json();
     return {
       id: data.id,
       name: data.name,
@@ -2411,22 +2467,22 @@ export const addLocation = async (location: Omit<Location, 'id'>): Promise<Locat
 
 export const updateLocation = async (id: string, location: Partial<Location>): Promise<Location> => {
   try {
-    const { data, error } = await supabase
-      .from('locations')
-      .update({
+    const response = await fetch(`/api/locations/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
         name: location.name,
-        address: location.address,
-        updated_at: new Date().toISOString()
+        address: location.address
       })
-      .eq('id', id)
-      .select()
-      .single();
+    });
 
-    if (error) {
-      console.error('Error updating location:', error);
-      throw new Error(`Failed to update location: ${error.message}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to update location: ${errorData.error || response.statusText}`);
     }
 
+    const data = await response.json();
     return {
       id: data.id,
       name: data.name,
@@ -2440,14 +2496,14 @@ export const updateLocation = async (id: string, location: Partial<Location>): P
 
 export const deleteLocation = async (id: string): Promise<void> => {
   try {
-    const { error } = await supabase
-      .from('locations')
-      .delete()
-      .eq('id', id);
+    const response = await fetch(`/api/locations/${id}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error deleting location:', error);
-      throw new Error(`Failed to delete location: ${error.message}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to delete location: ${errorData.error || response.statusText}`);
     }
   } catch (error) {
     console.error('Error in deleteLocation:', error);
@@ -2458,37 +2514,32 @@ export const deleteLocation = async (id: string): Promise<void> => {
 // Content functions
 export const getEvents = async (limit?: number): Promise<Event[]> => {
   try {
-    let query = supabase
-      .from('events')
-      .select('id, title, description, event_date, event_time, is_public, location, created_at, updated_at')
-      .eq('is_active', true)
-      .order('event_date', { ascending: true });
-    
-    if (limit) {
-      query = query.limit(limit);
-    }
-    
-    const { data, error } = await query;
+    const url = limit ? `/api/events?limit=${limit}` : '/api/events';
+    const response = await fetch(url, {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error fetching events:', error);
+    if (!response.ok) {
+      console.error('Error fetching events');
       return [];
     }
 
+    const data = await response.json();
     return (data || []).map(event => ({
       id: event.id,
       title: event.title,
       description: event.description,
-      date: new Date(event.event_date),
-      time: event.event_time,
+      date: new Date(event.event_date || event.date),
+      time: event.event_time || event.time,
       location: event.location,
       isPublic: event.is_public,
       createdAt: new Date(event.created_at),
       createdBy: event.created_by,
       targetAudience: event.target_audience || [],
-      images: (event.event_images || []).map((img: any) => ({
+      images: (event.event_images || event.images || []).map((img: any) => ({
         id: img.id,
-        url: img.image_url,
+        url: img.image_url || img.url,
         caption: img.caption,
         filename: img.filename,
         displayOrder: img.display_order
@@ -2508,20 +2559,23 @@ export const getAdminEvents = async (): Promise<Event[]> => getEvents();
 
 export const getPublicEvents = async (): Promise<Event[]> => {
   try {
-    const { data, error } = await supabase
-      .from('events')
-      .select('*')
-      .eq('is_public', true)
-      .order('created_at', { ascending: false });
+    const response = await fetch('/api/events?public=true', {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    if (error) throw error;
-    
+    if (!response.ok) {
+      console.error('Error fetching public events');
+      return [];
+    }
+
+    const data = await response.json();
     return data?.map(event => ({
       id: event.id,
       title: event.title,
       description: event.description,
-      date: new Date(event.date),
-      time: event.time,
+      date: new Date(event.event_date || event.date),
+      time: event.event_time || event.time,
       location: event.location,
       isPublic: event.is_public,
       createdAt: new Date(event.created_at),
@@ -2536,9 +2590,11 @@ export const getPublicEvents = async (): Promise<Event[]> => {
 export const addEvent = async (event: Omit<Event, 'id'>): Promise<Event> => {
   try {
     const currentUser = getCurrentUser();
-    const { data, error } = await supabase
-      .from('events')
-      .insert([{
+    const response = await fetch('/api/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
         title: event.title,
         description: event.description,
         event_date: event.date instanceof Date ? event.date.toISOString().split('T')[0] : new Date(event.date).toISOString().split('T')[0],
@@ -2550,15 +2606,15 @@ export const addEvent = async (event: Omit<Event, 'id'>): Promise<Event> => {
         priority: event.priority || 'Medium',
         event_type: event.eventType || 'General',
         images: event.images || []
-      }])
-      .select()
-      .single();
+      })
+    });
 
-    if (error) {
-      console.error('Error adding event:', error);
-      throw new Error(`Failed to add event: ${error.message}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to add event: ${errorData.error || response.statusText}`);
     }
 
+    const data = await response.json();
     const eventResult = {
       id: data.id,
       title: data.title,
@@ -2588,12 +2644,13 @@ export const addEvent = async (event: Omit<Event, 'id'>): Promise<Event> => {
               recipientIds = [...recipientIds, ...allStudents];
               break;
             case 'All Teachers':
-              // Get teachers if needed
-              const { data: teachers } = await supabase
-                .from('users')
-                .select('id')
-                .eq('role', 'Teacher');
-              if (teachers) {
+              // Get teachers via API
+              const teachersResponse = await fetch('/api/users?role=Teacher', {
+                method: 'GET',
+                credentials: 'include'
+              });
+              if (teachersResponse.ok) {
+                const teachers = await teachersResponse.json();
                 recipientIds = [...recipientIds, ...teachers.map(t => t.id)];
               }
               break;
@@ -2631,30 +2688,30 @@ export const updateEvent = async (id: string, event: Partial<Event>): Promise<Ev
     const updateData: any = {};
     if (event.title) updateData.title = event.title;
     if (event.description) updateData.description = event.description;
-    if (event.date) updateData.date = event.date instanceof Date ? event.date.toISOString() : new Date(event.date).toISOString();
-    if (event.time) updateData.time = event.time;
+    if (event.date) updateData.event_date = event.date instanceof Date ? event.date.toISOString() : new Date(event.date).toISOString();
+    if (event.time) updateData.event_time = event.time;
     if (event.location) updateData.location = event.location;
     if (event.isPublic !== undefined) updateData.is_public = event.isPublic;
-    updateData.updated_at = new Date().toISOString();
 
-    const { data, error } = await supabase
-      .from('events')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
+    const response = await fetch(`/api/events/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(updateData)
+    });
 
-    if (error) {
-      console.error('Error updating event:', error);
-      throw new Error(`Failed to update event: ${error.message}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to update event: ${errorData.error || response.statusText}`);
     }
 
+    const data = await response.json();
     return {
       id: data.id,
       title: data.title,
       description: data.description,
-      date: new Date(data.date),
-      time: data.time,
+      date: new Date(data.event_date || data.date),
+      time: data.event_time || data.time,
       location: data.location,
       isPublic: data.is_public,
       createdAt: new Date(data.created_at)
@@ -2667,14 +2724,14 @@ export const updateEvent = async (id: string, event: Partial<Event>): Promise<Ev
 
 export const deleteEvent = async (id: string): Promise<void> => {
   try {
-    const { error } = await supabase
-      .from('events')
-      .delete()
-      .eq('id', id);
+    const response = await fetch(`/api/events/${id}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error deleting event:', error);
-      throw new Error(`Failed to delete event: ${error.message}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to delete event: ${errorData.error || response.statusText}`);
     }
   } catch (error) {
     console.error('Error in deleteEvent:', error);
@@ -2684,16 +2741,17 @@ export const deleteEvent = async (id: string): Promise<void> => {
 
 export const getGradeExams = async (): Promise<GradeExam[]> => {
   try {
-    const { data, error } = await supabase
-      .from('grade_exams')
-      .select('*')
-      .order('date', { ascending: true });
+    const response = await fetch('/api/grade-exams', {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error fetching grade exams:', error);
+    if (!response.ok) {
+      console.error('Error fetching grade exams');
       return [];
     }
 
+    const data = await response.json();
     return (data || []).map(exam => ({
       id: exam.id,
       title: exam.title,
@@ -2719,9 +2777,11 @@ export const getAdminGradeExams = async (): Promise<GradeExam[]> => getGradeExam
 
 export const addGradeExam = async (exam: Omit<GradeExam, 'id'>): Promise<GradeExam> => {
   try {
-    const { data, error } = await supabase
-      .from('grade_exams')
-      .insert([{
+    const response = await fetch('/api/grade-exams', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
         title: exam.title,
         description: exam.description,
         date: (() => {
@@ -2740,17 +2800,16 @@ export const addGradeExam = async (exam: Omit<GradeExam, 'id'>): Promise<GradeEx
           const deadlineObj = exam.registrationDeadline instanceof Date ? exam.registrationDeadline : new Date(exam.registrationDeadline);
           return isNaN(deadlineObj.getTime()) ? null : deadlineObj.toISOString().split('T')[0];
         })(),
-        is_open: exam.isOpen !== false,
-        created_at: new Date().toISOString()
-      }])
-      .select()
-      .single();
+        is_open: exam.isOpen !== false
+      })
+    });
 
-    if (error) {
-      console.error('Error adding grade exam:', error);
-      throw new Error(`Failed to add grade exam: ${error.message}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to add grade exam: ${errorData.error || response.statusText}`);
     }
 
+    const data = await response.json();
     const examResult = {
       id: data.id,
       title: data.title,
@@ -2769,25 +2828,23 @@ export const addGradeExam = async (exam: Omit<GradeExam, 'id'>): Promise<GradeEx
 
     // Send notifications for grade exam
     try {
-      // Get all students enrolled in this course
-      const { data: enrolledStudents } = await supabase
-        .from('users')
-        .select('id')
-        .eq('role', 'Student')
-        .contains('courses', [exam.course]);
-
-      const studentIds = enrolledStudents?.map(s => s.id) || [];
+      // Get all students enrolled in this course via API
+      const studentsResponse = await fetch(`/api/users?role=Student&course=${encodeURIComponent(exam.course)}`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+      const enrolledStudents = studentsResponse.ok ? await studentsResponse.json() : [];
+      const studentIds = enrolledStudents.map(s => s.id) || [];
 
       // Also notify admin and teachers teaching this course
       const adminIds = await notificationService.getAdminUsers();
 
-      const { data: teachersData } = await supabase
-        .from('users')
-        .select('id')
-        .eq('role', 'Teacher')
-        .contains('course_expertise', [exam.course]);
-
-      const teacherIds = teachersData?.map(t => t.id) || [];
+      const teachersResponse = await fetch(`/api/users?role=Teacher&course_expertise=${encodeURIComponent(exam.course)}`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+      const teachersData = teachersResponse.ok ? await teachersResponse.json() : [];
+      const teacherIds = teachersData.map(t => t.id) || [];
 
       const allRecipients = [...studentIds, ...adminIds, ...teacherIds];
 
@@ -2829,20 +2886,20 @@ export const updateGradeExam = async (id: string, exam: Partial<GradeExam>): Pro
     if (exam.registrationFee !== undefined) updateData.registration_fee = exam.registrationFee;
     if (exam.registrationDeadline) updateData.registration_deadline = exam.registrationDeadline instanceof Date ? exam.registrationDeadline.toISOString() : new Date(exam.registrationDeadline).toISOString();
     if (exam.isOpen !== undefined) updateData.is_open = exam.isOpen;
-    updateData.updated_at = new Date().toISOString();
 
-    const { data, error } = await supabase
-      .from('grade_exams')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
+    const response = await fetch(`/api/grade-exams/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(updateData)
+    });
 
-    if (error) {
-      console.error('Error updating grade exam:', error);
-      throw new Error(`Failed to update grade exam: ${error.message}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to update grade exam: ${errorData.error || response.statusText}`);
     }
 
+    const data = await response.json();
     return {
       id: data.id,
       title: data.title,
@@ -2866,14 +2923,14 @@ export const updateGradeExam = async (id: string, exam: Partial<GradeExam>): Pro
 
 export const deleteGradeExam = async (id: string): Promise<void> => {
   try {
-    const { error } = await supabase
-      .from('grade_exams')
-      .delete()
-      .eq('id', id);
+    const response = await fetch(`/api/grade-exams/${id}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error deleting grade exam:', error);
-      throw new Error(`Failed to delete grade exam: ${error.message}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to delete grade exam: ${errorData.error || response.statusText}`);
     }
   } catch (error) {
     console.error('Error in deleteGradeExam:', error);
@@ -2883,21 +2940,17 @@ export const deleteGradeExam = async (id: string): Promise<void> => {
 
 export const getBookMaterials = async (): Promise<BookMaterial[]> => {
   try {
-    const { data, error } = await supabase
-      .from('book_materials')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const response = await fetch('/api/book-materials', {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error fetching book materials:', error);
-      // If table doesn't exist, return empty array
-      if (error.message.includes('relation') && error.message.includes('does not exist')) {
-        console.log('Book materials table does not exist yet. Run the schema_complete_fix.sql script.');
-        return [];
-      }
+    if (!response.ok) {
+      console.error('Error fetching book materials');
       return [];
     }
 
+    const data = await response.json();
     return (data || []).map(material => ({
       id: material.id,
       title: material.title,
@@ -2925,15 +2978,14 @@ export const addBookMaterial = async (material: Omit<BookMaterial, 'id'>): Promi
       title: material.title,
       description: material.description,
       type: material.type,
-      url: material.url,
-      created_at: new Date().toISOString()
+      url: material.url
     };
 
     // Only add course_id if courseId is provided and not empty
     if (material.courseId && material.courseId.trim() !== '') {
       insertData.course_id = material.courseId;
     }
-    
+
     // Only add course_name if courseName is provided and not empty
     if (material.courseName && material.courseName.trim() !== '') {
       insertData.course_name = material.courseName;
@@ -2949,17 +3001,19 @@ export const addBookMaterial = async (material: Omit<BookMaterial, 'id'>): Promi
       insertData.recipient_ids = material.recipientIds;
     }
 
-    const { data, error } = await supabase
-      .from('book_materials')
-      .insert([insertData])
-      .select()
-      .single();
+    const response = await fetch('/api/book-materials', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(insertData)
+    });
 
-    if (error) {
-      console.error('Error adding book material:', error);
-      throw new Error(`Failed to add book material: ${error.message}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to add book material: ${errorData.error || response.statusText}`);
     }
 
+    const data = await response.json();
     const materialResult = {
       id: data.id,
       title: data.title,
@@ -3009,20 +3063,20 @@ export const updateBookMaterial = async (id: string, material: Partial<BookMater
     if (material.url !== undefined) updateData.url = material.url;
     if (material.data !== undefined) updateData.data = material.data;
     if (material.recipientIds !== undefined) updateData.recipient_ids = material.recipientIds;
-    updateData.updated_at = new Date().toISOString();
 
-    const { data, error } = await supabase
-      .from('book_materials')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
+    const response = await fetch(`/api/book-materials/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(updateData)
+    });
 
-    if (error) {
-      console.error('Error updating book material:', error);
-      throw new Error(`Failed to update book material: ${error.message}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to update book material: ${errorData.error || response.statusText}`);
     }
 
+    const data = await response.json();
     return {
       id: data.id,
       title: data.title,
@@ -3042,14 +3096,14 @@ export const updateBookMaterial = async (id: string, material: Partial<BookMater
 
 export const deleteBookMaterial = async (id: string): Promise<void> => {
   try {
-    const { error } = await supabase
-      .from('book_materials')
-      .delete()
-      .eq('id', id);
+    const response = await fetch(`/api/book-materials/${id}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error deleting book material:', error);
-      throw new Error(`Failed to delete book material: ${error.message}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to delete book material: ${errorData.error || response.statusText}`);
     }
   } catch (error) {
     console.error('Error in deleteBookMaterial:', error);
@@ -3061,22 +3115,22 @@ export const deleteBookMaterial = async (id: string): Promise<void> => {
 export const sendBookMaterial = async (materialId: string, recipientIds: string[]): Promise<void> => {
   try {
     console.log('Sending book material to recipients:', materialId, recipientIds);
-    
-    const { data, error } = await supabase
-      .from('book_materials')
-      .update({ 
-        recipient_ids: recipientIds,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', materialId)
-      .select()
-      .single();
 
-    if (error) {
-      console.error('Error sending book material:', error);
-      throw new Error(`Failed to send book material: ${error.message}`);
+    const response = await fetch(`/api/book-materials/${materialId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        recipient_ids: recipientIds
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to send book material: ${errorData.error || response.statusText}`);
     }
 
+    const data = await response.json();
     console.log('Book material sent successfully to recipients:', data);
   } catch (error) {
     console.error('Error in sendBookMaterial:', error);
@@ -3088,22 +3142,22 @@ export const sendBookMaterial = async (materialId: string, recipientIds: string[
 export const sendEvent = async (eventId: string, recipientIds: string[]): Promise<void> => {
   try {
     console.log('Sending event to recipients:', eventId, recipientIds);
-    
-    const { data, error } = await supabase
-      .from('events')
-      .update({ 
-        recipient_ids: recipientIds,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', eventId)
-      .select()
-      .single();
 
-    if (error) {
-      console.error('Error sending event:', error);
-      throw new Error(`Failed to send event: ${error.message}`);
+    const response = await fetch(`/api/events/${eventId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        recipient_ids: recipientIds
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to send event: ${errorData.error || response.statusText}`);
     }
 
+    const data = await response.json();
     console.log('Event sent successfully to recipients:', data);
   } catch (error) {
     console.error('Error in sendEvent:', error);
@@ -3114,24 +3168,24 @@ export const sendEvent = async (eventId: string, recipientIds: string[]): Promis
 // Get events for a specific student with notification status
 export const getStudentEvents = async (studentId: string): Promise<Event[]> => {
   try {
-    // First, get all active events (simplified approach)
-    const { data, error } = await supabase
-      .from('events')
-      .select('*')
-      .eq('is_active', true)
-      .order('event_date', { ascending: false });
+    // Get all active events via API
+    const response = await fetch(`/api/events?studentId=${studentId}`, {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error fetching student events:', error);
+    if (!response.ok) {
+      console.error('Error fetching student events');
       return [];
     }
 
+    const data = await response.json();
     return (data || []).map(event => ({
       id: event.id,
       title: event.title,
       description: event.description,
-      date: new Date(event.event_date),
-      time: event.event_time,
+      date: new Date(event.event_date || event.date),
+      time: event.event_time || event.time,
       location: event.location,
       createdBy: event.created_by,
       targetAudience: event.target_audience || [],
@@ -3151,29 +3205,17 @@ export const getStudentEvents = async (studentId: string): Promise<Event[]> => {
 // Get event notifications for a user
 export const getEventNotifications = async (userId: string): Promise<EventNotification[]> => {
   try {
-    const { data, error } = await supabase
-      .from('event_notifications')
-      .select(`
-        *,
-        events!inner(
-          id,
-          title,
-          description,
-          event_date,
-          event_time,
-          location,
-          priority,
-          event_type
-        )
-      `)
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+    const response = await fetch(`/api/event-notifications/${userId}`, {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error fetching event notifications:', error);
+    if (!response.ok) {
+      console.error('Error fetching event notifications');
       return [];
     }
 
+    const data = await response.json();
     return (data || []).map(notification => ({
       id: notification.id,
       eventId: notification.event_id,
@@ -3181,15 +3223,15 @@ export const getEventNotifications = async (userId: string): Promise<EventNotifi
       isRead: notification.is_read,
       readAt: notification.read_at ? new Date(notification.read_at) : undefined,
       createdAt: new Date(notification.created_at),
-      event: notification.events ? {
-        id: notification.events.id,
-        title: notification.events.title,
-        description: notification.events.description,
-        date: new Date(notification.events.event_date),
-        time: notification.events.event_time,
-        location: notification.events.location,
-        priority: notification.events.priority,
-        eventType: notification.events.event_type
+      event: notification.events || notification.event ? {
+        id: (notification.events || notification.event).id,
+        title: (notification.events || notification.event).title,
+        description: (notification.events || notification.event).description,
+        date: new Date((notification.events || notification.event).event_date || (notification.events || notification.event).date),
+        time: (notification.events || notification.event).event_time || (notification.events || notification.event).time,
+        location: (notification.events || notification.event).location,
+        priority: (notification.events || notification.event).priority,
+        eventType: (notification.events || notification.event).event_type
       } : undefined
     }));
   } catch (error) {
@@ -3201,17 +3243,14 @@ export const getEventNotifications = async (userId: string): Promise<EventNotifi
 // Mark event notification as read
 export const markEventNotificationAsRead = async (notificationId: string): Promise<void> => {
   try {
-    const { error } = await supabase
-      .from('event_notifications')
-      .update({
-        is_read: true,
-        read_at: new Date().toISOString()
-      })
-      .eq('id', notificationId);
+    const response = await fetch(`/api/event-notifications/${notificationId}/mark-read`, {
+      method: 'PUT',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error marking notification as read:', error);
-      throw new Error(`Failed to mark notification as read: ${error.message}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to mark notification as read: ${errorData.error || response.statusText}`);
     }
   } catch (error) {
     console.error('Error in markEventNotificationAsRead:', error);
@@ -3230,9 +3269,11 @@ export const uploadEventImage = async (eventId: string, file: File, caption?: st
       reader.readAsDataURL(file);
     });
 
-    const { data, error } = await supabase
-      .from('event_images')
-      .insert([{
+    const response = await fetch('/api/event-images', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
         event_id: eventId,
         image_url: base64,
         caption: caption || '',
@@ -3240,15 +3281,15 @@ export const uploadEventImage = async (eventId: string, file: File, caption?: st
         file_size: file.size,
         mime_type: file.type,
         display_order: 0
-      }])
-      .select()
-      .single();
+      })
+    });
 
-    if (error) {
-      console.error('Error uploading event image:', error);
-      throw new Error(`Failed to upload image: ${error.message}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to upload image: ${errorData.error || response.statusText}`);
     }
 
+    const data = await response.json();
     return {
       id: data.id,
       url: data.image_url,
@@ -3268,22 +3309,22 @@ export const uploadEventImage = async (eventId: string, file: File, caption?: st
 export const sendGradeExam = async (examId: string, recipientIds: string[]): Promise<void> => {
   try {
     console.log('Sending grade exam to recipients:', examId, recipientIds);
-    
-    const { data, error } = await supabase
-      .from('grade_exams')
-      .update({ 
-        recipient_ids: recipientIds,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', examId)
-      .select()
-      .single();
 
-    if (error) {
-      console.error('Error sending grade exam:', error);
-      throw new Error(`Failed to send grade exam: ${error.message}`);
+    const response = await fetch(`/api/grade-exams/${examId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        recipient_ids: recipientIds
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to send grade exam: ${errorData.error || response.statusText}`);
     }
 
+    const data = await response.json();
     console.log('Grade exam sent successfully to recipients:', data);
   } catch (error) {
     console.error('Error in sendGradeExam:', error);
@@ -3295,22 +3336,22 @@ export const sendGradeExam = async (examId: string, recipientIds: string[]): Pro
 export const sendNotice = async (noticeId: string, recipientIds: string[]): Promise<void> => {
   try {
     console.log('Sending notice to recipients:', noticeId, recipientIds);
-    
-    const { data, error } = await supabase
-      .from('notices')
-      .update({ 
-        recipient_ids: recipientIds,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', noticeId)
-      .select()
-      .single();
 
-    if (error) {
-      console.error('Error sending notice:', error);
-      throw new Error(`Failed to send notice: ${error.message}`);
+    const response = await fetch(`/api/notices/${noticeId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        recipient_ids: recipientIds
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to send notice: ${errorData.error || response.statusText}`);
     }
 
+    const data = await response.json();
     console.log('Notice sent successfully to recipients:', data);
   } catch (error) {
     console.error('Error in sendNotice:', error);
@@ -3320,22 +3361,18 @@ export const sendNotice = async (noticeId: string, recipientIds: string[]): Prom
 
 export const getNotices = async (limit?: number): Promise<Notice[]> => {
   try {
-    let query = supabase
-      .from('notices')
-      .select('id, title, content, target_audience, recipient_ids, issued_at, created_at, updated_at')
-      .order('created_at', { ascending: false });
-    
-    if (limit) {
-      query = query.limit(limit);
-    }
-    
-    const { data, error } = await query;
+    const url = limit ? `/api/notices?limit=${limit}` : '/api/notices';
+    const response = await fetch(url, {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error fetching notices:', error);
+    if (!response.ok) {
+      console.error('Error fetching notices');
       return [];
     }
 
+    const data = await response.json();
     return (data || []).map(notice => ({
       id: notice.id,
       title: notice.title,
@@ -3355,22 +3392,23 @@ export const getNotices = async (limit?: number): Promise<Notice[]> => {
 export const getAdminNotices = async (): Promise<Notice[]> => getNotices();
 export const addNotice = async (notice: Omit<Notice, 'id'>): Promise<Notice> => {
   try {
-    const { data, error } = await supabase
-      .from('notices')
-      .insert([{
+    const response = await fetch('/api/notices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
         title: notice.title,
         content: notice.content,
-        issued_at: new Date().toISOString(),
-        created_at: new Date().toISOString()
-      }])
-      .select()
-      .single();
+        issued_at: new Date().toISOString()
+      })
+    });
 
-    if (error) {
-      console.error('Error adding notice:', error);
-      throw new Error(`Failed to add notice: ${error.message}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to add notice: ${errorData.error || response.statusText}`);
     }
 
+    const data = await response.json();
     const noticeResult = {
       id: data.id,
       title: data.title,
@@ -3385,12 +3423,13 @@ export const addNotice = async (notice: Omit<Notice, 'id'>): Promise<Notice> => 
       const allStudents = await notificationService.getAllStudents();
 
       // Get all teachers
-      const { data: teachersData } = await supabase
-        .from('users')
-        .select('id')
-        .eq('role', 'Teacher');
+      const teachersResponse = await fetch('/api/users', {
+        method: 'GET',
+        credentials: 'include'
+      });
 
-      const teacherIds = teachersData?.map(t => t.id) || [];
+      const teachersData = teachersResponse.ok ? await teachersResponse.json() : [];
+      const teacherIds = teachersData.filter(t => t.role === 'Teacher').map(t => t.id) || [];
 
       // Notify all users about new notice
       const allUserIds = [...adminIds, ...allStudents, ...teacherIds];
@@ -3423,20 +3462,20 @@ export const updateNotice = async (id: string, notice: Partial<Notice>): Promise
     if (notice.title !== undefined) updateData.title = notice.title;
     if (notice.content !== undefined) updateData.content = notice.content;
     if (notice.issuedAt !== undefined) updateData.issued_at = notice.issuedAt;
-    updateData.updated_at = new Date().toISOString();
 
-    const { data, error } = await supabase
-      .from('notices')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
+    const response = await fetch(`/api/notices/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(updateData)
+    });
 
-    if (error) {
-      console.error('Error updating notice:', error);
-      throw new Error(`Failed to update notice: ${error.message}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to update notice: ${errorData.error || response.statusText}`);
     }
 
+    const data = await response.json();
     return {
       id: data.id,
       title: data.title,
@@ -3452,14 +3491,14 @@ export const updateNotice = async (id: string, notice: Partial<Notice>): Promise
 
 export const deleteNotice = async (id: string): Promise<void> => {
   try {
-    const { error } = await supabase
-      .from('notices')
-      .delete()
-      .eq('id', id);
+    const response = await fetch(`/api/notices/${id}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error deleting notice:', error);
-      throw new Error(`Failed to delete notice: ${error.message}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to delete notice: ${errorData.error || response.statusText}`);
     }
   } catch (error) {
     console.error('Error in deleteNotice:', error);
@@ -3479,7 +3518,7 @@ export const sendContentNotification = async (payload: {
 }): Promise<{ success: boolean; message: string }> => {
   try {
     console.log('Sending content notifications:', payload);
-    
+
     // Create notifications in database for each recipient
     const notifications = payload.userIds.map(userId => ({
       user_id: userId,
@@ -3487,17 +3526,19 @@ export const sendContentNotification = async (payload: {
       title: payload.subject,
       message: payload.message,
       type: 'Info' as const,
-      is_read: false,
-      created_at: new Date().toISOString()
+      is_read: false
     }));
 
-    const { error: notificationError } = await supabase
-      .from('notifications')
-      .insert(notifications);
+    const response = await fetch('/api/notifications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ notifications })
+    });
 
-    if (notificationError) {
-      console.error('Error creating notifications:', notificationError);
-      throw new Error(`Failed to create notifications: ${notificationError.message}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to create notifications: ${errorData.error || response.statusText}`);
     }
 
     // Send email notifications if requested
@@ -3506,9 +3547,9 @@ export const sendContentNotification = async (payload: {
     }
 
     console.log(`Successfully sent ${payload.contentType} notifications to ${payload.userIds.length} recipients`);
-    return { 
-      success: true, 
-      message: `${payload.contentType} shared with ${payload.userIds.length} recipients` 
+    return {
+      success: true,
+      message: `${payload.contentType} shared with ${payload.userIds.length} recipients`
     };
   } catch (error) {
     console.error('Error in sendContentNotification:', error);
@@ -3519,17 +3560,18 @@ export const sendContentNotification = async (payload: {
 // Send email notifications to recipients via backend API
 const sendEmailNotifications = async (userIds: string[], subject: string, message: string): Promise<void> => {
   try {
-    // Get user emails
-    const { data: users, error } = await supabase
-      .from('users')
-      .select('email, name')
-      .in('id', userIds);
+    // Get user emails via API
+    const usersResponse = await fetch(`/api/users?ids=${userIds.join(',')}`, {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error fetching user emails:', error);
+    if (!usersResponse.ok) {
+      console.error('Error fetching user emails');
       return;
     }
 
+    const users = await usersResponse.json();
     if (!users || users.length === 0) {
       console.log('No users found for email notifications');
       return;
@@ -3543,6 +3585,7 @@ const sendEmailNotifications = async (userIds: string[], subject: string, messag
           headers: {
             'Content-Type': 'application/json',
           },
+          credentials: 'include',
           body: JSON.stringify({
             to: user.email,
             subject: subject,
@@ -3574,18 +3617,17 @@ const sendEmailNotifications = async (userIds: string[], subject: string, messag
 // Get notifications for a specific user (compatible with existing schema)
 export const getUserNotifications = async (userId: string): Promise<any[]> => {
   try {
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .or(`user_id.eq.${userId},recipient_id.eq.${userId}`)
-      .order('created_at', { ascending: false })
-      .limit(50);
+    const response = await fetch(`/api/notifications/${userId}`, {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error fetching user notifications:', error);
+    if (!response.ok) {
+      console.error('Error fetching user notifications');
       return [];
     }
 
+    const data = await response.json();
     return (data || []).map(notification => ({
       id: notification.id,
       subject: notification.title || notification.subject,
@@ -3604,19 +3646,18 @@ export const getUserNotifications = async (userId: string): Promise<any[]> => {
 // Get unread notification count for a user
 export const getUnreadNotificationCount = async (userId: string): Promise<number> => {
   try {
-    // First get all notifications for this user
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .or(`user_id.eq.${userId},recipient_id.eq.${userId}`)
-      .eq('is_read', false);
+    const response = await fetch(`/api/notifications/${userId}?unread=true`, {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error fetching unread notification count:', error);
+    if (!response.ok) {
+      console.error('Error fetching unread notification count');
       return 0;
     }
 
-    return (data || []).length;
+    const data = await response.json();
+    return data.count || (data || []).length;
   } catch (error) {
     console.error('Error in getUnreadNotificationCount:', error);
     return 0;
@@ -3631,22 +3672,21 @@ export const submitEventResponse = async (eventId: string, response: 'accepted' 
       throw new Error('User not logged in');
     }
 
-    const { error } = await supabase
-      .from('event_responses')
-      .upsert({
+    const responseData = await fetch('/api/event-responses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
         event_id: eventId,
         user_id: currentUser.id,
         response,
-        response_message: responseMessage || null,
-        responded_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'event_id,user_id'
-      });
+        response_message: responseMessage || null
+      })
+    });
 
-    if (error) {
-      console.error('Error submitting event response:', error);
-      throw new Error(`Failed to submit response: ${error.message}`);
+    if (!responseData.ok) {
+      const errorData = await responseData.json();
+      throw new Error(`Failed to submit response: ${errorData.error || responseData.statusText}`);
     }
   } catch (error) {
     console.error('Error in submitEventResponse:', error);
@@ -3661,18 +3701,20 @@ export const getEventResponse = async (eventId: string): Promise<{response: stri
       return null;
     }
 
-    const { data, error } = await supabase
-      .from('event_responses')
-      .select('response, response_message')
-      .eq('event_id', eventId)
-      .eq('user_id', currentUser.id)
-      .single();
+    const response = await fetch(`/api/event-responses/${eventId}?userId=${currentUser.id}`, {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-      console.error('Error fetching event response:', error);
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null; // No response found
+      }
+      console.error('Error fetching event response');
       return null;
     }
 
+    const data = await response.json();
     return data ? {
       response: data.response,
       responseMessage: data.response_message
@@ -3693,16 +3735,13 @@ export const getEventResponseStats = async (eventId: string): Promise<{
   maybeUsers: Array<{id: string; name: string; email: string}>;
 }> => {
   try {
-    const { data, error } = await supabase
-      .from('event_responses')
-      .select(`
-        response,
-        users!inner(id, name, email)
-      `)
-      .eq('event_id', eventId);
+    const response = await fetch(`/api/event-responses/${eventId}/stats`, {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error fetching event response stats:', error);
+    if (!response.ok) {
+      console.error('Error fetching event response stats');
       return {
         accepted: 0,
         declined: 0,
@@ -3714,18 +3753,15 @@ export const getEventResponseStats = async (eventId: string): Promise<{
       };
     }
 
-    const accepted = data.filter(r => r.response === 'accepted');
-    const declined = data.filter(r => r.response === 'declined');
-    const maybe = data.filter(r => r.response === 'maybe');
-
+    const data = await response.json();
     return {
-      accepted: accepted.length,
-      declined: declined.length,
-      maybe: maybe.length,
-      total: data.length,
-      acceptedUsers: accepted.map(r => r.users),
-      declinedUsers: declined.map(r => r.users),
-      maybeUsers: maybe.map(r => r.users)
+      accepted: data.accepted || 0,
+      declined: data.declined || 0,
+      maybe: data.maybe || 0,
+      total: data.total || 0,
+      acceptedUsers: data.acceptedUsers || [],
+      declinedUsers: data.declinedUsers || [],
+      maybeUsers: data.maybeUsers || []
     };
   } catch (error) {
     console.error('Error in getEventResponseStats:', error);
@@ -3755,9 +3791,11 @@ export const createDemoBooking = async (bookingData: {
   message?: string;
 }): Promise<DemoBooking> => {
   try {
-    const { data, error } = await supabase
-      .from('demo_bookings')
-      .insert([{
+    const response = await fetch('/api/demo-bookings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
         name: bookingData.name,
         email: bookingData.email.toLowerCase().trim(),
         phone_number: bookingData.phoneNumber,
@@ -3768,15 +3806,14 @@ export const createDemoBooking = async (bookingData: {
         status: 'pending',
         source: 'website',
         preferred_contact_method: 'email'
-      }])
-      .select('*')
-      .single();
+      })
+    });
 
-    if (error) {
-      console.error('Error creating demo booking:', error);
+    if (!response.ok) {
       throw new Error('Failed to submit demo booking. Please try again.');
     }
 
+    const data = await response.json();
     const demoBooking: DemoBooking = {
       id: data.id,
       name: data.name,
@@ -3798,7 +3835,7 @@ export const createDemoBooking = async (bookingData: {
 
     // Send notifications
     await notificationService.notifyDemoBooking(demoBooking);
-    
+
     // Create admin notifications in the database
     await createDemoBookingNotification(demoBooking);
 
@@ -3811,16 +3848,16 @@ export const createDemoBooking = async (bookingData: {
 
 export const getDemoBookings = async (): Promise<DemoBooking[]> => {
   try {
-    const { data, error } = await supabase
-      .from('demo_bookings')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const response = await fetch('/api/demo-bookings', {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error fetching demo bookings:', error);
+    if (!response.ok) {
       throw new Error('Failed to fetch demo bookings');
     }
 
+    const data = await response.json();
     return (data || []).map(booking => ({
       id: booking.id,
       name: booking.name,
@@ -3846,16 +3883,13 @@ export const getDemoBookings = async (): Promise<DemoBooking[]> => {
 };
 
 export const updateDemoBookingStatus = async (
-  bookingId: string, 
+  bookingId: string,
   status: DemoBooking['status'],
   adminNotes?: string,
   demoScheduledAt?: string
 ): Promise<DemoBooking> => {
   try {
-    const updateData: any = {
-      status,
-      updated_at: new Date().toISOString()
-    };
+    const updateData: any = { status };
 
     if (adminNotes) {
       updateData.admin_notes = adminNotes;
@@ -3869,18 +3903,18 @@ export const updateDemoBookingStatus = async (
       updateData.demo_scheduled_at = demoScheduledAt;
     }
 
-    const { data, error } = await supabase
-      .from('demo_bookings')
-      .update(updateData)
-      .eq('id', bookingId)
-      .select('*')
-      .single();
+    const response = await fetch(`/api/demo-bookings/${bookingId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(updateData)
+    });
 
-    if (error) {
-      console.error('Error updating demo booking:', error);
+    if (!response.ok) {
       throw new Error('Failed to update demo booking');
     }
 
+    const data = await response.json();
     return {
       id: data.id,
       name: data.name,
@@ -3907,13 +3941,12 @@ export const updateDemoBookingStatus = async (
 
 export const deleteDemoBooking = async (bookingId: string): Promise<void> => {
   try {
-    const { error } = await supabase
-      .from('demo_bookings')
-      .delete()
-      .eq('id', bookingId);
+    const response = await fetch(`/api/demo-bookings/${bookingId}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error deleting demo booking:', error);
+    if (!response.ok) {
       throw new Error('Failed to delete demo booking');
     }
   } catch (error) {
@@ -3924,12 +3957,12 @@ export const deleteDemoBooking = async (bookingId: string): Promise<void> => {
 
 export const getDemoBookingStats = async () => {
   try {
-    const { data, error } = await supabase
-      .from('demo_bookings')
-      .select('status, created_at');
+    const response = await fetch('/api/demo-bookings/stats', {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error fetching demo booking stats:', error);
+    if (!response.ok) {
       return {
         total: 0,
         pending: 0,
@@ -3940,18 +3973,7 @@ export const getDemoBookingStats = async () => {
       };
     }
 
-    const now = new Date();
-    const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    const stats = {
-      total: data.length,
-      pending: data.filter(b => b.status === 'pending').length,
-      confirmed: data.filter(b => b.status === 'confirmed').length,
-      completed: data.filter(b => b.status === 'completed').length,
-      cancelled: data.filter(b => b.status === 'cancelled').length,
-      thisMonth: data.filter(b => new Date(b.created_at) >= thisMonth).length
-    };
-
+    const stats = await response.json();
     return stats;
   } catch (error) {
     console.error('Error in getDemoBookingStats:', error);
@@ -3970,17 +3992,18 @@ export const getDemoBookingStats = async () => {
 // Create notification for admin users about new demo booking
 export const createDemoBookingNotification = async (demoBooking: DemoBooking): Promise<void> => {
   try {
-    // Get all admin users
-    const { data: adminUsers, error: adminError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('role', 'Admin');
+    // Get all admin users via API
+    const adminResponse = await fetch('/api/users?role=Admin', {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    if (adminError) {
-      console.error('Error fetching admin users:', adminError);
+    if (!adminResponse.ok) {
+      console.error('Error fetching admin users');
       return;
     }
 
+    const adminUsers = await adminResponse.json();
     if (!adminUsers || adminUsers.length === 0) {
       console.log('No admin users found to notify');
       return;
@@ -3996,12 +4019,15 @@ export const createDemoBookingNotification = async (demoBooking: DemoBooking): P
       is_read: false
     }));
 
-    const { error: insertError } = await supabase
-      .from('notifications')
-      .insert(notifications);
+    const notifResponse = await fetch('/api/notifications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ notifications })
+    });
 
-    if (insertError) {
-      console.error('Error creating demo booking notifications:', insertError);
+    if (!notifResponse.ok) {
+      console.error('Error creating demo booking notifications');
     } else {
       console.log(`Created ${notifications.length} admin notifications for demo booking`);
     }
