@@ -106,49 +106,34 @@ export const checkEmailExists = async (email: string): Promise<{ exists: boolean
 
 export const loginUser = async (email: string, password: string): Promise<User> => {
   const normalizedEmail = email.toLowerCase().trim();
-  
-  try {
-    // Check for default admin emails first
-    if (normalizedEmail === 'admin@nadanaloga.com' || 
-        normalizedEmail.includes('admin') || 
-        normalizedEmail === 'nadanalogaa@gmail.com') {
-      const adminUser: User = {
-        id: 'admin-001',
-        name: 'Administrator',
-        email: normalizedEmail,
-        role: UserRole.Admin,
-        classPreference: ClassPreference.Hybrid
-      };
-      
-      currentUser = adminUser;
-      safeSetLocalStorage('currentUser', adminUser);
-      console.log('Default admin logged in:', adminUser);
-      return adminUser;
-    }
 
-    // Check if user exists in database
-    const response = await fetch('/api/users/by-email', {
+  try {
+    // Use actual login endpoint with password verification
+    const response = await fetch('/api/login', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: normalizedEmail })
+      body: JSON.stringify({
+        email: normalizedEmail,
+        password: password
+      })
     });
 
     if (!response.ok) {
-      console.error('Login query error:', response.statusText);
-      throw new Error('Login failed. Please try again.');
+      const errorData = await response.json();
+      console.error('Login error:', errorData);
+      throw new Error(errorData.message || 'Invalid email or password.');
     }
 
-    const users = await response.json();
+    const user = await response.json();
 
-    if (!users || users.length === 0) {
-      throw new Error('Invalid email or password. Please check your credentials or register first.');
+    if (!user || !user.id) {
+      throw new Error('Login failed. Invalid response from server.');
     }
 
-    // For now, we'll use the first matching user (in production, verify password)
-    const user = users[0];
+    // Convert database format to frontend format
     const userData: User = {
-      id: user.id,
+      id: user.id.toString(),
       name: user.name,
       email: user.email,
       role: user.role,
@@ -166,22 +151,23 @@ export const loginUser = async (email: string, password: string): Promise<User> 
       standard: user.standard,
       grade: user.grade,
       photoUrl: user.photo_url,
-      courses: Array.isArray(user.courses) ? user.courses : (user.courses ? [user.courses] : []),
-      courseExpertise: Array.isArray(user.course_expertise) ? user.course_expertise : (user.course_expertise ? [user.course_expertise] : []),
-      preferredTimings: Array.isArray(user.preferred_timings) ? user.preferred_timings : (user.preferred_timings ? [user.preferred_timings] : []),
-      availableTimeSlots: Array.isArray(user.available_time_slots) ? user.available_time_slots : (user.available_time_slots ? [user.available_time_slots] : []),
+      courses: Array.isArray(user.courses) ? user.courses : [],
+      courseExpertise: Array.isArray(user.course_expertise) ? user.course_expertise : [],
+      preferredTimings: Array.isArray(user.preferred_timings) ? user.preferred_timings : [],
+      availableTimeSlots: Array.isArray(user.available_time_slots) ? user.available_time_slots : [],
       educationalQualifications: user.educational_qualifications,
       employmentType: user.employment_type,
       yearsOfExperience: user.years_of_experience,
-      dateOfJoining: user.date_of_joining
+      dateOfJoining: user.date_of_joining,
+      schedules: user.schedules || [],
+      documents: user.documents || [],
+      notes: user.notes
     };
 
     currentUser = userData;
     safeSetLocalStorage('currentUser', userData);
-    
-    console.log('User logged in from database:', userData);
-    console.log('Login courseExpertise:', userData.courseExpertise);
-    console.log('Login availableTimeSlots:', userData.availableTimeSlots);
+
+    console.log('User logged in successfully:', userData);
     return userData;
 
   } catch (error) {
