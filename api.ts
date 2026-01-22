@@ -2782,25 +2782,17 @@ export const addGradeExam = async (exam: Omit<GradeExam, 'id'>): Promise<GradeEx
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({
-        title: exam.title,
-        description: exam.description,
-        date: (() => {
+        exam_name: exam.title,
+        course: exam.course || '',
+        exam_date: (() => {
           if (!exam.date) return null;
           const dateObj = exam.date instanceof Date ? exam.date : new Date(exam.date);
           return isNaN(dateObj.getTime()) ? null : dateObj.toISOString().split('T')[0];
         })(),
-        time: exam.time,
-        duration: exam.duration,
-        course: exam.course,
-        grade: exam.grade,
-        syllabus_url: exam.syllabusUrl,
-        registration_fee: exam.registrationFee,
-        registration_deadline: (() => {
-          if (!exam.registrationDeadline) return null;
-          const deadlineObj = exam.registrationDeadline instanceof Date ? exam.registrationDeadline : new Date(exam.registrationDeadline);
-          return isNaN(deadlineObj.getTime()) ? null : deadlineObj.toISOString().split('T')[0];
-        })(),
-        is_open: exam.isOpen !== false
+        exam_time: exam.time || null,
+        location: exam.location || '',
+        syllabus: exam.syllabusUrl || '',
+        recipient_ids: exam.recipientIds || []
       })
     });
 
