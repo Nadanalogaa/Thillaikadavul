@@ -95,26 +95,19 @@ async function startServer() {
 
         const addColumn = async (table, column, definition) => {
             try {
-                // Check if column already exists
-                if (await columnExists(table, column)) {
+                // Just try to add the column directly - let PostgreSQL tell us if it exists
+                await pool.query(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+                console.log(`[DB] ✓ Added ${table}.${column}`);
+                return true;
+            } catch (error) {
+                // Check if error is "column already exists" (error code 42701)
+                if (error.code === '42701') {
                     console.log(`[DB] ○ ${table}.${column} already exists`);
                     return true;
-                }
-
-                // Add the column
-                await pool.query(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
-
-                // Verify it was added
-                if (await columnExists(table, column)) {
-                    console.log(`[DB] ✓ Added ${table}.${column}`);
-                    return true;
                 } else {
-                    console.error(`[DB] ✗ ${table}.${column} - Added but verification failed`);
+                    console.error(`[DB] ✗ Failed to add ${table}.${column}:`, error.message);
                     return false;
                 }
-            } catch (error) {
-                console.error(`[DB] ✗ Failed to add ${table}.${column}:`, error.message);
-                return false;
             }
         };
 
