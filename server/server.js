@@ -361,6 +361,15 @@ async function startServer() {
         }
     });
 
+    app.get('/api/locations', async (req, res) => {
+        try {
+            const result = await pool.query('SELECT * FROM locations WHERE is_active = true ORDER BY created_at');
+            res.json(result.rows);
+        } catch (error) {
+            res.status(500).json({ message: 'Server error fetching locations.' });
+        }
+    });
+
     // --- Email API Endpoints ---
     // Registration notification endpoint (doesn't require users table)
     app.post('/api/send-registration-emails', async (req, res) => {

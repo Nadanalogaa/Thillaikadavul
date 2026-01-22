@@ -308,20 +308,16 @@ export const logout = async (): Promise<void> => {
 
 export const getCourses = async (): Promise<Course[]> => {
   try {
-    const { data, error } = await supabase
-      .from('courses')
-      .select('*')
-      .order('created_at');
+    // Use Express API instead of Supabase
+    const response = await fetch('/api/courses');
 
-    if (error) {
-      console.error('Error fetching courses:', error);
-      
-      // If no courses exist, initialize with basic courses
-      if (error.message.includes('relation "courses" does not exist') || error.code === 'PGRST116') {
-        return await initializeBasicCourses();
-      }
-      throw error;
+    if (!response.ok) {
+      console.error('Error fetching courses:', response.statusText);
+      // If API fails, try to initialize basic courses
+      return await initializeBasicCourses();
     }
+
+    const data = await response.json();
 
     // If no courses in database, initialize basic ones
     if (!data || data.length === 0) {
@@ -2292,21 +2288,16 @@ export const deleteUserPermanently = async (userId: string): Promise<void> => {
 // Location functions
 export const getPublicLocations = async (): Promise<Location[]> => {
   try {
-    const { data, error } = await supabase
-      .from('locations')
-      .select('*')
-      .eq('is_active', true)
-      .order('created_at');
+    // Use Express API instead of Supabase
+    const response = await fetch('/api/locations');
 
-    if (error) {
-      console.error('Error fetching locations:', error);
-      
-      // If no locations exist, initialize with basic locations
-      if (error.message.includes('relation "locations" does not exist') || error.code === 'PGRST116') {
-        return await initializeBasicLocations();
-      }
-      return [];
+    if (!response.ok) {
+      console.error('Error fetching locations:', response.statusText);
+      // If API fails, try to initialize basic locations
+      return await initializeBasicLocations();
     }
+
+    const data = await response.json();
 
     // If no locations in database, initialize basic ones
     if (!data || data.length === 0) {
