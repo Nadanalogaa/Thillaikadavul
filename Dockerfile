@@ -57,6 +57,10 @@ COPY server/server.js ./server/
 # Copy built frontend
 COPY --from=frontend-builder /app/dist ./dist
 
+# Copy restoration scripts and backup
+COPY restore-from-container.cjs ./
+COPY supabase_backup.sql ./
+
 # Set ownership
 RUN chown -R nadanaloga:nodejs /app
 USER nadanaloga
