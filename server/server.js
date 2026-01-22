@@ -41,42 +41,46 @@ async function startServer() {
 
     // --- Auto Schema Migration ---
     const autoMigrateSchema = async () => {
-        console.log('[DB] Running auto schema migration...');
+        // Use a SINGLE client for entire migration to ensure consistency
+        const client = await pool.connect();
 
-        // Check current schema and show actual users table columns
-        const schemaCheck = await pool.query('SELECT current_schema()');
-        console.log('[DB] Current schema:', schemaCheck.rows[0].current_schema);
+        try {
+            console.log('[DB] Running auto schema migration...');
 
-        // Check if users is a table or view
-        const tableType = await pool.query(`
-            SELECT table_type FROM information_schema.tables
-            WHERE table_name = 'users' AND table_schema = current_schema()
-        `);
-        console.log('[DB] users is a:', tableType.rows[0]?.table_type || 'NOT FOUND');
+            // Check current schema and show actual users table columns
+            const schemaCheck = await client.query('SELECT current_schema()');
+            console.log('[DB] Current schema:', schemaCheck.rows[0].current_schema);
 
-        // Get columns using pg_catalog (more reliable than information_schema)
-        const directColumns = await pool.query(`
-            SELECT a.attname as column_name
-            FROM pg_catalog.pg_attribute a
-            JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
-            JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
-            WHERE c.relname = 'users' AND n.nspname = current_schema()
-            AND a.attnum > 0 AND NOT a.attisdropped
-            ORDER BY a.attnum
-        `);
-        console.log('[DB] Direct pg_catalog columns:', directColumns.rows.map(r => r.column_name).join(', '));
+            // Check if users is a table or view
+            const tableType = await client.query(`
+                SELECT table_type FROM information_schema.tables
+                WHERE table_name = 'users' AND table_schema = current_schema()
+            `);
+            console.log('[DB] users is a:', tableType.rows[0]?.table_type || 'NOT FOUND');
 
-        const addColumn = async (table, column, definition) => {
-            try {
-                // Use IF NOT EXISTS - PostgreSQL's native solution (9.6+)
-                await pool.query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${column} ${definition}`);
-                console.log(`[DB] ✓ Ensured ${table}.${column} exists`);
-                return true;
-            } catch (error) {
-                console.error(`[DB] ✗ Failed to add ${table}.${column}:`, error.message);
-                return false;
-            }
-        };
+            // Get columns using pg_catalog (more reliable than information_schema)
+            const directColumns = await client.query(`
+                SELECT a.attname as column_name
+                FROM pg_catalog.pg_attribute a
+                JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
+                JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
+                WHERE c.relname = 'users' AND n.nspname = current_schema()
+                AND a.attnum > 0 AND NOT a.attisdropped
+                ORDER BY a.attnum
+            `);
+            console.log('[DB] Direct pg_catalog columns:', directColumns.rows.map(r => r.column_name).join(', '));
+
+            const addColumn = async (table, column, definition) => {
+                try {
+                    // Use IF NOT EXISTS - PostgreSQL's native solution (9.6+)
+                    await client.query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${column} ${definition}`);
+                    console.log(`[DB] ✓ Ensured ${table}.${column} exists`);
+                    return true;
+                } catch (error) {
+                    console.error(`[DB] ✗ Failed to add ${table}.${column}:`, error.message);
+                    return false;
+                }
+            };
 
         let successCount = 0;
         let failCount = 0;
@@ -119,24 +123,31 @@ async function startServer() {
         if (await addColumn('invoices', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
         if (await addColumn('invoices', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
 
-        console.log(`[DB] ✅ Schema migration completed! Success: ${successCount}, Failed: ${failCount}`);
+            console.log(`[DB] ✅ Schema migration completed! Success: ${successCount}, Failed: ${failCount}`);
 
-        // Verify final state - show users table columns after migration
-        console.log('[DB] FINAL VERIFICATION - Querying users columns after migration:');
-        const finalColumns = await pool.query(`
-            SELECT a.attname as column_name
-            FROM pg_catalog.pg_attribute a
-            JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
-            JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
-            WHERE c.relname = 'users' AND n.nspname = current_schema()
-            AND a.attnum > 0 AND NOT a.attisdropped
-            ORDER BY a.attnum
-        `);
-        console.log('[DB] Final users columns:', finalColumns.rows.map(r => r.column_name).join(', '));
+            // Verify final state - show users table columns after migration
+            console.log('[DB] FINAL VERIFICATION - Querying users columns after migration:');
+            const finalColumns = await client.query(`
+                SELECT a.attname as column_name
+                FROM pg_catalog.pg_attribute a
+                JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
+                JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
+                WHERE c.relname = 'users' AND n.nspname = current_schema()
+                AND a.attnum > 0 AND NOT a.attisdropped
+                ORDER BY a.attnum
+            `);
+            console.log('[DB] Final users columns:', finalColumns.rows.map(r => r.column_name).join(', '));
 
-        // Check specifically for updated_at
-        const hasUpdatedAt = finalColumns.rows.some(r => r.column_name === 'updated_at');
-        console.log(`[DB] users.updated_at exists: ${hasUpdatedAt ? '✓ YES' : '✗ NO'}`);
+            // Check specifically for updated_at
+            const hasUpdatedAt = finalColumns.rows.some(r => r.column_name === 'updated_at');
+            console.log(`[DB] users.updated_at exists: ${hasUpdatedAt ? '✓ YES' : '✗ NO'}`);
+
+        } catch (error) {
+            console.error('[DB] Migration error:', error);
+            throw error;
+        } finally {
+            client.release();
+        }
     };
 
     // Run auto-migration
