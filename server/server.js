@@ -43,9 +43,21 @@ async function startServer() {
     const autoMigrateSchema = async () => {
         console.log('[DB] Running auto schema migration...');
 
+        // Check current schema and show actual users table columns
+        const schemaCheck = await pool.query('SELECT current_schema()');
+        console.log('[DB] Current schema:', schemaCheck.rows[0].current_schema);
+
+        const actualColumns = await pool.query(`
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'users' AND table_schema = current_schema()
+            ORDER BY ordinal_position
+        `);
+        console.log('[DB] Actual columns in users table:', actualColumns.rows.map(r => r.column_name).join(', '));
+
         const columnExists = async (table, column) => {
             const result = await pool.query(
-                `SELECT column_name FROM information_schema.columns WHERE table_name = $1 AND column_name = $2`,
+                `SELECT column_name FROM information_schema.columns
+                 WHERE table_name = $1 AND column_name = $2 AND table_schema = current_schema()`,
                 [table, column]
             );
             return result.rows.length > 0;
