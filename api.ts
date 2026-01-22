@@ -1584,13 +1584,11 @@ export const getUsersByIds = async (ids: string[]): Promise<User[]> => {
 export const addBatch = async (batchData: Partial<Batch>): Promise<Batch> => {
   try {
     const insertData: any = {
-      name: batchData.name,
-      description: batchData.description,
+      batch_name: batchData.name,
       schedule: batchData.schedule || [],
-      capacity: batchData.capacity,
+      max_students: batchData.capacity,
       mode: batchData.mode,
-      is_active: true,
-      created_at: new Date().toISOString()
+      student_ids: []
     };
 
     // Only add course_id if courseId is provided and not empty
@@ -1601,11 +1599,6 @@ export const addBatch = async (batchData: Partial<Batch>): Promise<Batch> => {
     // Only add teacher_id if teacherId is provided and not empty
     if (batchData.teacherId && typeof batchData.teacherId === 'string' && batchData.teacherId.trim() !== '') {
       insertData.teacher_id = batchData.teacherId;
-    }
-
-    // Only add location_id if locationId is provided and not empty
-    if (batchData.locationId && batchData.locationId.trim() !== '') {
-      insertData.location_id = batchData.locationId;
     }
 
     // Add dates if provided
@@ -1891,11 +1884,11 @@ export const addFeeStructure = async (structureData: Omit<FeeStructure, 'id'>): 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         course_id: structureData.courseId,
-        course_name: structureData.courseName,
-        amount: structureData.amount,
-        currency: structureData.currency,
-        billing_cycle: structureData.billingCycle,
-        created_at: new Date().toISOString()
+        mode: null,
+        monthly_fee: structureData.billingCycle === 'Monthly' ? structureData.amount : null,
+        quarterly_fee: structureData.billingCycle === 'Quarterly' ? structureData.amount : null,
+        half_yearly_fee: structureData.billingCycle === 'Half-Yearly' ? structureData.amount : null,
+        annual_fee: structureData.billingCycle === 'Annual' ? structureData.amount : null
       })
     });
 
@@ -2444,7 +2437,14 @@ export const addLocation = async (location: Omit<Location, 'id'>): Promise<Locat
       credentials: 'include',
       body: JSON.stringify({
         name: location.name,
-        address: location.address
+        address: location.address,
+        city: null,
+        state: null,
+        postal_code: null,
+        country: null,
+        phone: null,
+        email: null,
+        is_active: true
       })
     });
 
@@ -2600,12 +2600,9 @@ export const addEvent = async (event: Omit<Event, 'id'>): Promise<Event> => {
         event_date: event.date instanceof Date ? event.date.toISOString().split('T')[0] : new Date(event.date).toISOString().split('T')[0],
         event_time: event.time,
         location: event.location,
-        created_by: currentUser?.id,
-        target_audience: event.targetAudience || [],
-        is_active: event.isActive !== undefined ? event.isActive : true,
-        priority: event.priority || 'Medium',
-        event_type: event.eventType || 'General',
-        images: event.images || []
+        is_public: event.isActive !== undefined ? event.isActive : true,
+        recipient_ids: event.targetAudience || [],
+        image_url: event.images && event.images.length > 0 ? event.images[0] : null
       })
     });
 
@@ -2969,28 +2966,16 @@ export const addBookMaterial = async (material: Omit<BookMaterial, 'id'>): Promi
     const insertData: any = {
       title: material.title,
       description: material.description,
-      type: material.type,
-      url: material.url
+      file_type: material.type,
+      file_url: material.url,
+      course: material.courseName || null
     };
-
-    // Only add course_id if courseId is provided and not empty
-    if (material.courseId && material.courseId.trim() !== '') {
-      insertData.course_id = material.courseId;
-    }
-
-    // Only add course_name if courseName is provided and not empty
-    if (material.courseName && material.courseName.trim() !== '') {
-      insertData.course_name = material.courseName;
-    }
-
-    // Only add data if it's provided
-    if (material.data) {
-      insertData.data = material.data;
-    }
 
     // Add recipient_ids if provided
     if (material.recipientIds && material.recipientIds.length > 0) {
       insertData.recipient_ids = material.recipientIds;
+    } else {
+      insertData.recipient_ids = [];
     }
 
     const response = await fetch('/api/book-materials', {
@@ -3391,7 +3376,9 @@ export const addNotice = async (notice: Omit<Notice, 'id'>): Promise<Notice> => 
       body: JSON.stringify({
         title: notice.title,
         content: notice.content,
-        issued_at: new Date().toISOString()
+        priority: 'normal',
+        expiry_date: null,
+        recipient_ids: []
       })
     });
 
@@ -3788,16 +3775,15 @@ export const createDemoBooking = async (bookingData: {
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({
-        name: bookingData.name,
+        student_name: bookingData.name,
+        parent_name: null,
         email: bookingData.email.toLowerCase().trim(),
-        phone_number: bookingData.phoneNumber,
-        country: bookingData.country,
-        course_name: bookingData.courseName,
-        course_id: bookingData.courseId || null,
-        message: bookingData.message || null,
-        status: 'pending',
-        source: 'website',
-        preferred_contact_method: 'email'
+        phone: bookingData.phoneNumber,
+        course: bookingData.courseName,
+        preferred_date: null,
+        preferred_time: null,
+        location: null,
+        notes: bookingData.message || null
       })
     });
 
