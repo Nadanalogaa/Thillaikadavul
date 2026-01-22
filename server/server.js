@@ -43,11 +43,33 @@ async function startServer() {
     const autoMigrateSchema = async () => {
         console.log('[DB] Running auto schema migration...');
 
+        const columnExists = async (table, column) => {
+            const result = await pool.query(
+                `SELECT column_name FROM information_schema.columns WHERE table_name = $1 AND column_name = $2`,
+                [table, column]
+            );
+            return result.rows.length > 0;
+        };
+
         const addColumn = async (table, column, definition) => {
             try {
-                await pool.query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${column} ${definition}`);
-                console.log(`[DB] ✓ Added ${table}.${column}`);
-                return true;
+                // Check if column already exists
+                if (await columnExists(table, column)) {
+                    console.log(`[DB] ○ ${table}.${column} already exists`);
+                    return true;
+                }
+
+                // Add the column
+                await pool.query(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+
+                // Verify it was added
+                if (await columnExists(table, column)) {
+                    console.log(`[DB] ✓ Added ${table}.${column}`);
+                    return true;
+                } else {
+                    console.error(`[DB] ✗ ${table}.${column} - Added but verification failed`);
+                    return false;
+                }
             } catch (error) {
                 console.error(`[DB] ✗ Failed to add ${table}.${column}:`, error.message);
                 return false;
