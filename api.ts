@@ -618,7 +618,7 @@ export const registerUser = async (userData: Partial<User>[], sendEmails: boolea
         } catch (backendError) {
           console.error('Backend registration with emails failed, falling back to Express API:', backendError);
           // Fallback to direct Express API registration
-          const fallbackResponse = await fetch('/api/users', {
+          const fallbackResponse = await fetch('/api/register', {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
@@ -634,7 +634,7 @@ export const registerUser = async (userData: Partial<User>[], sendEmails: boolea
         }
       } else {
         // Direct Express API registration for teachers or when emails are disabled
-        const registerResponse = await fetch('/api/users', {
+        const registerResponse = await fetch('/api/register', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
@@ -750,7 +750,7 @@ export const registerAdmin = async (userData: Partial<User>): Promise<any> => {
       created_at: new Date().toISOString()
     };
 
-    const response = await fetch('/api/users', {
+    const response = await fetch('/api/register', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
