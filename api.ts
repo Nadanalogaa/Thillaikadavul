@@ -1852,28 +1852,28 @@ export const addFeeStructure = async (structureData: Omit<FeeStructure, 'id'>): 
       credentials: 'include',
       body: JSON.stringify({
         course_id: structureData.courseId,
-        course_name: structureData.courseName,
-        amount: structureData.amount,
-        currency: structureData.currency,
-        billing_cycle: structureData.billingCycle,
-        created_at: new Date().toISOString()
-      }])
-      .select()
-      .single();
+        mode: structureData.mode || 'Hybrid',
+        monthly_fee: structureData.monthlyFee,
+        quarterly_fee: structureData.quarterlyFee,
+        half_yearly_fee: structureData.halfYearlyFee,
+        annual_fee: structureData.annualFee
+      })
+    });
 
-    if (error) {
-      console.error('Error adding fee structure:', error);
-      throw new Error(`Failed to add fee structure: ${error.message}`);
+    if (!response.ok) {
+      throw new Error('Failed to add fee structure');
     }
 
+    const data = await response.json();
     return {
       id: data.id,
       courseId: data.course_id,
-      courseName: data.course_name,
-      amount: data.amount,
-      currency: data.currency,
-      billingCycle: data.billing_cycle
-    };
+      mode: data.mode,
+      monthlyFee: data.monthly_fee,
+      quarterlyFee: data.quarterly_fee,
+      halfYearlyFee: data.half_yearly_fee,
+      annualFee: data.annual_fee
+    } as FeeStructure;
   } catch (error) {
     console.error('Error in addFeeStructure:', error);
     throw error;
