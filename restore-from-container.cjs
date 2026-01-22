@@ -53,7 +53,14 @@ async function restore() {
 
     console.log('[3/5] Restoring from backup...');
     const backupPath = path.join(__dirname, 'supabase_backup.sql');
-    const sql = fs.readFileSync(backupPath, 'utf8');
+    let sql = fs.readFileSync(backupPath, 'utf8');
+
+    // Remove Supabase-specific commands that PostgreSQL doesn't support
+    sql = sql.split('\n')
+        .filter(line => !line.startsWith('\\restrict'))
+        .filter(line => !line.includes('supabase_realtime'))
+        .join('\n');
+
     console.log(`Backup size: ${(sql.length/1024/1024).toFixed(2)} MB`);
 
     await client.query(sql);
