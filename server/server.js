@@ -66,56 +66,15 @@ async function startServer() {
         `);
         console.log('[DB] Direct pg_catalog columns:', directColumns.rows.map(r => r.column_name).join(', '));
 
-        const currentSchema = schemaCheck.rows[0].current_schema;
-
-        const columnExists = async (table, column) => {
-            // Use pg_catalog instead of information_schema (which is stale/cached)
-            const result = await pool.query(`
-                SELECT a.attname as column_name, c.relname as table_name, n.nspname as schema_name
-                FROM pg_catalog.pg_attribute a
-                JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
-                JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
-                WHERE c.relname = $1 AND n.nspname = $2 AND a.attname = $3
-                AND a.attnum > 0 AND NOT a.attisdropped
-            `, [table, currentSchema, column]);
-
-            const exists = result.rows.length > 0;
-            if (table === 'users' && column === 'updated_at') {
-                console.log(`[DB]   DEBUG columnExists(users, updated_at):`, {
-                    table,
-                    currentSchema,
-                    column,
-                    rowsFound: result.rows.length,
-                    exists,
-                    rows: result.rows
-                });
-            }
-            return exists;
-        };
-
         const addColumn = async (table, column, definition) => {
             try {
-                // Just try to add the column directly - let PostgreSQL tell us if it exists
-                await pool.query(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
-                console.log(`[DB] ✓ Added ${table}.${column}`);
+                // Use IF NOT EXISTS - PostgreSQL's native solution (9.6+)
+                await pool.query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${column} ${definition}`);
+                console.log(`[DB] ✓ Ensured ${table}.${column} exists`);
                 return true;
             } catch (error) {
-                // Log full error details for debugging
-                console.log(`[DB] Error adding ${table}.${column}:`, {
-                    code: error.code,
-                    message: error.message,
-                    detail: error.detail,
-                    hint: error.hint
-                });
-
-                // Check if error is "column already exists" (error code 42701)
-                if (error.code === '42701') {
-                    console.log(`[DB] ○ ${table}.${column} already exists (42701)`);
-                    return true;
-                } else {
-                    console.error(`[DB] ✗ Failed to add ${table}.${column}:`, error.message);
-                    return false;
-                }
+                console.error(`[DB] ✗ Failed to add ${table}.${column}:`, error.message);
+                return false;
             }
         };
 
