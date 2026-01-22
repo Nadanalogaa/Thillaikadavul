@@ -90,6 +90,29 @@ async function startServer() {
         if (await addColumn('users', 'class_preference', "VARCHAR(20) DEFAULT 'Hybrid'")) successCount++; else failCount++;
         if (await addColumn('users', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
 
+        // IMMEDIATE CHECK: Verify updated_at was actually added
+        console.log('[DB] IMMEDIATE CHECK after adding users.updated_at:');
+        const immediateCheck = await client.query(`
+            SELECT a.attname as column_name
+            FROM pg_catalog.pg_attribute a
+            JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
+            JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
+            WHERE c.relname = 'users' AND n.nspname = current_schema()
+            AND a.attname = 'updated_at'
+            AND a.attnum > 0 AND NOT a.attisdropped
+        `);
+        console.log('[DB] Found updated_at:', immediateCheck.rows.length > 0 ? 'YES' : 'NO');
+        if (immediateCheck.rows.length === 0) {
+            console.log('[DB] ⚠️ WARNING: ALTER TABLE succeeded but column not in catalog!');
+            console.log('[DB] Attempting manual check with \\d users equivalent:');
+            const describeTable = await client.query(`
+                SELECT column_name, data_type, column_default
+                FROM information_schema.columns
+                WHERE table_name = 'users' AND column_name = 'updated_at'
+            `);
+            console.log('[DB] information_schema result:', describeTable.rows);
+        }
+
         // Fix events table
         if (await addColumn('events', 'is_active', 'BOOLEAN DEFAULT true')) successCount++; else failCount++;
         if (await addColumn('events', 'is_public', 'BOOLEAN DEFAULT false')) successCount++; else failCount++;
