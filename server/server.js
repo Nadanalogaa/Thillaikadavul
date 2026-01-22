@@ -983,6 +983,871 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
+    // --- User Management API Endpoints ---
+    // Get all non-deleted users
+    app.get('/api/users', async (req, res) => {
+        try {
+            const result = await pool.query('SELECT * FROM users WHERE is_deleted = false ORDER BY created_at DESC');
+            res.json(result.rows);
+        } catch (error) {
+            console.error('Error fetching users:', error);
+            res.status(500).json({ message: 'Server error fetching users.' });
+        }
+    });
+
+    // Get user by ID
+    app.get('/api/users/:id', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'User not found' });
+            }
+            res.json(result.rows[0]);
+        } catch (error) {
+            console.error('Error fetching user:', error);
+            res.status(500).json({ message: 'Server error fetching user.' });
+        }
+    });
+
+    // Get user by email
+    app.post('/api/users/by-email', async (req, res) => {
+        try {
+            const { email } = req.body;
+            const result = await pool.query('SELECT * FROM users WHERE email = $1 AND is_deleted = false', [email]);
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'User not found' });
+            }
+            res.json(result.rows[0]);
+        } catch (error) {
+            console.error('Error fetching user by email:', error);
+            res.status(500).json({ message: 'Server error fetching user.' });
+        }
+    });
+
+    // Update user
+    app.put('/api/users/:id', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const userData = req.body;
+
+            const updateFields = [];
+            const values = [];
+            let paramCount = 1;
+
+            Object.keys(userData).forEach(key => {
+                if (key !== 'id' && key !== 'created_at') {
+                    updateFields.push(`${key} = $${paramCount}`);
+                    values.push(userData[key]);
+                    paramCount++;
+                }
+            });
+
+            values.push(id);
+            const query = `UPDATE users SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = $${paramCount} RETURNING *`;
+
+            const result = await pool.query(query, values);
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'User not found' });
+            }
+            res.json(result.rows[0]);
+        } catch (error) {
+            console.error('Error updating user:', error);
+            res.status(500).json({ message: 'Server error updating user.' });
+        }
+    });
+
+    // Soft delete user
+    app.delete('/api/users/:id', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const result = await pool.query(
+                'UPDATE users SET is_deleted = true, updated_at = NOW() WHERE id = $1 RETURNING *',
+                [id]
+            );
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'User not found' });
+            }
+            res.json({ message: 'User deleted successfully' });
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            res.status(500).json({ message: 'Server error deleting user.' });
+        }
+    });
+
+    // Get trashed users
+    app.get('/api/users/trashed/all', async (req, res) => {
+        try {
+            const result = await pool.query('SELECT * FROM users WHERE is_deleted = true ORDER BY updated_at DESC');
+            res.json(result.rows);
+        } catch (error) {
+            console.error('Error fetching trashed users:', error);
+            res.status(500).json({ message: 'Server error fetching trashed users.' });
+        }
+    });
+
+    // Restore user
+    app.post('/api/users/:id/restore', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const result = await pool.query(
+                'UPDATE users SET is_deleted = false, updated_at = NOW() WHERE id = $1 RETURNING *',
+                [id]
+            );
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'User not found' });
+            }
+            res.json(result.rows[0]);
+        } catch (error) {
+            console.error('Error restoring user:', error);
+            res.status(500).json({ message: 'Server error restoring user.' });
+        }
+    });
+
+    // Permanently delete user
+    app.delete('/api/users/:id/permanent', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'User not found' });
+            }
+            res.json({ message: 'User permanently deleted' });
+        } catch (error) {
+            console.error('Error permanently deleting user:', error);
+            res.status(500).json({ message: 'Server error permanently deleting user.' });
+        }
+    });
+
+    // Get admin stats
+    app.get('/api/stats/admin', async (req, res) => {
+        try {
+            const result = await pool.query(
+                'SELECT role, class_preference FROM users WHERE is_deleted = false'
+            );
+            res.json(result.rows);
+        } catch (error) {
+            console.error('Error fetching admin stats:', error);
+            res.status(500).json({ message: 'Server error fetching stats.' });
+        }
+    });
+
+    // Get users by IDs
+    app.post('/api/users/by-ids', async (req, res) => {
+        try {
+            const { ids } = req.body;
+            if (!ids || !Array.isArray(ids) || ids.length === 0) {
+                return res.json([]);
+            }
+            const result = await pool.query(
+                'SELECT * FROM users WHERE id = ANY($1) AND is_deleted = false',
+                [ids]
+            );
+            res.json(result.rows);
+        } catch (error) {
+            console.error('Error fetching users by IDs:', error);
+            res.status(500).json({ message: 'Server error fetching users.' });
+        }
+    });
+
+    // --- Batch Management API Endpoints ---
+    app.get('/api/batches', async (req, res) => {
+        try {
+            const result = await pool.query('SELECT * FROM batches ORDER BY created_at DESC');
+            res.json(result.rows);
+        } catch (error) {
+            console.error('Error fetching batches:', error);
+            res.status(500).json({ message: 'Server error fetching batches.' });
+        }
+    });
+
+    app.post('/api/batches', async (req, res) => {
+        try {
+            const batchData = req.body;
+            const { batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode } = batchData;
+
+            const result = await pool.query(
+                `INSERT INTO batches (batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+                [batch_name, course_id, teacher_id, JSON.stringify(schedule), start_date, end_date, max_students, student_ids || [], mode]
+            );
+            res.status(201).json(result.rows[0]);
+        } catch (error) {
+            console.error('Error creating batch:', error);
+            res.status(500).json({ message: 'Server error creating batch.' });
+        }
+    });
+
+    app.put('/api/batches/:id', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode } = req.body;
+
+            const result = await pool.query(
+                `UPDATE batches SET
+                    batch_name = $1, course_id = $2, teacher_id = $3, schedule = $4,
+                    start_date = $5, end_date = $6, max_students = $7, student_ids = $8, mode = $9,
+                    updated_at = NOW()
+                 WHERE id = $10 RETURNING *`,
+                [batch_name, course_id, teacher_id, JSON.stringify(schedule), start_date, end_date, max_students, student_ids || [], mode, id]
+            );
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Batch not found' });
+            }
+            res.json(result.rows[0]);
+        } catch (error) {
+            console.error('Error updating batch:', error);
+            res.status(500).json({ message: 'Server error updating batch.' });
+        }
+    });
+
+    app.delete('/api/batches/:id', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const result = await pool.query('DELETE FROM batches WHERE id = $1 RETURNING id', [id]);
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Batch not found' });
+            }
+            res.json({ message: 'Batch deleted successfully' });
+        } catch (error) {
+            console.error('Error deleting batch:', error);
+            res.status(500).json({ message: 'Server error deleting batch.' });
+        }
+    });
+
+    // --- Course Management API Endpoints ---
+    app.post('/api/courses', async (req, res) => {
+        try {
+            const { name, description, icon, image } = req.body;
+            const result = await pool.query(
+                'INSERT INTO courses (name, description, icon, image) VALUES ($1, $2, $3, $4) RETURNING *',
+                [name, description, icon, image]
+            );
+            res.status(201).json(result.rows[0]);
+        } catch (error) {
+            console.error('Error creating course:', error);
+            res.status(500).json({ message: 'Server error creating course.' });
+        }
+    });
+
+    app.put('/api/courses/:id', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { name, description, icon, image } = req.body;
+            const result = await pool.query(
+                'UPDATE courses SET name = $1, description = $2, icon = $3, image = $4, updated_at = NOW() WHERE id = $5 RETURNING *',
+                [name, description, icon, image, id]
+            );
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Course not found' });
+            }
+            res.json(result.rows[0]);
+        } catch (error) {
+            console.error('Error updating course:', error);
+            res.status(500).json({ message: 'Server error updating course.' });
+        }
+    });
+
+    app.delete('/api/courses/:id', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const result = await pool.query('DELETE FROM courses WHERE id = $1 RETURNING id', [id]);
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Course not found' });
+            }
+            res.json({ message: 'Course deleted successfully' });
+        } catch (error) {
+            console.error('Error deleting course:', error);
+            res.status(500).json({ message: 'Server error deleting course.' });
+        }
+    });
+
+    // --- Notification API Endpoints ---
+    app.get('/api/notifications/:userId', async (req, res) => {
+        try {
+            const { userId } = req.params;
+            const result = await pool.query(
+                'SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC',
+                [userId]
+            );
+            res.json(result.rows);
+        } catch (error) {
+            console.error('Error fetching notifications:', error);
+            res.status(500).json({ message: 'Server error fetching notifications.' });
+        }
+    });
+
+    app.get('/api/notifications/:userId/unread-count', async (req, res) => {
+        try {
+            const { userId } = req.params;
+            const result = await pool.query(
+                'SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND read = false',
+                [userId]
+            );
+            res.json({ count: parseInt(result.rows[0].count) });
+        } catch (error) {
+            console.error('Error fetching unread count:', error);
+            res.status(500).json({ message: 'Server error fetching unread count.' });
+        }
+    });
+
+    app.put('/api/notifications/:id/mark-read', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const result = await pool.query(
+                'UPDATE notifications SET read = true WHERE id = $1 RETURNING *',
+                [id]
+            );
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Notification not found' });
+            }
+            res.json(result.rows[0]);
+        } catch (error) {
+            console.error('Error marking notification as read:', error);
+            res.status(500).json({ message: 'Server error updating notification.' });
+        }
+    });
+
+    app.post('/api/notifications', async (req, res) => {
+        try {
+            const notifications = req.body;
+            if (!Array.isArray(notifications)) {
+                return res.status(400).json({ message: 'Expected array of notifications' });
+            }
+
+            const values = notifications.map((n, i) =>
+                `($${i*4+1}, $${i*4+2}, $${i*4+3}, $${i*4+4})`
+            ).join(',');
+
+            const params = notifications.flatMap(n => [n.user_id, n.title, n.message, n.type || 'info']);
+
+            await pool.query(
+                `INSERT INTO notifications (user_id, title, message, type) VALUES ${values}`,
+                params
+            );
+            res.status(201).json({ success: true, message: 'Notifications created' });
+        } catch (error) {
+            console.error('Error creating notifications:', error);
+            res.status(500).json({ message: 'Server error creating notifications.' });
+        }
+    });
+
+    // --- Fee Structure API Endpoints ---
+    app.get('/api/fee-structures', async (req, res) => {
+        try {
+            const result = await pool.query('SELECT * FROM fee_structures ORDER BY created_at DESC');
+            res.json(result.rows);
+        } catch (error) {
+            console.error('Error fetching fee structures:', error);
+            res.status(500).json({ message: 'Server error fetching fee structures.' });
+        }
+    });
+
+    app.post('/api/fee-structures', async (req, res) => {
+        try {
+            const { course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee } = req.body;
+            const result = await pool.query(
+                `INSERT INTO fee_structures (course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee)
+                 VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+                [course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee]
+            );
+            res.status(201).json(result.rows[0]);
+        } catch (error) {
+            console.error('Error creating fee structure:', error);
+            res.status(500).json({ message: 'Server error creating fee structure.' });
+        }
+    });
+
+    app.put('/api/fee-structures/:id', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee } = req.body;
+            const result = await pool.query(
+                `UPDATE fee_structures SET
+                    course_id = $1, mode = $2, monthly_fee = $3, quarterly_fee = $4,
+                    half_yearly_fee = $5, annual_fee = $6, updated_at = NOW()
+                 WHERE id = $7 RETURNING *`,
+                [course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee, id]
+            );
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Fee structure not found' });
+            }
+            res.json(result.rows[0]);
+        } catch (error) {
+            console.error('Error updating fee structure:', error);
+            res.status(500).json({ message: 'Server error updating fee structure.' });
+        }
+    });
+
+    app.delete('/api/fee-structures/:id', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const result = await pool.query('DELETE FROM fee_structures WHERE id = $1 RETURNING id', [id]);
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Fee structure not found' });
+            }
+            res.json({ message: 'Fee structure deleted successfully' });
+        } catch (error) {
+            console.error('Error deleting fee structure:', error);
+            res.status(500).json({ message: 'Server error deleting fee structure.' });
+        }
+    });
+
+    // --- Demo Booking API Endpoints ---
+    app.get('/api/demo-bookings', async (req, res) => {
+        try {
+            const result = await pool.query('SELECT * FROM demo_bookings ORDER BY created_at DESC');
+            res.json(result.rows);
+        } catch (error) {
+            console.error('Error fetching demo bookings:', error);
+            res.status(500).json({ message: 'Server error fetching demo bookings.' });
+        }
+    });
+
+    app.get('/api/demo-bookings/stats', async (req, res) => {
+        try {
+            const result = await pool.query('SELECT status, created_at FROM demo_bookings');
+            res.json(result.rows);
+        } catch (error) {
+            console.error('Error fetching demo booking stats:', error);
+            res.status(500).json({ message: 'Server error fetching stats.' });
+        }
+    });
+
+    app.post('/api/demo-bookings', async (req, res) => {
+        try {
+            const { student_name, parent_name, email, phone, course, preferred_date, preferred_time, location, notes } = req.body;
+            const result = await pool.query(
+                `INSERT INTO demo_bookings (student_name, parent_name, email, phone, course, preferred_date, preferred_time, location, notes, status)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending') RETURNING *`,
+                [student_name, parent_name, email, phone, course, preferred_date, preferred_time, location, notes]
+            );
+            res.status(201).json(result.rows[0]);
+        } catch (error) {
+            console.error('Error creating demo booking:', error);
+            res.status(500).json({ message: 'Server error creating demo booking.' });
+        }
+    });
+
+    app.put('/api/demo-bookings/:id', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { status, scheduled_date, scheduled_time, assigned_teacher, notes } = req.body;
+            const result = await pool.query(
+                `UPDATE demo_bookings SET
+                    status = $1, scheduled_date = $2, scheduled_time = $3, assigned_teacher = $4, notes = $5, updated_at = NOW()
+                 WHERE id = $6 RETURNING *`,
+                [status, scheduled_date, scheduled_time, assigned_teacher, notes, id]
+            );
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Demo booking not found' });
+            }
+            res.json(result.rows[0]);
+        } catch (error) {
+            console.error('Error updating demo booking:', error);
+            res.status(500).json({ message: 'Server error updating demo booking.' });
+        }
+    });
+
+    app.delete('/api/demo-bookings/:id', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const result = await pool.query('DELETE FROM demo_bookings WHERE id = $1 RETURNING id', [id]);
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Demo booking not found' });
+            }
+            res.json({ message: 'Demo booking deleted successfully' });
+        } catch (error) {
+            console.error('Error deleting demo booking:', error);
+            res.status(500).json({ message: 'Server error deleting demo booking.' });
+        }
+    });
+
+    // --- Event API Endpoints ---
+    app.get('/api/events', async (req, res) => {
+        try {
+            const { isPublic } = req.query;
+            let query = 'SELECT * FROM events WHERE is_active = true';
+            if (isPublic === 'true') {
+                query += ' AND is_public = true';
+            }
+            query += ' ORDER BY event_date DESC';
+            const result = await pool.query(query);
+            res.json(result.rows);
+        } catch (error) {
+            console.error('Error fetching events:', error);
+            res.status(500).json({ message: 'Server error fetching events.' });
+        }
+    });
+
+    app.post('/api/events', async (req, res) => {
+        try {
+            const { title, description, event_date, event_time, location, is_public, recipient_ids, image_url } = req.body;
+            const result = await pool.query(
+                `INSERT INTO events (title, description, event_date, event_time, location, is_public, recipient_ids, image_url)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+                [title, description, event_date, event_time, location, is_public || false, recipient_ids || [], image_url]
+            );
+            res.status(201).json(result.rows[0]);
+        } catch (error) {
+            console.error('Error creating event:', error);
+            res.status(500).json({ message: 'Server error creating event.' });
+        }
+    });
+
+    app.put('/api/events/:id', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { title, description, event_date, event_time, location, is_public, recipient_ids, image_url } = req.body;
+            const result = await pool.query(
+                `UPDATE events SET
+                    title = $1, description = $2, event_date = $3, event_time = $4,
+                    location = $5, is_public = $6, recipient_ids = $7, image_url = $8, updated_at = NOW()
+                 WHERE id = $9 RETURNING *`,
+                [title, description, event_date, event_time, location, is_public, recipient_ids, image_url, id]
+            );
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Event not found' });
+            }
+            res.json(result.rows[0]);
+        } catch (error) {
+            console.error('Error updating event:', error);
+            res.status(500).json({ message: 'Server error updating event.' });
+        }
+    });
+
+    app.delete('/api/events/:id', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const result = await pool.query('DELETE FROM events WHERE id = $1 RETURNING id', [id]);
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Event not found' });
+            }
+            res.json({ message: 'Event deleted successfully' });
+        } catch (error) {
+            console.error('Error deleting event:', error);
+            res.status(500).json({ message: 'Server error deleting event.' });
+        }
+    });
+
+    // --- Grade Exam API Endpoints ---
+    app.get('/api/grade-exams', async (req, res) => {
+        try {
+            const result = await pool.query('SELECT * FROM grade_exams ORDER BY exam_date DESC');
+            res.json(result.rows);
+        } catch (error) {
+            console.error('Error fetching grade exams:', error);
+            res.status(500).json({ message: 'Server error fetching grade exams.' });
+        }
+    });
+
+    app.post('/api/grade-exams', async (req, res) => {
+        try {
+            const { exam_name, course, exam_date, exam_time, location, syllabus, recipient_ids } = req.body;
+            const result = await pool.query(
+                `INSERT INTO grade_exams (exam_name, course, exam_date, exam_time, location, syllabus, recipient_ids)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+                [exam_name, course, exam_date, exam_time, location, syllabus, recipient_ids || []]
+            );
+            res.status(201).json(result.rows[0]);
+        } catch (error) {
+            console.error('Error creating grade exam:', error);
+            res.status(500).json({ message: 'Server error creating grade exam.' });
+        }
+    });
+
+    app.put('/api/grade-exams/:id', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { exam_name, course, exam_date, exam_time, location, syllabus, recipient_ids } = req.body;
+            const result = await pool.query(
+                `UPDATE grade_exams SET
+                    exam_name = $1, course = $2, exam_date = $3, exam_time = $4,
+                    location = $5, syllabus = $6, recipient_ids = $7, updated_at = NOW()
+                 WHERE id = $8 RETURNING *`,
+                [exam_name, course, exam_date, exam_time, location, syllabus, recipient_ids, id]
+            );
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Grade exam not found' });
+            }
+            res.json(result.rows[0]);
+        } catch (error) {
+            console.error('Error updating grade exam:', error);
+            res.status(500).json({ message: 'Server error updating grade exam.' });
+        }
+    });
+
+    app.delete('/api/grade-exams/:id', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const result = await pool.query('DELETE FROM grade_exams WHERE id = $1 RETURNING id', [id]);
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Grade exam not found' });
+            }
+            res.json({ message: 'Grade exam deleted successfully' });
+        } catch (error) {
+            console.error('Error deleting grade exam:', error);
+            res.status(500).json({ message: 'Server error deleting grade exam.' });
+        }
+    });
+
+    // --- Book Materials API Endpoints ---
+    app.get('/api/book-materials', async (req, res) => {
+        try {
+            const result = await pool.query('SELECT * FROM book_materials ORDER BY created_at DESC');
+            res.json(result.rows);
+        } catch (error) {
+            console.error('Error fetching book materials:', error);
+            res.status(500).json({ message: 'Server error fetching book materials.' });
+        }
+    });
+
+    app.post('/api/book-materials', async (req, res) => {
+        try {
+            const { title, description, course, file_url, file_type, recipient_ids } = req.body;
+            const result = await pool.query(
+                `INSERT INTO book_materials (title, description, course, file_url, file_type, recipient_ids)
+                 VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+                [title, description, course, file_url, file_type, recipient_ids || []]
+            );
+            res.status(201).json(result.rows[0]);
+        } catch (error) {
+            console.error('Error creating book material:', error);
+            res.status(500).json({ message: 'Server error creating book material.' });
+        }
+    });
+
+    app.put('/api/book-materials/:id', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { title, description, course, file_url, file_type, recipient_ids } = req.body;
+            const result = await pool.query(
+                `UPDATE book_materials SET
+                    title = $1, description = $2, course = $3, file_url = $4, file_type = $5, recipient_ids = $6, updated_at = NOW()
+                 WHERE id = $7 RETURNING *`,
+                [title, description, course, file_url, file_type, recipient_ids, id]
+            );
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Book material not found' });
+            }
+            res.json(result.rows[0]);
+        } catch (error) {
+            console.error('Error updating book material:', error);
+            res.status(500).json({ message: 'Server error updating book material.' });
+        }
+    });
+
+    app.delete('/api/book-materials/:id', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const result = await pool.query('DELETE FROM book_materials WHERE id = $1 RETURNING id', [id]);
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Book material not found' });
+            }
+            res.json({ message: 'Book material deleted successfully' });
+        } catch (error) {
+            console.error('Error deleting book material:', error);
+            res.status(500).json({ message: 'Server error deleting book material.' });
+        }
+    });
+
+    // --- Notice API Endpoints ---
+    app.get('/api/notices', async (req, res) => {
+        try {
+            const result = await pool.query('SELECT * FROM notices ORDER BY created_at DESC');
+            res.json(result.rows);
+        } catch (error) {
+            console.error('Error fetching notices:', error);
+            res.status(500).json({ message: 'Server error fetching notices.' });
+        }
+    });
+
+    app.post('/api/notices', async (req, res) => {
+        try {
+            const { title, content, priority, expiry_date, recipient_ids } = req.body;
+            const result = await pool.query(
+                `INSERT INTO notices (title, content, priority, expiry_date, recipient_ids)
+                 VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+                [title, content, priority || 'normal', expiry_date, recipient_ids || []]
+            );
+            res.status(201).json(result.rows[0]);
+        } catch (error) {
+            console.error('Error creating notice:', error);
+            res.status(500).json({ message: 'Server error creating notice.' });
+        }
+    });
+
+    app.put('/api/notices/:id', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { title, content, priority, expiry_date, recipient_ids } = req.body;
+            const result = await pool.query(
+                `UPDATE notices SET
+                    title = $1, content = $2, priority = $3, expiry_date = $4, recipient_ids = $5, updated_at = NOW()
+                 WHERE id = $6 RETURNING *`,
+                [title, content, priority, expiry_date, recipient_ids, id]
+            );
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Notice not found' });
+            }
+            res.json(result.rows[0]);
+        } catch (error) {
+            console.error('Error updating notice:', error);
+            res.status(500).json({ message: 'Server error updating notice.' });
+        }
+    });
+
+    app.delete('/api/notices/:id', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const result = await pool.query('DELETE FROM notices WHERE id = $1 RETURNING id', [id]);
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Notice not found' });
+            }
+            res.json({ message: 'Notice deleted successfully' });
+        } catch (error) {
+            console.error('Error deleting notice:', error);
+            res.status(500).json({ message: 'Server error deleting notice.' });
+        }
+    });
+
+    // --- Event Response API Endpoints ---
+    app.get('/api/event-responses/:eventId', async (req, res) => {
+        try {
+            const { eventId } = req.params;
+            const result = await pool.query(
+                'SELECT * FROM event_responses WHERE event_id = $1',
+                [eventId]
+            );
+            res.json(result.rows);
+        } catch (error) {
+            console.error('Error fetching event responses:', error);
+            res.status(500).json({ message: 'Server error fetching event responses.' });
+        }
+    });
+
+    app.get('/api/event-responses/:eventId/user/:userId', async (req, res) => {
+        try {
+            const { eventId, userId } = req.params;
+            const result = await pool.query(
+                'SELECT response, response_message FROM event_responses WHERE event_id = $1 AND user_id = $2',
+                [eventId, userId]
+            );
+            if (result.rows.length === 0) {
+                return res.json(null);
+            }
+            res.json(result.rows[0]);
+        } catch (error) {
+            console.error('Error fetching event response:', error);
+            res.status(500).json({ message: 'Server error fetching event response.' });
+        }
+    });
+
+    app.post('/api/event-responses', async (req, res) => {
+        try {
+            const { event_id, user_id, response, response_message } = req.body;
+            const result = await pool.query(
+                `INSERT INTO event_responses (event_id, user_id, response, response_message)
+                 VALUES ($1, $2, $3, $4)
+                 ON CONFLICT (event_id, user_id) DO UPDATE SET
+                    response = $3, response_message = $4, updated_at = NOW()
+                 RETURNING *`,
+                [event_id, user_id, response, response_message]
+            );
+            res.status(201).json(result.rows[0]);
+        } catch (error) {
+            console.error('Error submitting event response:', error);
+            res.status(500).json({ message: 'Server error submitting response.' });
+        }
+    });
+
+    // --- Event Notification API Endpoints ---
+    app.get('/api/event-notifications/:userId', async (req, res) => {
+        try {
+            const { userId } = req.params;
+            const result = await pool.query(
+                `SELECT en.*, e.title as event_title, e.event_date, e.location
+                 FROM event_notifications en
+                 JOIN events e ON en.event_id = e.id
+                 WHERE en.user_id = $1
+                 ORDER BY en.created_at DESC`,
+                [userId]
+            );
+            res.json(result.rows);
+        } catch (error) {
+            console.error('Error fetching event notifications:', error);
+            res.status(500).json({ message: 'Server error fetching event notifications.' });
+        }
+    });
+
+    app.put('/api/event-notifications/:id/mark-read', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const result = await pool.query(
+                'UPDATE event_notifications SET is_read = true WHERE id = $1 RETURNING *',
+                [id]
+            );
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Event notification not found' });
+            }
+            res.json(result.rows[0]);
+        } catch (error) {
+            console.error('Error marking event notification as read:', error);
+            res.status(500).json({ message: 'Server error updating event notification.' });
+        }
+    });
+
+    // --- Location Management API Endpoints ---
+    app.post('/api/locations', async (req, res) => {
+        try {
+            const { name, address, city, state, postal_code, country, phone, email, is_active } = req.body;
+            const result = await pool.query(
+                `INSERT INTO locations (name, address, city, state, postal_code, country, phone, email, is_active)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+                [name, address, city, state, postal_code, country, phone, email, is_active !== false]
+            );
+            res.status(201).json(result.rows[0]);
+        } catch (error) {
+            console.error('Error creating location:', error);
+            res.status(500).json({ message: 'Server error creating location.' });
+        }
+    });
+
+    app.put('/api/locations/:id', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { name, address, city, state, postal_code, country, phone, email, is_active } = req.body;
+            const result = await pool.query(
+                `UPDATE locations SET
+                    name = $1, address = $2, city = $3, state = $4, postal_code = $5,
+                    country = $6, phone = $7, email = $8, is_active = $9, updated_at = NOW()
+                 WHERE id = $10 RETURNING *`,
+                [name, address, city, state, postal_code, country, phone, email, is_active, id]
+            );
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Location not found' });
+            }
+            res.json(result.rows[0]);
+        } catch (error) {
+            console.error('Error updating location:', error);
+            res.status(500).json({ message: 'Server error updating location.' });
+        }
+    });
+
+    app.delete('/api/locations/:id', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const result = await pool.query('DELETE FROM locations WHERE id = $1 RETURNING id', [id]);
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Location not found' });
+            }
+            res.json({ message: 'Location deleted successfully' });
+        } catch (error) {
+            console.error('Error deleting location:', error);
+            res.status(500).json({ message: 'Server error deleting location.' });
+        }
+    });
+
     // --- Serve Static Files (React Frontend) ---
     const distPath = path.join(__dirname, '..', 'dist');
     app.use(express.static(distPath));
