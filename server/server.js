@@ -42,50 +42,60 @@ async function startServer() {
     // --- Auto Schema Migration ---
     const autoMigrateSchema = async () => {
         console.log('[DB] Running auto schema migration...');
-        try {
-            // Fix users table
-            await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT false');
-            await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS class_preference VARCHAR(20) DEFAULT \'Hybrid\'');
-            await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
 
-            // Fix events table
-            await pool.query('ALTER TABLE events ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true');
-            await pool.query('ALTER TABLE events ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT false');
-            await pool.query('ALTER TABLE events ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
-            await pool.query('ALTER TABLE events ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
+        const addColumn = async (table, column, definition) => {
+            try {
+                await pool.query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${column} ${definition}`);
+                console.log(`[DB] ✓ Added ${table}.${column}`);
+                return true;
+            } catch (error) {
+                console.error(`[DB] ✗ Failed to add ${table}.${column}:`, error.message);
+                return false;
+            }
+        };
 
-            // Fix grade_exams table
-            await pool.query('ALTER TABLE grade_exams ADD COLUMN IF NOT EXISTS exam_date DATE');
-            await pool.query('ALTER TABLE grade_exams ADD COLUMN IF NOT EXISTS exam_time TIME');
-            await pool.query('ALTER TABLE grade_exams ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
-            await pool.query('ALTER TABLE grade_exams ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
+        let successCount = 0;
+        let failCount = 0;
 
-            // Fix locations table
-            await pool.query('ALTER TABLE locations ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true');
-            await pool.query('ALTER TABLE locations ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
-            await pool.query('ALTER TABLE locations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
+        // Fix users table
+        if (await addColumn('users', 'is_deleted', 'BOOLEAN DEFAULT false')) successCount++; else failCount++;
+        if (await addColumn('users', 'class_preference', "VARCHAR(20) DEFAULT 'Hybrid'")) successCount++; else failCount++;
+        if (await addColumn('users', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
 
-            // Add timestamps to other tables
-            await pool.query('ALTER TABLE batches ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
-            await pool.query('ALTER TABLE batches ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
-            await pool.query('ALTER TABLE courses ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
-            await pool.query('ALTER TABLE courses ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
-            await pool.query('ALTER TABLE fee_structures ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
-            await pool.query('ALTER TABLE fee_structures ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
-            await pool.query('ALTER TABLE demo_bookings ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
-            await pool.query('ALTER TABLE demo_bookings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
-            await pool.query('ALTER TABLE book_materials ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
-            await pool.query('ALTER TABLE book_materials ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
-            await pool.query('ALTER TABLE notices ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
-            await pool.query('ALTER TABLE notices ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
-            await pool.query('ALTER TABLE invoices ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
-            await pool.query('ALTER TABLE invoices ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
+        // Fix events table
+        if (await addColumn('events', 'is_active', 'BOOLEAN DEFAULT true')) successCount++; else failCount++;
+        if (await addColumn('events', 'is_public', 'BOOLEAN DEFAULT false')) successCount++; else failCount++;
+        if (await addColumn('events', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+        if (await addColumn('events', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
 
-            console.log('[DB] ✅ Schema migration completed successfully!');
-        } catch (error) {
-            console.error('[DB] Schema migration error:', error.message);
-            // Don't exit - let the app continue, errors might be due to columns already existing
-        }
+        // Fix grade_exams table
+        if (await addColumn('grade_exams', 'exam_date', 'DATE')) successCount++; else failCount++;
+        if (await addColumn('grade_exams', 'exam_time', 'TIME')) successCount++; else failCount++;
+        if (await addColumn('grade_exams', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+        if (await addColumn('grade_exams', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+
+        // Fix locations table
+        if (await addColumn('locations', 'is_active', 'BOOLEAN DEFAULT true')) successCount++; else failCount++;
+        if (await addColumn('locations', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+        if (await addColumn('locations', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+
+        // Add timestamps to other tables
+        if (await addColumn('batches', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+        if (await addColumn('batches', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+        if (await addColumn('courses', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+        if (await addColumn('courses', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+        if (await addColumn('fee_structures', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+        if (await addColumn('fee_structures', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+        if (await addColumn('demo_bookings', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+        if (await addColumn('demo_bookings', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+        if (await addColumn('book_materials', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+        if (await addColumn('book_materials', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+        if (await addColumn('notices', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+        if (await addColumn('notices', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+        if (await addColumn('invoices', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+        if (await addColumn('invoices', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+
+        console.log(`[DB] ✅ Schema migration completed! Success: ${successCount}, Failed: ${failCount}`);
     };
 
     // Run auto-migration
