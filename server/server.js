@@ -69,22 +69,16 @@ async function startServer() {
         const currentSchema = schemaCheck.rows[0].current_schema;
 
         const columnExists = async (table, column) => {
-            // First check all schemas to see where this column might exist
-            const allSchemas = await pool.query(
-                `SELECT table_schema, column_name FROM information_schema.columns
-                 WHERE table_name = $1 AND column_name = $2`,
-                [table, column]
-            );
-            if (allSchemas.rows.length > 0) {
-                console.log(`[DB]   Found ${table}.${column} in schemas:`, allSchemas.rows.map(r => r.table_schema).join(', '));
-            }
+            // Use pg_catalog instead of information_schema (which is stale/cached)
+            const result = await pool.query(`
+                SELECT a.attname as column_name
+                FROM pg_catalog.pg_attribute a
+                JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
+                JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
+                WHERE c.relname = $1 AND n.nspname = $2 AND a.attname = $3
+                AND a.attnum > 0 AND NOT a.attisdropped
+            `, [table, currentSchema, column]);
 
-            // Now check our current schema
-            const result = await pool.query(
-                `SELECT column_name FROM information_schema.columns
-                 WHERE table_schema = $1 AND table_name = $2 AND column_name = $3`,
-                [currentSchema, table, column]
-            );
             return result.rows.length > 0;
         };
 
