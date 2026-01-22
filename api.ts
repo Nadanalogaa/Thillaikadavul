@@ -73,30 +73,29 @@ const CACHE_DURATION = 30000; // 30 seconds
 export const checkEmailExists = async (email: string): Promise<{ exists: boolean }> => {
   try {
     const normalizedEmail = email.toLowerCase().trim();
-    
+
     // Check cache first
     const cached = emailCache.get(normalizedEmail);
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
       return { exists: cached.exists };
     }
 
-    const { data, error } = await supabase
-      .from('users')
-      .select('email')
-      .eq('email', normalizedEmail)
-      .eq('is_deleted', false)
-      .limit(1);
+    // Use backend API instead of Supabase directly
+    const response = await fetch('/api/check-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: normalizedEmail })
+    });
 
-    if (error) {
-      console.error('Error checking email:', error);
+    if (!response.ok) {
       throw new Error('Failed to check email availability');
     }
 
-    const exists = data && data.length > 0;
-    
+    const { exists } = await response.json();
+
     // Cache the result
     emailCache.set(normalizedEmail, { exists, timestamp: Date.now() });
-    
+
     return { exists };
   } catch (error) {
     console.error('Error in checkEmailExists:', error);

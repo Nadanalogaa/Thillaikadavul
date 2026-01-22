@@ -246,6 +246,27 @@ async function startServer() {
         res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
     });
 
+    // Check if email exists (for registration validation)
+    app.post('/api/check-email', async (req, res) => {
+        try {
+            const { email } = req.body;
+            if (!email) {
+                return res.status(400).json({ message: 'Email is required.' });
+            }
+
+            const normalizedEmail = email.toLowerCase().trim();
+            const result = await pool.query(
+                'SELECT id FROM users WHERE email = $1 AND is_deleted = false LIMIT 1',
+                [normalizedEmail]
+            );
+
+            res.json({ exists: result.rows.length > 0 });
+        } catch (error) {
+            console.error('Error checking email:', error);
+            res.status(500).json({ message: 'Server error checking email.' });
+        }
+    });
+
     // --- API Routes ---
     app.post('/api/register', async (req, res) => {
         try {
