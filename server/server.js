@@ -39,6 +39,58 @@ async function startServer() {
         process.exit(1);
     }
 
+    // --- Auto Schema Migration ---
+    const autoMigrateSchema = async () => {
+        console.log('[DB] Running auto schema migration...');
+        try {
+            // Fix users table
+            await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT false');
+            await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS class_preference VARCHAR(20) DEFAULT \'Hybrid\'');
+            await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
+
+            // Fix events table
+            await pool.query('ALTER TABLE events ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true');
+            await pool.query('ALTER TABLE events ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT false');
+            await pool.query('ALTER TABLE events ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
+            await pool.query('ALTER TABLE events ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
+
+            // Fix grade_exams table
+            await pool.query('ALTER TABLE grade_exams ADD COLUMN IF NOT EXISTS exam_date DATE');
+            await pool.query('ALTER TABLE grade_exams ADD COLUMN IF NOT EXISTS exam_time TIME');
+            await pool.query('ALTER TABLE grade_exams ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
+            await pool.query('ALTER TABLE grade_exams ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
+
+            // Fix locations table
+            await pool.query('ALTER TABLE locations ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true');
+            await pool.query('ALTER TABLE locations ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
+            await pool.query('ALTER TABLE locations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
+
+            // Add timestamps to other tables
+            await pool.query('ALTER TABLE batches ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
+            await pool.query('ALTER TABLE batches ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
+            await pool.query('ALTER TABLE courses ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
+            await pool.query('ALTER TABLE courses ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
+            await pool.query('ALTER TABLE fee_structures ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
+            await pool.query('ALTER TABLE fee_structures ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
+            await pool.query('ALTER TABLE demo_bookings ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
+            await pool.query('ALTER TABLE demo_bookings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
+            await pool.query('ALTER TABLE book_materials ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
+            await pool.query('ALTER TABLE book_materials ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
+            await pool.query('ALTER TABLE notices ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
+            await pool.query('ALTER TABLE notices ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
+            await pool.query('ALTER TABLE invoices ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
+            await pool.query('ALTER TABLE invoices ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
+
+            console.log('[DB] ✅ Schema migration completed successfully!');
+        } catch (error) {
+            console.error('[DB] Schema migration error:', error.message);
+            // Don't exit - let the app continue, errors might be due to columns already existing
+        }
+    };
+
+    // Run auto-migration
+    await autoMigrateSchema();
+
     // --- Database Seeding Function ---
     const seedCourses = async () => {
         try {

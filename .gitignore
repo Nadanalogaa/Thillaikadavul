@@ -84,4 +84,5 @@ ehthumbs.db
 Thumbs.db
 
 # Local development
-.vite/
+.vite/dist.tar.gz
+supabase_backup.sql.gz
