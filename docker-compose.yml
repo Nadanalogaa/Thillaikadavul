@@ -83,6 +83,39 @@ services:
     networks:
       - nadanaloga-network
 
+  # One-time database restore (runs when RESTORE_ON_START=true)
+  restore:
+    image: postgres:15-alpine
+    container_name: nadanaloga-${BRANCH_NAME:-main}-restore
+    restart: "no"
+    environment:
+      POSTGRES_USER: nadanaloga_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-SecurePassword123!}
+      POSTGRES_DB: nadanaloga
+      RESTORE_ON_START: ${RESTORE_ON_START:-false}
+    volumes:
+      - ./supabase_backup.sql:/backup/supabase_backup.sql:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - nadanaloga-network
+    command: >
+      sh -c "
+        if [ \"$$RESTORE_ON_START\" != \"true\" ]; then
+          echo '[restore] RESTORE_ON_START is false. Skipping.';
+          exit 0;
+        fi;
+        echo '[restore] Waiting for postgres...';
+        until pg_isready -h postgres -U $$POSTGRES_USER -d $$POSTGRES_DB; do sleep 2; done;
+        echo '[restore] Dropping and recreating database...';
+        psql -h postgres -U $$POSTGRES_USER -d postgres -c 'DROP DATABASE IF EXISTS nadanaloga;';
+        psql -h postgres -U $$POSTGRES_USER -d postgres -c 'CREATE DATABASE nadanaloga;';
+        echo '[restore] Restoring backup...';
+        psql -h postgres -U $$POSTGRES_USER -d nadanaloga -f /backup/supabase_backup.sql;
+        echo '[restore] Restore complete.';
+      "
+
 volumes:
   postgres_data:
     name: nadanaloga-${BRANCH_NAME:-main}-postgres-data
