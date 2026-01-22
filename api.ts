@@ -765,21 +765,23 @@ export const updateUserProfile = async (userData: Partial<User>): Promise<User> 
 // Admin functions
 export const getAdminStats = async (): Promise<DashboardStats> => {
   try {
-    const { data: users, error } = await supabase
-      .from('users')
-      .select('role, class_preference')
-      .eq('is_deleted', false);
+    const response = await fetch('/api/stats/admin', {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error fetching admin stats:', error);
+    if (!response.ok) {
+      console.error('Error fetching admin stats:', response.statusText);
       return { totalUsers: 0, studentCount: 0, teacherCount: 0, onlinePreference: 0, offlinePreference: 0 };
     }
+
+    const users = await response.json();
 
     const studentCount = users?.filter((u: any) => u.role === 'Student').length || 0;
     const teacherCount = users?.filter((u: any) => u.role === 'Teacher').length || 0;
     const onlinePreference = users?.filter((u: any) => u.class_preference === 'Online').length || 0;
     const offlinePreference = users?.filter((u: any) => u.class_preference === 'Offline').length || 0;
-    
+
     return {
       totalUsers: users?.length || 0,
       studentCount,
@@ -795,18 +797,19 @@ export const getAdminStats = async (): Promise<DashboardStats> => {
 
 export const getAdminUsers = async (): Promise<User[]> => {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('is_deleted', false)
-      .order('created_at', { ascending: false });
+    const response = await fetch('/api/users', {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error fetching admin users:', error);
+    if (!response.ok) {
+      console.error('Error fetching admin users:', response.statusText);
       return [];
     }
 
-    return (data || []).map(user => ({
+    const data = await response.json();
+
+    return (data || []).map((user: any) => ({
       id: user.id,
       name: user.name,
       email: user.email,
@@ -1429,39 +1432,45 @@ export const deleteCourseByAdmin = async (courseId: string): Promise<void> => {
 // Batch functions
 export const getBatches = async (): Promise<Batch[]> => {
   try {
-    // First try to get just the basic batch data
-    const { data, error } = await supabase
-      .from('batches')
-      .select('*')
-      .order('created_at', { ascending: false });
+    // First get the basic batch data
+    const batchResponse = await fetch('/api/batches', {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error fetching batches:', error);
-      // If table doesn't exist, return empty array
-      if (error.message.includes('relation') && error.message.includes('does not exist')) {
-        console.log('Batches table does not exist yet. Run the schema_complete_fix.sql script.');
-        return [];
-      }
+    if (!batchResponse.ok) {
+      console.error('Error fetching batches:', batchResponse.statusText);
       return [];
     }
 
-    // Get courses and users for mapping names
-    const [coursesResult, usersResult] = await Promise.allSettled([
-      supabase.from('courses').select('id, name'),
-      supabase.from('users').select('id, name, role').eq('role', 'Teacher').eq('is_deleted', false)
+    const data = await batchResponse.json();
+
+    // Get courses and teachers for mapping names
+    const [coursesResponse, teachersResponse] = await Promise.allSettled([
+      fetch('/api/courses', { method: 'GET', credentials: 'include' }),
+      fetch('/api/users?role=Teacher', { method: 'GET', credentials: 'include' })
     ]);
 
-    const courses = coursesResult.status === 'fulfilled' ? coursesResult.value.data || [] : [];
-    const teachers = usersResult.status === 'fulfilled' ? usersResult.value.data || [] : [];
+    let courses: any[] = [];
+    let teachers: any[] = [];
 
-    return (data || []).map(batch => ({
+    if (coursesResponse.status === 'fulfilled' && coursesResponse.value.ok) {
+      courses = await coursesResponse.value.json();
+    }
+
+    if (teachersResponse.status === 'fulfilled' && teachersResponse.value.ok) {
+      const allTeachers = await teachersResponse.value.json();
+      teachers = allTeachers.filter((u: any) => u.role === 'Teacher' && !u.is_deleted);
+    }
+
+    return (data || []).map((batch: any) => ({
       id: batch.id,
       name: batch.name,
       description: batch.description,
       courseId: batch.course_id,
-      courseName: courses.find(c => c.id === batch.course_id)?.name || 'Unknown Course',
+      courseName: courses.find((c: any) => c.id === batch.course_id)?.name || 'Unknown Course',
       teacherId: batch.teacher_id,
-      teacherName: teachers.find(t => t.id === batch.teacher_id)?.name || 'Unassigned',
+      teacherName: teachers.find((t: any) => t.id === batch.teacher_id)?.name || 'Unassigned',
       schedule: batch.schedule || [],
       capacity: batch.capacity,
       enrolled: batch.enrolled || 0,
@@ -1803,17 +1812,19 @@ export const markNotificationAsRead = async (notificationId: string): Promise<No
 // Fee management functions
 export const getFeeStructures = async (): Promise<FeeStructure[]> => {
   try {
-    const { data, error } = await supabase
-      .from('fee_structures')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const response = await fetch('/api/fee-structures', {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error fetching fee structures:', error);
+    if (!response.ok) {
+      console.error('Error fetching fee structures:', response.statusText);
       return [];
     }
 
-    return (data || []).map(fee => ({
+    const data = await response.json();
+
+    return (data || []).map((fee: any) => ({
       id: fee.id,
       courseId: fee.course_id,
       courseName: fee.course_name,
