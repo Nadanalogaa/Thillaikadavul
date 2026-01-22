@@ -71,7 +71,7 @@ async function startServer() {
         const columnExists = async (table, column) => {
             // Use pg_catalog instead of information_schema (which is stale/cached)
             const result = await pool.query(`
-                SELECT a.attname as column_name
+                SELECT a.attname as column_name, c.relname as table_name, n.nspname as schema_name
                 FROM pg_catalog.pg_attribute a
                 JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
                 JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
@@ -79,7 +79,18 @@ async function startServer() {
                 AND a.attnum > 0 AND NOT a.attisdropped
             `, [table, currentSchema, column]);
 
-            return result.rows.length > 0;
+            const exists = result.rows.length > 0;
+            if (table === 'users' && column === 'updated_at') {
+                console.log(`[DB]   DEBUG columnExists(users, updated_at):`, {
+                    table,
+                    currentSchema,
+                    column,
+                    rowsFound: result.rows.length,
+                    exists,
+                    rows: result.rows
+                });
+            }
+            return exists;
         };
 
         const addColumn = async (table, column, definition) => {
