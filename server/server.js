@@ -1129,6 +1129,13 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // --- User Management API Endpoints ---
+    // Helper function to parse JSON fields in user data
+    const parseUserData = (user) => ({
+        ...user,
+        courses: typeof user.courses === 'string' ? JSON.parse(user.courses || '[]') : (user.courses || []),
+        course_expertise: typeof user.course_expertise === 'string' ? JSON.parse(user.course_expertise || '[]') : (user.course_expertise || [])
+    });
+
     // Get all non-deleted users
     app.get('/api/users', async (req, res) => {
         try {
@@ -1147,7 +1154,8 @@ Please review and approve this registration in the admin panel.`;
 
             query += ' ORDER BY created_at DESC';
             const result = await pool.query(query, params);
-            res.json(result.rows);
+            const users = result.rows.map(parseUserData);
+            res.json(users);
         } catch (error) {
             console.error('Error fetching users:', error);
             res.status(500).json({ message: 'Server error fetching users.' });
@@ -1162,7 +1170,7 @@ Please review and approve this registration in the admin panel.`;
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: 'User not found' });
             }
-            res.json(result.rows[0]);
+            res.json(parseUserData(result.rows[0]));
         } catch (error) {
             console.error('Error fetching user:', error);
             res.status(500).json({ message: 'Server error fetching user.' });
@@ -1238,7 +1246,8 @@ Please review and approve this registration in the admin panel.`;
     app.get('/api/users/trashed/all', async (req, res) => {
         try {
             const result = await pool.query('SELECT * FROM users WHERE is_deleted = true ORDER BY updated_at DESC');
-            res.json(result.rows);
+            const users = result.rows.map(parseUserData);
+            res.json(users);
         } catch (error) {
             console.error('Error fetching trashed users:', error);
             res.status(500).json({ message: 'Server error fetching trashed users.' });
@@ -1310,10 +1319,17 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // --- Batch Management API Endpoints ---
+    // Helper function to parse JSON fields in batch data
+    const parseBatchData = (batch) => ({
+        ...batch,
+        schedule: typeof batch.schedule === 'string' ? JSON.parse(batch.schedule || '[]') : (batch.schedule || [])
+    });
+
     app.get('/api/batches', async (req, res) => {
         try {
             const result = await pool.query('SELECT * FROM batches ORDER BY created_at DESC');
-            res.json(result.rows);
+            const batches = result.rows.map(parseBatchData);
+            res.json(batches);
         } catch (error) {
             console.error('Error fetching batches:', error);
             res.status(500).json({ message: 'Server error fetching batches.' });
@@ -1330,7 +1346,7 @@ Please review and approve this registration in the admin panel.`;
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
                 [batch_name, course_id, teacher_id, JSON.stringify(schedule), start_date, end_date, max_students, student_ids || [], mode]
             );
-            res.status(201).json(result.rows[0]);
+            res.status(201).json(parseBatchData(result.rows[0]));
         } catch (error) {
             console.error('Error creating batch:', error);
             res.status(500).json({ message: 'Server error creating batch.' });
@@ -1353,7 +1369,7 @@ Please review and approve this registration in the admin panel.`;
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: 'Batch not found' });
             }
-            res.json(result.rows[0]);
+            res.json(parseBatchData(result.rows[0]));
         } catch (error) {
             console.error('Error updating batch:', error);
             res.status(500).json({ message: 'Server error updating batch.' });
