@@ -47,12 +47,24 @@ async function startServer() {
         const schemaCheck = await pool.query('SELECT current_schema()');
         console.log('[DB] Current schema:', schemaCheck.rows[0].current_schema);
 
-        const actualColumns = await pool.query(`
-            SELECT column_name FROM information_schema.columns
+        // Check if users is a table or view
+        const tableType = await pool.query(`
+            SELECT table_type FROM information_schema.tables
             WHERE table_name = 'users' AND table_schema = current_schema()
-            ORDER BY ordinal_position
         `);
-        console.log('[DB] Actual columns in users table:', actualColumns.rows.map(r => r.column_name).join(', '));
+        console.log('[DB] users is a:', tableType.rows[0]?.table_type || 'NOT FOUND');
+
+        // Get columns using pg_catalog (more reliable than information_schema)
+        const directColumns = await pool.query(`
+            SELECT a.attname as column_name
+            FROM pg_catalog.pg_attribute a
+            JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
+            JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
+            WHERE c.relname = 'users' AND n.nspname = current_schema()
+            AND a.attnum > 0 AND NOT a.attisdropped
+            ORDER BY a.attnum
+        `);
+        console.log('[DB] Direct pg_catalog columns:', directColumns.rows.map(r => r.column_name).join(', '));
 
         const currentSchema = schemaCheck.rows[0].current_schema;
 
