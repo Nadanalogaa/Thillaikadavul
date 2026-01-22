@@ -443,7 +443,16 @@ async function startServer() {
                 ]
             );
 
-            res.status(201).json(result.rows[0]);
+            // Parse JSON fields before returning
+            const newUser = result.rows[0];
+            const parsedUser = {
+                ...newUser,
+                courses: typeof newUser.courses === 'string' ? JSON.parse(newUser.courses || '[]') : (newUser.courses || []),
+                course_expertise: typeof newUser.course_expertise === 'string' ? JSON.parse(newUser.course_expertise || '[]') : (newUser.course_expertise || [])
+            };
+            delete parsedUser.password;
+
+            res.status(201).json(parsedUser);
         } catch (error) {
             console.error('Registration error:', error);
             res.status(500).json({ message: 'Server error during registration.' });
@@ -454,19 +463,28 @@ async function startServer() {
         try {
             const { email, password } = req.body;
             const result = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase()]);
-            
+
             if (result.rows.length === 0) {
                 return res.status(401).json({ message: 'Invalid email or password.' });
             }
-            
+
             const user = result.rows[0];
             const isMatch = await bcrypt.compare(password, user.password);
             if (!isMatch) return res.status(401).json({ message: 'Invalid email or password.' });
-            
+
             delete user.password;
-            req.session.user = user;
-            res.json(user);
+
+            // Parse JSON fields before returning
+            const parsedUser = {
+                ...user,
+                courses: typeof user.courses === 'string' ? JSON.parse(user.courses || '[]') : (user.courses || []),
+                course_expertise: typeof user.course_expertise === 'string' ? JSON.parse(user.course_expertise || '[]') : (user.course_expertise || [])
+            };
+
+            req.session.user = parsedUser;
+            res.json(parsedUser);
         } catch (error) {
+            console.error('Login error:', error);
             res.status(500).json({ message: 'Server error during login.' });
         }
     });
