@@ -54,11 +54,13 @@ async function startServer() {
         `);
         console.log('[DB] Actual columns in users table:', actualColumns.rows.map(r => r.column_name).join(', '));
 
+        const currentSchema = schemaCheck.rows[0].current_schema;
+
         const columnExists = async (table, column) => {
             const result = await pool.query(
                 `SELECT column_name FROM information_schema.columns
-                 WHERE table_name = $1 AND column_name = $2 AND table_schema = current_schema()`,
-                [table, column]
+                 WHERE table_schema = $1 AND table_name = $2 AND column_name = $3`,
+                [currentSchema, table, column]
             );
             return result.rows.length > 0;
         };
