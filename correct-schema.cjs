@@ -5,6 +5,7 @@
  */
 
 const { Pool } = require('pg');
+const bcrypt = require('bcryptjs');
 
 const DB_PASSWORD = process.env.POSTGRES_PASSWORD || 'SecurePassword123!';
 
@@ -256,11 +257,12 @@ CREATE TABLE notifications (
 
     console.log('[3/3] Inserting sample data...');
 
-    // Insert admin user
+    // Insert admin user with properly hashed password (password: admin123)
+    const adminPassword = await bcrypt.hash('admin123', 10);
     await client.query(`
-        INSERT INTO users (name, email, password, role, status)
-        VALUES ('Admin', 'admin@nadanaloga.com', '$2a$10$rXzCHqJ8uZN5F3gFLWJzTe6F7gY5h0mJ4pJ5gF3gF3gF3gF3gF3gF', 'admin', 'active')
-    `);
+        INSERT INTO users (name, email, password, role, status, class_preference)
+        VALUES ('Admin', 'admin@nadanaloga.com', $1, 'Admin', 'active', 'Hybrid')
+    `, [adminPassword]);
 
     // Insert sample courses
     await client.query(`
