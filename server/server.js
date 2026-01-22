@@ -100,9 +100,17 @@ async function startServer() {
                 console.log(`[DB] ✓ Added ${table}.${column}`);
                 return true;
             } catch (error) {
+                // Log full error details for debugging
+                console.log(`[DB] Error adding ${table}.${column}:`, {
+                    code: error.code,
+                    message: error.message,
+                    detail: error.detail,
+                    hint: error.hint
+                });
+
                 // Check if error is "column already exists" (error code 42701)
                 if (error.code === '42701') {
-                    console.log(`[DB] ○ ${table}.${column} already exists`);
+                    console.log(`[DB] ○ ${table}.${column} already exists (42701)`);
                     return true;
                 } else {
                     console.error(`[DB] ✗ Failed to add ${table}.${column}:`, error.message);
@@ -153,6 +161,23 @@ async function startServer() {
         if (await addColumn('invoices', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
 
         console.log(`[DB] ✅ Schema migration completed! Success: ${successCount}, Failed: ${failCount}`);
+
+        // Verify final state - show users table columns after migration
+        console.log('[DB] FINAL VERIFICATION - Querying users columns after migration:');
+        const finalColumns = await pool.query(`
+            SELECT a.attname as column_name
+            FROM pg_catalog.pg_attribute a
+            JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
+            JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
+            WHERE c.relname = 'users' AND n.nspname = current_schema()
+            AND a.attnum > 0 AND NOT a.attisdropped
+            ORDER BY a.attnum
+        `);
+        console.log('[DB] Final users columns:', finalColumns.rows.map(r => r.column_name).join(', '));
+
+        // Check specifically for updated_at
+        const hasUpdatedAt = finalColumns.rows.some(r => r.column_name === 'updated_at');
+        console.log(`[DB] users.updated_at exists: ${hasUpdatedAt ? '✓ YES' : '✗ NO'}`);
     };
 
     // Run auto-migration
