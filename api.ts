@@ -126,16 +126,20 @@ export const loginUser = async (email: string, password: string): Promise<User> 
       return adminUser;
     }
 
-    // Check if user exists in database
-    const { data: users, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', normalizedEmail);
+    // Check if user exists in database using Express API
+    const response = await fetch('/api/users/by-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email: normalizedEmail })
+    });
 
-    if (error) {
-      console.error('Login query error:', error);
+    if (!response.ok) {
+      console.error('Login query error:', response.statusText);
       throw new Error('Login failed. Please try again.');
     }
+
+    const users = await response.json();
 
     if (!users || users.length === 0) {
       throw new Error('Invalid email or password. Please check your credentials or register first.');
@@ -229,16 +233,17 @@ export const refreshCurrentUser = async (): Promise<User | null> => {
 
   try {
     console.log('Refreshing user data from database for:', currentUser.email);
-    
-    const { data: users, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', currentUser.id);
 
-    if (error) {
-      console.error('Error refreshing user data:', error);
+    const response = await fetch(`/api/users/${currentUser.id}`, {
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      console.error('Error refreshing user data:', response.statusText);
       return currentUser; // Return cached data if refresh fails
     }
+
+    const users = await response.json();
 
     if (!users || users.length === 0) {
       console.warn('User not found in database during refresh');
@@ -384,13 +389,15 @@ const initializeBasicCourses = async (): Promise<Course[]> => {
   ];
 
   try {
-    const { data, error } = await supabase
-      .from('courses')
-      .insert(basicCourses)
-      .select();
+    const response = await fetch('/api/courses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(basicCourses)
+    });
 
-    if (error) {
-      console.error('Error initializing courses:', error);
+    if (!response.ok) {
+      console.error('Error initializing courses:', response.statusText);
       // Return basic courses with generated IDs as fallback
       return basicCourses.map((course, index) => ({
         id: `course-${index + 1}`,
@@ -399,6 +406,8 @@ const initializeBasicCourses = async (): Promise<Course[]> => {
         icon: course.icon
       }));
     }
+
+    const data = await response.json();
 
     return data.map(course => ({
       id: course.id,
@@ -591,52 +600,51 @@ export const registerUser = async (userData: Partial<User>[], sendEmails: boolea
 
           const result = await response.json();
           // Since backend returns userId, we need to fetch the complete user data
-          const { data: userData, error: fetchError } = await supabase
-            .from('users')
-            .select()
-            .eq('id', result.userId)
-            .single();
+          const userResponse = await fetch(`/api/users/${result.userId}`, {
+            credentials: 'include'
+          });
 
-          if (fetchError) {
+          if (!userResponse.ok) {
             throw new Error('Failed to fetch user data after registration');
           }
 
-          data = userData;
+          const userDataArray = await userResponse.json();
+          data = userDataArray[0];
           console.log('User registered with emails successfully:', data);
         } catch (backendError) {
-          console.error('Backend registration with emails failed, falling back to Supabase:', backendError);
-          // Fallback to direct Supabase registration
-          const { data: supabaseData, error } = await supabase
-            .from('users')
-            .insert([completeUserData])
-            .select()
-            .single();
+          console.error('Backend registration with emails failed, falling back to Express API:', backendError);
+          // Fallback to direct Express API registration
+          const fallbackResponse = await fetch('/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify([completeUserData])
+          });
 
-          if (error) {
-            console.error('Supabase registration error:', error);
-            throw new Error(`Registration failed: ${error.message}`);
+          if (!fallbackResponse.ok) {
+            const errorText = await fallbackResponse.text();
+            console.error('Express API registration error:', errorText);
+            throw new Error(`Registration failed: ${errorText}`);
           }
-          data = supabaseData;
+          const fallbackData = await fallbackResponse.json();
+          data = Array.isArray(fallbackData) ? fallbackData[0] : fallbackData;
         }
       } else {
-        // Direct Supabase registration for teachers or when emails are disabled
-        const { data: supabaseData, error } = await supabase
-          .from('users')
-          .insert([completeUserData])
-          .select()
-          .single();
+        // Direct Express API registration for teachers or when emails are disabled
+        const registerResponse = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify([completeUserData])
+        });
 
-        if (error) {
-          console.error('Registration error details:', {
-            message: error.message,
-            details: error.details,
-            hint: error.hint,
-            code: error.code,
-            userData: completeUserData
-          });
-          throw new Error(`Registration failed: ${error.message}. Details: ${error.details || 'No additional details'}`);
+        if (!registerResponse.ok) {
+          const errorText = await registerResponse.text();
+          console.error('Registration error details:', errorText);
+          throw new Error(`Registration failed: ${errorText}`);
         }
-        data = supabaseData;
+        const registerData = await registerResponse.json();
+        data = Array.isArray(registerData) ? registerData[0] : registerData;
 
         // Send registration emails for students via backend SMTP
         if (sendEmails && data.role === 'Student') {
@@ -736,19 +744,24 @@ export const registerAdmin = async (userData: Partial<User>): Promise<any> => {
       created_at: new Date().toISOString()
     };
 
-    const { data, error } = await supabase
-      .from('users')
-      .insert([adminData])
-      .select()
-      .single();
+    const response = await fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify([adminData])
+    });
 
-    if (error) {
-      console.error('Admin registration error:', error);
-      throw new Error(`Admin registration failed: ${error.message}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Admin registration error:', errorText);
+      throw new Error(`Admin registration failed: ${errorText}`);
     }
 
-    console.log('Admin registered successfully:', data);
-    return { message: 'Admin registration successful', admin: data };
+    const data = await response.json();
+    const admin = Array.isArray(data) ? data[0] : data;
+
+    console.log('Admin registered successfully:', admin);
+    return { message: 'Admin registration successful', admin };
   } catch (error) {
     console.error('Admin registration error:', error);
     throw error;
@@ -765,28 +778,17 @@ export const updateUserProfile = async (userData: Partial<User>): Promise<User> 
 // Admin functions
 export const getAdminStats = async (): Promise<DashboardStats> => {
   try {
-    const { data: users, error } = await supabase
-      .from('users')
-      .select('role, class_preference')
-      .eq('is_deleted', false);
+    const response = await fetch('/api/stats/admin', {
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error fetching admin stats:', error);
+    if (!response.ok) {
+      console.error('Error fetching admin stats:', response.statusText);
       return { totalUsers: 0, studentCount: 0, teacherCount: 0, onlinePreference: 0, offlinePreference: 0 };
     }
 
-    const studentCount = users?.filter((u: any) => u.role === 'Student').length || 0;
-    const teacherCount = users?.filter((u: any) => u.role === 'Teacher').length || 0;
-    const onlinePreference = users?.filter((u: any) => u.class_preference === 'Online').length || 0;
-    const offlinePreference = users?.filter((u: any) => u.class_preference === 'Offline').length || 0;
-    
-    return {
-      totalUsers: users?.length || 0,
-      studentCount,
-      teacherCount,
-      onlinePreference,
-      offlinePreference
-    };
+    const stats = await response.json();
+    return stats;
   } catch (error) {
     console.error('Error in getAdminStats:', error);
     return { totalUsers: 0, studentCount: 0, teacherCount: 0, onlinePreference: 0, offlinePreference: 0 };
@@ -795,16 +797,16 @@ export const getAdminStats = async (): Promise<DashboardStats> => {
 
 export const getAdminUsers = async (): Promise<User[]> => {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('is_deleted', false)
-      .order('created_at', { ascending: false });
+    const response = await fetch('/api/users', {
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error fetching admin users:', error);
+    if (!response.ok) {
+      console.error('Error fetching admin users:', response.statusText);
       return [];
     }
+
+    const data = await response.json();
 
     return (data || []).map(user => ({
       id: user.id,
@@ -836,16 +838,17 @@ export const getAdminUsers = async (): Promise<User[]> => {
 };
 export const getAdminUserById = async (userId: string): Promise<User> => {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .single();
+    const response = await fetch(`/api/users/${userId}`, {
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error fetching user by ID:', error);
-      throw new Error(`Failed to fetch user: ${error.message}`);
+    if (!response.ok) {
+      console.error('Error fetching user by ID:', response.statusText);
+      throw new Error(`Failed to fetch user: ${response.statusText}`);
     }
+
+    const users = await response.json();
+    const data = users[0];
 
     if (!data) {
       throw new Error('User not found');
@@ -1430,25 +1433,21 @@ export const deleteCourseByAdmin = async (courseId: string): Promise<void> => {
 export const getBatches = async (): Promise<Batch[]> => {
   try {
     // First try to get just the basic batch data
-    const { data, error } = await supabase
-      .from('batches')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const response = await fetch('/api/batches', {
+      credentials: 'include'
+    });
 
-    if (error) {
-      console.error('Error fetching batches:', error);
-      // If table doesn't exist, return empty array
-      if (error.message.includes('relation') && error.message.includes('does not exist')) {
-        console.log('Batches table does not exist yet. Run the schema_complete_fix.sql script.');
-        return [];
-      }
+    if (!response.ok) {
+      console.error('Error fetching batches:', response.statusText);
       return [];
     }
 
+    const data = await response.json();
+
     // Get courses and users for mapping names
     const [coursesResult, usersResult] = await Promise.allSettled([
-      supabase.from('courses').select('id, name'),
-      supabase.from('users').select('id, name, role').eq('role', 'Teacher').eq('is_deleted', false)
+      fetch('/api/courses', { credentials: 'include' }).then(r => r.ok ? r.json() : []).then(data => ({ status: 'fulfilled', value: { data } })).catch(() => ({ status: 'rejected', value: { data: [] } })),
+      fetch('/api/users', { credentials: 'include' }).then(r => r.ok ? r.json() : []).then(users => ({ status: 'fulfilled', value: { data: users.filter(u => u.role === 'Teacher' && !u.is_deleted) } })).catch(() => ({ status: 'rejected', value: { data: [] } }))
     ]);
 
     const courses = coursesResult.status === 'fulfilled' ? coursesResult.value.data || [] : [];
@@ -1488,16 +1487,19 @@ export const getUsersByIds = async (ids: string[]): Promise<User[]> => {
       return [];
     }
 
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .in('id', uniqueIds)
-      .eq('is_deleted', false);
+    const response = await fetch('/api/users/by-ids', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ ids: uniqueIds })
+    });
 
-    if (error) {
-      console.error('Error fetching users by IDs:', error);
+    if (!response.ok) {
+      console.error('Error fetching users by IDs:', response.statusText);
       return [];
     }
+
+    const data = await response.json();
 
     return (data || []).map(user => ({
       id: user.id,
@@ -1573,16 +1575,20 @@ export const addBatch = async (batchData: Partial<Batch>): Promise<Batch> => {
       insertData.end_date = batchData.endDate;
     }
 
-    const { data, error } = await supabase
-      .from('batches')
-      .insert([insertData])
-      .select()
-      .single();
+    const response = await fetch('/api/batches', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(insertData)
+    });
 
-    if (error) {
-      console.error('Error adding batch:', error);
-      throw new Error(`Failed to add batch: ${error.message}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error adding batch:', errorText);
+      throw new Error(`Failed to add batch: ${errorText}`);
     }
+
+    const data = await response.json();
 
     return {
       id: data.id,
@@ -1609,15 +1615,17 @@ export const addBatch = async (batchData: Partial<Batch>): Promise<Batch> => {
 export const updateBatch = async (batchId: string, batchData: Partial<Batch>): Promise<Batch> => {
   try {
     // Get the current batch data to compare changes
-    const { data: currentBatch } = await supabase
-      .from('batches')
-      .select('*, courses(name), users!batches_teacher_id_fkey(name)')
-      .eq('id', batchId)
-      .single();
+    const currentResponse = await fetch(`/api/batches/${batchId}`, {
+      credentials: 'include'
+    });
 
-    const { data, error } = await supabase
-      .from('batches')
-      .update({
+    const currentBatch = currentResponse.ok ? await currentResponse.json() : null;
+
+    const response = await fetch(`/api/batches/${batchId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
         name: batchData.name,
         description: batchData.description,
         course_id: batchData.courseId,
@@ -1631,14 +1639,15 @@ export const updateBatch = async (batchId: string, batchData: Partial<Batch>): P
         is_active: batchData.isActive,
         updated_at: new Date().toISOString()
       })
-      .eq('id', batchId)
-      .select('*, courses(name), users!batches_teacher_id_fkey(name)')
-      .single();
+    });
 
-    if (error) {
-      console.error('Error updating batch:', error);
-      throw new Error(`Failed to update batch: ${error.message}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error updating batch:', errorText);
+      throw new Error(`Failed to update batch: ${errorText}`);
     }
+
+    const data = await response.json();
 
     // Send batch allocation notifications for newly added students
     if (batchData.schedule && currentBatch) {
@@ -1723,10 +1732,12 @@ export const updateBatch = async (batchId: string, batchData: Partial<Batch>): P
 
 export const deleteBatch = async (batchId: string): Promise<void> => {
   try {
-    const { error } = await supabase
-      .from('batches')
-      .delete()
-      .eq('id', batchId);
+    const response = await fetch(`/api/batches/${batchId}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
+
+    const error = !response.ok ? new Error(response.statusText) : null;
 
     if (error) {
       console.error('Error deleting batch:', error);
@@ -1803,10 +1814,17 @@ export const markNotificationAsRead = async (notificationId: string): Promise<No
 // Fee management functions
 export const getFeeStructures = async (): Promise<FeeStructure[]> => {
   try {
-    const { data, error } = await supabase
-      .from('fee_structures')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const response = await fetch('/api/fee-structures', {
+      credentials: 'include'
+    });
+
+    let data, error = null;
+    if (!response.ok) {
+      error = new Error(response.statusText);
+      data = null;
+    } else {
+      data = await response.json();
+    }
 
     if (error) {
       console.error('Error fetching fee structures:', error);
@@ -1828,9 +1846,11 @@ export const getFeeStructures = async (): Promise<FeeStructure[]> => {
 };
 export const addFeeStructure = async (structureData: Omit<FeeStructure, 'id'>): Promise<FeeStructure> => {
   try {
-    const { data, error } = await supabase
-      .from('fee_structures')
-      .insert([{
+    const response = await fetch('/api/fee-structures', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
         course_id: structureData.courseId,
         course_name: structureData.courseName,
         amount: structureData.amount,
@@ -2152,11 +2172,17 @@ export const getStudentEnrollmentsForFamily = async (studentId: string): Promise
 // Trash functions
 export const getTrashedUsers = async (): Promise<User[]> => {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('is_deleted', true)
-      .order('deleted_at', { ascending: false });
+    const response = await fetch('/api/users/trashed/all', {
+      credentials: 'include'
+    });
+
+    let data, error = null;
+    if (!response.ok) {
+      error = new Error(response.statusText);
+      data = null;
+    } else {
+      data = await response.json();
+    }
 
     if (error) {
       console.error('Error fetching trashed users:', error);
@@ -2269,10 +2295,12 @@ export const restoreUser = async (userId: string): Promise<User> => {
 
 export const deleteUserPermanently = async (userId: string): Promise<void> => {
   try {
-    const { error } = await supabase
-      .from('users')
-      .delete()
-      .eq('id', userId);
+    const response = await fetch(`/api/users/${userId}/permanent`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
+
+    const error = !response.ok ? new Error(response.statusText) : null;
 
     if (error) {
       console.error('Error permanently deleting user:', error);
