@@ -421,21 +421,29 @@ async function startServer() {
             if (!password) return res.status(400).json({ message: 'Password is required.' });
             
             const hashedPassword = await bcrypt.hash(password, 10);
-            
-            await pool.query(
-                'INSERT INTO users (name, email, password, role, class_preference, photo_url, dob, sex, contact_number, address, date_of_joining, courses, father_name, standard, school_name, grade, notes, course_expertise, educational_qualifications, employment_type) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)',
+
+            const result = await pool.query(
+                'INSERT INTO users (name, email, password, role, class_preference, photo_url, dob, sex, contact_number, address, date_of_joining, courses, father_name, standard, school_name, grade, notes, course_expertise, educational_qualifications, employment_type) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING *',
                 [
                     userData.name, normalizedEmail, hashedPassword, userData.role || 'Student',
-                    userData.classPreference, userData.photoUrl, userData.dob, userData.sex,
-                    userData.contactNumber, userData.address, userData.dateOfJoining,
-                    JSON.stringify(userData.courses || []), userData.fatherName, userData.standard,
-                    userData.schoolName, userData.grade, userData.notes,
-                    JSON.stringify(userData.courseExpertise || []), userData.educationalQualifications,
-                    userData.employmentType
+                    userData.class_preference || userData.classPreference,
+                    userData.photo_url || userData.photoUrl,
+                    userData.dob, userData.sex,
+                    userData.contact_number || userData.contactNumber,
+                    userData.address,
+                    userData.date_of_joining || userData.dateOfJoining,
+                    JSON.stringify(userData.courses || []),
+                    userData.father_name || userData.fatherName,
+                    userData.standard,
+                    userData.school_name || userData.schoolName,
+                    userData.grade, userData.notes,
+                    JSON.stringify(userData.course_expertise || userData.courseExpertise || []),
+                    userData.educational_qualifications || userData.educationalQualifications,
+                    userData.employment_type || userData.employmentType
                 ]
             );
-            
-            res.status(201).json({ message: 'Registration successful' });
+
+            res.status(201).json(result.rows[0]);
         } catch (error) {
             console.error('Registration error:', error);
             res.status(500).json({ message: 'Server error during registration.' });
@@ -1124,7 +1132,21 @@ Please review and approve this registration in the admin panel.`;
     // Get all non-deleted users
     app.get('/api/users', async (req, res) => {
         try {
-            const result = await pool.query('SELECT * FROM users WHERE is_deleted = false ORDER BY created_at DESC');
+            const { role, course_expertise } = req.query;
+            let query = 'SELECT * FROM users WHERE is_deleted = false';
+            const params = [];
+
+            if (role) {
+                params.push(role);
+                query += ` AND role = $${params.length}`;
+            }
+            if (course_expertise) {
+                params.push(`%${course_expertise}%`);
+                query += ` AND course_expertise::text ILIKE $${params.length}`;
+            }
+
+            query += ' ORDER BY created_at DESC';
+            const result = await pool.query(query, params);
             res.json(result.rows);
         } catch (error) {
             console.error('Error fetching users:', error);

@@ -32,18 +32,23 @@ class NotificationService {
 
   // Create notification record in database
   private async createDatabaseNotification(data: NotificationData): Promise<void> {
-    const { error } = await supabase
-      .from('notifications')
-      .insert([{
-        user_id: data.recipientId,
-        recipient_id: data.recipientId,
-        title: data.title,
-        message: data.message,
-        type: 'Info', // Database only accepts 'Info', 'Warning', 'Success', 'Error'
-        is_read: false
-      }]);
+    try {
+      const response = await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify([{
+          user_id: data.recipientId,
+          title: data.title,
+          message: data.message,
+          type: data.type || 'Info'
+        }])
+      });
 
-    if (error) {
+      if (!response.ok) {
+        throw new Error('Failed to create notification');
+      }
+    } catch (error) {
       console.error('Error creating database notification:', error);
       throw error;
     }
@@ -52,15 +57,21 @@ class NotificationService {
   // Send email notification via backend API
   private async sendEmailNotification(data: NotificationData): Promise<void> {
     try {
-      // Get user email
-      const { data: userData, error } = await supabase
-        .from('users')
-        .select('email, name')
-        .eq('id', data.recipientId)
-        .single();
+      // Get user email from backend API
+      const userResponse = await fetch(`/api/users/${data.recipientId}`, {
+        method: 'GET',
+        credentials: 'include'
+      });
 
-      if (error || !userData?.email) {
-        console.error('Could not find user email for notification');
+      if (!userResponse.ok) {
+        console.error('Could not find user for notification');
+        return;
+      }
+
+      const userData = await userResponse.json();
+
+      if (!userData?.email) {
+        console.error('User has no email address');
         return;
       }
 
@@ -461,17 +472,18 @@ class NotificationService {
   // Get admin users for notifications
   async getAdminUsers(): Promise<string[]> {
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('id')
-        .eq('role', 'Admin');
+      const response = await fetch('/api/users?role=Admin', {
+        method: 'GET',
+        credentials: 'include'
+      });
 
-      if (error) {
-        console.error('Error getting admin users:', error);
+      if (!response.ok) {
+        console.error('Error getting admin users');
         return [];
       }
 
-      return data.map(user => user.id);
+      const data = await response.json();
+      return data.map((user: any) => user.id.toString());
     } catch (error) {
       console.error('Error in getAdminUsers:', error);
       return [];
@@ -481,17 +493,18 @@ class NotificationService {
   // Get all students for batch notifications
   async getAllStudents(): Promise<string[]> {
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('id')
-        .eq('role', 'Student');
+      const response = await fetch('/api/users?role=Student', {
+        method: 'GET',
+        credentials: 'include'
+      });
 
-      if (error) {
-        console.error('Error getting students:', error);
+      if (!response.ok) {
+        console.error('Error getting students');
         return [];
       }
 
-      return data.map(user => user.id);
+      const data = await response.json();
+      return data.map((user: any) => user.id.toString());
     } catch (error) {
       console.error('Error in getAllStudents:', error);
       return [];
@@ -501,24 +514,21 @@ class NotificationService {
   // Get students in specific batch
   async getStudentsInBatch(batchId: string): Promise<string[]> {
     try {
-      const { data, error } = await supabase
-        .from('batches')
-        .select('schedule')
-        .eq('id', batchId)
-        .single();
+      const response = await fetch(`/api/batches/${batchId}`, {
+        method: 'GET',
+        credentials: 'include'
+      });
 
-      if (error || !data?.schedule) {
+      if (!response.ok) {
         return [];
       }
 
-      const studentIds = new Set<string>();
-      data.schedule.forEach((scheduleItem: any) => {
-        if (scheduleItem.studentIds) {
-          scheduleItem.studentIds.forEach((id: string) => studentIds.add(id));
-        }
-      });
+      const data = await response.json();
+      if (!data?.student_ids || !Array.isArray(data.student_ids)) {
+        return [];
+      }
 
-      return Array.from(studentIds);
+      return data.student_ids.map((id: number) => id.toString());
     } catch (error) {
       console.error('Error getting students in batch:', error);
       return [];
