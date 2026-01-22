@@ -84,6 +84,7 @@ export const checkEmailExists = async (email: string): Promise<{ exists: boolean
     const response = await fetch('/api/check-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ email: normalizedEmail })
     });
 
