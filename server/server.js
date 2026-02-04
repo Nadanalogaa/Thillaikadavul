@@ -1606,10 +1606,17 @@ Please review and approve this registration in the admin panel.`;
             const { id } = req.params;
             await client.query('BEGIN');
 
-            // Helper: safely run a query, ignoring errors if table/column doesn't exist
+            // Helper: use SAVEPOINT so a failed query doesn't abort the transaction
+            let spCounter = 0;
             const safeQuery = async (sql, params) => {
-                try { await client.query(sql, params); } catch (e) {
-                    console.log(`[Delete] Skipped: ${e.message}`);
+                const sp = `sp_${++spCounter}`;
+                try {
+                    await client.query(`SAVEPOINT ${sp}`);
+                    await client.query(sql, params);
+                    await client.query(`RELEASE SAVEPOINT ${sp}`);
+                } catch (e) {
+                    await client.query(`ROLLBACK TO SAVEPOINT ${sp}`);
+                    console.log(`[Delete] Skipped (${sp}): ${e.message}`);
                 }
             };
 
