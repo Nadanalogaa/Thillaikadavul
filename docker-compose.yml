@@ -60,10 +60,10 @@ services:
       VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
       
-      # Email Configuration (SMTP)
-      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      # Email Configuration (SMTP - Brevo/Sendinblue)
+      SMTP_HOST: ${SMTP_HOST:-smtp-relay.brevo.com}
       SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USER: ${SMTP_USER:-nadanalogaa@gmail.com}
+      SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-"Nadanaloga <nadanalogaa@gmail.com>"}
       
