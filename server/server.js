@@ -426,11 +426,18 @@ async function startServer() {
     // --- Nodemailer Transport ---
     let mailTransporter;
     let isEtherealMode = false;
+    let smtpConfigInfo = {};
     try {
         if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
             isEtherealMode = true;
-            console.log('\\n--- ❗ EMAIL IS IN TEST MODE ❗ ---');
+            smtpConfigInfo = { mode: 'ethereal', host: 'ethereal', user: 'test', passSet: false };
+            console.log('\\n--- EMAIL IS IN TEST MODE ---');
             console.log('[Email] WARNING: SMTP environment variables are missing');
+            console.log('[Email] Missing:', [
+                !process.env.SMTP_HOST && 'SMTP_HOST',
+                !process.env.SMTP_USER && 'SMTP_USER',
+                !process.env.SMTP_PASS && 'SMTP_PASS'
+            ].filter(Boolean).join(', '));
             console.log('[Email] Using Ethereal for testing - NO REAL EMAILS WILL BE SENT');
             console.log('-------------------------------------\\n');
 
@@ -442,22 +449,49 @@ async function startServer() {
                 auth: { user: testAccount.user, pass: testAccount.pass },
             });
         } else {
-            console.log('\\n--- 📧 EMAIL CONFIGURATION ---');
-            console.log(`[Email] Live SMTP config found. Connecting to ${process.env.SMTP_HOST}...`);
+            const smtpPort = parseInt(process.env.SMTP_PORT || '587', 10);
+            const smtpUser = process.env.SMTP_USER;
+            const smtpPass = process.env.SMTP_PASS;
+            const maskedUser = smtpUser.length > 4 ? smtpUser.substring(0, 4) + '***' : '***';
+            const maskedPass = smtpPass.length > 8 ? smtpPass.substring(0, 8) + '***' : '***';
+
+            smtpConfigInfo = {
+                mode: 'live',
+                host: process.env.SMTP_HOST,
+                port: smtpPort,
+                user: maskedUser,
+                passSet: true,
+                passLength: smtpPass.length,
+                fromEmail: process.env.SMTP_FROM_EMAIL || smtpUser
+            };
+
+            console.log('\\n--- EMAIL CONFIGURATION ---');
+            console.log(`[Email] Host: ${process.env.SMTP_HOST}`);
+            console.log(`[Email] Port: ${smtpPort}`);
+            console.log(`[Email] User: ${maskedUser}`);
+            console.log(`[Email] Pass: ${maskedPass} (length: ${smtpPass.length})`);
+            console.log(`[Email] From: ${process.env.SMTP_FROM_EMAIL || smtpUser}`);
+
             mailTransporter = nodemailer.createTransport({
                 host: process.env.SMTP_HOST,
-                port: parseInt(process.env.SMTP_PORT || '587', 10),
-                secure: parseInt(process.env.SMTP_PORT || '587', 10) === 465,
-                auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+                port: smtpPort,
+                secure: smtpPort === 465,
+                auth: { user: smtpUser, pass: smtpPass },
+                requireTLS: smtpPort === 587,
             });
 
             await mailTransporter.verify();
-            console.log('[Email] ✅ SMTP connection verified.');
+            smtpConfigInfo.verified = true;
+            console.log('[Email] SMTP connection verified successfully.');
             console.log('-----------------------------\\n');
         }
     } catch (error) {
-        console.error('\\n--- 🚨 EMAIL CONFIGURATION FAILED ---');
+        smtpConfigInfo.verified = false;
+        smtpConfigInfo.error = error.message;
+        console.error('\\n--- EMAIL CONFIGURATION FAILED ---');
         console.error('[Email] Could not connect to SMTP server.');
+        console.error(`[Email] Host: ${process.env.SMTP_HOST}`);
+        console.error(`[Email] User: ${process.env.SMTP_USER}`);
         console.error(`[Email] Error: ${error.message}`);
         console.error('--------------------------------------\\n');
     }
@@ -1155,6 +1189,61 @@ Nadanaloga Academy Team`;
         } catch (error) {
             console.error('Profile update email error:', error);
             res.status(500).json({ success: false, message: 'Failed to send profile update email', error: error.message });
+        }
+    });
+
+    // --- SMTP Diagnostic Endpoint (Admin only) ---
+    app.get('/api/test-smtp', ensureAdmin, async (req, res) => {
+        try {
+            const config = {
+                ...smtpConfigInfo,
+                transporterExists: !!mailTransporter,
+                isEtherealMode,
+                envVars: {
+                    SMTP_HOST: process.env.SMTP_HOST ? 'SET' : 'MISSING',
+                    SMTP_PORT: process.env.SMTP_PORT || '(default 587)',
+                    SMTP_USER: process.env.SMTP_USER ? process.env.SMTP_USER.substring(0, 4) + '***' : 'MISSING',
+                    SMTP_PASS: process.env.SMTP_PASS ? `SET (length: ${process.env.SMTP_PASS.length})` : 'MISSING',
+                    SMTP_FROM_EMAIL: process.env.SMTP_FROM_EMAIL || '(not set, using SMTP_USER)',
+                }
+            };
+
+            // Try to verify connection now
+            if (mailTransporter && !isEtherealMode) {
+                try {
+                    await mailTransporter.verify();
+                    config.liveVerification = 'SUCCESS';
+                } catch (verifyErr) {
+                    config.liveVerification = 'FAILED: ' + verifyErr.message;
+                }
+            }
+
+            res.json(config);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
+
+    // --- Send Test Email (Admin only) ---
+    app.post('/api/test-smtp', ensureAdmin, async (req, res) => {
+        try {
+            if (!mailTransporter || isEtherealMode) {
+                return res.status(400).json({ success: false, message: 'SMTP not configured. Check env vars.' });
+            }
+
+            const testTo = req.body.to || req.session.user.email;
+            const emailHtml = createEmailTemplate('Admin', 'SMTP Test', 'This is a test email from Nadanaloga. If you received this, SMTP is working correctly.');
+
+            await mailTransporter.sendMail({
+                from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
+                to: testTo,
+                subject: 'Nadanaloga - SMTP Test Email',
+                html: emailHtml,
+            });
+
+            res.json({ success: true, message: `Test email sent to ${testTo}` });
+        } catch (error) {
+            res.status(500).json({ success: false, message: 'Send failed', error: error.message });
         }
     });
 
