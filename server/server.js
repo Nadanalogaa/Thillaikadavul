@@ -219,6 +219,25 @@ async function startServer() {
                 console.error('[DB] ✗ Failed to create salary_payments table:', error.message);
             }
 
+            // Create notifications table if not exists
+            try {
+                await client.query(`
+                    CREATE TABLE IF NOT EXISTS notifications (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                        title VARCHAR(255) NOT NULL,
+                        message TEXT,
+                        type VARCHAR(50) DEFAULT 'info',
+                        is_read BOOLEAN DEFAULT false,
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ DEFAULT NOW()
+                    )
+                `);
+                console.log('[DB] ✓ Ensured notifications table exists');
+            } catch (error) {
+                console.error('[DB] ✗ Failed to create notifications table:', error.message);
+            }
+
             // Create user_id sequence and backfill existing users
             try {
                 await client.query(`CREATE SEQUENCE IF NOT EXISTS user_id_seq START WITH 1`);
@@ -1555,11 +1574,11 @@ Please review and approve this registration in the admin panel.`;
                 students: roleCounts['Student'] || 0,
                 teachers: roleCounts['Teacher'] || 0,
                 admins: roleCounts['Admin'] || 0,
-                batches: parseInt(batchesResult.rows[0].count),
-                courses: parseInt(coursesResult.rows[0].count),
-                locations: parseInt(locationsResult.rows[0].count),
-                pendingInvoices: parseInt(invoicesResult.rows[0].count),
-                pendingDemos: parseInt(demosResult.rows[0].count),
+                batches: parseInt(batchesResult.rows[0]?.count || 0),
+                courses: parseInt(coursesResult.rows[0]?.count || 0),
+                locations: parseInt(locationsResult.rows[0]?.count || 0),
+                pendingInvoices: parseInt(invoicesResult.rows[0]?.count || 0),
+                pendingDemos: parseInt(demosResult.rows[0]?.count || 0),
             });
         } catch (error) {
             console.error('Error fetching admin stats:', error);

@@ -61,11 +61,11 @@ services:
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
       
       # Email Configuration (SMTP)
-      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
       SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USER: ${SMTP_USER:-}
+      SMTP_USER: ${SMTP_USER:-nadanalogaa@gmail.com}
       SMTP_PASS: ${SMTP_PASS:-}
-      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-noreply@nadanaloga.com}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-"Nadanaloga <nadanalogaa@gmail.com>"}
       
       # Client URL for CORS
       CLIENT_URL: ${CLIENT_URL:-}
