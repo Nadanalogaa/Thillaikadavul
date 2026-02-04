@@ -471,7 +471,7 @@ async function startServer() {
         if (!req.session.user) {
             return res.status(401).json({ message: 'Unauthorized: You must be logged in to perform this action.' });
         }
-        if (req.session.user.role === 'Admin') {
+        if (req.session.user.role && req.session.user.role.toLowerCase() === 'admin') {
             return next();
         }
         res.status(403).json({ message: 'Forbidden: Administrative privileges required.' });
@@ -612,6 +612,11 @@ async function startServer() {
             if (!isMatch) return res.status(401).json({ message: 'Invalid credentials.' });
 
             delete user.password;
+
+            // Normalize role to title case (e.g., 'admin' → 'Admin')
+            if (user.role) {
+                user.role = user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase();
+            }
 
             // Parse JSON fields before returning
             const parsedUser = {
@@ -1486,31 +1491,6 @@ Please review and approve this registration in the admin panel.`;
         } catch (error) {
             console.error('Error changing password:', error);
             res.status(500).json({ message: 'Server error changing password.' });
-        }
-    });
-
-    // Reset admin password (temporary endpoint - remove after use)
-    app.post('/api/reset-admin-password', async (req, res) => {
-        try {
-            const { email, new_password, secret } = req.body;
-            if (secret !== 'nadanaloga-reset-2026') {
-                return res.status(403).json({ message: 'Invalid secret.' });
-            }
-            if (!email || !new_password) {
-                return res.status(400).json({ message: 'Email and new_password are required.' });
-            }
-            const hashedPassword = await bcrypt.hash(new_password, 10);
-            const result = await pool.query(
-                'UPDATE users SET password = $1, updated_at = NOW() WHERE email = $2 RETURNING id, email, role, is_super_admin',
-                [hashedPassword, email.toLowerCase()]
-            );
-            if (result.rows.length === 0) {
-                return res.status(404).json({ message: 'User not found.' });
-            }
-            res.json({ message: 'Password reset successfully.', user: result.rows[0] });
-        } catch (error) {
-            console.error('Error resetting password:', error);
-            res.status(500).json({ message: 'Server error.' });
         }
     });
 
