@@ -672,46 +672,8 @@ export const registerUser = async (userData: Partial<User>[], sendEmails: boolea
           }
         }
 
-        // Also send in-app notifications
-        try {
-          // Get admin users for notification
-          const adminUsers = await notificationService.getAdminUsers();
-          const adminId = adminUsers.length > 0 ? adminUsers[0] : undefined;
-
-          // Convert database fields to User interface
-          const userForNotification: User = {
-              id: String(data.id),
-              name: data.name,
-              email: data.email,
-              role: data.role,
-              classPreference: data.class_preference,
-              contactNumber: data.contact_number,
-              address: data.address,
-              country: data.country,
-              state: data.state,
-              city: data.city,
-              postalCode: data.postal_code,
-              fatherName: data.father_name,
-              dob: data.dob,
-              sex: data.sex,
-              schoolName: data.school_name,
-              standard: data.standard,
-              grade: data.grade,
-              photoUrl: data.photo_url,
-              courses: data.courses || [],
-              courseExpertise: data.course_expertise || [],
-              preferredTimings: data.preferred_timings || [],
-              dateOfJoining: data.date_of_joining,
-              schedules: data.schedules || [],
-              documents: data.documents || [],
-              notes: data.notes
-            };
-
-          await notificationService.notifyStudentRegistration(userForNotification, adminId);
-        } catch (notificationError) {
-          console.error('Failed to send in-app notification:', notificationError);
-          // Don't fail the registration if notification fails
-        }
+        // In-app notifications are now created server-side during registration
+        // (no need for frontend notification service call here)
       }
 
       console.log('User registered successfully:', data);
