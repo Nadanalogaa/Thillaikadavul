@@ -1254,8 +1254,8 @@ Nadanaloga Academy Team`;
         }
     });
 
-    // --- SMTP Diagnostic Endpoint (temporarily no auth for debugging) ---
-    app.get('/api/test-smtp', async (req, res) => {
+    // --- SMTP Diagnostic Endpoint (Admin only) ---
+    app.get('/api/test-smtp', ensureAdmin, async (req, res) => {
         try {
             const config = {
                 ...smtpConfigInfo,
