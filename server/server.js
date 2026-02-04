@@ -430,6 +430,8 @@ async function startServer() {
     const app = express();
     
     // --- Middleware ---
+    // Trust first proxy (nginx) so secure cookies work behind reverse proxy
+    app.set('trust proxy', 1);
     app.use(express.json({ limit: '50mb' }));
     app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
