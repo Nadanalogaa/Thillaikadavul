@@ -280,6 +280,17 @@ async function startServer() {
                 console.error('[DB] ✗ Failed to fix events FK:', error.message);
             }
 
+            // Drop restrictive CHECK constraint on notifications.type
+            try {
+                await client.query(`
+                    ALTER TABLE IF EXISTS notifications
+                    DROP CONSTRAINT IF EXISTS notifications_type_check
+                `);
+                console.log('[DB] ✓ Dropped notifications_type_check constraint');
+            } catch (error) {
+                console.error('[DB] ✗ Failed to drop notifications_type_check:', error.message);
+            }
+
             // Create user_id sequence and backfill existing users
             try {
                 await client.query(`CREATE SEQUENCE IF NOT EXISTS user_id_seq START WITH 1`);
@@ -680,11 +691,12 @@ async function startServer() {
             delete parsedUser.password;
 
             // Create in-app notifications server-side
+            // Note: type must be one of 'Info','Warning','Success','Error' due to DB CHECK constraint
             try {
                 // Notification for the new user
                 await pool.query(
                     `INSERT INTO notifications (user_id, title, message, type) VALUES ($1, $2, $3, $4)`,
-                    [newUser.id, 'Welcome to Nadanaloga Academy!', `Registration successful for ${userData.name}. Your application is being reviewed by our admin team.`, 'registration']
+                    [newUser.id, 'Welcome to Nadanaloga Academy!', `Registration successful for ${userData.name}. Your application is being reviewed by our admin team.`, 'Success']
                 );
 
                 // Notification for admin(s)
@@ -692,7 +704,7 @@ async function startServer() {
                 for (const admin of admins.rows) {
                     await pool.query(
                         `INSERT INTO notifications (user_id, title, message, type) VALUES ($1, $2, $3, $4)`,
-                        [admin.id, 'New Student Registration', `New student ${userData.name} (${normalizedEmail}) has registered. Please review their application.`, 'registration']
+                        [admin.id, 'New Student Registration', `New student ${userData.name} (${normalizedEmail}) has registered. Please review their application.`, 'Info']
                     );
                 }
             } catch (notifError) {
@@ -2087,7 +2099,12 @@ Please review and approve this registration in the admin panel.`;
                 `($${i*4+1}, $${i*4+2}, $${i*4+3}, $${i*4+4})`
             ).join(',');
 
-            const params = notifications.flatMap(n => [n.user_id, n.title, n.message, n.type || 'info']);
+            const validTypes = ['Info', 'Warning', 'Success', 'Error'];
+            const params = notifications.flatMap(n => {
+                let type = n.type || 'Info';
+                if (!validTypes.includes(type)) type = 'Info';
+                return [n.user_id, n.title, n.message, type];
+            });
 
             await pool.query(
                 `INSERT INTO notifications (user_id, title, message, type) VALUES ${values}`,
