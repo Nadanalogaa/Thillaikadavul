@@ -238,6 +238,22 @@ async function startServer() {
                 console.error('[DB] ✗ Failed to create notifications table:', error.message);
             }
 
+            // Create event_notifications table if not exists
+            try {
+                await client.query(`
+                    CREATE TABLE IF NOT EXISTS event_notifications (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                        event_id INTEGER REFERENCES events(id) ON DELETE CASCADE,
+                        is_read BOOLEAN DEFAULT false,
+                        created_at TIMESTAMPTZ DEFAULT NOW()
+                    )
+                `);
+                console.log('[DB] ✓ Ensured event_notifications table exists');
+            } catch (error) {
+                console.error('[DB] ✗ Failed to create event_notifications table:', error.message);
+            }
+
             // Create user_id sequence and backfill existing users
             try {
                 await client.query(`CREATE SEQUENCE IF NOT EXISTS user_id_seq START WITH 1`);

@@ -109,6 +109,7 @@ export interface Location {
 
 export interface User {
   id: string;
+  userId?: string | null;
   name: string;
   email: string;
   password?: string; // In a real app, this should be a secure hash. Optional on client.

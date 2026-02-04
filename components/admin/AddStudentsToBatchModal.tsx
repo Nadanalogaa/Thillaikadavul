@@ -192,7 +192,7 @@ const AddStudentsToBatchModal: React.FC<AddStudentsToBatchModalProps> = ({ isOpe
                                                 <div className="flex-grow">
                                                     <p className="font-medium text-gray-800">{student.name}</p>
                                                     <p className="text-xs text-gray-500">
-                                                        <span className="font-mono">{student.id.slice(-6).toUpperCase()}</span>
+                                                        <span className="font-mono">{student.userId || student.id}</span>
                                                         {student.fatherName && ` • Parent: ${student.fatherName}`}
                                                     </p>
                                                     {!isAvailable && !isSelected && (

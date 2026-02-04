@@ -242,7 +242,8 @@ export const refreshCurrentUser = async (): Promise<User | null> => {
     console.log('Raw courses:', user.courses);
     
     const userData: User = {
-      id: user.id,
+      id: String(user.id),
+      userId: user.user_id || null,
       name: user.name,
       email: user.email,
       role: user.role,
@@ -329,7 +330,7 @@ export const getCourses = async (): Promise<Course[]> => {
     }, []);
 
     return uniqueCourses.map(course => ({
-      id: course.id,
+      id: String(course.id),
       name: course.name,
       description: course.description,
       icon: course.icon || course.name,
@@ -395,12 +396,12 @@ const initializeBasicCourses = async (): Promise<Course[]> => {
     const data = await response.json();
 
     return Array.isArray(data) ? data.map(course => ({
-      id: course.id,
+      id: String(course.id),
       name: course.name,
       description: course.description,
       icon: course.icon || course.name
     })) : [{
-      id: data.id,
+      id: String(data.id),
       name: data.name,
       description: data.description,
       icon: data.icon || data.name
@@ -679,7 +680,7 @@ export const registerUser = async (userData: Partial<User>[], sendEmails: boolea
 
           // Convert database fields to User interface
           const userForNotification: User = {
-              id: data.id,
+              id: String(data.id),
               name: data.name,
               email: data.email,
               role: data.role,
@@ -778,19 +779,17 @@ export const getAdminStats = async (): Promise<DashboardStats> => {
       return { totalUsers: 0, studentCount: 0, teacherCount: 0, onlinePreference: 0, offlinePreference: 0 };
     }
 
-    const users = await response.json();
+    const data = await response.json();
 
-    const studentCount = users?.filter((u: any) => u.role === 'Student').length || 0;
-    const teacherCount = users?.filter((u: any) => u.role === 'Teacher').length || 0;
-    const onlinePreference = users?.filter((u: any) => u.class_preference === 'Online').length || 0;
-    const offlinePreference = users?.filter((u: any) => u.class_preference === 'Offline').length || 0;
+    const studentCount = data.students || 0;
+    const teacherCount = data.teachers || 0;
 
     return {
-      totalUsers: users?.length || 0,
+      totalUsers: studentCount + teacherCount + (data.admins || 0),
       studentCount,
       teacherCount,
-      onlinePreference,
-      offlinePreference
+      onlinePreference: 0,
+      offlinePreference: 0
     };
   } catch (error) {
     console.error('Error in getAdminStats:', error);
@@ -813,7 +812,8 @@ export const getAdminUsers = async (): Promise<User[]> => {
     const data = await response.json();
 
     return (data || []).map((user: any) => ({
-      id: user.id,
+      id: String(user.id),
+      userId: user.user_id || null,
       name: user.name,
       email: user.email,
       role: user.role,
@@ -860,7 +860,7 @@ export const getAdminUserById = async (userId: string): Promise<User> => {
 
     // Map database fields to User interface
     return {
-      id: data.id,
+      id: String(data.id),
       name: data.name,
       email: data.email,
       role: data.role,
@@ -920,7 +920,7 @@ export const addStudentByAdmin = async (userData: Partial<User>): Promise<User> 
       
       // Map database fields to User interface
       return {
-        id: savedUser.id,
+        id: String(savedUser.id),
         name: savedUser.name,
         email: savedUser.email,
         role: savedUser.role,
@@ -1038,7 +1038,7 @@ export const updateUserByAdmin = async (userId: string, userData: Partial<User>)
 
     // Map database fields back to User interface
     const userResult = {
-      id: data.id,
+      id: String(data.id),
       name: data.name,
       email: data.email,
       role: data.role,
@@ -1271,7 +1271,7 @@ export const addCourseByAdmin = async (courseData: Omit<Course, 'id'>): Promise<
     const data = await response.json();
 
     const newCourse = {
-      id: data.id,
+      id: String(data.id),
       name: data.name,
       description: data.description,
       icon: data.icon,
@@ -1343,7 +1343,7 @@ export const updateCourseByAdmin = async (courseId: string, courseData: Partial<
     const data = await response.json();
 
     const updatedCourse = {
-      id: data.id,
+      id: String(data.id),
       name: data.name,
       description: data.description,
       icon: data.icon,
@@ -1482,7 +1482,7 @@ export const getBatches = async (): Promise<Batch[]> => {
     }
 
     return (data || []).map((batch: any) => ({
-      id: batch.id,
+      id: String(batch.id),
       name: batch.name,
       description: batch.description,
       courseId: batch.course_id,
@@ -1530,7 +1530,8 @@ export const getUsersByIds = async (ids: string[]): Promise<User[]> => {
     const data = await response.json();
 
     return (data || []).map(user => ({
-      id: user.id,
+      id: String(user.id),
+      userId: user.user_id || null,
       name: user.name,
       email: user.email,
       role: user.role,
@@ -1612,7 +1613,7 @@ export const addBatch = async (batchData: Partial<Batch>): Promise<Batch> => {
     const data = await response.json();
 
     return {
-      id: data.id,
+      id: String(data.id),
       name: data.name,
       description: data.description,
       courseId: data.course_id,
@@ -1731,7 +1732,7 @@ export const updateBatch = async (batchId: string, batchData: Partial<Batch>): P
     }
 
     return {
-      id: data.id,
+      id: String(data.id),
       name: data.name,
       description: data.description,
       courseId: data.course_id,
@@ -1791,7 +1792,7 @@ export const getNotifications = async (): Promise<Notification[]> => {
     const data = await response.json();
 
     return (data || []).map(notification => ({
-      id: notification.id,
+      id: String(notification.id),
       userId: notification.user_id,
       subject: notification.subject,
       message: notification.message,
@@ -1820,7 +1821,7 @@ export const markNotificationAsRead = async (notificationId: string): Promise<No
     const data = await response.json();
 
     return {
-      id: data.id,
+      id: String(data.id),
       userId: data.user_id,
       subject: data.subject,
       message: data.message,
@@ -1850,7 +1851,7 @@ export const getFeeStructures = async (): Promise<FeeStructure[]> => {
     const data = await response.json();
 
     return (data || []).map((fee: any) => ({
-      id: fee.id,
+      id: String(fee.id),
       courseId: fee.course_id,
       courseName: fee.course_name,
       amount: fee.amount,
@@ -1887,7 +1888,7 @@ export const addFeeStructure = async (structureData: Omit<FeeStructure, 'id'>): 
     const data = await response.json();
 
     return {
-      id: data.id,
+      id: String(data.id),
       courseId: data.course_id,
       courseName: data.course_name,
       amount: data.amount,
@@ -1925,7 +1926,7 @@ export const updateFeeStructure = async (structureId: string, structureData: Par
     const data = await response.json();
 
     return {
-      id: data.id,
+      id: String(data.id),
       courseId: data.course_id,
       courseName: data.course_name,
       amount: data.amount,
@@ -1969,7 +1970,7 @@ export const getAdminInvoices = async (): Promise<Invoice[]> => {
     const data = await response.json();
 
     return (data || []).map((invoice: any) => ({
-      id: invoice.id,
+      id: String(invoice.id),
       studentId: invoice.student_id,
       student: invoice.student ? {
         id: invoice.student.id,
@@ -2077,7 +2078,7 @@ export const getFamilyStudents = async (): Promise<User[]> => {
         return familyStudents.map((user: any) => {
           console.log('Raw user data from database:', user);
           const mappedUser = {
-            id: user.id,
+            id: String(user.id),
             name: user.name,
             email: user.email,
             role: user.role,
@@ -2209,7 +2210,7 @@ export const getTrashedUsers = async (): Promise<User[]> => {
     const data = await response.json();
 
     return (data || []).map(user => ({
-      id: user.id,
+      id: String(user.id),
       name: user.name,
       email: user.email,
       role: user.role,
@@ -2267,7 +2268,7 @@ export const restoreUser = async (userId: string): Promise<User> => {
     const data = await response.json();
 
     return {
-      id: data.id,
+      id: String(data.id),
       name: data.name,
       email: data.email,
       role: data.role,
@@ -2349,7 +2350,7 @@ export const getPublicLocations = async (): Promise<Location[]> => {
     }
 
     return data.map(location => ({
-      id: location.id,
+      id: String(location.id),
       name: location.name,
       address: location.address
     }));
@@ -2397,7 +2398,7 @@ const initializeBasicLocations = async (): Promise<Location[]> => {
 
     const data = await response.json();
     return data.map(location => ({
-      id: location.id,
+      id: String(location.id),
       name: location.name,
       address: location.address
     }));
@@ -2441,7 +2442,7 @@ export const addLocation = async (location: Omit<Location, 'id'>): Promise<Locat
 
     const data = await response.json();
     return {
-      id: data.id,
+      id: String(data.id),
       name: data.name,
       address: data.address
     };
@@ -2470,7 +2471,7 @@ export const updateLocation = async (id: string, location: Partial<Location>): P
 
     const data = await response.json();
     return {
-      id: data.id,
+      id: String(data.id),
       name: data.name,
       address: data.address
     };
@@ -2513,7 +2514,7 @@ export const getEvents = async (limit?: number): Promise<Event[]> => {
 
     const data = await response.json();
     return (data || []).map(event => ({
-      id: event.id,
+      id: String(event.id),
       title: event.title,
       description: event.description,
       date: new Date(event.event_date || event.date),
@@ -2524,7 +2525,7 @@ export const getEvents = async (limit?: number): Promise<Event[]> => {
       createdBy: event.created_by,
       targetAudience: event.target_audience || [],
       images: (event.event_images || event.images || []).map((img: any) => ({
-        id: img.id,
+        id: String(img.id),
         url: img.image_url || img.url,
         caption: img.caption,
         filename: img.filename,
@@ -2557,7 +2558,7 @@ export const getPublicEvents = async (): Promise<Event[]> => {
 
     const data = await response.json();
     return data?.map(event => ({
-      id: event.id,
+      id: String(event.id),
       title: event.title,
       description: event.description,
       date: new Date(event.event_date || event.date),
@@ -2599,7 +2600,7 @@ export const addEvent = async (event: Omit<Event, 'id'>): Promise<Event> => {
 
     const data = await response.json();
     const eventResult = {
-      id: data.id,
+      id: String(data.id),
       title: data.title,
       description: data.description,
       date: new Date(data.event_date),
@@ -2690,7 +2691,7 @@ export const updateEvent = async (id: string, event: Partial<Event>): Promise<Ev
 
     const data = await response.json();
     return {
-      id: data.id,
+      id: String(data.id),
       title: data.title,
       description: data.description,
       date: new Date(data.event_date || data.date),
@@ -2736,7 +2737,7 @@ export const getGradeExams = async (): Promise<GradeExam[]> => {
 
     const data = await response.json();
     return (data || []).map(exam => ({
-      id: exam.id,
+      id: String(exam.id),
       title: exam.title,
       description: exam.description,
       date: new Date(exam.date),
@@ -2786,7 +2787,7 @@ export const addGradeExam = async (exam: Omit<GradeExam, 'id'>): Promise<GradeEx
 
     const data = await response.json();
     const examResult = {
-      id: data.id,
+      id: String(data.id),
       title: data.title,
       description: data.description,
       date: new Date(data.date),
@@ -2876,7 +2877,7 @@ export const updateGradeExam = async (id: string, exam: Partial<GradeExam>): Pro
 
     const data = await response.json();
     return {
-      id: data.id,
+      id: String(data.id),
       title: data.title,
       description: data.description,
       date: new Date(data.date),
@@ -2927,7 +2928,7 @@ export const getBookMaterials = async (): Promise<BookMaterial[]> => {
 
     const data = await response.json();
     return (data || []).map(material => ({
-      id: material.id,
+      id: String(material.id),
       title: material.title,
       description: material.description,
       courseId: material.course_id,
@@ -2978,7 +2979,7 @@ export const addBookMaterial = async (material: Omit<BookMaterial, 'id'>): Promi
 
     const data = await response.json();
     const materialResult = {
-      id: data.id,
+      id: String(data.id),
       title: data.title,
       description: data.description,
       courseId: data.course_id,
@@ -3041,7 +3042,7 @@ export const updateBookMaterial = async (id: string, material: Partial<BookMater
 
     const data = await response.json();
     return {
-      id: data.id,
+      id: String(data.id),
       title: data.title,
       description: data.description,
       courseId: data.course_id,
@@ -3144,7 +3145,7 @@ export const getStudentEvents = async (studentId: string): Promise<Event[]> => {
 
     const data = await response.json();
     return (data || []).map(event => ({
-      id: event.id,
+      id: String(event.id),
       title: event.title,
       description: event.description,
       date: new Date(event.event_date || event.date),
@@ -3180,7 +3181,7 @@ export const getEventNotifications = async (userId: string): Promise<EventNotifi
 
     const data = await response.json();
     return (data || []).map(notification => ({
-      id: notification.id,
+      id: String(notification.id),
       eventId: notification.event_id,
       userId: notification.user_id,
       isRead: notification.is_read,
@@ -3254,7 +3255,7 @@ export const uploadEventImage = async (eventId: string, file: File, caption?: st
 
     const data = await response.json();
     return {
-      id: data.id,
+      id: String(data.id),
       url: data.image_url,
       caption: data.caption,
       filename: data.filename,
@@ -3337,7 +3338,7 @@ export const getNotices = async (limit?: number): Promise<Notice[]> => {
 
     const data = await response.json();
     return (data || []).map(notice => ({
-      id: notice.id,
+      id: String(notice.id),
       title: notice.title,
       content: notice.content,
       targetAudience: notice.target_audience,
@@ -3375,7 +3376,7 @@ export const addNotice = async (notice: Omit<Notice, 'id'>): Promise<Notice> => 
 
     const data = await response.json();
     const noticeResult = {
-      id: data.id,
+      id: String(data.id),
       title: data.title,
       content: data.content,
       issuedAt: data.issued_at,
@@ -3442,7 +3443,7 @@ export const updateNotice = async (id: string, notice: Partial<Notice>): Promise
 
     const data = await response.json();
     return {
-      id: data.id,
+      id: String(data.id),
       title: data.title,
       content: data.content,
       issuedAt: data.issued_at,
@@ -3594,7 +3595,7 @@ export const getUserNotifications = async (userId: string): Promise<any[]> => {
 
     const data = await response.json();
     return (data || []).map(notification => ({
-      id: notification.id,
+      id: String(notification.id),
       subject: notification.title || notification.subject,
       message: notification.message,
       type: notification.type || 'Info',
@@ -3779,7 +3780,7 @@ export const createDemoBooking = async (bookingData: {
 
     const data = await response.json();
     const demoBooking: DemoBooking = {
-      id: data.id,
+      id: String(data.id),
       name: data.name,
       email: data.email,
       phoneNumber: data.phone_number,
@@ -3823,7 +3824,7 @@ export const getDemoBookings = async (): Promise<DemoBooking[]> => {
 
     const data = await response.json();
     return (data || []).map(booking => ({
-      id: booking.id,
+      id: String(booking.id),
       name: booking.name,
       email: booking.email,
       phoneNumber: booking.phone_number,
@@ -3880,7 +3881,7 @@ export const updateDemoBookingStatus = async (
 
     const data = await response.json();
     return {
-      id: data.id,
+      id: String(data.id),
       name: data.name,
       email: data.email,
       phoneNumber: data.phone_number,

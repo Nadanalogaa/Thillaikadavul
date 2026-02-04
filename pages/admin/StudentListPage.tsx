@@ -593,7 +593,7 @@ const StudentListPage: React.FC = () => {
                                                         {user.name}
                                                     </Link>
                                                     <div className="text-xs text-gray-500 mt-1">
-                                                        ID: <span className="font-mono">{user.id.slice(-6).toUpperCase()}</span> | {user.classPreference || 'N/A'}
+                                                        ID: <span className="font-mono">{user.userId || user.id}</span> | {user.classPreference || 'N/A'}
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
