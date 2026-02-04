@@ -375,10 +375,12 @@ async function startServer() {
         }
     };
 
-    // Skip database seeding if tables don't exist (empty database)
-    // This allows the app to start without requiring database import
-    // Database seeding will be handled after manual import
-    console.log('[DB] Skipping course seeding - will be handled after database import');
+    // Seed courses if the table exists but is empty
+    try {
+        await seedCourses();
+    } catch (e) {
+        console.log('[DB] Could not seed courses (table may not exist yet):', e.message);
+    }
 
     // --- Email Template ---
     const createEmailTemplate = (name, subject, message) => {
@@ -598,6 +600,62 @@ async function startServer() {
             return next();
         }
         res.status(403).json({ message: 'Forbidden: Super Admin privileges required.' });
+    };
+
+    // --- Email & Notification Helpers ---
+    // Send email in background (fire-and-forget, never blocks response)
+    const sendEmailBackground = (to, name, subject, messageText) => {
+        if (!mailTransporter) {
+            console.log('[Email] Skipped (no transporter):', subject, 'to:', to);
+            return;
+        }
+        mailTransporter.sendMail({
+            from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
+            to,
+            subject,
+            html: createEmailTemplate(name, subject, messageText)
+        }).then(() => {
+            console.log(`📧 Email sent: "${subject}" to ${to}`);
+        }).catch(error => {
+            console.error(`[Email] Failed "${subject}" to ${to}:`, error.message);
+        });
+    };
+
+    // Create in-app notification (fire-and-forget)
+    const createNotificationForUser = (userId, title, message, type = 'Info') => {
+        const validTypes = ['Info', 'Warning', 'Success', 'Error'];
+        if (!validTypes.includes(type)) type = 'Info';
+        pool.query(
+            'INSERT INTO notifications (user_id, title, message, type) VALUES ($1, $2, $3, $4)',
+            [userId, title, message, type]
+        ).catch(error => {
+            console.error(`[Notification] Failed for user ${userId}:`, error.message);
+        });
+    };
+
+    // Fetch users by IDs
+    const getUsersByIds = async (ids) => {
+        if (!ids || ids.length === 0) return [];
+        const result = await pool.query(
+            'SELECT id, name, email FROM users WHERE id = ANY($1) AND is_deleted = false',
+            [ids]
+        );
+        return result.rows;
+    };
+
+    // Fetch all active students and teachers
+    const getActiveUsers = async (roleFilter) => {
+        if (roleFilter) {
+            const result = await pool.query(
+                "SELECT id, name, email FROM users WHERE is_deleted = false AND status = 'active' AND LOWER(role) = LOWER($1)",
+                [roleFilter]
+            );
+            return result.rows;
+        }
+        const result = await pool.query(
+            "SELECT id, name, email FROM users WHERE is_deleted = false AND status = 'active' AND LOWER(role) != 'admin'"
+        );
+        return result.rows;
     };
 
     // Health check endpoint
@@ -1856,6 +1914,34 @@ Please review and approve this registration in the admin panel.`;
                 [batch_name, course_id, teacher_id, JSON.stringify(schedule), start_date, end_date, max_students, student_ids || [], mode, location_id || null]
             );
             res.status(201).json(parseBatchData(result.rows[0]));
+
+            // Send batch allocation emails to assigned students (fire-and-forget)
+            if (student_ids && student_ids.length > 0) {
+                (async () => {
+                    try {
+                        const students = await getUsersByIds(student_ids);
+                        let courseName = '';
+                        let teacherName = '';
+                        if (course_id) {
+                            const cr = await pool.query('SELECT name FROM courses WHERE id = $1', [course_id]);
+                            courseName = cr.rows[0]?.name || '';
+                        }
+                        if (teacher_id) {
+                            const tr = await pool.query('SELECT name FROM users WHERE id = $1', [teacher_id]);
+                            teacherName = tr.rows[0]?.name || '';
+                        }
+                        const scheduleStr = schedule ? (typeof schedule === 'string' ? schedule : JSON.stringify(schedule)) : '';
+                        for (const student of students) {
+                            const msg = `Congratulations! You have been allocated to a new batch.\n\n📚 Course: ${courseName || 'Not specified'}\n👥 Batch: ${batch_name}\n👨‍🏫 Teacher: ${teacherName || 'To be assigned'}\n📅 Schedule: ${scheduleStr || 'To be confirmed'}\n🚀 Start Date: ${start_date || 'To be announced'}\n\nPlease log in to your portal for more details.`;
+                            sendEmailBackground(student.email, student.name, `Batch Allocation - ${courseName || batch_name}`, msg);
+                            createNotificationForUser(student.id, 'Batch Allocation', `You have been added to batch "${batch_name}" for ${courseName || 'a course'}.`, 'Success');
+                        }
+                        console.log(`[Batch] Sent allocation emails to ${students.length} students for batch "${batch_name}"`);
+                    } catch (e) {
+                        console.error('[Batch] Error sending allocation emails:', e.message);
+                    }
+                })();
+            }
         } catch (error) {
             console.error('Error creating batch:', error);
             res.status(500).json({ message: 'Server error creating batch.' });
@@ -1866,6 +1952,12 @@ Please review and approve this registration in the admin panel.`;
         try {
             const { id } = req.params;
             const { batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode, location_id } = req.body;
+
+            // Get old student_ids to detect newly added students
+            const oldBatch = await pool.query('SELECT student_ids FROM batches WHERE id = $1', [id]);
+            const oldStudentIds = oldBatch.rows.length > 0
+                ? (Array.isArray(oldBatch.rows[0].student_ids) ? oldBatch.rows[0].student_ids : [])
+                : [];
 
             const result = await pool.query(
                 `UPDATE batches SET
@@ -1879,6 +1971,35 @@ Please review and approve this registration in the admin panel.`;
                 return res.status(404).json({ message: 'Batch not found' });
             }
             res.json(parseBatchData(result.rows[0]));
+
+            // Send emails to newly added students only (fire-and-forget)
+            const newStudentIds = (student_ids || []).filter(sid => !oldStudentIds.includes(sid) && !oldStudentIds.includes(Number(sid)) && !oldStudentIds.includes(String(sid)));
+            if (newStudentIds.length > 0) {
+                (async () => {
+                    try {
+                        const students = await getUsersByIds(newStudentIds.map(Number));
+                        let courseName = '';
+                        let teacherName = '';
+                        if (course_id) {
+                            const cr = await pool.query('SELECT name FROM courses WHERE id = $1', [course_id]);
+                            courseName = cr.rows[0]?.name || '';
+                        }
+                        if (teacher_id) {
+                            const tr = await pool.query('SELECT name FROM users WHERE id = $1', [teacher_id]);
+                            teacherName = tr.rows[0]?.name || '';
+                        }
+                        const scheduleStr = schedule ? (typeof schedule === 'string' ? schedule : JSON.stringify(schedule)) : '';
+                        for (const student of students) {
+                            const msg = `Congratulations! You have been allocated to a new batch.\n\n📚 Course: ${courseName || 'Not specified'}\n👥 Batch: ${batch_name}\n👨‍🏫 Teacher: ${teacherName || 'To be assigned'}\n📅 Schedule: ${scheduleStr || 'To be confirmed'}\n🚀 Start Date: ${start_date || 'To be announced'}\n\nPlease log in to your portal for more details.`;
+                            sendEmailBackground(student.email, student.name, `Batch Allocation - ${courseName || batch_name}`, msg);
+                            createNotificationForUser(student.id, 'Batch Allocation', `You have been added to batch "${batch_name}" for ${courseName || 'a course'}.`, 'Success');
+                        }
+                        console.log(`[Batch] Sent allocation emails to ${students.length} newly added students for batch "${batch_name}"`);
+                    } catch (e) {
+                        console.error('[Batch] Error sending allocation emails:', e.message);
+                    }
+                })();
+            }
         } catch (error) {
             console.error('Error updating batch:', error);
             res.status(500).json({ message: 'Server error updating batch.' });
@@ -2228,6 +2349,25 @@ Please review and approve this registration in the admin panel.`;
                 return res.status(404).json({ message: 'Demo booking not found' });
             }
             res.json(result.rows[0]);
+
+            // Send demo booking status email (fire-and-forget)
+            const booking = result.rows[0];
+            if (booking.email && status) {
+                (async () => {
+                    try {
+                        const statusMessages = {
+                            confirmed: `Your demo class has been confirmed!\n\n📅 Date: ${scheduled_date || booking.preferred_date || 'TBA'}\n🕐 Time: ${scheduled_time || booking.preferred_time || 'TBA'}\n👨‍🏫 Teacher: ${assigned_teacher || 'To be assigned'}\n📚 Course: ${booking.course || 'Not specified'}\n\nWe look forward to seeing you!`,
+                            cancelled: `We regret to inform you that your demo class booking has been cancelled.\n\n📚 Course: ${booking.course || 'Not specified'}\n\n${notes ? `📝 Note: ${notes}` : ''}\n\nPlease contact us if you'd like to reschedule.`,
+                            completed: `Thank you for attending the demo class!\n\n📚 Course: ${booking.course || 'Not specified'}\n\nWe hope you enjoyed the experience. Contact us to enroll!`,
+                        };
+                        const msg = statusMessages[status] || `Your demo booking status has been updated to: ${status}.`;
+                        const name = booking.student_name || booking.parent_name || 'Student';
+                        sendEmailBackground(booking.email, name, `Demo Class - ${status.charAt(0).toUpperCase() + status.slice(1)}`, msg + '\n\nBest regards,\nNadanaloga Academy Team');
+                    } catch (e) {
+                        console.error('[DemoBooking] Error sending email:', e.message);
+                    }
+                })();
+            }
         } catch (error) {
             console.error('Error updating demo booking:', error);
             res.status(500).json({ message: 'Server error updating demo booking.' });
@@ -2274,6 +2414,23 @@ Please review and approve this registration in the admin panel.`;
                 [title, description, event_date, event_time, location, is_public || false, recipient_ids || [], image_url]
             );
             res.status(201).json(result.rows[0]);
+
+            // Send event emails (fire-and-forget)
+            (async () => {
+                try {
+                    const users = (recipient_ids && recipient_ids.length > 0)
+                        ? await getUsersByIds(recipient_ids)
+                        : await getActiveUsers();
+                    const msg = `You're invited to an upcoming event!\n\n🎉 Event: ${title}\n📅 Date: ${event_date || 'To be announced'}\n🕐 Time: ${event_time || 'To be announced'}\n📍 Location: ${location || 'To be announced'}\n\n${description ? `📝 Description:\n${description}` : ''}\n\nWe look forward to seeing you there!\n\nBest regards,\nNadanaloga Academy Team`;
+                    for (const user of users) {
+                        sendEmailBackground(user.email, user.name, `Event Invitation - ${title}`, msg);
+                        createNotificationForUser(user.id, 'New Event', `New event: "${title}" on ${event_date || 'TBA'}.`, 'Info');
+                    }
+                    console.log(`[Event] Sent event emails to ${users.length} users for "${title}"`);
+                } catch (e) {
+                    console.error('[Event] Error sending event emails:', e.message);
+                }
+            })();
         } catch (error) {
             console.error('Error creating event:', error);
             res.status(500).json({ message: 'Server error creating event.' });
@@ -2335,6 +2492,23 @@ Please review and approve this registration in the admin panel.`;
                 [exam_name, course, exam_date, exam_time, location, syllabus, recipient_ids || []]
             );
             res.status(201).json(result.rows[0]);
+
+            // Send grade exam notification emails (fire-and-forget)
+            (async () => {
+                try {
+                    const users = (recipient_ids && recipient_ids.length > 0)
+                        ? await getUsersByIds(recipient_ids)
+                        : await getActiveUsers();
+                    const msg = `A grade exam has been scheduled!\n\n📋 Exam: ${exam_name}\n📚 Course: ${course || 'Not specified'}\n📅 Date: ${exam_date || 'To be announced'}\n🕐 Time: ${exam_time || 'To be announced'}\n📍 Location: ${location || 'To be announced'}\n\n${syllabus ? `📖 Syllabus:\n${syllabus}` : ''}\n\nPlease prepare accordingly. Log in to your portal for more details.\n\nBest regards,\nNadanaloga Academy Team`;
+                    for (const user of users) {
+                        sendEmailBackground(user.email, user.name, `Grade Exam Scheduled - ${exam_name}`, msg);
+                        createNotificationForUser(user.id, 'Grade Exam', `Grade exam "${exam_name}" scheduled for ${exam_date || 'TBA'}.`, 'Info');
+                    }
+                    console.log(`[GradeExam] Sent emails to ${users.length} users for "${exam_name}"`);
+                } catch (e) {
+                    console.error('[GradeExam] Error sending emails:', e.message);
+                }
+            })();
         } catch (error) {
             console.error('Error creating grade exam:', error);
             res.status(500).json({ message: 'Server error creating grade exam.' });
@@ -2396,6 +2570,23 @@ Please review and approve this registration in the admin panel.`;
                 [title, description, course, file_url, file_type, recipient_ids || []]
             );
             res.status(201).json(result.rows[0]);
+
+            // Send book materials emails (fire-and-forget)
+            (async () => {
+                try {
+                    const users = (recipient_ids && recipient_ids.length > 0)
+                        ? await getUsersByIds(recipient_ids)
+                        : await getActiveUsers();
+                    const msg = `New study material is now available!\n\n📖 Title: ${title}\n📚 Course: ${course || 'General'}\n\n${description ? `📝 Description:\n${description}` : ''}\n\nLog in to your portal to access the material.\n\nBest regards,\nNadanaloga Academy Team`;
+                    for (const user of users) {
+                        sendEmailBackground(user.email, user.name, `New Study Material - ${title}`, msg);
+                        createNotificationForUser(user.id, 'New Material', `New study material available: "${title}".`, 'Info');
+                    }
+                    console.log(`[Materials] Sent emails to ${users.length} users for "${title}"`);
+                } catch (e) {
+                    console.error('[Materials] Error sending emails:', e.message);
+                }
+            })();
         } catch (error) {
             console.error('Error creating book material:', error);
             res.status(500).json({ message: 'Server error creating book material.' });
@@ -2456,6 +2647,24 @@ Please review and approve this registration in the admin panel.`;
                 [title, content, priority || 'normal', expiry_date, recipient_ids || []]
             );
             res.status(201).json(result.rows[0]);
+
+            // Send notice emails (fire-and-forget)
+            (async () => {
+                try {
+                    const users = (recipient_ids && recipient_ids.length > 0)
+                        ? await getUsersByIds(recipient_ids)
+                        : await getActiveUsers();
+                    const priorityEmoji = priority === 'high' ? '🚨' : priority === 'medium' ? '⚠️' : 'ℹ️';
+                    const msg = `${priorityEmoji} Important Notice\n\n📢 ${title}\n\n${content}\n\n${expiry_date ? `⏰ Valid until: ${expiry_date}` : ''}\n\nPlease take note and log in to your portal for any required actions.\n\nBest regards,\nNadanaloga Academy Team`;
+                    for (const user of users) {
+                        sendEmailBackground(user.email, user.name, `Notice - ${title}`, msg);
+                        createNotificationForUser(user.id, 'New Notice', `${priorityEmoji} ${title}`, 'Info');
+                    }
+                    console.log(`[Notice] Sent notice emails to ${users.length} users for "${title}"`);
+                } catch (e) {
+                    console.error('[Notice] Error sending notice emails:', e.message);
+                }
+            })();
         } catch (error) {
             console.error('Error creating notice:', error);
             res.status(500).json({ message: 'Server error creating notice.' });
@@ -2666,6 +2875,23 @@ Please review and approve this registration in the admin panel.`;
                 [student_id, fee_structure_id, course_name, amount, currency, issue_date, due_date, billing_period, status || 'pending', payment_details]
             );
             res.status(201).json(result.rows[0]);
+
+            // Send invoice email to student (fire-and-forget)
+            if (student_id) {
+                (async () => {
+                    try {
+                        const students = await getUsersByIds([student_id]);
+                        if (students.length > 0) {
+                            const student = students[0];
+                            const msg = `A new fee invoice has been generated for you.\n\n📋 Invoice #${result.rows[0].id}\n📚 Course: ${course_name || 'Not specified'}\n💰 Amount: ${currency || 'INR'} ${amount}\n📅 Issue Date: ${issue_date || 'Today'}\n⏰ Due Date: ${due_date || 'Not specified'}\n📊 Status: ${status || 'Pending'}\n\nPlease log in to your portal to view and pay your invoice.\n\nBest regards,\nNadanaloga Academy Team`;
+                            sendEmailBackground(student.email, student.name, `Fee Invoice - ${course_name || 'Nadanaloga Academy'}`, msg);
+                            createNotificationForUser(student.id, 'New Invoice', `Invoice of ${currency || 'INR'} ${amount} for ${course_name || 'fees'} is due by ${due_date || 'TBA'}.`, 'Info');
+                        }
+                    } catch (e) {
+                        console.error('[Invoice] Error sending email:', e.message);
+                    }
+                })();
+            }
         } catch (error) {
             console.error('Error creating invoice:', error);
             res.status(500).json({ message: 'Server error creating invoice.' });
@@ -2684,6 +2910,25 @@ Please review and approve this registration in the admin panel.`;
                 return res.status(404).json({ message: 'Invoice not found' });
             }
             res.json(result.rows[0]);
+
+            // Send payment confirmation email if status is paid (fire-and-forget)
+            const invoice = result.rows[0];
+            if (status === 'paid' && invoice.student_id) {
+                (async () => {
+                    try {
+                        const students = await getUsersByIds([invoice.student_id]);
+                        if (students.length > 0) {
+                            const student = students[0];
+                            const pd = typeof payment_details === 'string' ? JSON.parse(payment_details) : (payment_details || {});
+                            const msg = `Payment Receipt ✅\n\n💳 Invoice #${id}\n💰 Amount: ${invoice.currency || 'INR'} ${invoice.amount}\n📚 Course: ${invoice.course_name || 'Not specified'}\n📅 Payment Date: ${pd.payment_date || new Date().toLocaleDateString()}\n💳 Method: ${pd.payment_method || 'N/A'}\n📊 Status: Paid\n\nThank you for your payment!\n\nBest regards,\nNadanaloga Academy Team`;
+                            sendEmailBackground(student.email, student.name, `Payment Confirmed - Invoice #${id}`, msg);
+                            createNotificationForUser(student.id, 'Payment Confirmed', `Your payment of ${invoice.currency || 'INR'} ${invoice.amount} has been confirmed.`, 'Success');
+                        }
+                    } catch (e) {
+                        console.error('[Invoice] Error sending payment email:', e.message);
+                    }
+                })();
+            }
         } catch (error) {
             console.error('Error updating invoice:', error);
             res.status(500).json({ message: 'Server error updating invoice.' });

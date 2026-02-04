@@ -301,7 +301,7 @@ export const logout = async (): Promise<void> => {
 export const getCourses = async (): Promise<Course[]> => {
   try {
     // Use Express API instead of Supabase
-    const response = await fetch('/api/courses');
+    const response = await fetch('/api/courses', { credentials: 'include' });
 
     if (!response.ok) {
       console.error('Error fetching courses:', response.statusText);
