@@ -1606,25 +1606,34 @@ Please review and approve this registration in the admin panel.`;
             const { id } = req.params;
             await client.query('BEGIN');
 
+            // Helper: safely run a query, ignoring errors if table/column doesn't exist
+            const safeQuery = async (sql, params) => {
+                try { await client.query(sql, params); } catch (e) {
+                    console.log(`[Delete] Skipped: ${e.message}`);
+                }
+            };
+
             // Remove user from batch student_ids arrays
-            await client.query(
+            await safeQuery(
                 `UPDATE batches SET student_ids = array_remove(student_ids, $1) WHERE $1 = ANY(student_ids)`,
                 [parseInt(id)]
             );
 
-            // Set events.created_by to NULL if the column exists
-            const eventsColCheck = await client.query(`
-                SELECT 1 FROM information_schema.columns
-                WHERE table_name = 'events' AND column_name = 'created_by'
-            `);
-            if (eventsColCheck.rows.length > 0) {
-                await client.query('UPDATE events SET created_by = NULL WHERE created_by = $1', [id]);
-            }
+            // Nullify references in batches and events
+            await safeQuery('UPDATE batches SET teacher_id = NULL WHERE teacher_id = $1', [id]);
+            await safeQuery('UPDATE events SET created_by = NULL WHERE created_by = $1', [id]);
 
-            // Set batches.teacher_id to NULL if this user is a teacher
-            await client.query('UPDATE batches SET teacher_id = NULL WHERE teacher_id = $1', [id]);
+            // Explicitly delete from ALL tables that reference users
+            await safeQuery('DELETE FROM notifications WHERE user_id = $1', [id]);
+            await safeQuery('DELETE FROM notifications WHERE recipient_id = $1', [id]);
+            await safeQuery('DELETE FROM event_notifications WHERE user_id = $1', [id]);
+            await safeQuery('DELETE FROM user_fcm_tokens WHERE user_id = $1', [id]);
+            await safeQuery('DELETE FROM invoices WHERE student_id = $1', [id]);
+            await safeQuery('DELETE FROM salaries WHERE user_id = $1', [id]);
+            await safeQuery('DELETE FROM salary_payments WHERE user_id = $1', [id]);
+            await safeQuery('DELETE FROM event_responses WHERE user_id = $1', [id]);
 
-            // Delete the user (cascading FKs will handle notifications, invoices, etc.)
+            // Now delete the user
             const result = await client.query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
             if (result.rows.length === 0) {
                 await client.query('ROLLBACK');
