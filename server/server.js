@@ -254,6 +254,22 @@ async function startServer() {
                 console.error('[DB] ✗ Failed to create event_notifications table:', error.message);
             }
 
+            // Fix events.created_by FK to allow user deletion
+            try {
+                await client.query(`
+                    ALTER TABLE IF EXISTS events
+                    DROP CONSTRAINT IF EXISTS events_created_by_fkey
+                `);
+                await client.query(`
+                    ALTER TABLE IF EXISTS events
+                    ADD CONSTRAINT events_created_by_fkey
+                    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+                `);
+                console.log('[DB] ✓ Fixed events_created_by_fkey to ON DELETE SET NULL');
+            } catch (error) {
+                console.error('[DB] ✗ Failed to fix events_created_by_fkey:', error.message);
+            }
+
             // Create user_id sequence and backfill existing users
             try {
                 await client.query(`CREATE SEQUENCE IF NOT EXISTS user_id_seq START WITH 1`);
@@ -1575,16 +1591,38 @@ Please review and approve this registration in the admin panel.`;
 
     // Permanently delete user
     app.delete('/api/users/:id/permanent', ensureAdmin, async (req, res) => {
+        const client = await pool.connect();
         try {
             const { id } = req.params;
-            const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
+            await client.query('BEGIN');
+
+            // Remove user from batch student_ids arrays
+            await client.query(
+                `UPDATE batches SET student_ids = array_remove(student_ids, $1) WHERE $1 = ANY(student_ids)`,
+                [parseInt(id)]
+            );
+
+            // Set events.created_by to NULL for this user
+            await client.query('UPDATE events SET created_by = NULL WHERE created_by = $1', [id]);
+
+            // Set batches.teacher_id to NULL if this user is a teacher
+            await client.query('UPDATE batches SET teacher_id = NULL WHERE teacher_id = $1', [id]);
+
+            // Delete the user (cascading FKs will handle notifications, invoices, etc.)
+            const result = await client.query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
             if (result.rows.length === 0) {
+                await client.query('ROLLBACK');
                 return res.status(404).json({ message: 'User not found' });
             }
+
+            await client.query('COMMIT');
             res.json({ message: 'User permanently deleted' });
         } catch (error) {
+            await client.query('ROLLBACK');
             console.error('Error permanently deleting user:', error);
-            res.status(500).json({ message: 'Server error permanently deleting user.' });
+            res.status(500).json({ message: 'Server error permanently deleting user.', error: error.message });
+        } finally {
+            client.release();
         }
     });
 
