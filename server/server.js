@@ -514,11 +514,15 @@ async function startServer() {
     } catch (error) {
         smtpConfigInfo.verified = false;
         smtpConfigInfo.error = error.message;
+        // Reset transporter so emails don't silently fail
+        mailTransporter = null;
+        isEtherealMode = true;
         console.error('\\n--- EMAIL CONFIGURATION FAILED ---');
         console.error('[Email] Could not connect to SMTP server.');
         console.error(`[Email] Host: ${process.env.SMTP_HOST}`);
         console.error(`[Email] User: ${process.env.SMTP_USER}`);
         console.error(`[Email] Error: ${error.message}`);
+        console.error('[Email] Emails will be disabled until SMTP is fixed.');
         console.error('--------------------------------------\\n');
     }
 
@@ -675,6 +679,26 @@ async function startServer() {
             };
             delete parsedUser.password;
 
+            // Create in-app notifications server-side
+            try {
+                // Notification for the new user
+                await pool.query(
+                    `INSERT INTO notifications (user_id, title, message, type) VALUES ($1, $2, $3, $4)`,
+                    [newUser.id, 'Welcome to Nadanaloga Academy!', `Registration successful for ${userData.name}. Your application is being reviewed by our admin team.`, 'registration']
+                );
+
+                // Notification for admin(s)
+                const admins = await pool.query(`SELECT id FROM users WHERE role = 'Admin' AND is_deleted = false`);
+                for (const admin of admins.rows) {
+                    await pool.query(
+                        `INSERT INTO notifications (user_id, title, message, type) VALUES ($1, $2, $3, $4)`,
+                        [admin.id, 'New Student Registration', `New student ${userData.name} (${normalizedEmail}) has registered. Please review their application.`, 'registration']
+                    );
+                }
+            } catch (notifError) {
+                console.error('Error creating registration notifications:', notifError.message);
+            }
+
             res.status(201).json(parsedUser);
         } catch (error) {
             console.error('Registration error:', error);
@@ -796,12 +820,16 @@ async function startServer() {
             console.log('[DEBUG] Sending registration emails for:', userEmail);
 
             if (!mailTransporter) {
-                console.log('📧 Email in test mode - would send registration emails to:', userEmail);
+                console.log('[Email] SMTP not configured - emails disabled. Would send to:', userEmail);
                 return res.status(200).json({
-                    success: true,
-                    message: 'Registration emails sent successfully (test mode)'
+                    success: false,
+                    message: 'SMTP not configured - emails are disabled. Check SMTP_HOST, SMTP_USER, SMTP_PASS environment variables.',
+                    testMode: true
                 });
             }
+
+            let emailsSent = 0;
+            const emailErrors = [];
 
             // Send welcome email to user
             try {
@@ -836,8 +864,10 @@ Welcome to the Nadanaloga family!`;
 
                 await mailTransporter.sendMail(userMailOptions);
                 console.log(`📧 Welcome email sent to: ${userEmail}`);
+                emailsSent++;
             } catch (emailError) {
-                console.error('Error sending welcome email:', emailError);
+                console.error('Error sending welcome email:', emailError.message);
+                emailErrors.push(`Welcome email: ${emailError.message}`);
             }
 
             // Send notification email to admin
@@ -866,13 +896,19 @@ Please review and approve this registration in the admin panel.`;
 
                 await mailTransporter.sendMail(adminMailOptions);
                 console.log('📧 Admin notification email sent');
+                emailsSent++;
             } catch (emailError) {
-                console.error('Error sending admin notification email:', emailError);
+                console.error('Error sending admin notification email:', emailError.message);
+                emailErrors.push(`Admin email: ${emailError.message}`);
             }
 
             res.status(200).json({
-                success: true,
-                message: 'Registration emails sent successfully'
+                success: emailsSent > 0,
+                message: emailsSent > 0
+                    ? `${emailsSent} registration email(s) sent successfully`
+                    : 'Failed to send registration emails',
+                emailsSent,
+                errors: emailErrors.length > 0 ? emailErrors : undefined
             });
         } catch (error) {
             console.error('Registration email error:', error);
@@ -2040,7 +2076,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.post('/api/notifications', ensureAdmin, async (req, res) => {
+    app.post('/api/notifications', ensureAuthenticated, async (req, res) => {
         try {
             const notifications = req.body;
             if (!Array.isArray(notifications)) {
