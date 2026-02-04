@@ -254,20 +254,30 @@ async function startServer() {
                 console.error('[DB] ✗ Failed to create event_notifications table:', error.message);
             }
 
-            // Fix events.created_by FK to allow user deletion
+            // Fix events FK constraints that might block user deletion
             try {
+                // Drop the constraint if it exists (safe even if it doesn't)
                 await client.query(`
                     ALTER TABLE IF EXISTS events
                     DROP CONSTRAINT IF EXISTS events_created_by_fkey
                 `);
-                await client.query(`
-                    ALTER TABLE IF EXISTS events
-                    ADD CONSTRAINT events_created_by_fkey
-                    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+                // Only re-add if the created_by column actually exists
+                const colCheck = await client.query(`
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'events' AND column_name = 'created_by'
                 `);
-                console.log('[DB] ✓ Fixed events_created_by_fkey to ON DELETE SET NULL');
+                if (colCheck.rows.length > 0) {
+                    await client.query(`
+                        ALTER TABLE IF EXISTS events
+                        ADD CONSTRAINT events_created_by_fkey
+                        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+                    `);
+                    console.log('[DB] ✓ Fixed events_created_by_fkey to ON DELETE SET NULL');
+                } else {
+                    console.log('[DB] ✓ events.created_by column not present, no FK fix needed');
+                }
             } catch (error) {
-                console.error('[DB] ✗ Failed to fix events_created_by_fkey:', error.message);
+                console.error('[DB] ✗ Failed to fix events FK:', error.message);
             }
 
             // Create user_id sequence and backfill existing users
@@ -1602,8 +1612,14 @@ Please review and approve this registration in the admin panel.`;
                 [parseInt(id)]
             );
 
-            // Set events.created_by to NULL for this user
-            await client.query('UPDATE events SET created_by = NULL WHERE created_by = $1', [id]);
+            // Set events.created_by to NULL if the column exists
+            const eventsColCheck = await client.query(`
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'events' AND column_name = 'created_by'
+            `);
+            if (eventsColCheck.rows.length > 0) {
+                await client.query('UPDATE events SET created_by = NULL WHERE created_by = $1', [id]);
+            }
 
             // Set batches.teacher_id to NULL if this user is a teacher
             await client.query('UPDATE batches SET teacher_id = NULL WHERE teacher_id = $1', [id]);
