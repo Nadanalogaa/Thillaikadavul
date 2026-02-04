@@ -454,7 +454,8 @@ async function startServer() {
         saveUninitialized: false,
         store: new pgSession({
             pool: pool,
-            tableName: 'session'
+            tableName: 'session',
+            createTableIfMissing: true,
         }),
         cookie: {
             maxAge: 1000 * 60 * 60 * 24, // 1 day
@@ -2627,6 +2628,16 @@ Please review and approve this registration in the admin panel.`;
     // Catch-all handler: send back React's index.html file for any non-API routes
     app.get('*', (req, res) => {
         res.sendFile(path.join(distPath, 'index.html'));
+    });
+
+    // Global error handler — return JSON instead of HTML for API errors
+    app.use((err, req, res, _next) => {
+        console.error('[Server Error]', err.stack || err);
+        if (req.path.startsWith('/api')) {
+            res.status(500).json({ message: 'Internal server error.' });
+        } else {
+            res.status(500).send('Internal Server Error');
+        }
     });
 
     // --- Start Server ---
