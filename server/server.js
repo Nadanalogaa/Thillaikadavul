@@ -89,6 +89,13 @@ async function startServer() {
         if (await addColumn('users', 'is_deleted', 'BOOLEAN DEFAULT false')) successCount++; else failCount++;
         if (await addColumn('users', 'class_preference', "VARCHAR(20) DEFAULT 'Hybrid'")) successCount++; else failCount++;
         if (await addColumn('users', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+        if (await addColumn('users', 'user_id', 'VARCHAR(20) UNIQUE')) successCount++; else failCount++;
+        if (await addColumn('users', 'is_super_admin', 'BOOLEAN DEFAULT false')) successCount++; else failCount++;
+        if (await addColumn('users', 'preferred_location_id', 'INTEGER REFERENCES locations(id)')) successCount++; else failCount++;
+
+        // Ensure primary admin is super admin
+        await client.query(`UPDATE users SET is_super_admin = true WHERE email = 'admin@nadanaloga.com'`);
+        console.log('[DB] ✓ Ensured admin@nadanaloga.com is super admin');
 
         // IMMEDIATE CHECK: Verify updated_at was actually added
         console.log('[DB] IMMEDIATE CHECK after adding users.updated_at:');
@@ -130,6 +137,9 @@ async function startServer() {
         if (await addColumn('locations', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
         if (await addColumn('locations', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
 
+        // Add location_id to batches (link batches to branches)
+        if (await addColumn('batches', 'location_id', 'INTEGER REFERENCES locations(id)')) successCount++; else failCount++;
+
         // Add timestamps to other tables
         if (await addColumn('batches', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
         if (await addColumn('batches', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
@@ -145,6 +155,95 @@ async function startServer() {
         if (await addColumn('notices', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
         if (await addColumn('invoices', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
         if (await addColumn('invoices', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+
+            // Create user_fcm_tokens table if not exists
+            try {
+                await client.query(`
+                    CREATE TABLE IF NOT EXISTS user_fcm_tokens (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                        fcm_token TEXT NOT NULL,
+                        device_type VARCHAR(20),
+                        is_active BOOLEAN DEFAULT true,
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        UNIQUE(user_id, fcm_token)
+                    )
+                `);
+                console.log('[DB] ✓ Ensured user_fcm_tokens table exists');
+            } catch (error) {
+                console.error('[DB] ✗ Failed to create user_fcm_tokens table:', error.message);
+            }
+
+            // Create salaries table if not exists
+            try {
+                await client.query(`
+                    CREATE TABLE IF NOT EXISTS salaries (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                        role VARCHAR(50),
+                        base_salary DECIMAL(10,2),
+                        payment_frequency VARCHAR(50) DEFAULT 'Monthly',
+                        bank_account_name VARCHAR(255),
+                        bank_account_number VARCHAR(50),
+                        bank_ifsc VARCHAR(20),
+                        upi_id VARCHAR(255),
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ DEFAULT NOW()
+                    )
+                `);
+                console.log('[DB] ✓ Ensured salaries table exists');
+            } catch (error) {
+                console.error('[DB] ✗ Failed to create salaries table:', error.message);
+            }
+
+            // Create salary_payments table if not exists
+            try {
+                await client.query(`
+                    CREATE TABLE IF NOT EXISTS salary_payments (
+                        id SERIAL PRIMARY KEY,
+                        salary_id INTEGER REFERENCES salaries(id) ON DELETE CASCADE,
+                        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                        amount DECIMAL(10,2),
+                        payment_date DATE,
+                        payment_method VARCHAR(50),
+                        transaction_id VARCHAR(255),
+                        payment_period VARCHAR(100),
+                        notes TEXT,
+                        status VARCHAR(50) DEFAULT 'paid',
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ DEFAULT NOW()
+                    )
+                `);
+                console.log('[DB] ✓ Ensured salary_payments table exists');
+            } catch (error) {
+                console.error('[DB] ✗ Failed to create salary_payments table:', error.message);
+            }
+
+            // Create user_id sequence and backfill existing users
+            try {
+                await client.query(`CREATE SEQUENCE IF NOT EXISTS user_id_seq START WITH 1`);
+                console.log('[DB] ✓ Ensured user_id_seq sequence exists');
+
+                // Backfill user_id for any users that don't have one
+                const usersWithoutId = await client.query(
+                    `SELECT id FROM users WHERE user_id IS NULL ORDER BY id`
+                );
+                if (usersWithoutId.rows.length > 0) {
+                    console.log(`[DB] Backfilling user_id for ${usersWithoutId.rows.length} users...`);
+                    const year = new Date().getFullYear();
+                    for (const row of usersWithoutId.rows) {
+                        const seqVal = await client.query(`SELECT nextval('user_id_seq') as seq`);
+                        const userId = `NDA-${year}-${String(seqVal.rows[0].seq).padStart(4, '0')}`;
+                        await client.query(
+                            `UPDATE users SET user_id = $1 WHERE id = $2`,
+                            [userId, row.id]
+                        );
+                    }
+                    console.log(`[DB] ✓ Backfilled user_id for ${usersWithoutId.rows.length} users`);
+                }
+            } catch (error) {
+                console.error('[DB] ✗ Failed to setup user_id sequence:', error.message);
+            }
 
             console.log(`[DB] ✅ Schema migration completed! Success: ${successCount}, Failed: ${failCount}`);
 
@@ -378,6 +477,16 @@ async function startServer() {
         res.status(403).json({ message: 'Forbidden: Administrative privileges required.' });
     };
 
+    const ensureSuperAdmin = (req, res, next) => {
+        if (!req.session.user) {
+            return res.status(401).json({ message: 'Unauthorized: You must be logged in to perform this action.' });
+        }
+        if (req.session.user.is_super_admin === true) {
+            return next();
+        }
+        res.status(403).json({ message: 'Forbidden: Super Admin privileges required.' });
+    };
+
     // Health check endpoint
     app.get('/api/health', (req, res) => {
         res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
@@ -417,13 +526,20 @@ async function startServer() {
                 return res.status(409).json({ message: 'This email is already registered. Please try logging in.' });
             }
             
-            if (normalizedEmail === 'admin@nadanaloga.com') userData.role = 'Admin';
+            if (normalizedEmail === 'admin@nadanaloga.com') {
+                userData.role = 'Admin';
+            }
             if (!password) return res.status(400).json({ message: 'Password is required.' });
             
             const hashedPassword = await bcrypt.hash(password, 10);
 
+            // Generate user_id (NDA-YYYY-XXXX)
+            const year = new Date().getFullYear();
+            const seqResult = await pool.query(`SELECT nextval('user_id_seq') as seq`);
+            const generatedUserId = `NDA-${year}-${String(seqResult.rows[0].seq).padStart(4, '0')}`;
+
             const result = await pool.query(
-                'INSERT INTO users (name, email, password, role, class_preference, photo_url, dob, sex, contact_number, address, date_of_joining, courses, father_name, standard, school_name, grade, notes, course_expertise, educational_qualifications, employment_type) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING *',
+                'INSERT INTO users (name, email, password, role, class_preference, photo_url, dob, sex, contact_number, address, date_of_joining, courses, father_name, standard, school_name, grade, notes, course_expertise, educational_qualifications, employment_type, user_id, preferred_location_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING *',
                 [
                     userData.name, normalizedEmail, hashedPassword, userData.role || 'Student',
                     userData.class_preference || userData.classPreference,
@@ -439,12 +555,21 @@ async function startServer() {
                     userData.grade, userData.notes,
                     JSON.stringify(userData.course_expertise || userData.courseExpertise || []),
                     userData.educational_qualifications || userData.educationalQualifications,
-                    userData.employment_type || userData.employmentType
+                    userData.employment_type || userData.employmentType,
+                    generatedUserId,
+                    userData.preferred_location_id || userData.preferredLocationId || null
                 ]
             );
 
             // Parse JSON fields before returning
             const newUser = result.rows[0];
+
+            // Set super admin for primary admin email
+            if (normalizedEmail === 'admin@nadanaloga.com') {
+                await pool.query('UPDATE users SET is_super_admin = true WHERE id = $1', [newUser.id]);
+                newUser.is_super_admin = true;
+            }
+
             const parsedUser = {
                 ...newUser,
                 courses: typeof newUser.courses === 'string' ? JSON.parse(newUser.courses || '[]') : (newUser.courses || []),
@@ -461,16 +586,30 @@ async function startServer() {
 
     app.post('/api/login', async (req, res) => {
         try {
-            const { email, password } = req.body;
-            const result = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase()]);
+            const { email, password, identifier } = req.body;
+            // Support login by email or userId (identifier field)
+            // identifier takes priority; falls back to email for backward compatibility
+            const loginId = identifier || email;
+            if (!loginId || !password) {
+                return res.status(400).json({ message: 'Email/User ID and password are required.' });
+            }
+
+            let result;
+            if (loginId.toUpperCase().startsWith('NDA-')) {
+                // Login by user_id
+                result = await pool.query('SELECT * FROM users WHERE user_id = $1 AND is_deleted = false', [loginId.toUpperCase()]);
+            } else {
+                // Login by email
+                result = await pool.query('SELECT * FROM users WHERE email = $1 AND is_deleted = false', [loginId.toLowerCase()]);
+            }
 
             if (result.rows.length === 0) {
-                return res.status(401).json({ message: 'Invalid email or password.' });
+                return res.status(401).json({ message: 'Invalid credentials.' });
             }
 
             const user = result.rows[0];
             const isMatch = await bcrypt.compare(password, user.password);
-            if (!isMatch) return res.status(401).json({ message: 'Invalid email or password.' });
+            if (!isMatch) return res.status(401).json({ message: 'Invalid credentials.' });
 
             delete user.password;
 
@@ -495,8 +634,16 @@ async function startServer() {
     });
 
     app.post('/api/logout', (req, res) => {
+        if (!req.session) {
+            res.clearCookie('connect.sid');
+            return res.status(200).json({ message: 'Logout successful' });
+        }
         req.session.destroy(err => {
-            if (err) return res.status(500).json({ message: 'Could not log out.' });
+            if (err) {
+                // Still clear the cookie even if session destroy fails
+                res.clearCookie('connect.sid');
+                return res.status(200).json({ message: 'Logout successful' });
+            }
             res.clearCookie('connect.sid');
             res.status(200).json({ message: 'Logout successful' });
         });
@@ -1155,9 +1302,9 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // Get all non-deleted users
-    app.get('/api/users', async (req, res) => {
+    app.get('/api/users', ensureAdmin, async (req, res) => {
         try {
-            const { role, course_expertise } = req.query;
+            const { role, course_expertise, search } = req.query;
             let query = 'SELECT * FROM users WHERE is_deleted = false';
             const params = [];
 
@@ -1168,6 +1315,10 @@ Please review and approve this registration in the admin panel.`;
             if (course_expertise) {
                 params.push(`%${course_expertise}%`);
                 query += ` AND course_expertise::text ILIKE $${params.length}`;
+            }
+            if (search) {
+                params.push(`%${search}%`);
+                query += ` AND (name ILIKE $${params.length} OR email ILIKE $${params.length} OR user_id ILIKE $${params.length})`;
             }
 
             query += ' ORDER BY created_at DESC';
@@ -1181,7 +1332,7 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // Get user by ID
-    app.get('/api/users/:id', async (req, res) => {
+    app.get('/api/users/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
@@ -1196,7 +1347,7 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // Get user by email
-    app.post('/api/users/by-email', async (req, res) => {
+    app.post('/api/users/by-email', ensureAdmin, async (req, res) => {
         try {
             const { email } = req.body;
             const result = await pool.query('SELECT * FROM users WHERE email = $1 AND is_deleted = false', [email]);
@@ -1211,7 +1362,7 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // Update user
-    app.put('/api/users/:id', async (req, res) => {
+    app.put('/api/users/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const userData = req.body;
@@ -1243,7 +1394,7 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // Soft delete user
-    app.delete('/api/users/:id', async (req, res) => {
+    app.delete('/api/users/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const result = await pool.query(
@@ -1261,7 +1412,7 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // Get trashed users
-    app.get('/api/users/trashed/all', async (req, res) => {
+    app.get('/api/users/trashed/all', ensureAdmin, async (req, res) => {
         try {
             const result = await pool.query('SELECT * FROM users WHERE is_deleted = true ORDER BY updated_at DESC');
             const users = result.rows.map(parseUserData);
@@ -1273,7 +1424,7 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // Restore user
-    app.post('/api/users/:id/restore', async (req, res) => {
+    app.post('/api/users/:id/restore', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const result = await pool.query(
@@ -1291,7 +1442,7 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // Permanently delete user
-    app.delete('/api/users/:id/permanent', async (req, res) => {
+    app.delete('/api/users/:id/permanent', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
@@ -1305,13 +1456,128 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    // Get admin stats
-    app.get('/api/stats/admin', async (req, res) => {
+    // Change password
+    app.put('/api/users/:id/change-password', async (req, res) => {
         try {
+            const { id } = req.params;
+            const { current_password, new_password } = req.body;
+
+            if (!current_password || !new_password) {
+                return res.status(400).json({ message: 'Current password and new password are required.' });
+            }
+            if (new_password.length < 6) {
+                return res.status(400).json({ message: 'New password must be at least 6 characters.' });
+            }
+
+            const userResult = await pool.query('SELECT password FROM users WHERE id = $1', [id]);
+            if (userResult.rows.length === 0) {
+                return res.status(404).json({ message: 'User not found.' });
+            }
+
+            const isMatch = await bcrypt.compare(current_password, userResult.rows[0].password);
+            if (!isMatch) {
+                return res.status(401).json({ message: 'Current password is incorrect.' });
+            }
+
+            const hashedPassword = await bcrypt.hash(new_password, 10);
+            await pool.query('UPDATE users SET password = $1, updated_at = NOW() WHERE id = $2', [hashedPassword, id]);
+
+            res.json({ message: 'Password changed successfully.' });
+        } catch (error) {
+            console.error('Error changing password:', error);
+            res.status(500).json({ message: 'Server error changing password.' });
+        }
+    });
+
+    // Reset admin password (temporary endpoint - remove after use)
+    app.post('/api/reset-admin-password', async (req, res) => {
+        try {
+            const { email, new_password, secret } = req.body;
+            if (secret !== 'nadanaloga-reset-2026') {
+                return res.status(403).json({ message: 'Invalid secret.' });
+            }
+            if (!email || !new_password) {
+                return res.status(400).json({ message: 'Email and new_password are required.' });
+            }
+            const hashedPassword = await bcrypt.hash(new_password, 10);
             const result = await pool.query(
-                'SELECT role, class_preference FROM users WHERE is_deleted = false'
+                'UPDATE users SET password = $1, updated_at = NOW() WHERE email = $2 RETURNING id, email, role, is_super_admin',
+                [hashedPassword, email.toLowerCase()]
             );
-            res.json(result.rows);
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'User not found.' });
+            }
+            res.json({ message: 'Password reset successfully.', user: result.rows[0] });
+        } catch (error) {
+            console.error('Error resetting password:', error);
+            res.status(500).json({ message: 'Server error.' });
+        }
+    });
+
+    // Promote user to Admin (Super Admin only)
+    app.put('/api/users/:id/make-admin', ensureSuperAdmin, async (req, res) => {
+        try {
+            const { id } = req.params;
+            const result = await pool.query(
+                'UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2 AND is_deleted = false RETURNING *',
+                ['Admin', id]
+            );
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'User not found' });
+            }
+            res.json(parseUserData(result.rows[0]));
+        } catch (error) {
+            console.error('Error promoting user to admin:', error);
+            res.status(500).json({ message: 'Server error promoting user.' });
+        }
+    });
+
+    // Demote Admin back to Student (Super Admin only, blocks self-demotion)
+    app.put('/api/users/:id/remove-admin', ensureSuperAdmin, async (req, res) => {
+        try {
+            const { id } = req.params;
+            if (parseInt(id) === req.session.user.id) {
+                return res.status(400).json({ message: 'You cannot demote yourself.' });
+            }
+            const result = await pool.query(
+                'UPDATE users SET role = $1, is_super_admin = false, updated_at = NOW() WHERE id = $2 AND is_deleted = false RETURNING *',
+                ['Student', id]
+            );
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'User not found' });
+            }
+            res.json(parseUserData(result.rows[0]));
+        } catch (error) {
+            console.error('Error demoting admin:', error);
+            res.status(500).json({ message: 'Server error demoting admin.' });
+        }
+    });
+
+    // Get admin stats (aggregated counts)
+    app.get('/api/stats/admin', ensureAdmin, async (req, res) => {
+        try {
+            const [usersResult, batchesResult, coursesResult, locationsResult, invoicesResult, demosResult] = await Promise.all([
+                pool.query(`SELECT role, COUNT(*) as count FROM users WHERE is_deleted = false GROUP BY role`),
+                pool.query(`SELECT COUNT(*) as count FROM batches`),
+                pool.query(`SELECT COUNT(*) as count FROM courses`),
+                pool.query(`SELECT COUNT(*) as count FROM locations WHERE is_active = true`),
+                pool.query(`SELECT COUNT(*) as count FROM invoices WHERE status = 'pending'`),
+                pool.query(`SELECT COUNT(*) as count FROM demo_bookings WHERE status = 'pending'`),
+            ]);
+
+            const roleCounts = {};
+            usersResult.rows.forEach(r => { roleCounts[r.role] = parseInt(r.count); });
+
+            res.json({
+                students: roleCounts['Student'] || 0,
+                teachers: roleCounts['Teacher'] || 0,
+                admins: roleCounts['Admin'] || 0,
+                batches: parseInt(batchesResult.rows[0].count),
+                courses: parseInt(coursesResult.rows[0].count),
+                locations: parseInt(locationsResult.rows[0].count),
+                pendingInvoices: parseInt(invoicesResult.rows[0].count),
+                pendingDemos: parseInt(demosResult.rows[0].count),
+            });
         } catch (error) {
             console.error('Error fetching admin stats:', error);
             res.status(500).json({ message: 'Server error fetching stats.' });
@@ -1319,7 +1585,7 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // Get users by IDs
-    app.post('/api/users/by-ids', async (req, res) => {
+    app.post('/api/users/by-ids', ensureAdmin, async (req, res) => {
         try {
             const { ids } = req.body;
             if (!ids || !Array.isArray(ids) || ids.length === 0) {
@@ -1354,15 +1620,15 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.post('/api/batches', async (req, res) => {
+    app.post('/api/batches', ensureAdmin, async (req, res) => {
         try {
             const batchData = req.body;
-            const { batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode } = batchData;
+            const { batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode, location_id } = batchData;
 
             const result = await pool.query(
-                `INSERT INTO batches (batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-                [batch_name, course_id, teacher_id, JSON.stringify(schedule), start_date, end_date, max_students, student_ids || [], mode]
+                `INSERT INTO batches (batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode, location_id)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+                [batch_name, course_id, teacher_id, JSON.stringify(schedule), start_date, end_date, max_students, student_ids || [], mode, location_id || null]
             );
             res.status(201).json(parseBatchData(result.rows[0]));
         } catch (error) {
@@ -1371,18 +1637,18 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.put('/api/batches/:id', async (req, res) => {
+    app.put('/api/batches/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
-            const { batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode } = req.body;
+            const { batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode, location_id } = req.body;
 
             const result = await pool.query(
                 `UPDATE batches SET
                     batch_name = $1, course_id = $2, teacher_id = $3, schedule = $4,
                     start_date = $5, end_date = $6, max_students = $7, student_ids = $8, mode = $9,
-                    updated_at = NOW()
-                 WHERE id = $10 RETURNING *`,
-                [batch_name, course_id, teacher_id, JSON.stringify(schedule), start_date, end_date, max_students, student_ids || [], mode, id]
+                    location_id = $10, updated_at = NOW()
+                 WHERE id = $11 RETURNING *`,
+                [batch_name, course_id, teacher_id, JSON.stringify(schedule), start_date, end_date, max_students, student_ids || [], mode, location_id || null, id]
             );
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: 'Batch not found' });
@@ -1394,7 +1660,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.delete('/api/batches/:id', async (req, res) => {
+    app.delete('/api/batches/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const result = await pool.query('DELETE FROM batches WHERE id = $1 RETURNING id', [id]);
@@ -1408,8 +1674,104 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
+    // Get batch with populated details (teacher name, course name, student names)
+    app.get('/api/batches/:id/details', ensureAdmin, async (req, res) => {
+        try {
+            const { id } = req.params;
+            const batchResult = await pool.query('SELECT * FROM batches WHERE id = $1', [id]);
+            if (batchResult.rows.length === 0) {
+                return res.status(404).json({ message: 'Batch not found' });
+            }
+            const batch = parseBatchData(batchResult.rows[0]);
+
+            // Get teacher name
+            let teacherName = null;
+            if (batch.teacher_id) {
+                const teacherResult = await pool.query('SELECT name FROM users WHERE id = $1', [batch.teacher_id]);
+                teacherName = teacherResult.rows[0]?.name || null;
+            }
+
+            // Get course name
+            let courseName = null;
+            if (batch.course_id) {
+                const courseResult = await pool.query('SELECT name FROM courses WHERE id = $1', [batch.course_id]);
+                courseName = courseResult.rows[0]?.name || null;
+            }
+
+            // Get student names
+            const studentIds = batch.student_ids || [];
+            let students = [];
+            if (studentIds.length > 0) {
+                const studentResult = await pool.query(
+                    'SELECT id, name, email, user_id FROM users WHERE id = ANY($1)',
+                    [studentIds]
+                );
+                students = studentResult.rows;
+            }
+
+            // Get location name
+            let locationName = null;
+            if (batch.location_id) {
+                const locResult = await pool.query('SELECT name FROM locations WHERE id = $1', [batch.location_id]);
+                locationName = locResult.rows[0]?.name || null;
+            }
+
+            res.json({
+                ...batch,
+                teacher_name: teacherName,
+                course_name: courseName,
+                location_name: locationName,
+                students: students,
+            });
+        } catch (error) {
+            console.error('Error fetching batch details:', error);
+            res.status(500).json({ message: 'Server error fetching batch details.' });
+        }
+    });
+
+    // Transfer student between batches
+    app.post('/api/batches/transfer', ensureAdmin, async (req, res) => {
+        try {
+            const { studentId, fromBatchId, toBatchId } = req.body;
+            if (!studentId || !fromBatchId || !toBatchId) {
+                return res.status(400).json({ message: 'studentId, fromBatchId, and toBatchId are required.' });
+            }
+
+            // Remove student from source batch
+            const fromBatch = await pool.query('SELECT student_ids FROM batches WHERE id = $1', [fromBatchId]);
+            if (fromBatch.rows.length === 0) {
+                return res.status(404).json({ message: 'Source batch not found.' });
+            }
+            const fromIds = (fromBatch.rows[0].student_ids || []).filter(id => id !== studentId);
+            await pool.query('UPDATE batches SET student_ids = $1, updated_at = NOW() WHERE id = $2', [fromIds, fromBatchId]);
+
+            // Add student to destination batch
+            const toBatch = await pool.query('SELECT student_ids FROM batches WHERE id = $1', [toBatchId]);
+            if (toBatch.rows.length === 0) {
+                return res.status(404).json({ message: 'Destination batch not found.' });
+            }
+            const toIds = [...(toBatch.rows[0].student_ids || [])];
+            if (!toIds.includes(studentId)) toIds.push(studentId);
+            await pool.query('UPDATE batches SET student_ids = $1, updated_at = NOW() WHERE id = $2', [toIds, toBatchId]);
+
+            // Return both updated batches
+            const [updatedFrom, updatedTo] = await Promise.all([
+                pool.query('SELECT * FROM batches WHERE id = $1', [fromBatchId]),
+                pool.query('SELECT * FROM batches WHERE id = $1', [toBatchId]),
+            ]);
+
+            res.json({
+                from: parseBatchData(updatedFrom.rows[0]),
+                to: parseBatchData(updatedTo.rows[0]),
+            });
+        } catch (error) {
+            console.error('Error transferring student:', error);
+            res.status(500).json({ message: 'Server error transferring student.' });
+        }
+    });
+
     // --- Course Management API Endpoints ---
-    app.post('/api/courses', async (req, res) => {
+    app.post('/api/courses', ensureAdmin, async (req, res) => {
         try {
             const { name, description, icon, image } = req.body;
             const result = await pool.query(
@@ -1423,7 +1785,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.put('/api/courses/:id', async (req, res) => {
+    app.put('/api/courses/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const { name, description, icon, image } = req.body;
@@ -1441,7 +1803,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.delete('/api/courses/:id', async (req, res) => {
+    app.delete('/api/courses/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const result = await pool.query('DELETE FROM courses WHERE id = $1 RETURNING id', [id]);
@@ -1501,7 +1863,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.post('/api/notifications', async (req, res) => {
+    app.post('/api/notifications', ensureAdmin, async (req, res) => {
         try {
             const notifications = req.body;
             if (!Array.isArray(notifications)) {
@@ -1536,7 +1898,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.post('/api/fee-structures', async (req, res) => {
+    app.post('/api/fee-structures', ensureSuperAdmin, async (req, res) => {
         try {
             const { course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee } = req.body;
             const result = await pool.query(
@@ -1551,7 +1913,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.put('/api/fee-structures/:id', async (req, res) => {
+    app.put('/api/fee-structures/:id', ensureSuperAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const { course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee } = req.body;
@@ -1572,7 +1934,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.delete('/api/fee-structures/:id', async (req, res) => {
+    app.delete('/api/fee-structures/:id', ensureSuperAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const result = await pool.query('DELETE FROM fee_structures WHERE id = $1 RETURNING id', [id]);
@@ -1622,7 +1984,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.put('/api/demo-bookings/:id', async (req, res) => {
+    app.put('/api/demo-bookings/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const { status, scheduled_date, scheduled_time, assigned_teacher, notes } = req.body;
@@ -1642,7 +2004,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.delete('/api/demo-bookings/:id', async (req, res) => {
+    app.delete('/api/demo-bookings/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const result = await pool.query('DELETE FROM demo_bookings WHERE id = $1 RETURNING id', [id]);
@@ -1673,7 +2035,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.post('/api/events', async (req, res) => {
+    app.post('/api/events', ensureAdmin, async (req, res) => {
         try {
             const { title, description, event_date, event_time, location, is_public, recipient_ids, image_url } = req.body;
             const result = await pool.query(
@@ -1688,7 +2050,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.put('/api/events/:id', async (req, res) => {
+    app.put('/api/events/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const { title, description, event_date, event_time, location, is_public, recipient_ids, image_url } = req.body;
@@ -1709,7 +2071,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.delete('/api/events/:id', async (req, res) => {
+    app.delete('/api/events/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const result = await pool.query('DELETE FROM events WHERE id = $1 RETURNING id', [id]);
@@ -1734,7 +2096,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.post('/api/grade-exams', async (req, res) => {
+    app.post('/api/grade-exams', ensureAdmin, async (req, res) => {
         try {
             const { exam_name, course, exam_date, exam_time, location, syllabus, recipient_ids } = req.body;
             const result = await pool.query(
@@ -1749,7 +2111,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.put('/api/grade-exams/:id', async (req, res) => {
+    app.put('/api/grade-exams/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const { exam_name, course, exam_date, exam_time, location, syllabus, recipient_ids } = req.body;
@@ -1770,7 +2132,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.delete('/api/grade-exams/:id', async (req, res) => {
+    app.delete('/api/grade-exams/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const result = await pool.query('DELETE FROM grade_exams WHERE id = $1 RETURNING id', [id]);
@@ -1795,7 +2157,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.post('/api/book-materials', async (req, res) => {
+    app.post('/api/book-materials', ensureAdmin, async (req, res) => {
         try {
             const { title, description, course, file_url, file_type, recipient_ids } = req.body;
             const result = await pool.query(
@@ -1810,7 +2172,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.put('/api/book-materials/:id', async (req, res) => {
+    app.put('/api/book-materials/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const { title, description, course, file_url, file_type, recipient_ids } = req.body;
@@ -1830,7 +2192,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.delete('/api/book-materials/:id', async (req, res) => {
+    app.delete('/api/book-materials/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const result = await pool.query('DELETE FROM book_materials WHERE id = $1 RETURNING id', [id]);
@@ -1855,7 +2217,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.post('/api/notices', async (req, res) => {
+    app.post('/api/notices', ensureAdmin, async (req, res) => {
         try {
             const { title, content, priority, expiry_date, recipient_ids } = req.body;
             const result = await pool.query(
@@ -1870,7 +2232,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.put('/api/notices/:id', async (req, res) => {
+    app.put('/api/notices/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const { title, content, priority, expiry_date, recipient_ids } = req.body;
@@ -1890,7 +2252,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.delete('/api/notices/:id', async (req, res) => {
+    app.delete('/api/notices/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const result = await pool.query('DELETE FROM notices WHERE id = $1 RETURNING id', [id]);
@@ -1991,7 +2353,7 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // --- Location Management API Endpoints ---
-    app.post('/api/locations', async (req, res) => {
+    app.post('/api/locations', ensureSuperAdmin, async (req, res) => {
         try {
             const { name, address, city, state, postal_code, country, phone, email, is_active } = req.body;
             const result = await pool.query(
@@ -2006,7 +2368,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.put('/api/locations/:id', async (req, res) => {
+    app.put('/api/locations/:id', ensureSuperAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const { name, address, city, state, postal_code, country, phone, email, is_active } = req.body;
@@ -2027,7 +2389,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.delete('/api/locations/:id', async (req, res) => {
+    app.delete('/api/locations/:id', ensureSuperAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const result = await pool.query('DELETE FROM locations WHERE id = $1 RETURNING id', [id]);
@@ -2065,7 +2427,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.post('/api/invoices', async (req, res) => {
+    app.post('/api/invoices', ensureAdmin, async (req, res) => {
         try {
             const { student_id, fee_structure_id, course_name, amount, currency, issue_date, due_date, billing_period, status, payment_details } = req.body;
             const result = await pool.query(
@@ -2080,7 +2442,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.put('/api/invoices/:id', async (req, res) => {
+    app.put('/api/invoices/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const { status, payment_details } = req.body;
@@ -2095,6 +2457,184 @@ Please review and approve this registration in the admin panel.`;
         } catch (error) {
             console.error('Error updating invoice:', error);
             res.status(500).json({ message: 'Server error updating invoice.' });
+        }
+    });
+
+    // --- FCM Token Management API Endpoints ---
+    app.post('/api/fcm-tokens', async (req, res) => {
+        try {
+            const { user_id, fcm_token, device_type } = req.body;
+            if (!user_id || !fcm_token) {
+                return res.status(400).json({ message: 'user_id and fcm_token are required.' });
+            }
+            const result = await pool.query(
+                `INSERT INTO user_fcm_tokens (user_id, fcm_token, device_type, is_active)
+                 VALUES ($1, $2, $3, true)
+                 ON CONFLICT (user_id, fcm_token) DO UPDATE SET is_active = true, created_at = NOW()
+                 RETURNING *`,
+                [user_id, fcm_token, device_type || 'unknown']
+            );
+            res.status(201).json(result.rows[0]);
+        } catch (error) {
+            console.error('Error registering FCM token:', error);
+            res.status(500).json({ message: 'Server error registering FCM token.' });
+        }
+    });
+
+    app.delete('/api/fcm-tokens', async (req, res) => {
+        try {
+            const { user_id, fcm_token } = req.body;
+            if (!user_id || !fcm_token) {
+                return res.status(400).json({ message: 'user_id and fcm_token are required.' });
+            }
+            await pool.query(
+                `UPDATE user_fcm_tokens SET is_active = false WHERE user_id = $1 AND fcm_token = $2`,
+                [user_id, fcm_token]
+            );
+            res.json({ message: 'FCM token deactivated.' });
+        } catch (error) {
+            console.error('Error removing FCM token:', error);
+            res.status(500).json({ message: 'Server error removing FCM token.' });
+        }
+    });
+
+    // --- Salary Management API (Super Admin only) ---
+
+    // GET /api/salaries - List all salary configs
+    app.get('/api/salaries', ensureSuperAdmin, async (req, res) => {
+        try {
+            const result = await pool.query(`
+                SELECT s.*, u.name as employee_name, u.email as employee_email, u.role as employee_role
+                FROM salaries s
+                LEFT JOIN users u ON s.user_id = u.id
+                ORDER BY s.created_at DESC
+            `);
+            res.json(result.rows);
+        } catch (error) {
+            console.error('Error fetching salaries:', error);
+            res.status(500).json({ message: 'Server error fetching salaries.' });
+        }
+    });
+
+    // POST /api/salaries - Create salary config
+    app.post('/api/salaries', ensureSuperAdmin, async (req, res) => {
+        try {
+            const { user_id, role, base_salary, payment_frequency, bank_account_name, bank_account_number, bank_ifsc, upi_id } = req.body;
+            const result = await pool.query(
+                `INSERT INTO salaries (user_id, role, base_salary, payment_frequency, bank_account_name, bank_account_number, bank_ifsc, upi_id)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+                [user_id, role, base_salary, payment_frequency || 'Monthly', bank_account_name, bank_account_number, bank_ifsc, upi_id]
+            );
+            res.status(201).json(result.rows[0]);
+        } catch (error) {
+            console.error('Error creating salary:', error);
+            res.status(500).json({ message: 'Server error creating salary.' });
+        }
+    });
+
+    // PUT /api/salaries/:id - Update salary config
+    app.put('/api/salaries/:id', ensureSuperAdmin, async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { user_id, role, base_salary, payment_frequency, bank_account_name, bank_account_number, bank_ifsc, upi_id } = req.body;
+            const result = await pool.query(
+                `UPDATE salaries SET user_id = $1, role = $2, base_salary = $3, payment_frequency = $4,
+                 bank_account_name = $5, bank_account_number = $6, bank_ifsc = $7, upi_id = $8, updated_at = NOW()
+                 WHERE id = $9 RETURNING *`,
+                [user_id, role, base_salary, payment_frequency, bank_account_name, bank_account_number, bank_ifsc, upi_id, id]
+            );
+            if (result.rows.length === 0) return res.status(404).json({ message: 'Salary config not found' });
+            res.json(result.rows[0]);
+        } catch (error) {
+            console.error('Error updating salary:', error);
+            res.status(500).json({ message: 'Server error updating salary.' });
+        }
+    });
+
+    // DELETE /api/salaries/:id - Delete salary config
+    app.delete('/api/salaries/:id', ensureSuperAdmin, async (req, res) => {
+        try {
+            const { id } = req.params;
+            const result = await pool.query('DELETE FROM salaries WHERE id = $1 RETURNING id', [id]);
+            if (result.rows.length === 0) return res.status(404).json({ message: 'Salary config not found' });
+            res.json({ message: 'Salary config deleted successfully' });
+        } catch (error) {
+            console.error('Error deleting salary:', error);
+            res.status(500).json({ message: 'Server error deleting salary.' });
+        }
+    });
+
+    // GET /api/salary-payments - List all salary payments
+    app.get('/api/salary-payments', ensureSuperAdmin, async (req, res) => {
+        try {
+            const result = await pool.query(`
+                SELECT sp.*, u.name as employee_name, u.email as employee_email
+                FROM salary_payments sp
+                LEFT JOIN users u ON sp.user_id = u.id
+                ORDER BY sp.payment_date DESC, sp.created_at DESC
+            `);
+            res.json(result.rows);
+        } catch (error) {
+            console.error('Error fetching salary payments:', error);
+            res.status(500).json({ message: 'Server error fetching salary payments.' });
+        }
+    });
+
+    // POST /api/salary-payments - Record a salary payment
+    app.post('/api/salary-payments', ensureSuperAdmin, async (req, res) => {
+        try {
+            const { salary_id, user_id, amount, payment_date, payment_method, transaction_id, payment_period, notes, status } = req.body;
+            const result = await pool.query(
+                `INSERT INTO salary_payments (salary_id, user_id, amount, payment_date, payment_method, transaction_id, payment_period, notes, status)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+                [salary_id, user_id, amount, payment_date, payment_method, transaction_id, payment_period, notes, status || 'paid']
+            );
+            res.status(201).json(result.rows[0]);
+        } catch (error) {
+            console.error('Error recording salary payment:', error);
+            res.status(500).json({ message: 'Server error recording salary payment.' });
+        }
+    });
+
+    // PUT /api/salary-payments/:id - Update a salary payment
+    app.put('/api/salary-payments/:id', ensureSuperAdmin, async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { amount, payment_date, payment_method, transaction_id, payment_period, notes, status } = req.body;
+            const result = await pool.query(
+                `UPDATE salary_payments SET amount = $1, payment_date = $2, payment_method = $3,
+                 transaction_id = $4, payment_period = $5, notes = $6, status = $7, updated_at = NOW()
+                 WHERE id = $8 RETURNING *`,
+                [amount, payment_date, payment_method, transaction_id, payment_period, notes, status, id]
+            );
+            if (result.rows.length === 0) return res.status(404).json({ message: 'Salary payment not found' });
+            res.json(result.rows[0]);
+        } catch (error) {
+            console.error('Error updating salary payment:', error);
+            res.status(500).json({ message: 'Server error updating salary payment.' });
+        }
+    });
+
+    // GET /api/salaries/:userId/summary - Salary summary for a user
+    app.get('/api/salaries/:userId/summary', ensureSuperAdmin, async (req, res) => {
+        try {
+            const { userId } = req.params;
+            const salaryResult = await pool.query(
+                `SELECT s.*, u.name as employee_name FROM salaries s LEFT JOIN users u ON s.user_id = u.id WHERE s.user_id = $1`,
+                [userId]
+            );
+            const paymentsResult = await pool.query(
+                `SELECT * FROM salary_payments WHERE user_id = $1 ORDER BY payment_date DESC`,
+                [userId]
+            );
+            res.json({
+                salary: salaryResult.rows[0] || null,
+                payments: paymentsResult.rows,
+                total_paid: paymentsResult.rows.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0),
+            });
+        } catch (error) {
+            console.error('Error fetching salary summary:', error);
+            res.status(500).json({ message: 'Server error fetching salary summary.' });
         }
     });
 
