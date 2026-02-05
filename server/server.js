@@ -7,9 +7,81 @@ const pgSession = require('connect-pg-simple')(session);
 const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
 const path = require('path');
+const multer = require('multer');
+const fs = require('fs');
+const { v4: uuidv4 } = require('uuid');
 
 // Load environment variables
 dotenv.config();
+
+// --- Firebase Admin SDK Initialization ---
+let firebaseAdmin = null;
+let firebaseMessaging = null;
+try {
+    firebaseAdmin = require('firebase-admin');
+
+    // Check if Firebase service account credentials exist
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+        firebaseAdmin.initializeApp({
+            credential: firebaseAdmin.credential.cert(serviceAccount),
+        });
+        firebaseMessaging = firebaseAdmin.messaging();
+        console.log('[Firebase] Admin SDK initialized successfully');
+    } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+        // Use default credentials file
+        firebaseAdmin.initializeApp({
+            credential: firebaseAdmin.credential.applicationDefault(),
+        });
+        firebaseMessaging = firebaseAdmin.messaging();
+        console.log('[Firebase] Admin SDK initialized with default credentials');
+    } else {
+        console.log('[Firebase] No credentials found - push notifications will be disabled');
+        console.log('[Firebase] Set FIREBASE_SERVICE_ACCOUNT_JSON or GOOGLE_APPLICATION_CREDENTIALS to enable push notifications');
+    }
+} catch (error) {
+    console.error('[Firebase] Failed to initialize:', error.message);
+    console.log('[Firebase] Push notifications will be disabled');
+}
+
+// --- File Upload Configuration ---
+const UPLOADS_DIR = path.join(__dirname, 'uploads');
+const ICONS_DIR = path.join(UPLOADS_DIR, 'icons');
+
+// Ensure upload directories exist
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+if (!fs.existsSync(ICONS_DIR)) fs.mkdirSync(ICONS_DIR, { recursive: true });
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, ICONS_DIR);
+    },
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase();
+        const uniqueName = `${uuidv4()}${ext}`;
+        cb(null, uniqueName);
+    }
+});
+
+const fileFilter = (req, file, cb) => {
+    // Allow SVG, PNG, JPG files
+    const allowedTypes = ['image/svg+xml', 'image/png', 'image/jpeg', 'image/jpg'];
+    const allowedExts = ['.svg', '.png', '.jpg', '.jpeg'];
+    const ext = path.extname(file.originalname).toLowerCase();
+
+    if (allowedTypes.includes(file.mimetype) || allowedExts.includes(ext)) {
+        cb(null, true);
+    } else {
+        cb(new Error('Only SVG, PNG, and JPG files are allowed'), false);
+    }
+};
+
+const upload = multer({
+    storage,
+    fileFilter,
+    limits: { fileSize: 2 * 1024 * 1024 } // 2MB max
+});
 
 const PORT = process.env.PORT || 3000;
 
@@ -558,7 +630,10 @@ async function startServer() {
     }
     const corsOptions = { origin: whitelist, credentials: true };
     app.use(cors(corsOptions));
-    
+
+    // --- Static File Serving for Uploads ---
+    app.use('/uploads', express.static(UPLOADS_DIR));
+
     // --- Session Management ---
     app.use(session({
         secret: process.env.SESSION_SECRET || 'a-secure-secret-key',
@@ -621,14 +696,78 @@ async function startServer() {
         });
     };
 
-    // Create in-app notification (fire-and-forget)
+    // Send push notification via FCM (fire-and-forget)
+    const sendPushNotification = async (userId, title, body) => {
+        if (!firebaseMessaging) {
+            return; // Firebase not configured, skip push
+        }
+        try {
+            // Get user's active FCM tokens
+            const result = await pool.query(
+                'SELECT fcm_token FROM user_fcm_tokens WHERE user_id = $1 AND is_active = true',
+                [userId]
+            );
+            if (result.rows.length === 0) {
+                return; // No tokens registered for this user
+            }
+
+            const tokens = result.rows.map(r => r.fcm_token);
+
+            // Send to all user's devices
+            const response = await firebaseMessaging.sendEachForMulticast({
+                tokens: tokens,
+                notification: {
+                    title: title,
+                    body: body,
+                },
+                android: {
+                    priority: 'high',
+                    notification: {
+                        sound: 'default',
+                        channelId: 'nadanaloga_notifications',
+                    },
+                },
+                apns: {
+                    payload: {
+                        aps: {
+                            sound: 'default',
+                            badge: 1,
+                        },
+                    },
+                },
+            });
+
+            // Deactivate invalid tokens
+            response.responses.forEach((resp, idx) => {
+                if (!resp.success && resp.error) {
+                    const errorCode = resp.error.code;
+                    if (errorCode === 'messaging/invalid-registration-token' ||
+                        errorCode === 'messaging/registration-token-not-registered') {
+                        pool.query(
+                            'UPDATE user_fcm_tokens SET is_active = false WHERE fcm_token = $1',
+                            [tokens[idx]]
+                        ).catch(() => {});
+                    }
+                }
+            });
+
+            console.log(`📱 Push sent to user ${userId}: ${response.successCount} success, ${response.failureCount} failed`);
+        } catch (error) {
+            console.error(`[Push] Failed for user ${userId}:`, error.message);
+        }
+    };
+
+    // Create in-app notification and send push (fire-and-forget)
     const createNotificationForUser = (userId, title, message, type = 'Info') => {
         const validTypes = ['Info', 'Warning', 'Success', 'Error'];
         if (!validTypes.includes(type)) type = 'Info';
         pool.query(
             'INSERT INTO notifications (user_id, title, message, type) VALUES ($1, $2, $3, $4)',
             [userId, title, message, type]
-        ).catch(error => {
+        ).then(() => {
+            // Send push notification after successfully creating in-app notification
+            sendPushNotification(userId, title, message);
+        }).catch(error => {
             console.error(`[Notification] Failed for user ${userId}:`, error.message);
         });
     };
@@ -2113,6 +2252,51 @@ Please review and approve this registration in the admin panel.`;
         } catch (error) {
             console.error('Error transferring student:', error);
             res.status(500).json({ message: 'Server error transferring student.' });
+        }
+    });
+
+    // --- File Upload API Endpoint ---
+    app.post('/api/upload/icon', ensureAdmin, upload.single('icon'), async (req, res) => {
+        try {
+            if (!req.file) {
+                return res.status(400).json({ message: 'No file uploaded' });
+            }
+
+            // Build the URL for the uploaded file
+            const protocol = req.protocol;
+            const host = req.get('host');
+            const fileUrl = `${protocol}://${host}/uploads/icons/${req.file.filename}`;
+
+            console.log(`[Upload] Icon uploaded: ${req.file.filename}`);
+
+            res.json({
+                message: 'File uploaded successfully',
+                filename: req.file.filename,
+                url: fileUrl,
+                path: `/uploads/icons/${req.file.filename}`
+            });
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            res.status(500).json({ message: 'Server error uploading file.' });
+        }
+    });
+
+    // Delete uploaded icon
+    app.delete('/api/upload/icon/:filename', ensureAdmin, async (req, res) => {
+        try {
+            const { filename } = req.params;
+            const filePath = path.join(ICONS_DIR, filename);
+
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+                console.log(`[Upload] Icon deleted: ${filename}`);
+                res.json({ message: 'File deleted successfully' });
+            } else {
+                res.status(404).json({ message: 'File not found' });
+            }
+        } catch (error) {
+            console.error('Error deleting file:', error);
+            res.status(500).json({ message: 'Server error deleting file.' });
         }
     });
 
