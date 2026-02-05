@@ -699,6 +699,7 @@ async function startServer() {
     // Send push notification via FCM (fire-and-forget)
     const sendPushNotification = async (userId, title, body) => {
         if (!firebaseMessaging) {
+            console.log(`[Push] Firebase not configured, skipping push for user ${userId}`);
             return; // Firebase not configured, skip push
         }
         try {
@@ -708,8 +709,10 @@ async function startServer() {
                 [userId]
             );
             if (result.rows.length === 0) {
+                console.log(`[Push] No FCM tokens found for user ${userId}`);
                 return; // No tokens registered for this user
             }
+            console.log(`[Push] Found ${result.rows.length} FCM tokens for user ${userId}`);
 
             const tokens = result.rows.map(r => r.fcm_token);
 
@@ -2112,7 +2115,9 @@ Please review and approve this registration in the admin panel.`;
             res.json(parseBatchData(result.rows[0]));
 
             // Send emails to newly added students only (fire-and-forget)
+            console.log(`[Batch Update] Batch: ${batch_name}, Old students: ${JSON.stringify(oldStudentIds)}, New students: ${JSON.stringify(student_ids)}`);
             const newStudentIds = (student_ids || []).filter(sid => !oldStudentIds.includes(sid) && !oldStudentIds.includes(Number(sid)) && !oldStudentIds.includes(String(sid)));
+            console.log(`[Batch Update] Newly added students: ${JSON.stringify(newStudentIds)}`);
             if (newStudentIds.length > 0) {
                 (async () => {
                     try {
