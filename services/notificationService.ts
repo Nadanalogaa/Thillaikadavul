@@ -343,17 +343,18 @@ class NotificationService {
   // Batch Allocation Notifications
   async notifyBatchAllocation(studentId: string, batchName: string, courseName: string, teacherName: string, timing: string, teacherId?: string): Promise<void> {
     try {
-      // Get student info for email
-      const { data: studentData, error: studentError } = await supabase
-        .from('users')
-        .select('name, email')
-        .eq('id', studentId)
-        .single();
+      // Get student info from PostgreSQL backend API
+      const userResponse = await fetch(`/api/users/${studentId}`, {
+        method: 'GET',
+        credentials: 'include'
+      });
 
-      if (studentError || !studentData) {
+      if (!userResponse.ok) {
         console.error('Could not find student for batch allocation notification');
         return;
       }
+
+      const studentData = await userResponse.json();
 
       const notifications: NotificationData[] = [
         // Notify student/parent

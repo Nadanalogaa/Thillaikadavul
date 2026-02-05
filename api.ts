@@ -1335,7 +1335,7 @@ export const updateCourseByAdmin = async (courseId: string, courseData: Partial<
           title: 'Course Updated',
           message: `The course "${data.name}" has been updated. ${Object.keys(courseData).join(', ')} modified.`,
           recipientId: userId,
-          emailRequired: true,
+          emailRequired: false,
           priority: 'medium'
         });
       }
@@ -1606,17 +1606,29 @@ export const updateBatch = async (batchId: string, batchData: Partial<Batch>): P
 
     const currentBatch = batchResponse.ok ? await batchResponse.json() : null;
 
+    // Extract all student IDs from schedule for server-side notifications
+    const allStudentIds: string[] = [];
+    if (Array.isArray(batchData.schedule)) {
+      batchData.schedule.forEach((scheduleItem: any) => {
+        if (scheduleItem.studentIds && Array.isArray(scheduleItem.studentIds)) {
+          allStudentIds.push(...scheduleItem.studentIds);
+        }
+      });
+    }
+    const uniqueStudentIds = [...new Set(allStudentIds)].map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+
     const response = await fetch(`/api/batches/${batchId}`, {
       method: 'PUT',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: batchData.name,
+        batch_name: batchData.name,
         description: batchData.description,
         course_id: batchData.courseId,
         teacher_id: batchData.teacherId,
         schedule: batchData.schedule,
-        capacity: batchData.capacity,
+        max_students: batchData.capacity,
+        student_ids: uniqueStudentIds,
         mode: batchData.mode,
         location_id: batchData.locationId,
         start_date: batchData.startDate,
