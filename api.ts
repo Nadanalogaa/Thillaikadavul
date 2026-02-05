@@ -1532,12 +1532,23 @@ export const getUsersByIds = async (ids: string[]): Promise<User[]> => {
 
 export const addBatch = async (batchData: Partial<Batch>): Promise<Batch> => {
   try {
+    // Extract all student IDs from schedule for server-side notifications
+    const allStudentIds: string[] = [];
+    if (Array.isArray(batchData.schedule)) {
+      batchData.schedule.forEach((scheduleItem: any) => {
+        if (scheduleItem.studentIds && Array.isArray(scheduleItem.studentIds)) {
+          allStudentIds.push(...scheduleItem.studentIds);
+        }
+      });
+    }
+    const uniqueStudentIds = [...new Set(allStudentIds)].map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+
     const insertData: any = {
       batch_name: batchData.name,
       schedule: batchData.schedule || [],
       max_students: batchData.capacity,
       mode: batchData.mode,
-      student_ids: []
+      student_ids: uniqueStudentIds
     };
 
     // Only add course_id if courseId is provided and not empty

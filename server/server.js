@@ -2058,6 +2058,7 @@ Please review and approve this registration in the admin panel.`;
             res.status(201).json(parseBatchData(result.rows[0]));
 
             // Send batch allocation emails to assigned students (fire-and-forget)
+            console.log(`[Batch Create] Batch: ${batch_name}, Students received: ${JSON.stringify(student_ids)}`);
             if (student_ids && student_ids.length > 0) {
                 (async () => {
                     try {
