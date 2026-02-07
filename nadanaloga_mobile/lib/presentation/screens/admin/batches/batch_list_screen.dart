@@ -44,7 +44,12 @@ class BatchListScreen extends StatelessWidget {
                 title: 'No batches yet',
                 subtitle: 'Create your first batch.',
                 actionLabel: 'Create Batch',
-                onAction: () => context.push('/admin/batches/add'),
+                onAction: () async {
+                  final created = await context.push<bool>('/admin/batches/add');
+                  if (created == true && context.mounted) {
+                    context.read<BatchBloc>().add(LoadBatches());
+                  }
+                },
               );
             }
             return RefreshIndicator(
@@ -164,7 +169,12 @@ class BatchListScreen extends StatelessWidget {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/admin/batches/add'),
+        onPressed: () async {
+          final created = await context.push<bool>('/admin/batches/add');
+          if (created == true && context.mounted) {
+            context.read<BatchBloc>().add(LoadBatches());
+          }
+        },
         child: const Icon(Icons.add),
       ),
     );

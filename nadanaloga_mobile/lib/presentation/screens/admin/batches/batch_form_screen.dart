@@ -129,7 +129,7 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
         if (state is BatchOperationSuccess) {
           ScaffoldMessenger.of(context)
               .showSnackBar(SnackBar(content: Text(state.message)));
-          context.pop();
+          context.pop(true);
         } else if (state is BatchError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(state.message), backgroundColor: AppColors.error),

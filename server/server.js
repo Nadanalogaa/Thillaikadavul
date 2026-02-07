@@ -2096,11 +2096,12 @@ Please review and approve this registration in the admin panel.`;
             const { id } = req.params;
             const { batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode, location_id } = req.body;
 
-            // Get old student_ids to detect newly added students
-            const oldBatch = await pool.query('SELECT student_ids FROM batches WHERE id = $1', [id]);
+            // Get old student_ids and teacher_id to detect changes
+            const oldBatch = await pool.query('SELECT student_ids, teacher_id FROM batches WHERE id = $1', [id]);
             const oldStudentIds = oldBatch.rows.length > 0
                 ? (Array.isArray(oldBatch.rows[0].student_ids) ? oldBatch.rows[0].student_ids : [])
                 : [];
+            const oldTeacherId = oldBatch.rows.length > 0 ? oldBatch.rows[0].teacher_id : null;
 
             const result = await pool.query(
                 `UPDATE batches SET
@@ -2142,6 +2143,50 @@ Please review and approve this registration in the admin panel.`;
                         console.log(`[Batch] Sent allocation emails to ${students.length} newly added students for batch "${batch_name}"`);
                     } catch (e) {
                         console.error('[Batch] Error sending allocation emails:', e.message);
+                    }
+                })();
+            }
+
+            // Detect teacher change and notify students (fire-and-forget)
+            if (teacher_id && oldTeacherId && Number(teacher_id) !== Number(oldTeacherId)) {
+                (async () => {
+                    try {
+                        const teacherResult = await pool.query('SELECT name FROM users WHERE id = $1', [teacher_id]);
+                        const newTeacherName = teacherResult.rows[0]?.name || 'a new teacher';
+                        const allIds = (student_ids || []).map(Number).filter(id => !isNaN(id));
+                        if (allIds.length > 0) {
+                            const students = await getUsersByIds(allIds);
+                            for (const student of students) {
+                                createNotificationForUser(student.id, 'Teacher Changed',
+                                    `Your batch "${batch_name}" teacher has been changed to ${newTeacherName}.`, 'Info');
+                            }
+                            console.log(`[Batch] Teacher change notified ${students.length} students for batch "${batch_name}"`);
+                        }
+                    } catch (e) {
+                        console.error('[Batch] Error sending teacher change notifications:', e.message);
+                    }
+                })();
+            }
+
+            // Detect removed students and notify them (fire-and-forget)
+            const removedStudentIds = oldStudentIds.filter(sid =>
+                !(student_ids || []).includes(sid) &&
+                !(student_ids || []).includes(Number(sid)) &&
+                !(student_ids || []).includes(String(sid))
+            );
+            if (removedStudentIds.length > 0) {
+                (async () => {
+                    try {
+                        const removedStudents = await getUsersByIds(removedStudentIds.map(Number));
+                        for (const student of removedStudents) {
+                            createNotificationForUser(student.id, 'Batch Removal',
+                                `You have been removed from batch "${batch_name}".`, 'Warning');
+                            sendEmailBackground(student.email, student.name, `Batch Update - ${batch_name}`,
+                                `You have been removed from batch "${batch_name}". Please contact your administrator if you have any questions.`);
+                        }
+                        console.log(`[Batch] Removal notified ${removedStudents.length} students for batch "${batch_name}"`);
+                    } catch (e) {
+                        console.error('[Batch] Error sending removal notifications:', e.message);
                     }
                 })();
             }
@@ -2255,9 +2300,88 @@ Please review and approve this registration in the admin panel.`;
                 from: parseBatchData(updatedFrom.rows[0]),
                 to: parseBatchData(updatedTo.rows[0]),
             });
+
+            // Send transfer notification to the student (fire-and-forget)
+            (async () => {
+                try {
+                    const fromName = updatedFrom.rows[0]?.batch_name || 'Unknown';
+                    const toName = updatedTo.rows[0]?.batch_name || 'Unknown';
+                    let courseName = '';
+                    const courseId = updatedTo.rows[0]?.course_id;
+                    if (courseId) {
+                        const cr = await pool.query('SELECT name FROM courses WHERE id = $1', [courseId]);
+                        courseName = cr.rows[0]?.name || '';
+                    }
+
+                    createNotificationForUser(studentId, 'Batch Transfer',
+                        `You have been transferred from batch "${fromName}" to batch "${toName}"${courseName ? ` for ${courseName}` : ''}.`, 'Info');
+
+                    const students = await getUsersByIds([studentId]);
+                    if (students.length > 0) {
+                        const msg = `Your batch has been changed.\n\n🔄 Previous Batch: ${fromName}\n👥 New Batch: ${toName}\n📚 Course: ${courseName || 'Not specified'}\n\nPlease log in to your portal for more details.`;
+                        sendEmailBackground(students[0].email, students[0].name, `Batch Transfer - ${courseName || toName}`, msg);
+                    }
+                    console.log(`[Batch Transfer] Notified student ${studentId}: ${fromName} → ${toName}`);
+                } catch (e) {
+                    console.error('[Batch Transfer] Error sending notification:', e.message);
+                }
+            })();
         } catch (error) {
             console.error('Error transferring student:', error);
             res.status(500).json({ message: 'Server error transferring student.' });
+        }
+    });
+
+    // --- Share Content API (for mobile app) ---
+    app.post('/api/share-content', ensureAdmin, async (req, res) => {
+        try {
+            const { content_id, content_type, recipient_ids, send_email } = req.body;
+            if (!content_id || !content_type || !recipient_ids || recipient_ids.length === 0) {
+                return res.status(400).json({ message: 'content_id, content_type, and recipient_ids are required.' });
+            }
+
+            const tableMap = {
+                'Event': { table: 'events', titleCol: 'title' },
+                'Notice': { table: 'notices', titleCol: 'title' },
+                'BookMaterial': { table: 'book_materials', titleCol: 'title' },
+                'GradeExam': { table: 'grade_exams', titleCol: 'exam_name' },
+            };
+            const config = tableMap[content_type];
+            if (!config) return res.status(400).json({ message: 'Invalid content_type. Must be Event, Notice, BookMaterial, or GradeExam.' });
+
+            // Update recipient_ids on the content record
+            const contentResult = await pool.query(
+                `UPDATE ${config.table} SET recipient_ids = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+                [recipient_ids, content_id]
+            );
+            if (contentResult.rows.length === 0) {
+                return res.status(404).json({ message: `${content_type} not found.` });
+            }
+
+            const contentTitle = contentResult.rows[0][config.titleCol];
+            res.json({ success: true, message: `Shared with ${recipient_ids.length} recipients.` });
+
+            // Fire-and-forget: create notifications + send emails + push
+            (async () => {
+                try {
+                    const users = await getUsersByIds(recipient_ids);
+                    for (const user of users) {
+                        createNotificationForUser(user.id, `New ${content_type}`,
+                            `New ${content_type.toLowerCase()}: "${contentTitle}".`, 'Info');
+                        if (send_email) {
+                            sendEmailBackground(user.email, user.name,
+                                `${content_type}: ${contentTitle}`,
+                                `A new ${content_type.toLowerCase()} "${contentTitle}" has been shared with you. Please log in to your portal for details.`);
+                        }
+                    }
+                    console.log(`[ShareContent] Shared ${content_type} "${contentTitle}" with ${users.length} users`);
+                } catch (e) {
+                    console.error(`[ShareContent] Error sending notifications for ${content_type}:`, e.message);
+                }
+            })();
+        } catch (error) {
+            console.error('Error sharing content:', error);
+            res.status(500).json({ message: 'Server error sharing content.' });
         }
     });
 
@@ -2421,6 +2545,12 @@ Please review and approve this registration in the admin panel.`;
                 `INSERT INTO notifications (user_id, title, message, type) VALUES ${values}`,
                 params
             );
+
+            // Send push notifications for each (fire-and-forget)
+            for (const n of notifications) {
+                sendPushNotification(n.user_id, n.title, n.message);
+            }
+
             res.status(201).json({ success: true, message: 'Notifications created' });
         } catch (error) {
             console.error('Error creating notifications:', error);
