@@ -5,6 +5,7 @@ import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
 import '../../../core/network/api_client.dart';
 import '../../../data/models/batch_model.dart';
+import '../../../data/models/course_model.dart';
 import '../../../data/models/invoice_model.dart';
 import '../../../di/injection_container.dart';
 import '../../bloc/auth/auth_bloc.dart';
@@ -26,6 +27,7 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
 
   // Shared data that will be loaded once and passed to child screens
   List<BatchModel> _batches = [];
+  List<CourseModel> _courses = [];
   List<InvoiceModel> _invoices = [];
   bool _isLoading = true;
   String? _error;
@@ -49,9 +51,10 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
     try {
       final apiClient = sl<ApiClient>();
 
-      // Load batches and invoices in parallel
+      // Load batches, courses and invoices in parallel
       final results = await Future.wait([
         apiClient.getBatches(),
+        apiClient.getCourses(),
         apiClient.getInvoices(),
       ]);
 
@@ -68,8 +71,16 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
             .toList();
       }
 
+      // Courses
+      final coursesResponse = results[1];
+      if (coursesResponse.statusCode == 200 && coursesResponse.data is List) {
+        _courses = (coursesResponse.data as List)
+            .map((c) => CourseModel.fromJson(c))
+            .toList();
+      }
+
       // Filter invoices for this student
-      final invoicesResponse = results[1];
+      final invoicesResponse = results[2];
       if (invoicesResponse.statusCode == 200 && invoicesResponse.data is List) {
         final allInvoices = (invoicesResponse.data as List)
             .map((i) => InvoiceModel.fromJson(i))
@@ -102,6 +113,7 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
             children: [
               StudentDashboardScreen(
                 batches: _batches,
+                courses: _courses,
                 invoices: _invoices,
                 isLoading: _isLoading,
                 error: _error,

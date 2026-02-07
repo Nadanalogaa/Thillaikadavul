@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
@@ -652,7 +653,7 @@ class _InvoiceDetailsSheet extends StatelessWidget {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Please contact the admin to make the payment. Fees are due on the 1st of every month.',
+                          'Pay via UPI and upload the payment proof for admin verification. Fees are due on the 1st of every month.',
                           style: AppTextStyles.bodySmall.copyWith(
                             color: AppColors.textSecondary,
                           ),
@@ -660,6 +661,18 @@ class _InvoiceDetailsSheet extends StatelessWidget {
                       ),
                     ],
                   ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () => context.push(
+                      '/student/fees/${invoice.id}/upi'),
+                  child: const Text('Pay via UPI'),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: () => context.push(
+                      '/student/fees/${invoice.id}/proof'),
+                  child: const Text('Upload Payment Proof'),
                 ),
               ],
             ],

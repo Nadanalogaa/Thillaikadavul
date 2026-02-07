@@ -47,6 +47,7 @@ import '../../presentation/screens/admin/fees/fee_structure_form_screen.dart';
 import '../../presentation/screens/admin/fees/create_invoice_screen.dart';
 import '../../presentation/screens/admin/fees/record_payment_screen.dart';
 import '../../presentation/screens/admin/fees/upi_qr_display_screen.dart';
+import '../../presentation/screens/admin/fees/payment_proofs_screen.dart';
 import '../../presentation/screens/admin/salary/salary_management_screen.dart';
 import '../../presentation/screens/admin/salary/salary_config_form_screen.dart';
 import '../../presentation/screens/admin/salary/record_salary_payment_screen.dart';
@@ -72,6 +73,7 @@ import '../../presentation/screens/admin/drilldown/batches_drilldown_screen.dart
 import '../../presentation/screens/admin/drilldown/pending_fees_drilldown_screen.dart';
 import '../../presentation/screens/teacher/teacher_dashboard_screen.dart';
 import '../../presentation/screens/student/student_shell_screen.dart';
+import '../../presentation/screens/student/student_payment_proof_screen.dart';
 
 class AppRouter {
   static GoRouter? _router;
@@ -264,6 +266,10 @@ class AppRouter {
                     final id = int.parse(state.pathParameters['id']!);
                     return UpiQrDisplayScreen(invoiceId: id);
                   },
+                ),
+                GoRoute(
+                  path: 'payments',
+                  builder: (context, state) => const PaymentProofsScreen(),
                 ),
               ],
             ),
@@ -567,6 +573,20 @@ class AppRouter {
                 create: (_) => sl<NotificationBloc>(),
                 child: const NotificationListScreen(),
               ),
+            ),
+            GoRoute(
+              path: 'fees/:id/upi',
+              builder: (context, state) {
+                final id = int.parse(state.pathParameters['id']!);
+                return UpiQrDisplayScreen(invoiceId: id);
+              },
+            ),
+            GoRoute(
+              path: 'fees/:id/proof',
+              builder: (context, state) {
+                final id = int.parse(state.pathParameters['id']!);
+                return StudentPaymentProofScreen(invoiceId: id);
+              },
             ),
           ],
         ),

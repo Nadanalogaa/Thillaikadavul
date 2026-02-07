@@ -62,6 +62,9 @@ class ApiEndpoints {
   // Invoices
   static const String invoices = '$apiPrefix/invoices';
   static String invoiceById(int id) => '$apiPrefix/invoices/$id';
+  static String invoicePaymentProof(int id) => '$apiPrefix/invoices/$id/payment-proof';
+  static const String invoicePayments = '$apiPrefix/invoice-payments';
+  static String invoicePaymentById(int id) => '$apiPrefix/invoice-payments/$id';
 
   // Demo Bookings
   static const String demoBookings = '$apiPrefix/demo-bookings';

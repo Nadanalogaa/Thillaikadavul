@@ -7,6 +7,7 @@ import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
 import '../../../core/network/api_client.dart';
 import '../../../data/models/batch_model.dart';
+import '../../../data/models/course_model.dart';
 import '../../../data/models/invoice_model.dart';
 import '../../../data/models/location_model.dart';
 import '../../../di/injection_container.dart';
@@ -17,6 +18,7 @@ import '../../widgets/stat_card.dart';
 
 class StudentDashboardScreen extends StatefulWidget {
   final List<BatchModel> batches;
+  final List<CourseModel> courses;
   final List<InvoiceModel> invoices;
   final bool isLoading;
   final String? error;
@@ -25,6 +27,7 @@ class StudentDashboardScreen extends StatefulWidget {
   const StudentDashboardScreen({
     super.key,
     required this.batches,
+    required this.courses,
     required this.invoices,
     required this.isLoading,
     this.error,
@@ -273,8 +276,18 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     ...user.courses.asMap().entries.map((entry) {
                       final index = entry.key;
                       final courseName = entry.value;
+                      final courseId = widget.courses
+                          .firstWhere(
+                            (c) => c.name.toLowerCase() == courseName.toLowerCase(),
+                            orElse: () => const CourseModel(id: 0, name: ''),
+                          )
+                          .id;
                       final batchForCourse = widget.batches.firstWhere(
-                        (b) => b.batchName.toLowerCase().contains(courseName.toLowerCase()),
+                        (b) =>
+                            (courseId != 0 && b.courseId == courseId) ||
+                            b.batchName
+                                .toLowerCase()
+                                .contains(courseName.toLowerCase()),
                         orElse: () => const BatchModel(id: 0, batchName: ''),
                       );
                       return _CourseCard(

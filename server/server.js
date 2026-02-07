@@ -47,10 +47,12 @@ try {
 // --- File Upload Configuration ---
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 const ICONS_DIR = path.join(UPLOADS_DIR, 'icons');
+const PAYMENTS_DIR = path.join(UPLOADS_DIR, 'payments');
 
 // Ensure upload directories exist
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 if (!fs.existsSync(ICONS_DIR)) fs.mkdirSync(ICONS_DIR, { recursive: true });
+if (!fs.existsSync(PAYMENTS_DIR)) fs.mkdirSync(PAYMENTS_DIR, { recursive: true });
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -81,6 +83,23 @@ const upload = multer({
     storage,
     fileFilter,
     limits: { fileSize: 2 * 1024 * 1024 } // 2MB max
+});
+
+const paymentProofStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, PAYMENTS_DIR);
+    },
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase();
+        const uniqueName = `${uuidv4()}${ext}`;
+        cb(null, uniqueName);
+    }
+});
+
+const uploadPaymentProof = multer({
+    storage: paymentProofStorage,
+    fileFilter,
+    limits: { fileSize: 5 * 1024 * 1024 } // 5MB max
 });
 
 const PORT = process.env.PORT || 3000;
@@ -289,6 +308,30 @@ async function startServer() {
                 console.log('[DB] ✓ Ensured salary_payments table exists');
             } catch (error) {
                 console.error('[DB] ✗ Failed to create salary_payments table:', error.message);
+            }
+
+            // Create invoice_payments table if not exists
+            try {
+                await client.query(`
+                    CREATE TABLE IF NOT EXISTS invoice_payments (
+                        id SERIAL PRIMARY KEY,
+                        invoice_id INTEGER REFERENCES invoices(id) ON DELETE CASCADE,
+                        student_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                        amount DECIMAL(10,2),
+                        payment_method VARCHAR(50) DEFAULT 'UPI',
+                        transaction_id VARCHAR(255),
+                        payment_date DATE,
+                        proof_url TEXT,
+                        status VARCHAR(50) DEFAULT 'submitted',
+                        notes TEXT,
+                        submitted_at TIMESTAMPTZ DEFAULT NOW(),
+                        approved_at TIMESTAMPTZ,
+                        updated_at TIMESTAMPTZ DEFAULT NOW()
+                    )
+                `);
+                console.log('[DB] ✓ Ensured invoice_payments table exists');
+            } catch (error) {
+                console.error('[DB] ✗ Failed to create invoice_payments table:', error.message);
             }
 
             // Create notifications table if not exists
@@ -796,6 +839,14 @@ async function startServer() {
         }
         const result = await pool.query(
             "SELECT id, name, email FROM users WHERE is_deleted = false AND status = 'active' AND LOWER(role) != 'admin'"
+        );
+        return result.rows;
+    };
+
+    // Fetch all active admins (including super admins)
+    const getActiveAdmins = async () => {
+        const result = await pool.query(
+            "SELECT id, name, email FROM users WHERE is_deleted = false AND status = 'active' AND (LOWER(role) = 'admin' OR is_super_admin = true)"
         );
         return result.rows;
     };
@@ -2439,6 +2490,24 @@ Please review and approve this registration in the admin panel.`;
                 [name, description, icon, image]
             );
             res.status(201).json(result.rows[0]);
+
+            // Notify active users (fire-and-forget)
+            (async () => {
+                try {
+                    const users = await getActiveUsers();
+                    for (const user of users) {
+                        createNotificationForUser(
+                            user.id,
+                            'New Course',
+                            `New course added: "${name}".`,
+                            'Info'
+                        );
+                    }
+                    console.log(`[Course] Notified ${users.length} users for new course "${name}"`);
+                } catch (e) {
+                    console.error('[Course] Error sending notifications:', e.message);
+                }
+            })();
         } catch (error) {
             console.error('Error creating course:', error);
             res.status(500).json({ message: 'Server error creating course.' });
@@ -2457,6 +2526,24 @@ Please review and approve this registration in the admin panel.`;
                 return res.status(404).json({ message: 'Course not found' });
             }
             res.json(result.rows[0]);
+
+            // Notify active users (fire-and-forget)
+            (async () => {
+                try {
+                    const users = await getActiveUsers();
+                    for (const user of users) {
+                        createNotificationForUser(
+                            user.id,
+                            'Course Updated',
+                            `Course updated: "${name}".`,
+                            'Info'
+                        );
+                    }
+                    console.log(`[Course] Notified ${users.length} users for course update "${name}"`);
+                } catch (e) {
+                    console.error('[Course] Error sending notifications:', e.message);
+                }
+            })();
         } catch (error) {
             console.error('Error updating course:', error);
             res.status(500).json({ message: 'Server error updating course.' });
@@ -2578,6 +2665,24 @@ Please review and approve this registration in the admin panel.`;
                 [course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee]
             );
             res.status(201).json(result.rows[0]);
+
+            // Notify active users (fire-and-forget)
+            (async () => {
+                try {
+                    const users = await getActiveUsers();
+                    for (const user of users) {
+                        createNotificationForUser(
+                            user.id,
+                            'Fee Structure Updated',
+                            'Fee structure has been updated. Please check the latest fees.',
+                            'Info'
+                        );
+                    }
+                    console.log(`[FeeStructure] Notified ${users.length} users for new fee structure`);
+                } catch (e) {
+                    console.error('[FeeStructure] Error sending notifications:', e.message);
+                }
+            })();
         } catch (error) {
             console.error('Error creating fee structure:', error);
             res.status(500).json({ message: 'Server error creating fee structure.' });
@@ -2599,6 +2704,24 @@ Please review and approve this registration in the admin panel.`;
                 return res.status(404).json({ message: 'Fee structure not found' });
             }
             res.json(result.rows[0]);
+
+            // Notify active users (fire-and-forget)
+            (async () => {
+                try {
+                    const users = await getActiveUsers();
+                    for (const user of users) {
+                        createNotificationForUser(
+                            user.id,
+                            'Fee Structure Updated',
+                            'Fee structure has been updated. Please check the latest fees.',
+                            'Info'
+                        );
+                    }
+                    console.log(`[FeeStructure] Notified ${users.length} users for fee structure update`);
+                } catch (e) {
+                    console.error('[FeeStructure] Error sending notifications:', e.message);
+                }
+            })();
         } catch (error) {
             console.error('Error updating fee structure:', error);
             res.status(500).json({ message: 'Server error updating fee structure.' });
@@ -2649,6 +2772,25 @@ Please review and approve this registration in the admin panel.`;
                 [student_name, parent_name, email, phone, course, preferred_date, preferred_time, location, notes]
             );
             res.status(201).json(result.rows[0]);
+
+            // Notify admins about new demo booking (fire-and-forget)
+            (async () => {
+                try {
+                    const admins = await getActiveAdmins();
+                    const name = student_name || parent_name || 'New student';
+                    for (const admin of admins) {
+                        createNotificationForUser(
+                            admin.id,
+                            'New Demo Booking',
+                            `New demo booking from "${name}"${course ? ` for ${course}` : ''}.`,
+                            'Info'
+                        );
+                    }
+                    console.log(`[DemoBooking] Notified ${admins.length} admins for new booking "${name}"`);
+                } catch (e) {
+                    console.error('[DemoBooking] Error sending admin notifications:', e.message);
+                }
+            })();
         } catch (error) {
             console.error('Error creating demo booking:', error);
             res.status(500).json({ message: 'Server error creating demo booking.' });
@@ -2688,6 +2830,25 @@ Please review and approve this registration in the admin panel.`;
                     }
                 })();
             }
+
+            // Notify admins about demo booking update (fire-and-forget)
+            (async () => {
+                try {
+                    const admins = await getActiveAdmins();
+                    const name = booking.student_name || booking.parent_name || 'Student';
+                    for (const admin of admins) {
+                        createNotificationForUser(
+                            admin.id,
+                            'Demo Booking Updated',
+                            `Demo booking for "${name}" updated to ${status || 'updated'}.`,
+                            'Info'
+                        );
+                    }
+                    console.log(`[DemoBooking] Notified ${admins.length} admins for booking update "${name}"`);
+                } catch (e) {
+                    console.error('[DemoBooking] Error sending admin update notifications:', e.message);
+                }
+            })();
         } catch (error) {
             console.error('Error updating demo booking:', error);
             res.status(500).json({ message: 'Server error updating demo booking.' });
@@ -3121,6 +3282,24 @@ Please review and approve this registration in the admin panel.`;
                 [name, address, city, state, postal_code, country, phone, email, is_active !== false]
             );
             res.status(201).json(result.rows[0]);
+
+            // Notify active users (fire-and-forget)
+            (async () => {
+                try {
+                    const users = await getActiveUsers();
+                    for (const user of users) {
+                        createNotificationForUser(
+                            user.id,
+                            'New Location',
+                            `New location added: "${name}".`,
+                            'Info'
+                        );
+                    }
+                    console.log(`[Location] Notified ${users.length} users for new location "${name}"`);
+                } catch (e) {
+                    console.error('[Location] Error sending notifications:', e.message);
+                }
+            })();
         } catch (error) {
             console.error('Error creating location:', error);
             res.status(500).json({ message: 'Server error creating location.' });
@@ -3142,6 +3321,24 @@ Please review and approve this registration in the admin panel.`;
                 return res.status(404).json({ message: 'Location not found' });
             }
             res.json(result.rows[0]);
+
+            // Notify active users (fire-and-forget)
+            (async () => {
+                try {
+                    const users = await getActiveUsers();
+                    for (const user of users) {
+                        createNotificationForUser(
+                            user.id,
+                            'Location Updated',
+                            `Location updated: "${name}".`,
+                            'Info'
+                        );
+                    }
+                    console.log(`[Location] Notified ${users.length} users for location update "${name}"`);
+                } catch (e) {
+                    console.error('[Location] Error sending notifications:', e.message);
+                }
+            })();
         } catch (error) {
             console.error('Error updating location:', error);
             res.status(500).json({ message: 'Server error updating location.' });
@@ -3255,6 +3452,199 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
+    // --- Invoice Payment Proof API Endpoints ---
+    app.post('/api/invoices/:id/payment-proof', ensureAuthenticated, uploadPaymentProof.single('proof'), async (req, res) => {
+        try {
+            const { id } = req.params;
+            if (!req.file) {
+                return res.status(400).json({ message: 'Payment proof image is required.' });
+            }
+
+            const invoiceResult = await pool.query('SELECT * FROM invoices WHERE id = $1', [id]);
+            if (invoiceResult.rows.length === 0) {
+                return res.status(404).json({ message: 'Invoice not found' });
+            }
+            const invoice = invoiceResult.rows[0];
+
+            const user = req.session.user;
+            const isAdminUser = (user?.role && user.role.toLowerCase() === 'admin') || user?.is_super_admin === true;
+            if (!isAdminUser && invoice.student_id !== user?.id) {
+                return res.status(403).json({ message: 'Forbidden: You can only submit proof for your own invoice.' });
+            }
+
+            const { transaction_id, payment_date, amount, payment_method } = req.body;
+            const proofUrl = `/uploads/payments/${req.file.filename}`;
+            const paymentAmount = amount || invoice.amount;
+            const method = payment_method || 'UPI';
+
+            const result = await pool.query(
+                `INSERT INTO invoice_payments (invoice_id, student_id, amount, payment_method, transaction_id, payment_date, proof_url, status)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, 'submitted') RETURNING *`,
+                [id, invoice.student_id, paymentAmount, method, transaction_id || null, payment_date || null, proofUrl]
+            );
+
+            res.status(201).json(result.rows[0]);
+
+            // Notify admins (fire-and-forget)
+            (async () => {
+                try {
+                    const admins = await getActiveAdmins();
+                    const displayName = user?.name || 'Student';
+                    for (const admin of admins) {
+                        createNotificationForUser(
+                            admin.id,
+                            'Payment Submitted',
+                            `Payment proof submitted for Invoice #${id} by ${displayName}.`,
+                            'Info'
+                        );
+                    }
+                    console.log(`[InvoicePayment] Notified ${admins.length} admins for invoice #${id}`);
+                } catch (e) {
+                    console.error('[InvoicePayment] Error notifying admins:', e.message);
+                }
+            })();
+        } catch (error) {
+            console.error('Error submitting payment proof:', error);
+            res.status(500).json({ message: 'Server error submitting payment proof.' });
+        }
+    });
+
+    app.get('/api/invoices/:id/payment-proof', ensureAuthenticated, async (req, res) => {
+        try {
+            const { id } = req.params;
+            const invoiceResult = await pool.query('SELECT * FROM invoices WHERE id = $1', [id]);
+            if (invoiceResult.rows.length === 0) {
+                return res.status(404).json({ message: 'Invoice not found' });
+            }
+            const invoice = invoiceResult.rows[0];
+
+            const user = req.session.user;
+            const isAdminUser = (user?.role && user.role.toLowerCase() === 'admin') || user?.is_super_admin === true;
+            if (!isAdminUser && invoice.student_id !== user?.id) {
+                return res.status(403).json({ message: 'Forbidden: You can only view your own payment proof.' });
+            }
+
+            const result = await pool.query(
+                `SELECT * FROM invoice_payments WHERE invoice_id = $1 ORDER BY submitted_at DESC LIMIT 1`,
+                [id]
+            );
+            res.json(result.rows[0] || null);
+        } catch (error) {
+            console.error('Error fetching payment proof:', error);
+            res.status(500).json({ message: 'Server error fetching payment proof.' });
+        }
+    });
+
+    app.get('/api/invoice-payments', ensureAdmin, async (req, res) => {
+        try {
+            const { status } = req.query;
+            const params = [];
+            let whereClause = '';
+            if (status) {
+                params.push(status);
+                whereClause = `WHERE ip.status = $${params.length}`;
+            }
+            const result = await pool.query(
+                `
+                SELECT ip.*, u.name as student_name, u.email as student_email,
+                       i.course_name, i.amount as invoice_amount, i.currency, i.status as invoice_status
+                FROM invoice_payments ip
+                LEFT JOIN users u ON ip.student_id = u.id
+                LEFT JOIN invoices i ON ip.invoice_id = i.id
+                ${whereClause}
+                ORDER BY ip.submitted_at DESC
+                `,
+                params
+            );
+            res.json(result.rows);
+        } catch (error) {
+            console.error('Error fetching invoice payments:', error);
+            res.status(500).json({ message: 'Server error fetching invoice payments.' });
+        }
+    });
+
+    app.put('/api/invoice-payments/:id', ensureAdmin, async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { status, notes } = req.body;
+            if (!status || !['approved', 'rejected', 'submitted'].includes(status)) {
+                return res.status(400).json({ message: 'Invalid status. Must be approved, rejected, or submitted.' });
+            }
+
+            const result = await pool.query(
+                `UPDATE invoice_payments SET status = $1, notes = $2, approved_at = CASE WHEN $1 = 'approved' THEN NOW() ELSE approved_at END, updated_at = NOW()
+                 WHERE id = $3 RETURNING *`,
+                [status, notes || null, id]
+            );
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Invoice payment not found' });
+            }
+            const payment = result.rows[0];
+
+            res.json(payment);
+
+            // On approval, mark invoice as paid + notify student (fire-and-forget)
+            if (status === 'approved' && payment.invoice_id && payment.student_id) {
+                (async () => {
+                    try {
+                        const paymentDetails = {
+                            payment_method: payment.payment_method || 'UPI',
+                            transaction_id: payment.transaction_id,
+                            payment_date: payment.payment_date || new Date().toISOString().split('T')[0],
+                            payment_status: 'approved'
+                        };
+
+                        const invoiceUpdate = await pool.query(
+                            `UPDATE invoices SET status = 'paid', payment_details = $1, updated_at = NOW()
+                             WHERE id = $2 RETURNING *`,
+                            [paymentDetails, payment.invoice_id]
+                        );
+                        const invoice = invoiceUpdate.rows[0];
+
+                        const students = await getUsersByIds([payment.student_id]);
+                        if (students.length > 0) {
+                            const student = students[0];
+                            const msg = `Payment Receipt ✅\n\n💳 Invoice #${payment.invoice_id}\n💰 Amount: ${invoice.currency || 'INR'} ${invoice.amount}\n📚 Course: ${invoice.course_name || 'Not specified'}\n📅 Payment Date: ${paymentDetails.payment_date}\n💳 Method: ${paymentDetails.payment_method}\n📊 Status: Paid\n\nThank you for your payment!\n\nBest regards,\nNadanaloga Academy Team`;
+                            sendEmailBackground(student.email, student.name, `Payment Confirmed - Invoice #${payment.invoice_id}`, msg);
+                            createNotificationForUser(
+                                student.id,
+                                'Payment Confirmed',
+                                `Your payment of ${invoice.currency || 'INR'} ${invoice.amount} has been confirmed.`,
+                                'Success'
+                            );
+                        }
+                        console.log(`[InvoicePayment] Approved and notified student ${payment.student_id} for invoice #${payment.invoice_id}`);
+                    } catch (e) {
+                        console.error('[InvoicePayment] Error on approval flow:', e.message);
+                    }
+                })();
+            }
+
+            // On rejection, notify student (fire-and-forget)
+            if (status === 'rejected' && payment.student_id) {
+                (async () => {
+                    try {
+                        const students = await getUsersByIds([payment.student_id]);
+                        if (students.length > 0) {
+                            const student = students[0];
+                            createNotificationForUser(
+                                student.id,
+                                'Payment Rejected',
+                                'Your payment proof was rejected. Please contact the admin or re-submit.',
+                                'Warning'
+                            );
+                        }
+                    } catch (e) {
+                        console.error('[InvoicePayment] Error notifying rejection:', e.message);
+                    }
+                })();
+            }
+        } catch (error) {
+            console.error('Error updating invoice payment:', error);
+            res.status(500).json({ message: 'Server error updating invoice payment.' });
+        }
+    });
+
     // --- FCM Token Management API Endpoints ---
     app.post('/api/fcm-tokens', async (req, res) => {
         try {
@@ -3321,6 +3711,16 @@ Please review and approve this registration in the admin panel.`;
                 [user_id, role, base_salary, payment_frequency || 'Monthly', bank_account_name, bank_account_number, bank_ifsc, upi_id]
             );
             res.status(201).json(result.rows[0]);
+
+            // Notify employee (fire-and-forget)
+            if (user_id) {
+                createNotificationForUser(
+                    user_id,
+                    'Salary Config Added',
+                    'A salary configuration has been created for your account.',
+                    'Info'
+                );
+            }
         } catch (error) {
             console.error('Error creating salary:', error);
             res.status(500).json({ message: 'Server error creating salary.' });
@@ -3340,6 +3740,16 @@ Please review and approve this registration in the admin panel.`;
             );
             if (result.rows.length === 0) return res.status(404).json({ message: 'Salary config not found' });
             res.json(result.rows[0]);
+
+            // Notify employee (fire-and-forget)
+            if (user_id) {
+                createNotificationForUser(
+                    user_id,
+                    'Salary Config Updated',
+                    'Your salary configuration has been updated.',
+                    'Info'
+                );
+            }
         } catch (error) {
             console.error('Error updating salary:', error);
             res.status(500).json({ message: 'Server error updating salary.' });
@@ -3385,6 +3795,16 @@ Please review and approve this registration in the admin panel.`;
                 [salary_id, user_id, amount, payment_date, payment_method, transaction_id, payment_period, notes, status || 'paid']
             );
             res.status(201).json(result.rows[0]);
+
+            // Notify employee (fire-and-forget)
+            if (user_id) {
+                createNotificationForUser(
+                    user_id,
+                    'Salary Paid',
+                    `Your salary payment of INR ${amount} has been recorded.`,
+                    'Success'
+                );
+            }
         } catch (error) {
             console.error('Error recording salary payment:', error);
             res.status(500).json({ message: 'Server error recording salary payment.' });
@@ -3404,6 +3824,17 @@ Please review and approve this registration in the admin panel.`;
             );
             if (result.rows.length === 0) return res.status(404).json({ message: 'Salary payment not found' });
             res.json(result.rows[0]);
+
+            // Notify employee (fire-and-forget)
+            const updated = result.rows[0];
+            if (updated.user_id) {
+                createNotificationForUser(
+                    updated.user_id,
+                    'Salary Payment Updated',
+                    `Your salary payment record has been updated. Status: ${updated.status || status || 'updated'}.`,
+                    'Info'
+                );
+            }
         } catch (error) {
             console.error('Error updating salary payment:', error);
             res.status(500).json({ message: 'Server error updating salary payment.' });

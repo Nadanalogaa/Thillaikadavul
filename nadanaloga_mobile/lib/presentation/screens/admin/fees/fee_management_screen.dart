@@ -73,6 +73,13 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Fee Management'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.receipt_long),
+            tooltip: 'Payment Proofs',
+            onPressed: () => context.push('/admin/fees/payments'),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [

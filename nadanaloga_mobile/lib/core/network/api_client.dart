@@ -339,6 +339,48 @@ class ApiClient {
     return _dio.put(ApiEndpoints.invoiceById(id), data: data);
   }
 
+  Future<Response> submitInvoicePaymentProof({
+    required int invoiceId,
+    required String proofPath,
+    String? transactionId,
+    String? paymentDate,
+    String? paymentMethod,
+    double? amount,
+  }) async {
+    final formData = FormData.fromMap({
+      'proof': await MultipartFile.fromFile(
+        proofPath,
+        filename: proofPath.split('/').last,
+      ),
+      if (transactionId != null && transactionId.isNotEmpty)
+        'transaction_id': transactionId,
+      if (paymentDate != null && paymentDate.isNotEmpty)
+        'payment_date': paymentDate,
+      if (paymentMethod != null && paymentMethod.isNotEmpty)
+        'payment_method': paymentMethod,
+      if (amount != null) 'amount': amount,
+    });
+    return _dio.post(
+      ApiEndpoints.invoicePaymentProof(invoiceId),
+      data: formData,
+      options: Options(contentType: 'multipart/form-data'),
+    );
+  }
+
+  Future<Response> getInvoicePaymentProof(int invoiceId) {
+    return _dio.get(ApiEndpoints.invoicePaymentProof(invoiceId));
+  }
+
+  Future<Response> getInvoicePayments({String? status}) {
+    final queryParams = <String, dynamic>{};
+    if (status != null && status.isNotEmpty) queryParams['status'] = status;
+    return _dio.get(ApiEndpoints.invoicePayments, queryParameters: queryParams);
+  }
+
+  Future<Response> updateInvoicePayment(int id, Map<String, dynamic> data) {
+    return _dio.put(ApiEndpoints.invoicePaymentById(id), data: data);
+  }
+
   // --- Demo Bookings API ---
 
   Future<Response> getDemoBookings() {
