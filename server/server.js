@@ -885,16 +885,56 @@ async function startServer() {
             
             const normalizedEmail = userData.email.toLowerCase();
             
-            const existingUserResult = await pool.query('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
+            const existingUserResult = await pool.query('SELECT id, is_deleted FROM users WHERE email = $1', [normalizedEmail]);
             if (existingUserResult.rows.length > 0) {
+                const existingUser = existingUserResult.rows[0];
+                if (existingUser.is_deleted) {
+                    // Re-activate soft-deleted user: update their data and un-delete
+                    if (!password) return res.status(400).json({ message: 'Password is required.' });
+                    const hashedPassword = await bcrypt.hash(password, 10);
+                    if (normalizedEmail === 'admin@nadanaloga.com') userData.role = 'Admin';
+                    const result = await pool.query(
+                        `UPDATE users SET name=$1, password=$2, role=$3, class_preference=$4, photo_url=$5, dob=$6, sex=$7, contact_number=$8, address=$9, date_of_joining=$10, courses=$11, father_name=$12, standard=$13, school_name=$14, grade=$15, notes=$16, course_expertise=$17, educational_qualifications=$18, employment_type=$19, is_deleted=false, deleted_at=NULL, preferred_location_id=$20, parent_id=$21, display_name=$22, is_primary=$23 WHERE id=$24 RETURNING *`,
+                        [
+                            userData.name, hashedPassword, userData.role || 'Student',
+                            userData.class_preference || userData.classPreference,
+                            userData.photo_url || userData.photoUrl,
+                            userData.dob, userData.sex,
+                            userData.contact_number || userData.contactNumber,
+                            userData.address,
+                            userData.date_of_joining || userData.dateOfJoining,
+                            JSON.stringify(userData.courses || []),
+                            userData.father_name || userData.fatherName,
+                            userData.standard,
+                            userData.school_name || userData.schoolName,
+                            userData.grade, userData.notes,
+                            JSON.stringify(userData.course_expertise || userData.courseExpertise || []),
+                            userData.educational_qualifications || userData.educationalQualifications,
+                            userData.employment_type || userData.employmentType,
+                            userData.preferred_location_id || userData.preferredLocationId || null,
+                            userData.parent_id || userData.parentId || null,
+                            userData.display_name || userData.displayName || userData.name,
+                            userData.is_primary !== undefined ? userData.is_primary : (userData.isPrimary !== undefined ? userData.isPrimary : true),
+                            existingUser.id
+                        ]
+                    );
+                    const reactivatedUser = result.rows[0];
+                    const parsedUser = {
+                        ...reactivatedUser,
+                        courses: typeof reactivatedUser.courses === 'string' ? JSON.parse(reactivatedUser.courses || '[]') : (reactivatedUser.courses || []),
+                        course_expertise: typeof reactivatedUser.course_expertise === 'string' ? JSON.parse(reactivatedUser.course_expertise || '[]') : (reactivatedUser.course_expertise || [])
+                    };
+                    delete parsedUser.password;
+                    return res.status(201).json(parsedUser);
+                }
                 return res.status(409).json({ message: 'This email is already registered. Please try logging in.' });
             }
-            
+
             if (normalizedEmail === 'admin@nadanaloga.com') {
                 userData.role = 'Admin';
             }
             if (!password) return res.status(400).json({ message: 'Password is required.' });
-            
+
             const hashedPassword = await bcrypt.hash(password, 10);
 
             // Generate user_id (NDA-YYYY-XXXX)
@@ -903,7 +943,7 @@ async function startServer() {
             const generatedUserId = `NDA-${year}-${String(seqResult.rows[0].seq).padStart(4, '0')}`;
 
             const result = await pool.query(
-                'INSERT INTO users (name, email, password, role, class_preference, photo_url, dob, sex, contact_number, address, date_of_joining, courses, father_name, standard, school_name, grade, notes, course_expertise, educational_qualifications, employment_type, user_id, preferred_location_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING *',
+                'INSERT INTO users (name, email, password, role, class_preference, photo_url, dob, sex, contact_number, address, date_of_joining, courses, father_name, standard, school_name, grade, notes, course_expertise, educational_qualifications, employment_type, user_id, preferred_location_id, parent_id, display_name, is_primary) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25) RETURNING *',
                 [
                     userData.name, normalizedEmail, hashedPassword, userData.role || 'Student',
                     userData.class_preference || userData.classPreference,
@@ -921,7 +961,10 @@ async function startServer() {
                     userData.educational_qualifications || userData.educationalQualifications,
                     userData.employment_type || userData.employmentType,
                     generatedUserId,
-                    userData.preferred_location_id || userData.preferredLocationId || null
+                    userData.preferred_location_id || userData.preferredLocationId || null,
+                    userData.parent_id || userData.parentId || null,
+                    userData.display_name || userData.displayName || userData.name,
+                    userData.is_primary !== undefined ? userData.is_primary : (userData.isPrimary !== undefined ? userData.isPrimary : true)
                 ]
             );
 
@@ -1629,8 +1672,42 @@ Nadanaloga Academy Team`;
             const normalizedEmail = userData.email.toLowerCase();
             console.log('[DEBUG] Processing registration for:', normalizedEmail);
 
-            const existingUserResult = await pool.query('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
+            const existingUserResult = await pool.query('SELECT id, is_deleted FROM users WHERE email = $1', [normalizedEmail]);
             if (existingUserResult.rows.length > 0) {
+                const existingUser = existingUserResult.rows[0];
+                if (existingUser.is_deleted) {
+                    // Re-activate soft-deleted user
+                    if (!password) return res.status(400).json({ message: 'Password is required.' });
+                    const hashedPassword = await bcrypt.hash(password, 10);
+                    if (normalizedEmail === 'admin@nadanaloga.com') userData.role = 'Admin';
+                    const result = await pool.query(
+                        `UPDATE users SET name=$1, password=$2, role=$3, class_preference=$4, photo_url=$5, dob=$6, sex=$7, contact_number=$8, address=$9, date_of_joining=$10, courses=$11, father_name=$12, standard=$13, school_name=$14, grade=$15, notes=$16, course_expertise=$17, educational_qualifications=$18, employment_type=$19, is_deleted=false, deleted_at=NULL WHERE id=$20 RETURNING id`,
+                        [
+                            userData.name, hashedPassword, userData.role || 'Student',
+                            userData.class_preference || userData.classPreference,
+                            userData.photo_url || userData.photoUrl,
+                            userData.dob, userData.sex,
+                            userData.contact_number || userData.contactNumber,
+                            userData.address,
+                            userData.date_of_joining || userData.dateOfJoining,
+                            JSON.stringify(userData.courses || []),
+                            userData.father_name || userData.fatherName,
+                            userData.standard,
+                            userData.school_name || userData.schoolName,
+                            userData.grade, userData.notes,
+                            JSON.stringify(userData.course_expertise || userData.courseExpertise || []),
+                            userData.educational_qualifications || userData.educationalQualifications,
+                            userData.employment_type || userData.employmentType,
+                            existingUser.id
+                        ]
+                    );
+                    // Continue with the same newUserId flow for email sending etc.
+                    const newUserId = result.rows[0].id;
+                    console.log('[DEBUG] Re-activated soft-deleted user with ID:', newUserId);
+                    // Skip to sending emails - return early after email logic
+                    res.status(201).json({ id: newUserId, message: 'Registration successful (re-activated).' });
+                    return;
+                }
                 return res.status(409).json({ message: 'This email is already registered. Please try logging in.' });
             }
 
@@ -2551,16 +2628,53 @@ Please review and approve this registration in the admin panel.`;
     });
 
     app.delete('/api/courses/:id', ensureAdmin, async (req, res) => {
+        const client = await pool.connect();
         try {
             const { id } = req.params;
-            const result = await pool.query('DELETE FROM courses WHERE id = $1 RETURNING id', [id]);
-            if (result.rows.length === 0) {
+            await client.query('BEGIN');
+
+            // Check if course exists
+            const courseCheck = await client.query('SELECT id, name FROM courses WHERE id = $1', [id]);
+            if (courseCheck.rows.length === 0) {
+                await client.query('ROLLBACK');
                 return res.status(404).json({ message: 'Course not found' });
             }
-            res.json({ message: 'Course deleted successfully' });
+            const courseName = courseCheck.rows[0].name;
+
+            // The CASCADE constraints should handle batches, book_materials, and fee_structures automatically
+            // demo_bookings has ON DELETE SET NULL
+            // But to be safe and get proper counts, we'll manually check and delete
+
+            const batchesResult = await client.query('SELECT COUNT(*) as count FROM batches WHERE course_id = $1', [id]);
+            const materialsResult = await client.query('SELECT COUNT(*) as count FROM book_materials WHERE course_id = $1', [id]);
+            const feeResult = await client.query('SELECT COUNT(*) as count FROM fee_structures WHERE course_id = $1', [id]);
+
+            // Delete the course (CASCADE will handle related records)
+            await client.query('DELETE FROM courses WHERE id = $1', [id]);
+
+            await client.query('COMMIT');
+
+            console.log(`[Course Delete] Deleted course "${courseName}" (ID: ${id}). Cascaded: ${batchesResult.rows[0].count} batches, ${materialsResult.rows[0].count} materials, ${feeResult.rows[0].count} fee structures.`);
+
+            res.json({
+                message: 'Course deleted successfully',
+                deletedCourse: courseName,
+                cascadedDeletions: {
+                    batches: parseInt(batchesResult.rows[0].count),
+                    materials: parseInt(materialsResult.rows[0].count),
+                    feeStructures: parseInt(feeResult.rows[0].count)
+                }
+            });
         } catch (error) {
+            await client.query('ROLLBACK');
             console.error('Error deleting course:', error);
-            res.status(500).json({ message: 'Server error deleting course.' });
+            res.status(500).json({
+                message: 'Server error deleting course.',
+                error: error.message,
+                details: error.detail || 'Check if course is referenced by other records.'
+            });
+        } finally {
+            client.release();
         }
     });
 
