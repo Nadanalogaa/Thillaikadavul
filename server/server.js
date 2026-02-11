@@ -2137,6 +2137,101 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
+    // Database Migration Endpoint (Admin only) - Run parent-student schema migration
+    app.post('/api/admin/migrate-parent-student', ensureAdmin, async (req, res) => {
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            console.log('[Migration] Starting parent-student schema migration...');
+
+            // Check if columns already exist
+            const checkColumns = await client.query(`
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name = 'users'
+                AND column_name IN ('parent_id', 'display_name', 'is_primary')
+            `);
+
+            if (checkColumns.rows.length === 3) {
+                console.log('[Migration] Columns already exist, skipping migration');
+                await client.query('COMMIT');
+                return res.json({
+                    success: true,
+                    message: 'Migration already applied',
+                    columnsAdded: []
+                });
+            }
+
+            const addedColumns = [];
+
+            // Add parent_id column
+            if (!checkColumns.rows.find(r => r.column_name === 'parent_id')) {
+                await client.query('ALTER TABLE users ADD COLUMN parent_id UUID REFERENCES users(id) ON DELETE SET NULL');
+                addedColumns.push('parent_id');
+                console.log('[Migration] Added parent_id column');
+            }
+
+            // Add is_primary column
+            if (!checkColumns.rows.find(r => r.column_name === 'is_primary')) {
+                await client.query('ALTER TABLE users ADD COLUMN is_primary BOOLEAN DEFAULT true');
+                addedColumns.push('is_primary');
+                console.log('[Migration] Added is_primary column');
+            }
+
+            // Add display_name column
+            if (!checkColumns.rows.find(r => r.column_name === 'display_name')) {
+                await client.query('ALTER TABLE users ADD COLUMN display_name TEXT');
+                addedColumns.push('display_name');
+                console.log('[Migration] Added display_name column');
+            }
+
+            // Create index for parent_id
+            await client.query('CREATE INDEX IF NOT EXISTS idx_users_parent_id ON users(parent_id)');
+            console.log('[Migration] Created index on parent_id');
+
+            // Set display_name = name for existing users
+            await client.query("UPDATE users SET display_name = name WHERE display_name IS NULL AND is_deleted = false");
+            console.log('[Migration] Set display_name for existing users');
+
+            // Add student_id to notifications table
+            const checkNotifColumns = await client.query(`
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name = 'notifications'
+                AND column_name = 'student_id'
+            `);
+
+            if (checkNotifColumns.rows.length === 0) {
+                await client.query('ALTER TABLE notifications ADD COLUMN student_id UUID REFERENCES users(id) ON DELETE CASCADE');
+                await client.query('CREATE INDEX IF NOT EXISTS idx_notifications_student_id ON notifications(student_id)');
+                addedColumns.push('notifications.student_id');
+                console.log('[Migration] Added student_id to notifications');
+            }
+
+            await client.query('COMMIT');
+
+            console.log('[Migration] Parent-student schema migration completed successfully');
+
+            res.json({
+                success: true,
+                message: 'Parent-student schema migration completed',
+                columnsAdded: addedColumns
+            });
+
+        } catch (error) {
+            await client.query('ROLLBACK');
+            console.error('[Migration] Error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Migration failed',
+                error: error.message
+            });
+        } finally {
+            client.release();
+        }
+    });
+
     // Get users by IDs
     app.post('/api/users/by-ids', ensureAdmin, async (req, res) => {
         try {

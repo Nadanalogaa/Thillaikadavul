@@ -152,7 +152,21 @@ async function main() {
   }
   console.log('Logged in successfully\n');
 
-  // 3. Get existing data
+  // 3. Run database migration (auto-adds parent_id, display_name, is_primary columns)
+  console.log('--- Running database migration ---');
+  const migrateRes = await api('POST', '/admin/migrate-parent-student');
+  if (migrateRes.ok) {
+    console.log(`  ✅ ${migrateRes.data.message}`);
+    if (migrateRes.data.columnsAdded && migrateRes.data.columnsAdded.length > 0) {
+      console.log(`  📝 Columns added: ${migrateRes.data.columnsAdded.join(', ')}`);
+    }
+  } else {
+    console.log(`  ⚠️  Migration warning: ${migrateRes.error || 'Could not run migration'}`);
+    console.log(`  Continuing anyway - columns may already exist\n`);
+  }
+  console.log();
+
+  // 4. Get existing data
   console.log('--- Fetching existing data ---');
   const existingUsers = await api('GET', '/users');
   const existingCourses = await api('GET', '/courses');
@@ -166,7 +180,7 @@ async function main() {
   console.log(`  Existing courses: ${courseList.length}`);
   console.log(`  Existing batches: ${batchList.length}\n`);
 
-  // 4. Permanently delete trashed (soft-deleted) users first
+  // 5. Permanently delete trashed (soft-deleted) users first
   console.log('--- Cleaning up trashed users ---');
   const trashedRes = await api('GET', '/users/trashed/all');
   const trashedUsers = trashedRes.ok ? (trashedRes.data || []) : [];
@@ -180,7 +194,7 @@ async function main() {
   }
   console.log(`  Permanently deleted ${permanentlyDeleted}/${trashedUsers.length} trashed users\n`);
 
-  // 5. Delete existing batches (depends on courses/users)
+  // 6. Delete existing batches (depends on courses/users)
   console.log('--- Deleting existing batches ---');
   let deletedBatches = 0;
   for (const batch of batchList) {
@@ -190,7 +204,7 @@ async function main() {
   }
   console.log(`  Deleted ${deletedBatches}/${batchList.length} batches\n`);
 
-  // 6. Build email->id map from existing active users
+  // 7. Build email->id map from existing active users
   console.log('--- Mapping existing students ---');
   const existingEmailMap = {};
   for (const u of userList) {
@@ -198,7 +212,7 @@ async function main() {
   }
   console.log(`  Found ${Object.keys(existingEmailMap).length} existing users by email\n`);
 
-  // 7. Delete existing courses
+  // 8. Delete existing courses
   console.log('--- Deleting existing courses ---');
   let deletedCourses = 0;
   for (const course of courseList) {
@@ -208,7 +222,7 @@ async function main() {
   }
   console.log(`  Deleted ${deletedCourses}/${courseList.length} courses\n`);
 
-  // 8. Extract unique courses from CSV
+  // 9. Extract unique courses from CSV
   console.log('--- Creating courses ---');
   const allCourseNames = new Set();
   for (const row of rows) {
@@ -229,7 +243,7 @@ async function main() {
   }
   console.log();
 
-  // 9. Group students by parent email (KEEP ALL STUDENTS, NO DEDUPLICATION)
+  // 10. Group students by parent email (KEEP ALL STUDENTS, NO DEDUPLICATION)
   console.log('--- Processing students and parent relationships ---');
   const studentsByParentEmail = new Map(); // email -> [ student1, student2, ... ]
 
@@ -389,7 +403,7 @@ async function main() {
   console.log(`    Students created: ${createdStudents}`);
   console.log(`    Failed: ${failedCount}\n`);
 
-  // 10. Create batches (Course + Day + Mode combination)
+  // 11. Create batches (Course + Day + Mode combination)
   console.log('--- Creating batches ---');
   // Collect all unique batch combinations
   const batchCombos = new Map(); // "courseName|batchDay|mode" -> Set of studentEmails
@@ -456,7 +470,7 @@ async function main() {
   }
   console.log(`\n  Created ${createdBatches}/${batchCombos.size} batches\n`);
 
-  // 11. Summary
+  // 12. Summary
   console.log('=== Import Complete ===');
   console.log(`  Courses: ${Object.keys(courseMap).length}`);
   console.log(`  Parents: ${createdParents}`);
