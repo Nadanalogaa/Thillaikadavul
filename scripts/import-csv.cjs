@@ -334,8 +334,9 @@ async function main() {
         const childIndex = i + 1;
         const studentEmail = parentEmail.replace('@', `+child${childIndex}@`);
 
-        const courseIds = [...new Set(
-          student.courseEntries.map(e => courseMap[e.courseName]).filter(Boolean)
+        // Use course NAMES instead of IDs for frontend filtering
+        const courseNames = [...new Set(
+          student.courseEntries.map(e => e.courseName).filter(Boolean)
         )];
 
         const studentPayload = {
@@ -348,7 +349,7 @@ async function main() {
           dateOfJoining: student.dateOfJoining,
           contactNumber: student.phone,
           classPreference: student.classPreference,
-          courses: courseIds,
+          courses: courseNames, // Store course names, not IDs
           displayName: student.name,
           parentId: parentId,
           isPrimary: false, // Children can't self-login, only via parent
@@ -368,8 +369,9 @@ async function main() {
       // Single student - create as independent student (can self-login)
       const student = students[0];
 
-      const courseIds = [...new Set(
-        student.courseEntries.map(e => courseMap[e.courseName]).filter(Boolean)
+      // Use course NAMES instead of IDs for frontend filtering
+      const courseNames = [...new Set(
+        student.courseEntries.map(e => e.courseName).filter(Boolean)
       )];
 
       const studentPayload = {
@@ -382,7 +384,7 @@ async function main() {
         dateOfJoining: student.dateOfJoining,
         contactNumber: student.phone,
         classPreference: student.classPreference,
-        courses: courseIds,
+        courses: courseNames, // Store course names, not IDs
         displayName: student.name,
         isPrimary: true, // Can self-login
       };
