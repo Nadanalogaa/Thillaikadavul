@@ -1053,6 +1053,18 @@ async function startServer() {
                 course_expertise: typeof user.course_expertise === 'string' ? JSON.parse(user.course_expertise || '[]') : (user.course_expertise || [])
             };
 
+            // If parent, fetch their children
+            if (parsedUser.role === 'Parent') {
+                const childrenResult = await pool.query(
+                    'SELECT id, display_name, name, grade, courses, photo_url, status FROM users WHERE parent_id = $1 AND is_deleted = false ORDER BY display_name',
+                    [parsedUser.id]
+                );
+                parsedUser.students = childrenResult.rows.map(child => ({
+                    ...child,
+                    courses: typeof child.courses === 'string' ? JSON.parse(child.courses || '[]') : (child.courses || [])
+                }));
+            }
+
             req.session.user = parsedUser;
             res.json(parsedUser);
         } catch (error) {
