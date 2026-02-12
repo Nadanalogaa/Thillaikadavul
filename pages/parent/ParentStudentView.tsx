@@ -3,11 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, BookOpen, Calendar, DollarSign, Bell, User, Clock,
-  MapPin, Users, GraduationCap, Phone, Mail, Home, School
+  MapPin, Users, GraduationCap, Phone, Mail, Home, School, FileText, Award, Book
 } from 'lucide-react';
-import type { User, StudentEnrollment } from '../../types';
+import type { User, StudentEnrollment, Event, Notice, BookMaterial, GradeExam } from '../../types';
 import { useTheme } from '../../contexts/ThemeContext';
-import { getStudentEnrollmentsForFamily, getNotifications, getInvoices } from '../../api';
+import { getStudentEnrollmentsForFamily, getNotifications, getInvoices, getEvents, getNotices, getBookMaterials, getGradeExams } from '../../api';
 
 interface ParentStudentViewProps {
   parentUser: User;
@@ -21,6 +21,10 @@ const ParentStudentView: React.FC<ParentStudentViewProps> = ({ parentUser }) => 
   const [enrollments, setEnrollments] = useState<StudentEnrollment[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const [bookMaterials, setBookMaterials] = useState<BookMaterial[]>([]);
+  const [gradeExams, setGradeExams] = useState<GradeExam[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -46,14 +50,31 @@ const ParentStudentView: React.FC<ParentStudentViewProps> = ({ parentUser }) => 
 
   const loadStudentData = async (studentId: number) => {
     try {
-      const [enrollmentsData, notificationsData, invoicesData] = await Promise.all([
+      const [
+        enrollmentsData,
+        notificationsData,
+        invoicesData,
+        eventsData,
+        noticesData,
+        bookMaterialsData,
+        gradeExamsData
+      ] = await Promise.all([
         getStudentEnrollmentsForFamily(studentId.toString()),
         getNotifications(),
-        getInvoices().catch(() => [])
+        getInvoices().catch(() => []),
+        getEvents().catch(() => []),
+        getNotices().catch(() => []),
+        getBookMaterials().catch(() => []),
+        getGradeExams().catch(() => [])
       ]);
 
       setEnrollments(enrollmentsData);
       setNotifications(notificationsData);
+      setEvents(eventsData);
+      setNotices(noticesData);
+      setBookMaterials(bookMaterialsData);
+      setGradeExams(gradeExamsData);
+
       // Filter invoices for this student
       const studentInvoices = invoicesData.filter((inv: any) =>
         inv.student_id?.toString() === studentId.toString()
@@ -399,6 +420,196 @@ const ParentStudentView: React.FC<ParentStudentViewProps> = ({ parentUser }) => 
               ) : (
                 <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                   No notifications yet
+                </p>
+              )}
+            </div>
+          </motion.div>
+
+          {/* Events */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className={`lg:col-span-2 rounded-xl p-6 ${
+              theme === 'dark' ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+            }`}
+          >
+            <div className="flex items-center space-x-3 mb-6">
+              <Calendar className={`w-6 h-6 ${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'}`} />
+              <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                Upcoming Events
+              </h2>
+            </div>
+
+            {events.length > 0 ? (
+              <div className="space-y-3">
+                {events.slice(0, 5).map((event) => (
+                  <div
+                    key={event.id}
+                    className={`p-4 rounded-lg border ${
+                      theme === 'dark' ? 'bg-gray-750 border-gray-600' : 'bg-gray-50 border-gray-200'
+                    }`}
+                  >
+                    <h4 className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                      {event.title}
+                    </h4>
+                    <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {event.description}
+                    </p>
+                    {event.event_date && (
+                      <p className={`text-xs mt-2 flex items-center ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
+                        <Clock className="w-3 h-3 mr-1" />
+                        {new Date(event.event_date).toLocaleDateString()}
+                        {event.event_time && ` at ${event.event_time}`}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                No upcoming events
+              </p>
+            )}
+          </motion.div>
+
+          {/* Notices */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className={`rounded-xl p-6 ${
+              theme === 'dark' ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+            }`}
+          >
+            <div className="flex items-center space-x-3 mb-6">
+              <FileText className={`w-6 h-6 ${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'}`} />
+              <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                Notices
+              </h2>
+            </div>
+
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {notices.length > 0 ? (
+                notices.slice(0, 5).map((notice) => (
+                  <div
+                    key={notice.id}
+                    className={`p-3 rounded-lg ${
+                      theme === 'dark' ? 'bg-gray-750' : 'bg-gray-50'
+                    }`}
+                  >
+                    <h4 className={`font-medium text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                      {notice.title}
+                    </h4>
+                    <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {notice.content}
+                    </p>
+                    {notice.created_at && (
+                      <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
+                        {new Date(notice.created_at).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  No notices available
+                </p>
+              )}
+            </div>
+          </motion.div>
+
+          {/* Book Materials */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className={`lg:col-span-2 rounded-xl p-6 ${
+              theme === 'dark' ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+            }`}
+          >
+            <div className="flex items-center space-x-3 mb-6">
+              <Book className={`w-6 h-6 ${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'}`} />
+              <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                Book Materials
+              </h2>
+            </div>
+
+            {bookMaterials.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {bookMaterials.map((material) => (
+                  <div
+                    key={material.id}
+                    className={`p-4 rounded-lg border ${
+                      theme === 'dark' ? 'bg-gray-750 border-gray-600' : 'bg-gray-50 border-gray-200'
+                    }`}
+                  >
+                    <h4 className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                      {material.title}
+                    </h4>
+                    <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {material.course_name}
+                    </p>
+                    {material.description && (
+                      <p className={`text-xs mt-2 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
+                        {material.description}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                No book materials available
+              </p>
+            )}
+          </motion.div>
+
+          {/* Grade Exams */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+            className={`rounded-xl p-6 ${
+              theme === 'dark' ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+            }`}
+          >
+            <div className="flex items-center space-x-3 mb-6">
+              <Award className={`w-6 h-6 ${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'}`} />
+              <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                Grade Exams
+              </h2>
+            </div>
+
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {gradeExams.length > 0 ? (
+                gradeExams.map((exam) => (
+                  <div
+                    key={exam.id}
+                    className={`p-4 rounded-lg border ${
+                      theme === 'dark' ? 'bg-gray-750 border-gray-600' : 'bg-gray-50 border-gray-200'
+                    }`}
+                  >
+                    <h4 className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                      {exam.title || exam.grade_name}
+                    </h4>
+                    {exam.course_name && (
+                      <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {exam.course_name}
+                      </p>
+                    )}
+                    {exam.exam_date && (
+                      <p className={`text-xs mt-2 flex items-center ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
+                        <Calendar className="w-3 h-3 mr-1" />
+                        {new Date(exam.exam_date).toLocaleDateString()}
+                        {exam.exam_time && ` at ${exam.exam_time}`}
+                      </p>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  No grade exams scheduled
                 </p>
               )}
             </div>
