@@ -17,6 +17,7 @@ import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import StudentDashboardPage from './pages/StudentDashboardPage';
 import TeacherDashboardPage from './pages/TeacherDashboardPage';
+import ParentDashboard from './pages/parent/ParentDashboard';
 import StudentListPage from './pages/admin/StudentListPage';
 import TeacherListPage from './pages/admin/TeacherListPage';
 import BatchesPage from './pages/admin/BatchesPage';
@@ -118,6 +119,8 @@ function App() {
     setLoginEmail('');
     if (user.role === UserRole.Admin) {
       navigate('/admin/dashboard');
+    } else if (user.role === UserRole.Parent) {
+      navigate('/parent/dashboard');
     } else if (user.role === UserRole.Student) {
       navigate('/dashboard/student');
     } else if (user.role === UserRole.Teacher) {
@@ -260,6 +263,17 @@ function App() {
             <Route path="/admin/book-materials" element={<AdminProtectedRoute><BookMaterialsManagementPage /></AdminProtectedRoute>} />
             <Route path="/admin/notices" element={<AdminProtectedRoute><NoticesManagementPage /></AdminProtectedRoute>} />
             <Route path="/admin/trash" element={<AdminProtectedRoute><TrashPage /></AdminProtectedRoute>} />
+
+            {/* Parent Dashboard */}
+            <Route
+              path="/parent/dashboard"
+              element={
+                <UserProtectedRoute allowedRoles={[UserRole.Parent]}>
+                  <ParentDashboard user={currentUser!} />
+                </UserProtectedRoute>
+              }
+            />
+
             <Route path="/private-class" element={<PrivateClassPage />} />
             <Route path="/performance-workshops" element={<PerformanceWorkshopsPage />} />
             <Route path="/class-schedules" element={<ClassSchedulesPage />} />
