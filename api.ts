@@ -161,8 +161,9 @@ export const loginUser = async (email: string, password: string): Promise<User> 
       dateOfJoining: user.date_of_joining,
       schedules: user.schedules || [],
       documents: user.documents || [],
-      notes: user.notes
-    };
+      notes: user.notes,
+      students: user.students || []  // Add students array for parent accounts
+    } as any;
 
     currentUser = userData;
     safeSetLocalStorage('currentUser', userData);
