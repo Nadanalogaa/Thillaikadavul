@@ -1055,14 +1055,17 @@ async function startServer() {
 
             // If parent, fetch their children
             if (parsedUser.role === 'Parent') {
+                console.log('[Login] Parent detected, fetching children for parent ID:', parsedUser.id);
                 const childrenResult = await pool.query(
                     'SELECT id, display_name, name, grade, courses, photo_url, status FROM users WHERE parent_id = $1 AND is_deleted = false ORDER BY display_name',
                     [parsedUser.id]
                 );
+                console.log('[Login] Children query returned:', childrenResult.rows.length, 'students');
                 parsedUser.students = childrenResult.rows.map(child => ({
                     ...child,
                     courses: typeof child.courses === 'string' ? JSON.parse(child.courses || '[]') : (child.courses || [])
                 }));
+                console.log('[Login] Added students array to response:', parsedUser.students.length);
             }
 
             req.session.user = parsedUser;
