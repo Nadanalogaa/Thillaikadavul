@@ -18,6 +18,7 @@ import AdminLoginPage from './pages/AdminLoginPage';
 import StudentDashboardPage from './pages/StudentDashboardPage';
 import TeacherDashboardPage from './pages/TeacherDashboardPage';
 import ParentDashboard from './pages/parent/ParentDashboard';
+import ParentStudentView from './pages/parent/ParentStudentView';
 import StudentListPage from './pages/admin/StudentListPage';
 import TeacherListPage from './pages/admin/TeacherListPage';
 import BatchesPage from './pages/admin/BatchesPage';
@@ -270,6 +271,14 @@ function App() {
               element={
                 <UserProtectedRoute allowedRoles={[UserRole.Parent]}>
                   <ParentDashboard user={currentUser!} />
+                </UserProtectedRoute>
+              }
+            />
+            <Route
+              path="/parent/student/:studentId"
+              element={
+                <UserProtectedRoute allowedRoles={[UserRole.Parent]}>
+                  <ParentStudentView parentUser={currentUser!} />
                 </UserProtectedRoute>
               }
             />

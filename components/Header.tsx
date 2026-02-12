@@ -146,6 +146,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
     if (!currentUser) return "/";
     switch (currentUser.role) {
       case UserRole.Admin: return "/admin/dashboard";
+      case UserRole.Parent: return "/parent/dashboard";
       case UserRole.Student: return "/dashboard/student";
       case UserRole.Teacher: return "/dashboard/teacher";
       default: return "/";
