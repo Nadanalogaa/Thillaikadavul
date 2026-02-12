@@ -93,6 +93,25 @@ const ParentStudentView: React.FC<ParentStudentViewProps> = ({ parentUser }) => 
     );
   }
 
+  // Calculate years studying
+  const calculateYearsStudying = () => {
+    if (!student.date_of_joining) return null;
+    const joinDate = new Date(student.date_of_joining);
+    const today = new Date();
+    const years = today.getFullYear() - joinDate.getFullYear();
+    const months = today.getMonth() - joinDate.getMonth();
+
+    if (years === 0) {
+      return months === 0 ? 'Just joined' : `${months} month${months > 1 ? 's' : ''}`;
+    }
+    if (months < 0) {
+      return `${years - 1} year${years - 1 > 1 ? 's' : ''}`;
+    }
+    return `${years} year${years > 1 ? 's' : ''}`;
+  };
+
+  const yearsStudying = calculateYearsStudying();
+
   return (
     <div className={`min-h-screen ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
       {/* Header */}
@@ -130,25 +149,61 @@ const ParentStudentView: React.FC<ParentStudentViewProps> = ({ parentUser }) => 
                   <h1 className={`text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                     {student.display_name || student.name}
                   </h1>
-                  {student.grade && (
-                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Grade {student.grade}
-                    </p>
-                  )}
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    {student.grade && (
+                      <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Grade {student.grade}
+                      </span>
+                    )}
+                    {/* Course badges */}
+                    {student.courses && student.courses.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>•</span>
+                        {student.courses.slice(0, 3).map((course: string, idx: number) => (
+                          <span
+                            key={idx}
+                            className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                              theme === 'dark'
+                                ? 'bg-indigo-900/50 text-indigo-300'
+                                : 'bg-indigo-100 text-indigo-700'
+                            }`}
+                          >
+                            {course}
+                          </span>
+                        ))}
+                        {student.courses.length > 3 && (
+                          <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                            +{student.courses.length - 3} more
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-            <span className={`px-4 py-2 rounded-full text-sm font-medium ${
-              student.status === 'active'
-                ? theme === 'dark'
-                  ? 'bg-green-900/50 text-green-300'
-                  : 'bg-green-100 text-green-800'
-                : theme === 'dark'
-                ? 'bg-gray-700 text-gray-400'
-                : 'bg-gray-200 text-gray-600'
-            }`}>
-              {student.status === 'active' ? 'Active' : student.status || 'Unknown'}
-            </span>
+            <div className="flex flex-col items-end gap-2">
+              <span className={`px-4 py-2 rounded-full text-sm font-medium ${
+                student.status === 'active'
+                  ? theme === 'dark'
+                    ? 'bg-green-900/50 text-green-300'
+                    : 'bg-green-100 text-green-800'
+                  : theme === 'dark'
+                  ? 'bg-gray-700 text-gray-400'
+                  : 'bg-gray-200 text-gray-600'
+              }`}>
+                {student.status === 'active' ? 'Active' : student.status || 'Unknown'}
+              </span>
+              {yearsStudying && (
+                <span className={`text-xs px-3 py-1 rounded-full ${
+                  theme === 'dark'
+                    ? 'bg-purple-900/50 text-purple-300'
+                    : 'bg-purple-100 text-purple-700'
+                }`}>
+                  🎓 {yearsStudying} with us
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -307,6 +362,39 @@ const ParentStudentView: React.FC<ParentStudentViewProps> = ({ parentUser }) => 
                   {enrollments.length} {enrollments.length === 1 ? 'Course' : 'Courses'}
                 </p>
               </div>
+
+              {student.dob && (
+                <div>
+                  <label className={`text-xs font-medium uppercase tracking-wide ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Date of Birth
+                  </label>
+                  <p className={`text-sm font-medium mt-1 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                    {new Date(student.dob).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  </p>
+                </div>
+              )}
+
+              {student.date_of_joining && (
+                <div>
+                  <label className={`text-xs font-medium uppercase tracking-wide ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Date of Joining
+                  </label>
+                  <p className={`text-sm font-medium mt-1 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                    {new Date(student.date_of_joining).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  </p>
+                </div>
+              )}
+
+              {yearsStudying && (
+                <div>
+                  <label className={`text-xs font-medium uppercase tracking-wide ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Duration
+                  </label>
+                  <p className={`text-sm font-medium mt-1 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                    {yearsStudying} with Nadanaloga
+                  </p>
+                </div>
+              )}
             </div>
           </motion.div>
 
