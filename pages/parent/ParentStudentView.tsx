@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import type { User, StudentEnrollment, Event, Notice, BookMaterial, GradeExam } from '../../types';
 import { useTheme } from '../../contexts/ThemeContext';
-import { getStudentEnrollmentsForFamily, getNotifications, getInvoices, getEvents, getNotices, getBookMaterials, getGradeExams } from '../../api';
+import { getStudentEnrollmentsForFamily, getNotifications, getStudentInvoicesForFamily, getEvents, getNotices, getBookMaterials, getGradeExams } from '../../api';
 
 interface ParentStudentViewProps {
   parentUser: User;
@@ -61,7 +61,7 @@ const ParentStudentView: React.FC<ParentStudentViewProps> = ({ parentUser }) => 
       ] = await Promise.all([
         getStudentEnrollmentsForFamily(studentId.toString()),
         getNotifications(),
-        getInvoices().catch(() => []),
+        getStudentInvoicesForFamily(studentId.toString()).catch(() => []),
         getEvents().catch(() => []),
         getNotices().catch(() => []),
         getBookMaterials().catch(() => []),
@@ -74,12 +74,7 @@ const ParentStudentView: React.FC<ParentStudentViewProps> = ({ parentUser }) => 
       setNotices(noticesData);
       setBookMaterials(bookMaterialsData);
       setGradeExams(gradeExamsData);
-
-      // Filter invoices for this student
-      const studentInvoices = invoicesData.filter((inv: any) =>
-        inv.student_id?.toString() === studentId.toString()
-      );
-      setInvoices(studentInvoices);
+      setInvoices(invoicesData); // Already filtered by getStudentInvoicesForFamily
     } catch (error) {
       console.error('Error loading student data:', error);
     } finally {
