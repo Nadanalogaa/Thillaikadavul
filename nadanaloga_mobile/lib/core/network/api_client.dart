@@ -325,6 +325,41 @@ class ApiClient {
     return _dio.delete(ApiEndpoints.feeStructureById(id));
   }
 
+  // --- Student Discounts API ---
+
+  Future<Response> getStudentDiscounts({
+    int? studentId,
+    int? courseId,
+    int? batchId,
+    String? discountType,
+  }) {
+    final queryParams = <String, dynamic>{};
+    if (studentId != null) queryParams['student_id'] = studentId;
+    if (courseId != null) queryParams['course_id'] = courseId;
+    if (batchId != null) queryParams['batch_id'] = batchId;
+    if (discountType != null) queryParams['discount_type'] = discountType;
+    return _dio.get(ApiEndpoints.studentDiscounts, queryParameters: queryParams);
+  }
+
+  Future<Response> createStudentDiscount(Map<String, dynamic> data) {
+    return _dio.post(ApiEndpoints.studentDiscounts, data: data);
+  }
+
+  Future<Response> updateStudentDiscount(int id, Map<String, dynamic> data) {
+    return _dio.put(ApiEndpoints.studentDiscountById(id), data: data);
+  }
+
+  Future<Response> deleteStudentDiscount(int id) {
+    return _dio.delete(ApiEndpoints.studentDiscountById(id));
+  }
+
+  Future<Response> calculateStudentDiscount(int studentId, {int? courseId, int? batchId}) {
+    final queryParams = <String, dynamic>{};
+    if (courseId != null) queryParams['course_id'] = courseId;
+    if (batchId != null) queryParams['batch_id'] = batchId;
+    return _dio.get(ApiEndpoints.calculateDiscount(studentId), queryParameters: queryParams);
+  }
+
   // --- Invoices API ---
 
   Future<Response> getInvoices() {

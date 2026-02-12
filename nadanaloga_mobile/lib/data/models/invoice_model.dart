@@ -14,6 +14,9 @@ class InvoiceModel {
   final String? studentEmail;
   final String? createdAt;
   final String? updatedAt;
+  final double? originalAmount;
+  final double? discountPercentage;
+  final double? discountAmount;
 
   const InvoiceModel({
     required this.id,
@@ -31,6 +34,9 @@ class InvoiceModel {
     this.studentEmail,
     this.createdAt,
     this.updatedAt,
+    this.originalAmount,
+    this.discountPercentage,
+    this.discountAmount,
   });
 
   factory InvoiceModel.fromJson(Map<String, dynamic> json) {
@@ -52,6 +58,9 @@ class InvoiceModel {
       studentEmail: json['student_email'] as String?,
       createdAt: json['created_at'] as String?,
       updatedAt: json['updated_at'] as String?,
+      originalAmount: _parseDouble(json['original_amount']),
+      discountPercentage: _parseDouble(json['discount_percentage']),
+      discountAmount: _parseDouble(json['discount_amount']),
     );
   }
 
@@ -67,6 +76,9 @@ class InvoiceModel {
       'billing_period': billingPeriod,
       'status': status,
       'payment_details': paymentDetails,
+      'original_amount': originalAmount,
+      'discount_percentage': discountPercentage,
+      'discount_amount': discountAmount,
     };
   }
 
@@ -85,4 +97,9 @@ class InvoiceModel {
   bool get isPending => status == 'pending';
   bool get isPaid => status == 'paid';
   bool get isOverdue => status == 'overdue';
+
+  bool get hasDiscount => discountPercentage != null && (discountPercentage ?? 0) > 0;
+  String get discountText => hasDiscount
+      ? '${discountPercentage!.toStringAsFixed(0)}% off'
+      : '';
 }

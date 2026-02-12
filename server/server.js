@@ -2882,11 +2882,11 @@ Please review and approve this registration in the admin panel.`;
 
     app.post('/api/fee-structures', ensureSuperAdmin, async (req, res) => {
         try {
-            const { course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee } = req.body;
+            const { course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee, batch_ids } = req.body;
             const result = await pool.query(
-                `INSERT INTO fee_structures (course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee)
-                 VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-                [course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee]
+                `INSERT INTO fee_structures (course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee, batch_ids)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+                [course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee, batch_ids || []]
             );
             res.status(201).json(result.rows[0]);
 
@@ -2916,13 +2916,13 @@ Please review and approve this registration in the admin panel.`;
     app.put('/api/fee-structures/:id', ensureSuperAdmin, async (req, res) => {
         try {
             const { id } = req.params;
-            const { course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee } = req.body;
+            const { course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee, batch_ids } = req.body;
             const result = await pool.query(
                 `UPDATE fee_structures SET
                     course_id = $1, mode = $2, monthly_fee = $3, quarterly_fee = $4,
-                    half_yearly_fee = $5, annual_fee = $6, updated_at = NOW()
-                 WHERE id = $7 RETURNING *`,
-                [course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee, id]
+                    half_yearly_fee = $5, annual_fee = $6, batch_ids = $7, updated_at = NOW()
+                 WHERE id = $8 RETURNING *`,
+                [course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee, batch_ids || [], id]
             );
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: 'Fee structure not found' });
@@ -2963,6 +2963,174 @@ Please review and approve this registration in the admin panel.`;
         } catch (error) {
             console.error('Error deleting fee structure:', error);
             res.status(500).json({ message: 'Server error deleting fee structure.' });
+        }
+    });
+
+    // --- Student Discount API Endpoints ---
+    // GET all discounts
+    app.get('/api/student-discounts', async (req, res) => {
+        try {
+            const { student_id, course_id, batch_id, discount_type } = req.query;
+            let query = 'SELECT * FROM student_discounts WHERE is_active = TRUE';
+            const params = [];
+            let paramIndex = 1;
+
+            if (student_id) {
+                query += ` AND student_id = $${paramIndex++}`;
+                params.push(student_id);
+            }
+            if (course_id) {
+                query += ` AND course_id = $${paramIndex++}`;
+                params.push(course_id);
+            }
+            if (batch_id) {
+                query += ` AND batch_id = $${paramIndex++}`;
+                params.push(batch_id);
+            }
+            if (discount_type) {
+                query += ` AND discount_type = $${paramIndex++}`;
+                params.push(discount_type);
+            }
+
+            query += ' ORDER BY created_at DESC';
+            const result = await pool.query(query, params);
+            res.json(result.rows);
+        } catch (error) {
+            console.error('Error fetching discounts:', error);
+            res.status(500).json({ message: 'Server error fetching discounts.' });
+        }
+    });
+
+    // POST create discount
+    app.post('/api/student-discounts', ensureSuperAdmin, async (req, res) => {
+        try {
+            const { student_id, discount_type, course_id, batch_id, discount_percentage, reason } = req.body;
+
+            // Validation
+            if (!student_id || !discount_type || !course_id || discount_percentage == null) {
+                return res.status(400).json({ message: 'Missing required fields' });
+            }
+
+            if (discount_type === 'batch' && !batch_id) {
+                return res.status(400).json({ message: 'batch_id is required for batch-level discounts' });
+            }
+
+            if (discount_type === 'course' && batch_id) {
+                return res.status(400).json({ message: 'batch_id should not be provided for course-level discounts' });
+            }
+
+            // Deactivate existing discount if any
+            await pool.query(
+                `UPDATE student_discounts SET is_active = FALSE, updated_at = NOW()
+                 WHERE student_id = $1 AND discount_type = $2 AND course_id = $3
+                   AND ($4::INTEGER IS NULL OR batch_id = $4) AND is_active = TRUE`,
+                [student_id, discount_type, course_id, batch_id || null]
+            );
+
+            // Create new discount
+            const result = await pool.query(
+                `INSERT INTO student_discounts (student_id, discount_type, course_id, batch_id, discount_percentage, reason)
+                 VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+                [student_id, discount_type, course_id, batch_id || null, discount_percentage, reason]
+            );
+
+            res.status(201).json(result.rows[0]);
+        } catch (error) {
+            console.error('Error creating discount:', error);
+            res.status(500).json({ message: 'Server error creating discount.' });
+        }
+    });
+
+    // PUT update discount
+    app.put('/api/student-discounts/:id', ensureSuperAdmin, async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { discount_percentage, reason, is_active } = req.body;
+
+            const result = await pool.query(
+                `UPDATE student_discounts SET
+                    discount_percentage = COALESCE($1, discount_percentage),
+                    reason = COALESCE($2, reason),
+                    is_active = COALESCE($3, is_active),
+                    updated_at = NOW()
+                 WHERE id = $4 RETURNING *`,
+                [discount_percentage, reason, is_active, id]
+            );
+
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Discount not found' });
+            }
+
+            res.json(result.rows[0]);
+        } catch (error) {
+            console.error('Error updating discount:', error);
+            res.status(500).json({ message: 'Server error updating discount.' });
+        }
+    });
+
+    // DELETE discount (soft delete by setting is_active = false)
+    app.delete('/api/student-discounts/:id', ensureSuperAdmin, async (req, res) => {
+        try {
+            const { id } = req.params;
+            const result = await pool.query(
+                'UPDATE student_discounts SET is_active = FALSE, updated_at = NOW() WHERE id = $1 RETURNING id',
+                [id]
+            );
+
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Discount not found' });
+            }
+
+            res.json({ message: 'Discount deleted successfully' });
+        } catch (error) {
+            console.error('Error deleting discount:', error);
+            res.status(500).json({ message: 'Server error deleting discount.' });
+        }
+    });
+
+    // GET student's applicable discount for a course/batch
+    app.get('/api/student-discounts/calculate/:student_id', async (req, res) => {
+        try {
+            const { student_id } = req.params;
+            const { course_id, batch_id } = req.query;
+
+            if (!course_id) {
+                return res.status(400).json({ message: 'course_id is required' });
+            }
+
+            // Check for batch-level discount first (more specific)
+            if (batch_id) {
+                const batchDiscount = await pool.query(
+                    `SELECT * FROM student_discounts
+                     WHERE student_id = $1 AND discount_type = 'batch'
+                       AND course_id = $2 AND batch_id = $3 AND is_active = TRUE
+                     ORDER BY discount_percentage DESC LIMIT 1`,
+                    [student_id, course_id, batch_id]
+                );
+
+                if (batchDiscount.rows.length > 0) {
+                    return res.json(batchDiscount.rows[0]);
+                }
+            }
+
+            // Fall back to course-level discount
+            const courseDiscount = await pool.query(
+                `SELECT * FROM student_discounts
+                 WHERE student_id = $1 AND discount_type = 'course'
+                   AND course_id = $2 AND is_active = TRUE
+                 ORDER BY discount_percentage DESC LIMIT 1`,
+                [student_id, course_id]
+            );
+
+            if (courseDiscount.rows.length > 0) {
+                return res.json(courseDiscount.rows[0]);
+            }
+
+            // No discount found
+            res.json({ discount_percentage: 0, message: 'No discount applicable' });
+        } catch (error) {
+            console.error('Error calculating discount:', error);
+            res.status(500).json({ message: 'Server error calculating discount.' });
         }
     });
 
@@ -3610,10 +3778,46 @@ Please review and approve this registration in the admin panel.`;
     app.post('/api/invoices', ensureAdmin, async (req, res) => {
         try {
             const { student_id, fee_structure_id, course_name, amount, currency, issue_date, due_date, billing_period, status, payment_details } = req.body;
+
+            // Calculate discount if applicable
+            let original_amount = amount;
+            let discount_percentage = null;
+            let discount_amount = null;
+            let final_amount = amount;
+
+            if (student_id && fee_structure_id) {
+                // Get fee structure to find course_id and batch_ids
+                const feeStructureResult = await pool.query('SELECT course_id, batch_ids FROM fee_structures WHERE id = $1', [fee_structure_id]);
+                if (feeStructureResult.rows.length > 0) {
+                    const { course_id, batch_ids } = feeStructureResult.rows[0];
+
+                    // Query for applicable discounts (batch-level takes precedence)
+                    let discountQuery = `
+                        SELECT discount_percentage, discount_type
+                        FROM student_discounts
+                        WHERE student_id = $1
+                          AND course_id = $2
+                          AND is_active = TRUE
+                        ORDER BY
+                          CASE WHEN discount_type = 'batch' THEN 1 ELSE 2 END,
+                          discount_percentage DESC
+                        LIMIT 1
+                    `;
+
+                    const discountResult = await pool.query(discountQuery, [student_id, course_id]);
+
+                    if (discountResult.rows.length > 0) {
+                        discount_percentage = parseFloat(discountResult.rows[0].discount_percentage);
+                        discount_amount = (amount * discount_percentage) / 100;
+                        final_amount = amount - discount_amount;
+                    }
+                }
+            }
+
             const result = await pool.query(
-                `INSERT INTO invoices (student_id, fee_structure_id, course_name, amount, currency, issue_date, due_date, billing_period, status, payment_details)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-                [student_id, fee_structure_id, course_name, amount, currency, issue_date, due_date, billing_period, status || 'pending', payment_details]
+                `INSERT INTO invoices (student_id, fee_structure_id, course_name, amount, currency, issue_date, due_date, billing_period, status, payment_details, original_amount, discount_percentage, discount_amount)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+                [student_id, fee_structure_id, course_name, final_amount, currency, issue_date, due_date, billing_period, status || 'pending', payment_details, original_amount, discount_percentage, discount_amount]
             );
             res.status(201).json(result.rows[0]);
 
@@ -3624,9 +3828,14 @@ Please review and approve this registration in the admin panel.`;
                         const students = await getUsersByIds([student_id]);
                         if (students.length > 0) {
                             const student = students[0];
-                            const msg = `A new fee invoice has been generated for you.\n\n📋 Invoice #${result.rows[0].id}\n📚 Course: ${course_name || 'Not specified'}\n💰 Amount: ${currency || 'INR'} ${amount}\n📅 Issue Date: ${issue_date || 'Today'}\n⏰ Due Date: ${due_date || 'Not specified'}\n📊 Status: ${status || 'Pending'}\n\nPlease log in to your portal to view and pay your invoice.\n\nBest regards,\nNadanaloga Academy Team`;
+                            const discountInfo = discount_percentage ? `\n🎁 Discount: ${discount_percentage}% off (₹${discount_amount?.toFixed(0)} saved!)` : '';
+                            const amountInfo = discount_percentage ? `Original: ${currency || 'INR'} ${original_amount}\n💰 Final Amount: ${currency || 'INR'} ${final_amount}` : `💰 Amount: ${currency || 'INR'} ${final_amount}`;
+                            const msg = `A new fee invoice has been generated for you.\n\n📋 Invoice #${result.rows[0].id}\n📚 Course: ${course_name || 'Not specified'}\n${amountInfo}${discountInfo}\n📅 Issue Date: ${issue_date || 'Today'}\n⏰ Due Date: ${due_date || 'Not specified'}\n📊 Status: ${status || 'Pending'}\n\nPlease log in to your portal to view and pay your invoice.\n\nBest regards,\nNadanaloga Academy Team`;
                             sendEmailBackground(student.email, student.name, `Fee Invoice - ${course_name || 'Nadanaloga Academy'}`, msg);
-                            createNotificationForUser(student.id, 'New Invoice', `Invoice of ${currency || 'INR'} ${amount} for ${course_name || 'fees'} is due by ${due_date || 'TBA'}.`, 'Info');
+                            const notifMsg = discount_percentage
+                                ? `Invoice of ${currency || 'INR'} ${final_amount} (${discount_percentage}% discount applied!) for ${course_name || 'fees'} is due by ${due_date || 'TBA'}.`
+                                : `Invoice of ${currency || 'INR'} ${final_amount} for ${course_name || 'fees'} is due by ${due_date || 'TBA'}.`;
+                            createNotificationForUser(student.id, 'New Invoice', notifMsg, 'Info');
                         }
                     } catch (e) {
                         console.error('[Invoice] Error sending email:', e.message);

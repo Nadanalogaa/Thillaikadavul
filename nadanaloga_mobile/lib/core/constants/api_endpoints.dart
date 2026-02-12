@@ -59,6 +59,11 @@ class ApiEndpoints {
   static const String feeStructures = '$apiPrefix/fee-structures';
   static String feeStructureById(int id) => '$apiPrefix/fee-structures/$id';
 
+  // Student Discounts
+  static const String studentDiscounts = '$apiPrefix/student-discounts';
+  static String studentDiscountById(int id) => '$apiPrefix/student-discounts/$id';
+  static String calculateDiscount(int studentId) => '$apiPrefix/student-discounts/calculate/$studentId';
+
   // Invoices
   static const String invoices = '$apiPrefix/invoices';
   static String invoiceById(int id) => '$apiPrefix/invoices/$id';

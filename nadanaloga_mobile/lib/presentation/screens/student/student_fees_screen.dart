@@ -80,6 +80,12 @@ class _StudentFeesScreenState extends State<StudentFeesScreen>
     return now.day >= 1 && now.day <= 7;
   }
 
+  bool _isUnderProcessing(InvoiceModel invoice) {
+    return invoice.status != 'paid' &&
+        invoice.paymentDetails != null &&
+        invoice.paymentDetails!.isNotEmpty;
+  }
+
   void _showPaymentOptions(InvoiceModel invoice) {
     showModalBottomSheet(
       context: context,
@@ -98,9 +104,38 @@ class _StudentFeesScreenState extends State<StudentFeesScreen>
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
+            if (invoice.hasDiscount) ...[
+              Text(
+                'Original: ₹${(invoice.originalAmount ?? 0).toStringAsFixed(0)}',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                  decoration: TextDecoration.lineThrough,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${invoice.discountText} applied!',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.success,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
             Text(
-              'Amount: ₹${invoice.amount ?? 0}',
-              style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
+              'Amount: ₹${(invoice.amount ?? 0).toStringAsFixed(0)}',
+              style: AppTextStyles.bodyLarge.copyWith(
+                color: invoice.hasDiscount ? AppColors.success : AppColors.textSecondary,
+                fontWeight: invoice.hasDiscount ? FontWeight.w600 : FontWeight.normal,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -286,7 +321,8 @@ class _StudentFeesScreenState extends State<StudentFeesScreen>
                           emptyIcon: Icons.check_circle_outline,
                           showPayAction: true,
                           onPayNow: (invoice) => _showPaymentOptions(invoice),
-                          isPayEnabled: _isPaymentDue,
+                          isPayEnabled: (invoice) =>
+                              _isPaymentDue(invoice) && !_isUnderProcessing(invoice),
                         ),
                         _InvoiceList(
                           invoices: _overdueInvoices,
@@ -534,6 +570,16 @@ class _InvoiceCard extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
+                      if (invoice.hasDiscount) ...[
+                        Text(
+                          '₹${(invoice.originalAmount ?? 0).toStringAsFixed(0)}',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.textSecondary,
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                      ],
                       Text(
                         '₹${(invoice.amount ?? 0).toStringAsFixed(0)}',
                         style: AppTextStyles.h3.copyWith(
@@ -541,11 +587,32 @@ class _InvoiceCard extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
+                      if (invoice.hasDiscount)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          margin: const EdgeInsets.only(top: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            invoice.discountText,
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.success,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 9,
+                            ),
+                          ),
+                        ),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
                           vertical: 4,
                         ),
+                        margin: const EdgeInsets.only(top: 4),
                         decoration: BoxDecoration(
                           color: _statusColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
@@ -623,6 +690,73 @@ class _InvoiceCard extends StatelessWidget {
                     ],
                   ),
                 ),
+              ],
+              if (invoice.status != 'paid' &&
+                  invoice.paymentDetails != null &&
+                  invoice.paymentDetails!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.info.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.hourglass_top,
+                        size: 16,
+                        color: AppColors.info,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Under processing',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.info,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Receipt uploaded',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              if (showPayAction) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: (isPayEnabled?.call(invoice) ?? true)
+                        ? () => onPayNow?.call(invoice)
+                        : null,
+                    icon: const Icon(Icons.payment, size: 18),
+                    label: const Text('Pay Now'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondary,
+                      foregroundColor: Colors.black,
+                      minimumSize: const Size(double.infinity, 44),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+                if (!(isPayEnabled?.call(invoice) ?? true))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      'Payments open from 1st to 7th',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
               ],
               if (showPayAction) ...[
                 const SizedBox(height: 12),
@@ -787,6 +921,17 @@ class _InvoiceDetailsSheet extends StatelessWidget {
               const SizedBox(height: 16),
 
               // Amount
+              if (invoice.hasDiscount) ...[
+                Text(
+                  '₹${(invoice.originalAmount ?? 0).toStringAsFixed(0)}',
+                  style: AppTextStyles.h3.copyWith(
+                    color: AppColors.textSecondary,
+                    decoration: TextDecoration.lineThrough,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 4),
+              ],
               Text(
                 '₹${(invoice.amount ?? 0).toStringAsFixed(0)}',
                 style: AppTextStyles.h1.copyWith(
@@ -795,6 +940,30 @@ class _InvoiceDetailsSheet extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
+              if (invoice.hasDiscount) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.local_offer, size: 14, color: AppColors.success),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${invoice.discountText} Discount Applied',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.success,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 8),
 
               // Status badge
@@ -830,6 +999,13 @@ class _InvoiceDetailsSheet extends StatelessWidget {
                 title: 'Billing Period',
                 value: invoice.billingPeriod ?? 'N/A',
               ),
+              if (invoice.hasDiscount) ...[
+                _DetailRow(
+                  icon: Icons.local_offer,
+                  title: 'Discount',
+                  value: '${invoice.discountPercentage!.toStringAsFixed(0)}% (₹${(invoice.discountAmount ?? 0).toStringAsFixed(0)} saved)',
+                ),
+              ],
               _DetailRow(
                 icon: Icons.calendar_today,
                 title: 'Issue Date',

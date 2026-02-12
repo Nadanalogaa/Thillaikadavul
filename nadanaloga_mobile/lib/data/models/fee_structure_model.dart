@@ -6,6 +6,7 @@ class FeeStructureModel {
   final double? quarterlyFee;
   final double? halfYearlyFee;
   final double? annualFee;
+  final List<int> batchIds;
   final String? createdAt;
   final String? updatedAt;
 
@@ -17,6 +18,7 @@ class FeeStructureModel {
     this.quarterlyFee,
     this.halfYearlyFee,
     this.annualFee,
+    this.batchIds = const [],
     this.createdAt,
     this.updatedAt,
   });
@@ -30,6 +32,7 @@ class FeeStructureModel {
       quarterlyFee: _parseDouble(json['quarterly_fee']),
       halfYearlyFee: _parseDouble(json['half_yearly_fee']),
       annualFee: _parseDouble(json['annual_fee']),
+      batchIds: _parseIntList(json['batch_ids']),
       createdAt: json['created_at'] as String?,
       updatedAt: json['updated_at'] as String?,
     );
@@ -43,6 +46,7 @@ class FeeStructureModel {
       'quarterly_fee': quarterlyFee,
       'half_yearly_fee': halfYearlyFee,
       'annual_fee': annualFee,
+      'batch_ids': batchIds,
     };
   }
 
@@ -52,5 +56,13 @@ class FeeStructureModel {
     if (value is int) return value.toDouble();
     if (value is String) return double.tryParse(value);
     return null;
+  }
+
+  static List<int> _parseIntList(dynamic value) {
+    if (value == null) return [];
+    if (value is List) {
+      return value.map((e) => e is int ? e : int.parse(e.toString())).toList();
+    }
+    return [];
   }
 }

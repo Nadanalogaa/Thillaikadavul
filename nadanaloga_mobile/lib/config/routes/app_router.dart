@@ -44,6 +44,7 @@ import '../../presentation/screens/admin/batches/batch_detail_screen.dart';
 import '../../presentation/screens/admin/batches/batch_form_screen.dart';
 import '../../presentation/screens/admin/fees/fee_management_screen.dart';
 import '../../presentation/screens/admin/fees/fee_structure_form_screen.dart';
+import '../../presentation/screens/admin/fees/discount_management_screen.dart';
 import '../../presentation/screens/admin/fees/create_invoice_screen.dart';
 import '../../presentation/screens/admin/fees/record_payment_screen.dart';
 import '../../presentation/screens/admin/fees/upi_qr_display_screen.dart';
@@ -274,6 +275,13 @@ class AppRouter {
                 GoRoute(
                   path: 'payments',
                   builder: (context, state) => const PaymentProofsScreen(),
+                ),
+                GoRoute(
+                  path: 'discounts',
+                  builder: (context, state) => BlocProvider(
+                    create: (_) => sl<FeeBloc>(),
+                    child: const DiscountManagementScreen(),
+                  ),
                 ),
               ],
             ),
