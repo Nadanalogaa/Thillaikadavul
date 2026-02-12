@@ -33,11 +33,24 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
   int? _teacherId;
   int? _locationId;
   String _mode = 'Hybrid';
+  List<String> _selectedDays = [];
+  TimeOfDay? _startTime;
+  TimeOfDay? _endTime;
 
   List<CourseModel> _courses = [];
   List<LocationModel> _locations = [];
   List<UserModel> _teachers = [];
   bool _loading = true;
+
+  static const _weekdays = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday'
+  ];
 
   @override
   void initState() {
@@ -86,11 +99,30 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
             _teacherId = batch.teacherId;
             _locationId = batch.locationId;
             _mode = batch.mode ?? 'Hybrid';
+            _selectedDays = batch.days;
+            if (batch.startTime != null) {
+              _startTime = _parseTime(batch.startTime!);
+            }
+            if (batch.endTime != null) {
+              _endTime = _parseTime(batch.endTime!);
+            }
           }
         }
       }
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
+  }
+
+  TimeOfDay? _parseTime(String time24) {
+    final parts = time24.split(':');
+    if (parts.length == 2) {
+      final hour = int.tryParse(parts[0]);
+      final minute = int.tryParse(parts[1]);
+      if (hour != null && minute != null) {
+        return TimeOfDay(hour: hour, minute: minute);
+      }
+    }
+    return null;
   }
 
   @override
@@ -103,6 +135,26 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
 
+    if (_selectedDays.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select at least one day'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    if (_startTime == null || _endTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select start and end times'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
     final data = <String, dynamic>{
       'batch_name': _nameController.text.trim(),
       'course_id': _courseId,
@@ -113,6 +165,9 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
           ? null
           : int.tryParse(_maxStudentsController.text.trim()),
       'schedule': [],
+      'days': _selectedDays,
+      'start_time': '${_startTime!.hour.toString().padLeft(2, '0')}:${_startTime!.minute.toString().padLeft(2, '0')}',
+      'end_time': '${_endTime!.hour.toString().padLeft(2, '0')}:${_endTime!.minute.toString().padLeft(2, '0')}',
     };
 
     if (widget.isEditing) {
@@ -234,6 +289,100 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
                           prefixIcon: Icon(Icons.people),
                         ),
                         keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Days selection
+                      Text('Days *', style: AppTextStyles.labelLarge),
+                      const SizedBox(height: 8),
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _weekdays.map((day) {
+                              final isSelected = _selectedDays.contains(day);
+                              return FilterChip(
+                                label: Text(day.substring(0, 3)),
+                                selected: isSelected,
+                                onSelected: (selected) {
+                                  setState(() {
+                                    if (selected) {
+                                      _selectedDays.add(day);
+                                    } else {
+                                      _selectedDays.remove(day);
+                                    }
+                                  });
+                                },
+                                selectedColor: AppColors.primary.withValues(alpha: 0.2),
+                                checkmarkColor: AppColors.primary,
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Time pickers
+                      Row(
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: () async {
+                                final time = await showTimePicker(
+                                  context: context,
+                                  initialTime: _startTime ?? const TimeOfDay(hour: 9, minute: 0),
+                                );
+                                if (time != null) {
+                                  setState(() => _startTime = time);
+                                }
+                              },
+                              child: InputDecorator(
+                                decoration: const InputDecoration(
+                                  labelText: 'Start Time *',
+                                  prefixIcon: Icon(Icons.access_time),
+                                ),
+                                child: Text(
+                                  _startTime != null
+                                      ? _startTime!.format(context)
+                                      : 'Select time',
+                                  style: _startTime != null
+                                      ? null
+                                      : TextStyle(color: Colors.grey.shade600),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () async {
+                                final time = await showTimePicker(
+                                  context: context,
+                                  initialTime: _endTime ?? const TimeOfDay(hour: 10, minute: 30),
+                                );
+                                if (time != null) {
+                                  setState(() => _endTime = time);
+                                }
+                              },
+                              child: InputDecorator(
+                                decoration: const InputDecoration(
+                                  labelText: 'End Time *',
+                                  prefixIcon: Icon(Icons.access_time),
+                                ),
+                                child: Text(
+                                  _endTime != null
+                                      ? _endTime!.format(context)
+                                      : 'Select time',
+                                  style: _endTime != null
+                                      ? null
+                                      : TextStyle(color: Colors.grey.shade600),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 24),
 

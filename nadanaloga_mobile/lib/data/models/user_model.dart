@@ -26,6 +26,7 @@ class UserModel {
   final bool isDeleted;
   final String? createdAt;
   final String? updatedAt;
+  final List<UserModel>? students; // For parent role - list of their children
 
   const UserModel({
     required this.id,
@@ -55,6 +56,7 @@ class UserModel {
     this.isDeleted = false,
     this.createdAt,
     this.updatedAt,
+    this.students,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -86,6 +88,9 @@ class UserModel {
       isDeleted: json['is_deleted'] == true,
       createdAt: json['created_at'] as String?,
       updatedAt: json['updated_at'] as String?,
+      students: json['students'] != null && json['students'] is List
+          ? (json['students'] as List).map((s) => UserModel.fromJson(s)).toList()
+          : null,
     );
   }
 
@@ -157,6 +162,8 @@ class UserModel {
         return 'Teacher';
       case 'student':
         return 'Student';
+      case 'parent':
+        return 'Parent';
       default:
         return role;
     }
@@ -229,4 +236,5 @@ class UserModel {
   bool get isAdmin => role == 'Admin' || isSuperAdmin;
   bool get isTeacher => role == 'Teacher';
   bool get isStudent => role == 'Student';
+  bool get isParent => role == 'Parent';
 }

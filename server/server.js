@@ -2286,12 +2286,12 @@ Please review and approve this registration in the admin panel.`;
     app.post('/api/batches', ensureAdmin, async (req, res) => {
         try {
             const batchData = req.body;
-            const { batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode, location_id } = batchData;
+            const { batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode, location_id, days, start_time, end_time } = batchData;
 
             const result = await pool.query(
-                `INSERT INTO batches (batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode, location_id)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-                [batch_name, course_id, teacher_id, JSON.stringify(schedule), start_date, end_date, max_students, student_ids || [], mode, location_id || null]
+                `INSERT INTO batches (batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode, location_id, days, start_time, end_time)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+                [batch_name, course_id, teacher_id, JSON.stringify(schedule), start_date, end_date, max_students, student_ids || [], mode, location_id || null, days || [], start_time || null, end_time || null]
             );
             res.status(201).json(parseBatchData(result.rows[0]));
 
@@ -2332,7 +2332,7 @@ Please review and approve this registration in the admin panel.`;
     app.put('/api/batches/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
-            const { batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode, location_id } = req.body;
+            const { batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode, location_id, days, start_time, end_time } = req.body;
 
             // Get old student_ids and teacher_id to detect changes
             const oldBatch = await pool.query('SELECT student_ids, teacher_id FROM batches WHERE id = $1', [id]);
@@ -2345,9 +2345,9 @@ Please review and approve this registration in the admin panel.`;
                 `UPDATE batches SET
                     batch_name = $1, course_id = $2, teacher_id = $3, schedule = $4,
                     start_date = $5, end_date = $6, max_students = $7, student_ids = $8, mode = $9,
-                    location_id = $10, updated_at = NOW()
-                 WHERE id = $11 RETURNING *`,
-                [batch_name, course_id, teacher_id, JSON.stringify(schedule), start_date, end_date, max_students, student_ids || [], mode, location_id || null, id]
+                    location_id = $10, days = $11, start_time = $12, end_time = $13, updated_at = NOW()
+                 WHERE id = $14 RETURNING *`,
+                [batch_name, course_id, teacher_id, JSON.stringify(schedule), start_date, end_date, max_students, student_ids || [], mode, location_id || null, days || [], start_time || null, end_time || null, id]
             );
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: 'Batch not found' });
@@ -3703,9 +3703,17 @@ Please review and approve this registration in the admin panel.`;
 
             const result = await pool.query(
                 `INSERT INTO invoice_payments (invoice_id, student_id, amount, payment_method, transaction_id, payment_date, proof_url, status)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, 'submitted') RETURNING *`,
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved') RETURNING *`,
                 [id, invoice.student_id, paymentAmount, method, transaction_id || null, payment_date || null, proofUrl]
             );
+
+            // Automatically mark invoice as paid
+            await pool.query(
+                `UPDATE invoices SET status = 'paid', updated_at = NOW() WHERE id = $1`,
+                [id]
+            );
+
+            console.log(`[InvoicePayment] Invoice #${id} automatically marked as paid`);
 
             res.status(201).json(result.rows[0]);
 

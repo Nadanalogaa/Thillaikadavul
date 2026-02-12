@@ -21,28 +21,24 @@ const QuickBatchCreateModal: React.FC<QuickBatchCreateModalProps> = ({ isOpen, o
     const [teacherId, setTeacherId] = useState<string>('');
     const [mode, setMode] = useState<ClassPreference.Online | ClassPreference.Offline>(ClassPreference.Online);
     const [schedule, setSchedule] = useState<BatchSchedule[]>([]);
+    const [selectedDays, setSelectedDays] = useState<string[]>([]);
+    const [startTime, setStartTime] = useState('');
+    const [endTime, setEndTime] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
         if (isOpen && course) {
             // Reset form
-            setName(`${course.name} - ${preferredTimings && preferredTimings.length > 0 ? 
-                (typeof preferredTimings[0] === 'string' ? preferredTimings[0].split(' ')[0] : 
-                 preferredTimings[0]?.day?.substring(0, 3) || 'New') : 'New'} Batch`);
+            setName(`${course.name} - New Batch`);
             setTeacherId('');
             setMode(ClassPreference.Online);
-            // Pre-populate with preferred timings if available
-            setSchedule(preferredTimings && preferredTimings.length > 0 ? preferredTimings.map(t => {
-                // Handle both old string format and new CourseTimingSlot object format
-                const timingString = typeof t === 'string' ? t : 
-                    (t && typeof t === 'object' && t.courseName && t.day && t.timeSlot) 
-                        ? `${t.courseName}: ${t.day.substring(0, 3)} ${t.timeSlot}`
-                        : 'Unknown timing';
-                return { timing: timingString, studentIds: [] };
-            }) : []);
+            setSchedule([]);
+            setSelectedDays([]);
+            setStartTime('');
+            setEndTime('');
             setIsLoading(false);
         }
-    }, [isOpen, course, preferredTimings]);
+    }, [isOpen, course]);
 
     const teachersWithExpertise = useMemo(() => {
         if (!course) return [];
@@ -98,8 +94,16 @@ const QuickBatchCreateModal: React.FC<QuickBatchCreateModalProps> = ({ isOpen, o
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!course || !name || schedule.length === 0 || schedule.some(s => !s.timing)) {
-            alert('Please fill in the batch name and at least one complete time slot.');
+        if (!course || !name) {
+            alert('Please fill in the batch name.');
+            return;
+        }
+        if (selectedDays.length === 0) {
+            alert('Please select at least one day.');
+            return;
+        }
+        if (!startTime || !endTime) {
+            alert('Please select start and end times.');
             return;
         }
 
@@ -112,6 +116,9 @@ const QuickBatchCreateModal: React.FC<QuickBatchCreateModalProps> = ({ isOpen, o
                 teacherId: teacherId || undefined,
                 mode,
                 schedule,
+                days: selectedDays,
+                startTime,
+                endTime,
                 description: `Quickly created batch for ${course.name}.`,
             };
             const newBatch = await addBatch(batchData);
@@ -162,31 +169,48 @@ const QuickBatchCreateModal: React.FC<QuickBatchCreateModalProps> = ({ isOpen, o
                 </div>
                 
                 <div>
-                    <label className="form-label">Schedule</label>
-                    <div className="space-y-2 p-3 bg-gray-50 border rounded-lg">
-                        {schedule.map((item, index) => (
-                             <div key={index} className="flex items-center space-x-2">
-                                <select
-                                    value={item.timing}
-                                    onChange={e => handleTimingChange(index, e.target.value)}
-                                    required
-                                    className="form-select w-full text-sm"
-                                >
-                                    <option value="">Select a time slot</option>
-                                    {allTimings.map(t => (
-                                        <option key={t} value={t} disabled={schedule.some((s, i) => i !== index && s.timing === t)}>
-                                            {t}
-                                        </option>
-                                    ))}
-                                </select>
-                                <button type="button" onClick={() => handleRemoveTiming(index)} className="text-red-500 hover:text-red-700 p-1">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                    </svg>
-                                </button>
-                            </div>
+                    <label className="form-label">Days</label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-3 bg-gray-50 border rounded-lg">
+                        {WEEKDAYS.map(day => (
+                            <label key={day} className="flex items-center space-x-2 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={selectedDays.includes(day)}
+                                    onChange={e => {
+                                        if (e.target.checked) {
+                                            setSelectedDays([...selectedDays, day]);
+                                        } else {
+                                            setSelectedDays(selectedDays.filter(d => d !== day));
+                                        }
+                                    }}
+                                    className="rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
+                                />
+                                <span className="text-sm">{day}</span>
+                            </label>
                         ))}
-                        <button type="button" onClick={handleAddTiming} className="text-sm text-brand-primary hover:underline">+ Add Time Slot</button>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="form-label">Start Time</label>
+                        <input
+                            type="time"
+                            value={startTime}
+                            onChange={e => setStartTime(e.target.value)}
+                            required
+                            className="form-input w-full"
+                        />
+                    </div>
+                    <div>
+                        <label className="form-label">End Time</label>
+                        <input
+                            type="time"
+                            value={endTime}
+                            onChange={e => setEndTime(e.target.value)}
+                            required
+                            className="form-input w-full"
+                        />
                     </div>
                 </div>
 

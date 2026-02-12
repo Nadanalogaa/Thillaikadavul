@@ -17,6 +17,7 @@ import '../presentation/bloc/demo_booking/demo_booking_bloc.dart';
 import '../presentation/bloc/notification/notification_bloc.dart';
 import '../presentation/bloc/trash/trash_bloc.dart';
 import '../presentation/bloc/user_management/user_management_bloc.dart';
+import '../presentation/bloc/parent/parent_bloc.dart';
 
 final sl = GetIt.instance;
 
@@ -93,5 +94,9 @@ Future<void> init() async {
 
   sl.registerFactory<TrashBloc>(
     () => TrashBloc(apiClient: sl<ApiClient>()),
+  );
+
+  sl.registerFactory<ParentBloc>(
+    () => ParentBloc(apiClient: sl<ApiClient>()),
   );
 }

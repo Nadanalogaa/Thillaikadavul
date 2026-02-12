@@ -74,6 +74,10 @@ import '../../presentation/screens/admin/drilldown/pending_fees_drilldown_screen
 import '../../presentation/screens/teacher/teacher_dashboard_screen.dart';
 import '../../presentation/screens/student/student_shell_screen.dart';
 import '../../presentation/screens/student/student_payment_proof_screen.dart';
+import '../../presentation/screens/parent/parent_dashboard_screen.dart';
+import '../../presentation/screens/parent/parent_student_detail_screen.dart';
+import '../../presentation/bloc/parent/parent_bloc.dart';
+import '../../data/models/user_model.dart';
 
 class AppRouter {
   static GoRouter? _router;
@@ -565,7 +569,16 @@ class AppRouter {
         ),
         GoRoute(
           path: '/student',
-          builder: (context, state) => const StudentShellScreen(),
+          builder: (context, state) {
+            // Handle extra data for parent viewing student
+            final extra = state.extra as Map<String, dynamic>?;
+            final studentId = extra?['studentId'] as int?;
+            final student = extra?['student'] as UserModel?;
+            return StudentShellScreen(
+              studentId: studentId,
+              student: student,
+            );
+          },
           routes: [
             GoRoute(
               path: 'notifications',
@@ -587,6 +600,34 @@ class AppRouter {
                 final id = int.parse(state.pathParameters['id']!);
                 return StudentPaymentProofScreen(invoiceId: id);
               },
+            ),
+          ],
+        ),
+        GoRoute(
+          path: '/parent',
+          builder: (context, state) => const ParentDashboardScreen(),
+          routes: [
+            GoRoute(
+              path: 'student/:id',
+              builder: (context, state) {
+                final id = int.parse(state.pathParameters['id']!);
+                // Get student from extra data passed via navigation
+                final student = state.extra as UserModel?;
+                return BlocProvider(
+                  create: (_) => sl<ParentBloc>(),
+                  child: ParentStudentDetailScreen(
+                    studentId: id,
+                    student: student,
+                  ),
+                );
+              },
+            ),
+            GoRoute(
+              path: 'notifications',
+              builder: (context, state) => BlocProvider(
+                create: (_) => sl<NotificationBloc>(),
+                child: const NotificationListScreen(),
+              ),
             ),
           ],
         ),
@@ -623,6 +664,8 @@ class AppRouter {
         return '/teacher';
       case 'Student':
         return '/student';
+      case 'Parent':
+        return '/student'; // Parents use the unified student dashboard
       default:
         return '/login';
     }

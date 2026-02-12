@@ -204,13 +204,16 @@ export interface Batch {
   teacherName?: string; // For display purposes
   schedule: BatchSchedule[];
   capacity?: number; // Maximum number of students
-  enrolled?: number; // Current number of enrolled students  
+  enrolled?: number; // Current number of enrolled students
   mode?: ClassPreference.Online | ClassPreference.Offline;
   locationId?: string;
   location?: Location; // Populated field
   startDate?: string; // ISO date string
   endDate?: string; // ISO date string
   isActive?: boolean; // Whether the batch is active
+  days?: string[]; // Weekdays when batch classes occur (e.g., ['Monday', 'Wednesday'])
+  startTime?: string; // Class start time (e.g., '17:00')
+  endTime?: string; // Class end time (e.g., '18:30')
 }
 
 // --- Student Enrollment Type ---

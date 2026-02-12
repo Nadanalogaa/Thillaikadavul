@@ -1,22 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
 import '../../../data/models/invoice_model.dart';
+import '../../../core/network/api_client.dart';
+import '../../../di/injection_container.dart';
 import '../../widgets/empty_state_widget.dart';
 
 class StudentFeesScreen extends StatefulWidget {
   final List<InvoiceModel> invoices;
   final bool isLoading;
   final VoidCallback onRefresh;
+  final int? initialInvoiceToPay;
 
   const StudentFeesScreen({
     super.key,
     required this.invoices,
     required this.isLoading,
     required this.onRefresh,
+    this.initialInvoiceToPay,
   });
 
   @override
@@ -26,17 +30,202 @@ class StudentFeesScreen extends StatefulWidget {
 class _StudentFeesScreenState extends State<StudentFeesScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final _imagePicker = ImagePicker();
+  final _apiClient = sl<ApiClient>();
+  bool _uploadingReceipt = false;
+  bool _handledInitialPayment = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _openInitialPaymentIfNeeded();
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant StudentFeesScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialInvoiceToPay != widget.initialInvoiceToPay) {
+      _handledInitialPayment = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _openInitialPaymentIfNeeded();
+      });
+    }
+  }
+
+  void _openInitialPaymentIfNeeded() {
+    if (_handledInitialPayment) return;
+    final targetId = widget.initialInvoiceToPay;
+    if (targetId == null) return;
+    final match = widget.invoices.where((i) => i.id == targetId).toList();
+    if (match.isEmpty) return;
+    _handledInitialPayment = true;
+    _tabController.animateTo(0);
+    _showPaymentOptions(match.first);
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  bool _isPaymentDue(InvoiceModel invoice) {
+    if (invoice.status != 'pending') return false;
+    final now = DateTime.now();
+    return now.day >= 1 && now.day <= 7;
+  }
+
+  void _showPaymentOptions(InvoiceModel invoice) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Choose Payment Method',
+              style: AppTextStyles.h3,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Amount: ₹${invoice.amount ?? 0}',
+              style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            _buildPaymentButton(
+              'Google Pay',
+              Icons.account_balance_wallet,
+              const Color(0xFF4285F4),
+              () => _openPaymentApp('Google Pay', invoice),
+            ),
+            const SizedBox(height: 12),
+            _buildPaymentButton(
+              'PhonePe',
+              Icons.phone_android,
+              const Color(0xFF5F259F),
+              () => _openPaymentApp('PhonePe', invoice),
+            ),
+            const SizedBox(height: 12),
+            _buildPaymentButton(
+              'CRED',
+              Icons.credit_card,
+              const Color(0xFF000000),
+              () => _openPaymentApp('CRED', invoice),
+            ),
+            const SizedBox(height: 12),
+            _buildPaymentButton(
+              'Upload Receipt',
+              Icons.upload_file,
+              AppColors.secondary,
+              () {
+                Navigator.pop(context);
+                _uploadReceipt(invoice);
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaymentButton(String label, IconData icon, Color color, VoidCallback onTap) {
+    return Material(
+      color: color,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: Colors.white),
+              const SizedBox(width: 12),
+              Text(
+                label,
+                style: AppTextStyles.button.copyWith(color: Colors.white),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openPaymentApp(String app, InvoiceModel invoice) async {
+    Navigator.pop(context);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Complete payment in $app and upload receipt'),
+        action: SnackBarAction(
+          label: 'Upload',
+          onPressed: () => _uploadReceipt(invoice),
+        ),
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  }
+
+  Future<void> _uploadReceipt(InvoiceModel invoice) async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+      );
+
+      if (image == null) return;
+
+      setState(() => _uploadingReceipt = true);
+
+      final response = await _apiClient.submitInvoicePaymentProof(
+        invoiceId: invoice.id,
+        proofPath: image.path,
+        paymentMethod: 'UPI',
+        paymentDate: DateTime.now().toIso8601String(),
+      );
+
+      if (response.statusCode == 201) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Payment proof uploaded successfully! ✓'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Refresh data
+        widget.onRefresh();
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to upload receipt: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _uploadingReceipt = false);
+      }
+    }
   }
 
   List<InvoiceModel> get _pendingInvoices =>
@@ -95,6 +284,9 @@ class _StudentFeesScreenState extends State<StudentFeesScreen>
                           emptyTitle: 'No Pending Fees',
                           emptySubtitle: 'You have no pending fee payments.',
                           emptyIcon: Icons.check_circle_outline,
+                          showPayAction: true,
+                          onPayNow: (invoice) => _showPaymentOptions(invoice),
+                          isPayEnabled: _isPaymentDue,
                         ),
                         _InvoiceList(
                           invoices: _overdueInvoices,
@@ -199,12 +391,18 @@ class _InvoiceList extends StatelessWidget {
   final String emptyTitle;
   final String emptySubtitle;
   final IconData emptyIcon;
+  final bool showPayAction;
+  final void Function(InvoiceModel invoice)? onPayNow;
+  final bool Function(InvoiceModel invoice)? isPayEnabled;
 
   const _InvoiceList({
     required this.invoices,
     required this.emptyTitle,
     required this.emptySubtitle,
     required this.emptyIcon,
+    this.showPayAction = false,
+    this.onPayNow,
+    this.isPayEnabled,
   });
 
   @override
@@ -225,6 +423,9 @@ class _InvoiceList extends StatelessWidget {
         return _InvoiceCard(
           invoice: invoice,
           index: index,
+          showPayAction: showPayAction,
+          onPayNow: onPayNow,
+          isPayEnabled: isPayEnabled,
         );
       },
     );
@@ -234,10 +435,16 @@ class _InvoiceList extends StatelessWidget {
 class _InvoiceCard extends StatelessWidget {
   final InvoiceModel invoice;
   final int index;
+  final bool showPayAction;
+  final void Function(InvoiceModel invoice)? onPayNow;
+  final bool Function(InvoiceModel invoice)? isPayEnabled;
 
   const _InvoiceCard({
     required this.invoice,
     required this.index,
+    required this.showPayAction,
+    required this.onPayNow,
+    required this.isPayEnabled,
   });
 
   Color get _statusColor {
@@ -416,6 +623,37 @@ class _InvoiceCard extends StatelessWidget {
                     ],
                   ),
                 ),
+              ],
+              if (showPayAction) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: (isPayEnabled?.call(invoice) ?? true)
+                        ? () => onPayNow?.call(invoice)
+                        : null,
+                    icon: const Icon(Icons.payment, size: 18),
+                    label: const Text('Pay Now'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondary,
+                      foregroundColor: Colors.black,
+                      minimumSize: const Size(double.infinity, 44),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+                if (!(isPayEnabled?.call(invoice) ?? true))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      'Payments open from 1st to 7th',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
               ],
             ],
           ),
@@ -653,7 +891,7 @@ class _InvoiceDetailsSheet extends StatelessWidget {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Pay via UPI and upload the payment proof for admin verification. Fees are due on the 1st of every month.',
+                          'Pay via GPay/PhonePe/CRED and upload the payment proof. Fees are due between 1st-5th of every month.',
                           style: AppTextStyles.bodySmall.copyWith(
                             color: AppColors.textSecondary,
                           ),
@@ -663,16 +901,17 @@ class _InvoiceDetailsSheet extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () => context.push(
-                      '/student/fees/${invoice.id}/upi'),
-                  child: const Text('Pay via UPI'),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton(
-                  onPressed: () => context.push(
-                      '/student/fees/${invoice.id}/proof'),
-                  child: const Text('Upload Payment Proof'),
+                FilledButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    context.findAncestorStateOfType<_StudentFeesScreenState>()?._showPaymentOptions(invoice);
+                  },
+                  icon: const Icon(Icons.payment),
+                  label: const Text('Pay Now'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.secondary,
+                    foregroundColor: Colors.black,
+                  ),
                 ),
               ],
             ],

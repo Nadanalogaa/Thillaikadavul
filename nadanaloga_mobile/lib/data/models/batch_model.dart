@@ -39,6 +39,9 @@ class BatchModel {
   final int? locationId;
   final String? createdAt;
   final String? updatedAt;
+  final List<String> days;
+  final String? startTime;
+  final String? endTime;
 
   const BatchModel({
     required this.id,
@@ -54,6 +57,9 @@ class BatchModel {
     this.locationId,
     this.createdAt,
     this.updatedAt,
+    this.days = const [],
+    this.startTime,
+    this.endTime,
   });
 
   factory BatchModel.fromJson(Map<String, dynamic> json) {
@@ -71,6 +77,9 @@ class BatchModel {
       locationId: json['location_id'] as int?,
       createdAt: json['created_at'] as String?,
       updatedAt: json['updated_at'] as String?,
+      days: _parseStringList(json['days']),
+      startTime: json['start_time'] as String?,
+      endTime: json['end_time'] as String?,
     );
   }
 
@@ -86,6 +95,9 @@ class BatchModel {
       'student_ids': studentIds,
       'mode': mode,
       'location_id': locationId,
+      'days': days,
+      'start_time': startTime,
+      'end_time': endTime,
     };
   }
 
@@ -110,6 +122,14 @@ class BatchModel {
     return [];
   }
 
+  static List<String> _parseStringList(dynamic value) {
+    if (value == null) return [];
+    if (value is List) {
+      return value.map((e) => e.toString()).toList();
+    }
+    return [];
+  }
+
   /// Get all student IDs from both top-level and schedule entries
   List<int> get allStudentIds {
     final ids = <int>{...studentIds};
@@ -117,5 +137,46 @@ class BatchModel {
       ids.addAll(entry.studentIds);
     }
     return ids.toList();
+  }
+
+  /// Format schedule display (e.g., "Tuesday & Thursday, 5:00 PM - 6:30 PM")
+  String get formattedSchedule {
+    if (days.isEmpty) return '';
+
+    final daysStr = days.length == 1
+        ? days[0]
+        : days.length == 7
+            ? 'Every day'
+            : days.join(' & ');
+
+    if (startTime == null || endTime == null) {
+      return daysStr;
+    }
+
+    final startFormatted = _formatTime(startTime!);
+    final endFormatted = _formatTime(endTime!);
+
+    return '$daysStr, $startFormatted - $endFormatted';
+  }
+
+  /// Format time from 24h to 12h format (e.g., "17:00" -> "5:00 PM")
+  String _formatTime(String time24) {
+    if (time24.isEmpty) return '';
+
+    final parts = time24.split(':');
+    if (parts.length != 2) return time24;
+
+    final hour = int.tryParse(parts[0]) ?? 0;
+    final minute = parts[1];
+
+    if (hour == 0) {
+      return '12:$minute AM';
+    } else if (hour < 12) {
+      return '$hour:$minute AM';
+    } else if (hour == 12) {
+      return '12:$minute PM';
+    } else {
+      return '${hour - 12}:$minute PM';
+    }
   }
 }
