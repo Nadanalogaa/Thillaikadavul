@@ -14,6 +14,24 @@ const { v4: uuidv4 } = require('uuid');
 // Load environment variables
 dotenv.config();
 
+// Safely turn a DB value (JSON string, plain string, array, or null) into an array.
+// Never throws — a single malformed row must not 500 an entire list (e.g. /api/users)
+// or block a login. Falls back to comma-splitting non-JSON strings like
+// "Bharatham, Carnatic music".
+const safeJsonArray = (value) => {
+    if (Array.isArray(value)) return value;
+    if (value === null || value === undefined || value === '') return [];
+    if (typeof value !== 'string') return [];
+    const trimmed = value.trim();
+    if (trimmed === '') return [];
+    try {
+        const parsed = JSON.parse(trimmed);
+        return Array.isArray(parsed) ? parsed : [parsed];
+    } catch (_) {
+        return trimmed.split(',').map((s) => s.trim()).filter(Boolean);
+    }
+};
+
 // --- Firebase Admin SDK Initialization ---
 let firebaseAdmin = null;
 let firebaseMessaging = null;
@@ -921,8 +939,8 @@ async function startServer() {
                     const reactivatedUser = result.rows[0];
                     const parsedUser = {
                         ...reactivatedUser,
-                        courses: typeof reactivatedUser.courses === 'string' ? JSON.parse(reactivatedUser.courses || '[]') : (reactivatedUser.courses || []),
-                        course_expertise: typeof reactivatedUser.course_expertise === 'string' ? JSON.parse(reactivatedUser.course_expertise || '[]') : (reactivatedUser.course_expertise || [])
+                        courses: safeJsonArray(reactivatedUser.courses),
+                        course_expertise: safeJsonArray(reactivatedUser.course_expertise)
                     };
                     delete parsedUser.password;
                     return res.status(201).json(parsedUser);
@@ -979,8 +997,8 @@ async function startServer() {
 
             const parsedUser = {
                 ...newUser,
-                courses: typeof newUser.courses === 'string' ? JSON.parse(newUser.courses || '[]') : (newUser.courses || []),
-                course_expertise: typeof newUser.course_expertise === 'string' ? JSON.parse(newUser.course_expertise || '[]') : (newUser.course_expertise || [])
+                courses: safeJsonArray(newUser.courses),
+                course_expertise: safeJsonArray(newUser.course_expertise)
             };
             delete parsedUser.password;
 
@@ -1068,8 +1086,8 @@ async function startServer() {
             // Parse JSON fields before returning
             const parsedUser = {
                 ...user,
-                courses: typeof user.courses === 'string' ? JSON.parse(user.courses || '[]') : (user.courses || []),
-                course_expertise: typeof user.course_expertise === 'string' ? JSON.parse(user.course_expertise || '[]') : (user.course_expertise || [])
+                courses: safeJsonArray(user.courses),
+                course_expertise: safeJsonArray(user.course_expertise)
             };
 
             // If parent, fetch their children
@@ -1082,7 +1100,7 @@ async function startServer() {
                 console.log('[Login] Children query returned:', childrenResult.rows.length, 'students');
                 parsedUser.students = childrenResult.rows.map(child => ({
                     ...child,
-                    courses: typeof child.courses === 'string' ? JSON.parse(child.courses || '[]') : (child.courses || [])
+                    courses: safeJsonArray(child.courses)
                 }));
                 console.log('[Login] Added students array to response:', parsedUser.students.length);
             }
@@ -1865,8 +1883,8 @@ Please review and approve this registration in the admin panel.`;
     // Helper function to parse JSON fields in user data
     const parseUserData = (user) => ({
         ...user,
-        courses: typeof user.courses === 'string' ? JSON.parse(user.courses || '[]') : (user.courses || []),
-        course_expertise: typeof user.course_expertise === 'string' ? JSON.parse(user.course_expertise || '[]') : (user.course_expertise || [])
+        courses: safeJsonArray(user.courses),
+        course_expertise: safeJsonArray(user.course_expertise)
     });
 
     // Get all non-deleted users
