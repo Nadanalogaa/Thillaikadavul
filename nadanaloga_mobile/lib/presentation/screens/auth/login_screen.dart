@@ -137,13 +137,13 @@ class _LoginScreenState extends State<LoginScreen>
                               keyboardType: TextInputType.emailAddress,
                               textInputAction: TextInputAction.next,
                               decoration: const InputDecoration(
-                                labelText: 'Email or User ID',
-                                hintText: 'Enter email or NDA-YYYY-XXXX',
+                                labelText: 'Email, Phone or User ID',
+                                hintText: 'Email, phone number or NDA-YYYY-XXXX',
                                 prefixIcon: Icon(Icons.person_outline),
                               ),
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
-                                  return 'Please enter your email or user ID';
+                                  return 'Please enter your email, phone or user ID';
                                 }
                                 return null;
                               },

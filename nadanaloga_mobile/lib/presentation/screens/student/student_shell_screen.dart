@@ -16,6 +16,7 @@ import '../../bloc/auth/auth_state.dart';
 import 'student_dashboard_screen.dart';
 import 'student_profile_screen.dart';
 import 'student_batches_screen.dart';
+import 'student_change_password_screen.dart';
 import 'student_fees_screen.dart';
 
 class StudentShellScreen extends StatefulWidget {
@@ -387,10 +388,21 @@ class _StudentMoreMenuScreen extends StatelessWidget {
         onTap: () => _showComingSoon(context, 'Notifications'),
       ),
       _MenuItem(
-        icon: Icons.settings,
-        title: 'Settings',
-        subtitle: 'App settings',
-        onTap: () => _showComingSoon(context, 'Settings'),
+        icon: Icons.lock_reset,
+        title: 'Change Password',
+        subtitle: 'Update your password',
+        onTap: () {
+          final id = user?.id;
+          if (id == null) {
+            _showComingSoon(context, 'Change Password');
+            return;
+          }
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => StudentChangePasswordScreen(userId: id),
+            ),
+          );
+        },
       ),
     ];
 

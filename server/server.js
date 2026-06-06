@@ -1022,22 +1022,41 @@ async function startServer() {
                 return res.status(400).json({ message: 'Email/User ID and password are required.' });
             }
 
+            // Detect how the user is logging in: User ID, phone number, or email
+            const trimmedLoginId = loginId.trim();
+            const phoneDigits = trimmedLoginId.replace(/\D/g, ''); // strip spaces, +, -, ()
+
             let result;
-            if (loginId.toUpperCase().startsWith('NDA-')) {
+            if (trimmedLoginId.toUpperCase().startsWith('NDA-')) {
                 // Login by user_id
-                result = await pool.query('SELECT * FROM users WHERE user_id = $1 AND is_deleted = false', [loginId.toUpperCase()]);
+                result = await pool.query('SELECT * FROM users WHERE user_id = $1 AND is_deleted = false', [trimmedLoginId.toUpperCase()]);
+            } else if (!trimmedLoginId.includes('@') && /^\d{7,}$/.test(phoneDigits)) {
+                // Login by phone number (contact_number). Compare digits-only on both sides so
+                // formatting differences (spaces, +91, etc.) don't matter. May return multiple
+                // rows when a family shares one phone number — resolved by password below.
+                result = await pool.query(
+                    "SELECT * FROM users WHERE regexp_replace(contact_number, '\\D', '', 'g') = $1 AND is_deleted = false",
+                    [phoneDigits]
+                );
             } else {
                 // Login by email
-                result = await pool.query('SELECT * FROM users WHERE email = $1 AND is_deleted = false', [loginId.toLowerCase()]);
+                result = await pool.query('SELECT * FROM users WHERE email = $1 AND is_deleted = false', [trimmedLoginId.toLowerCase()]);
             }
 
             if (result.rows.length === 0) {
                 return res.status(401).json({ message: 'Invalid credentials.' });
             }
 
-            const user = result.rows[0];
-            const isMatch = await bcrypt.compare(password, user.password);
-            if (!isMatch) return res.status(401).json({ message: 'Invalid credentials.' });
+            // Find the account whose password matches. With email/user_id this is the single
+            // row; with a shared phone number it picks the family member whose password fits.
+            let user = null;
+            for (const candidate of result.rows) {
+                if (await bcrypt.compare(password, candidate.password)) {
+                    user = candidate;
+                    break;
+                }
+            }
+            if (!user) return res.status(401).json({ message: 'Invalid credentials.' });
 
             delete user.password;
 
