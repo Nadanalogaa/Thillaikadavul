@@ -2371,12 +2371,22 @@ Please review and approve this registration in the admin panel.`;
             const { id } = req.params;
             const { batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode, location_id, days, start_time, end_time } = req.body;
 
-            // Get old student_ids and teacher_id to detect changes
-            const oldBatch = await pool.query('SELECT student_ids, teacher_id FROM batches WHERE id = $1', [id]);
-            const oldStudentIds = oldBatch.rows.length > 0
-                ? (Array.isArray(oldBatch.rows[0].student_ids) ? oldBatch.rows[0].student_ids : [])
-                : [];
-            const oldTeacherId = oldBatch.rows.length > 0 ? oldBatch.rows[0].teacher_id : null;
+            // Load the full existing batch so we can MERGE: a client (e.g. the mobile
+            // app) that doesn't manage a field must not wipe it. Only fields the client
+            // actually sent (not undefined) override the stored values. This protects
+            // schedule/student_ids set on the web from being erased by a mobile edit.
+            const oldBatch = await pool.query('SELECT * FROM batches WHERE id = $1', [id]);
+            if (oldBatch.rows.length === 0) {
+                return res.status(404).json({ message: 'Batch not found' });
+            }
+            const old = oldBatch.rows[0];
+            const oldStudentIds = Array.isArray(old.student_ids) ? old.student_ids : [];
+            const oldTeacherId = old.teacher_id;
+
+            const pick = (sent, existing) => (sent !== undefined ? sent : existing);
+            const mergedSchedule = schedule !== undefined
+                ? JSON.stringify(schedule)
+                : (typeof old.schedule === 'string' ? old.schedule : JSON.stringify(old.schedule || []));
 
             const result = await pool.query(
                 `UPDATE batches SET
@@ -2384,7 +2394,22 @@ Please review and approve this registration in the admin panel.`;
                     start_date = $5, end_date = $6, max_students = $7, student_ids = $8, mode = $9,
                     location_id = $10, days = $11, start_time = $12, end_time = $13, updated_at = NOW()
                  WHERE id = $14 RETURNING *`,
-                [batch_name, course_id, teacher_id, JSON.stringify(schedule), start_date, end_date, max_students, student_ids || [], mode, location_id || null, days || [], start_time || null, end_time || null, id]
+                [
+                    pick(batch_name, old.batch_name),
+                    pick(course_id, old.course_id),
+                    pick(teacher_id, old.teacher_id),
+                    mergedSchedule,
+                    pick(start_date, old.start_date),
+                    pick(end_date, old.end_date),
+                    pick(max_students, old.max_students),
+                    student_ids !== undefined ? student_ids : oldStudentIds,
+                    pick(mode, old.mode),
+                    location_id !== undefined ? location_id : (old.location_id || null),
+                    days !== undefined ? days : (old.days || []),
+                    start_time !== undefined ? start_time : (old.start_time || null),
+                    end_time !== undefined ? end_time : (old.end_time || null),
+                    id,
+                ]
             );
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: 'Batch not found' });

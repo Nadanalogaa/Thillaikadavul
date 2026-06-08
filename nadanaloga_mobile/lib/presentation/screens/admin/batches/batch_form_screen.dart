@@ -114,8 +114,10 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
   }
 
   TimeOfDay? _parseTime(String time24) {
+    // Postgres TIME columns come back as "HH:MM:SS"; the form sends "HH:MM".
+    // Accept both (and ignore any seconds component).
     final parts = time24.split(':');
-    if (parts.length == 2) {
+    if (parts.length >= 2) {
       final hour = int.tryParse(parts[0]);
       final minute = int.tryParse(parts[1]);
       if (hour != null && minute != null) {
@@ -164,7 +166,9 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
       'max_students': _maxStudentsController.text.trim().isEmpty
           ? null
           : int.tryParse(_maxStudentsController.text.trim()),
-      'schedule': [],
+      // Intentionally NOT sending `schedule` — the web app stores student
+      // assignments/timings there. Omitting it lets the backend preserve the
+      // existing value instead of wiping it on edit.
       'days': _selectedDays,
       'start_time': '${_startTime!.hour.toString().padLeft(2, '0')}:${_startTime!.minute.toString().padLeft(2, '0')}',
       'end_time': '${_endTime!.hour.toString().padLeft(2, '0')}:${_endTime!.minute.toString().padLeft(2, '0')}',
