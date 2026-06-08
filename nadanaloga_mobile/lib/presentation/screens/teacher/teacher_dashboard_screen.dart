@@ -82,6 +82,41 @@ class TeacherDashboardScreen extends StatelessWidget {
                       ),
                     ),
                   ),
+
+                  // My Children — shown when this teacher is also a parent.
+                  // One login surfaces every family profile; tapping a child
+                  // opens their student dashboard.
+                  if ((user?.students ?? []).isNotEmpty) ...[
+                    const SizedBox(height: 28),
+                    Text('My Children', style: AppTextStyles.h3),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Switch to a child\'s dashboard',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ...user!.students!.map(
+                      (child) => Card(
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor:
+                                AppColors.studentAccent.withOpacity(0.15),
+                            child: Icon(Icons.school,
+                                color: AppColors.studentAccent),
+                          ),
+                          title: Text(child.name),
+                          subtitle: const Text('Tap to view dashboard'),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => context.push('/student', extra: {
+                            'studentId': child.id,
+                            'student': child,
+                          }),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

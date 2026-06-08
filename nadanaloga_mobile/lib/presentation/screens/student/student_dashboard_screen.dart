@@ -207,19 +207,22 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   }
 
   InvoiceModel? get _currentMonthInvoice {
-    final pending = widget.invoices.where((i) {
-      if (i.status == 'paid') return false;
+    final pendingOrOverdue = widget.invoices.where((i) {
+      return i.status == 'pending' || i.status == 'overdue';
+    }).toList();
+    final currentMonthPending = pendingOrOverdue.where((i) {
       return _isInCurrentMonth(i.dueDate) || _isInCurrentMonth(i.issueDate);
     }).toList();
-    if (pending.isNotEmpty) return pending.first;
+    if (currentMonthPending.isNotEmpty) return currentMonthPending.first;
 
-    final paid = widget.invoices.where((i) {
+    final paidThisMonth = widget.invoices.where((i) {
       if (i.status != 'paid') return false;
-      return _isInCurrentMonth(i.paymentDate) ||
-          _isInCurrentMonth(i.dueDate) ||
-          _isInCurrentMonth(i.issueDate);
+      return _isInCurrentMonth(i.paymentDate);
     }).toList();
-    if (paid.isNotEmpty) return paid.first;
+    if (paidThisMonth.isNotEmpty) return paidThisMonth.first;
+
+    if (pendingOrOverdue.isNotEmpty) return pendingOrOverdue.first;
+    if (widget.invoices.isNotEmpty) return widget.invoices.first;
     return null;
   }
 
@@ -723,6 +726,9 @@ class _MonthlyFeeCard extends StatelessWidget {
 
     final status = invoice!.status;
     final isPaid = status == 'paid';
+    final isProcessing = !isPaid &&
+        invoice!.paymentDetails != null &&
+        invoice!.paymentDetails!.isNotEmpty;
     final color = isPaid ? AppColors.success : AppColors.warning;
 
     return Container(
@@ -752,7 +758,9 @@ class _MonthlyFeeCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isPaid ? 'Paid for this month' : 'Payment due',
+                  isPaid
+                      ? 'Paid for this month'
+                      : (isProcessing ? 'Under processing' : 'Payment due'),
                   style: AppTextStyles.labelLarge.copyWith(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w600,
@@ -777,12 +785,19 @@ class _MonthlyFeeCard extends StatelessWidget {
                     style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
                   ),
                 ],
+                if (isProcessing) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Receipt uploaded. Awaiting admin approval.',
+                    style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                  ),
+                ],
               ],
             ),
           ),
           if (!isPaid)
             ElevatedButton(
-              onPressed: () => onPayNow(invoice!.id),
+              onPressed: isProcessing ? null : () => onPayNow(invoice!.id),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.secondary,
                 foregroundColor: Colors.black,

@@ -54,10 +54,10 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
     final authState = context.read<AuthBloc>().state;
     if (authState is! AuthAuthenticated) return;
 
-    // Use provided studentId (for parents) or current user's id (for students)
-    // For parents, use first child's ID if no specific student selected
-    final isParent = authState.user.role == 'Parent';
-    final students = isParent ? (authState.user.students ?? []) : [];
+    // Use provided studentId (when viewing a specific child) or fall back to the
+    // first linked child, then to the logged-in user's own id. This covers a pure
+    // student, a parent, and a teacher-who-is-also-a-parent — anyone with children.
+    final students = authState.user.students ?? [];
     final userId = widget.studentId ??
                    (students.isNotEmpty ? students[0].id : authState.user.id);
     setState(() {
@@ -141,10 +141,12 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, authState) {
         final user = authState is AuthAuthenticated ? authState.user : null;
-        final isParent = user?.role == 'Parent';
-        final students = isParent ? (user?.students ?? []) : [];
+        // Show the family switcher whenever this account has linked children —
+        // a parent, or a teacher who is also a parent.
+        final students = user?.students ?? [];
+        final hasChildren = students.isNotEmpty;
 
-        // Auto-select first child if parent logged in without specific student
+        // Auto-select first child if logged in without a specific student
         final currentStudent = widget.student ?? (students.isNotEmpty ? students[0] : null);
         final currentStudentId = widget.studentId ?? currentStudent?.id ?? user?.id;
 
@@ -153,8 +155,14 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
             title: const Text('Dashboard'),
             backgroundColor: AppColors.studentAccent,
             automaticallyImplyLeading: false,
+            // Show a back arrow only when this shell was pushed (e.g. a teacher
+            // opening a child's dashboard from their own). A parent/student who
+            // landed here as their home has nothing to pop, so no arrow shows.
+            leading: Navigator.of(context).canPop()
+                ? BackButton(color: Colors.white, onPressed: () => context.pop())
+                : null,
             actions: [
-              if (isParent && students.isNotEmpty)
+              if (hasChildren)
                 OutlinedButton.icon(
                   onPressed: () => _showAddStudentDialog(context),
                   icon: const Icon(Icons.person_add, size: 18),
@@ -184,7 +192,7 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
           body: Column(
             children: [
               // Student tabs below app bar
-              if (isParent && students.isNotEmpty)
+              if (hasChildren)
                 Container(
                   margin: const EdgeInsets.fromLTRB(12, 10, 12, 0),
                   decoration: BoxDecoration(

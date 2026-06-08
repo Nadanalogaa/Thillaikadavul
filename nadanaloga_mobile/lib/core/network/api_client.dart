@@ -131,6 +131,16 @@ class ApiClient {
     return _dio.post(ApiEndpoints.usersByIds, data: {'ids': ids});
   }
 
+  /// Create a child profile linked to a primary account (no separate login).
+  Future<Response> addChild(int parentId, Map<String, dynamic> data) {
+    return _dio.post(ApiEndpoints.userChildren(parentId), data: data);
+  }
+
+  /// List the child profiles linked to a primary account.
+  Future<Response> getChildren(int parentId) {
+    return _dio.get(ApiEndpoints.userChildren(parentId));
+  }
+
   Future<Response> makeAdmin(int id) {
     return _dio.put(ApiEndpoints.makeAdmin(id));
   }

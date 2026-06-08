@@ -22,6 +22,7 @@ class ApiEndpoints {
   static String removeAdmin(int id) => '$apiPrefix/users/$id/remove-admin';
   static const String usersByIds = '$apiPrefix/users/by-ids';
   static String changePassword(int id) => '$apiPrefix/users/$id/change-password';
+  static String userChildren(int id) => '$apiPrefix/users/$id/children';
   static const String adminStats = '$apiPrefix/stats/admin';
 
   // File Uploads

@@ -26,6 +26,7 @@ class UserDetailScreen extends StatefulWidget {
 
 class _UserDetailScreenState extends State<UserDetailScreen> {
   UserModel? _user;
+  List<UserModel> _children = [];
   bool _loading = true;
   String? _error;
 
@@ -41,10 +42,22 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
       _error = null;
     });
     try {
-      final response = await sl<ApiClient>().getUserById(widget.userId);
+      final api = sl<ApiClient>();
+      final response = await api.getUserById(widget.userId);
       if (response.statusCode == 200 && response.data != null) {
+        // Load linked child profiles (empty for accounts that have none).
+        List<UserModel> children = [];
+        try {
+          final childResp = await api.getChildren(widget.userId);
+          if (childResp.statusCode == 200 && childResp.data is List) {
+            children = (childResp.data as List)
+                .map((c) => UserModel.fromJson(c))
+                .toList();
+          }
+        } catch (_) {}
         setState(() {
           _user = UserModel.fromJson(response.data);
+          _children = children;
           _loading = false;
         });
       } else {
@@ -292,6 +305,54 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
               ),
             ],
 
+            // Family — child profiles that share this account's single login.
+            // Only for non-child, non-admin accounts.
+            if (user.role != 'Admin' && user.parentId == null) ...[
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _SectionHeader(title: 'Children / Family'),
+                  TextButton.icon(
+                    onPressed: () => _showAddChildDialog(user),
+                    icon: const Icon(Icons.person_add, size: 18),
+                    label: const Text('Add Child'),
+                  ),
+                ],
+              ),
+              if (_children.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 8),
+                  child: Text(
+                    'No children linked. Use “Add Child” to add a family member '
+                    'under this account — they share this login, no separate email needed.',
+                    style: AppTextStyles.caption
+                        .copyWith(color: AppColors.textSecondary),
+                  ),
+                )
+              else
+                ..._children.map(
+                  (child) => Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: AppColors.studentAccent,
+                        child: Text(
+                          child.name.isNotEmpty
+                              ? child.name[0].toUpperCase()
+                              : '?',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                      title: Text(child.name),
+                      subtitle: Text(child.userId ?? 'Student'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push('/admin/users/${child.id}'),
+                    ),
+                  ),
+                ),
+            ],
+
             const SizedBox(height: 32),
           ],
         ),
@@ -347,6 +408,145 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
         }
         break;
     }
+  }
+
+  void _showAddChildDialog(UserModel parent) {
+    final formKey = GlobalKey<FormState>();
+    final nameController = TextEditingController();
+    final gradeController = TextEditingController();
+    final dobController = TextEditingController();
+    String? sex;
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text('Add Child to ${parent.name}'),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Child Name *',
+                        prefixIcon: Icon(Icons.person_outline),
+                      ),
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Name is required'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: sex,
+                      decoration: const InputDecoration(
+                        labelText: 'Gender',
+                        prefixIcon: Icon(Icons.wc),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'Male', child: Text('Male')),
+                        DropdownMenuItem(
+                            value: 'Female', child: Text('Female')),
+                      ],
+                      onChanged: (v) => setDialogState(() => sex = v),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: dobController,
+                      decoration: const InputDecoration(
+                        labelText: 'Date of Birth (YYYY-MM-DD)',
+                        prefixIcon: Icon(Icons.cake),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: gradeController,
+                      decoration: const InputDecoration(
+                        labelText: 'Grade / Standard',
+                        prefixIcon: Icon(Icons.star_outline),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          if (!formKey.currentState!.validate()) return;
+                          setDialogState(() => isSaving = true);
+                          try {
+                            final resp = await sl<ApiClient>().addChild(
+                              parent.id,
+                              {
+                                'name': nameController.text.trim(),
+                                if (sex != null) 'sex': sex,
+                                if (dobController.text.trim().isNotEmpty)
+                                  'dob': dobController.text.trim(),
+                                if (gradeController.text.trim().isNotEmpty)
+                                  'grade': gradeController.text.trim(),
+                              },
+                            );
+                            if (!mounted) return;
+                            if (resp.statusCode == 201) {
+                              Navigator.of(dialogContext).pop();
+                              ScaffoldMessenger.of(this.context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Child added to family'),
+                                  backgroundColor: AppColors.success,
+                                ),
+                              );
+                              _loadUser();
+                            } else {
+                              setDialogState(() => isSaving = false);
+                              ScaffoldMessenger.of(this.context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    resp.data?['message'] ??
+                                        'Failed to add child',
+                                  ),
+                                  backgroundColor: AppColors.error,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (!mounted) return;
+                            setDialogState(() => isSaving = false);
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error: $e'),
+                                backgroundColor: AppColors.error,
+                              ),
+                            );
+                          }
+                        },
+                  child: isSaving
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child:
+                              CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Add'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   Color _avatarColor(String role) {
