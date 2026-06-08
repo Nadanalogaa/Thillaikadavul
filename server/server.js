@@ -1882,11 +1882,15 @@ Please review and approve this registration in the admin panel.`;
 
     // --- User Management API Endpoints ---
     // Helper function to parse JSON fields in user data
-    const parseUserData = (user) => ({
-        ...user,
-        courses: safeJsonArray(user.courses),
-        course_expertise: safeJsonArray(user.course_expertise)
-    });
+    const parseUserData = (user) => {
+        // Never expose the password hash in any API response.
+        const { password, ...rest } = user;
+        return {
+            ...rest,
+            courses: safeJsonArray(user.courses),
+            course_expertise: safeJsonArray(user.course_expertise)
+        };
+    };
 
     // Get all non-deleted users
     app.get('/api/users', ensureAdmin, async (req, res) => {
@@ -2019,7 +2023,7 @@ Please review and approve this registration in the admin panel.`;
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: 'User not found' });
             }
-            res.json(result.rows[0]);
+            res.json(parseUserData(result.rows[0]));
         } catch (error) {
             console.error('Error fetching user by email:', error);
             res.status(500).json({ message: 'Server error fetching user.' });
@@ -2051,7 +2055,7 @@ Please review and approve this registration in the admin panel.`;
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: 'User not found' });
             }
-            res.json(result.rows[0]);
+            res.json(parseUserData(result.rows[0]));
         } catch (error) {
             console.error('Error updating user:', error);
             res.status(500).json({ message: 'Server error updating user.' });
@@ -2099,7 +2103,7 @@ Please review and approve this registration in the admin panel.`;
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: 'User not found' });
             }
-            res.json(result.rows[0]);
+            res.json(parseUserData(result.rows[0]));
         } catch (error) {
             console.error('Error restoring user:', error);
             res.status(500).json({ message: 'Server error restoring user.' });
@@ -2374,7 +2378,7 @@ Please review and approve this registration in the admin panel.`;
                 'SELECT * FROM users WHERE id = ANY($1) AND is_deleted = false',
                 [ids]
             );
-            res.json(result.rows);
+            res.json(result.rows.map(parseUserData));
         } catch (error) {
             console.error('Error fetching users by IDs:', error);
             res.status(500).json({ message: 'Server error fetching users.' });
