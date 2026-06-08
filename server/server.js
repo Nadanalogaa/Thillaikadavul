@@ -264,6 +264,7 @@ async function startServer() {
         if (await addColumn('notices', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
         if (await addColumn('invoices', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
         if (await addColumn('invoices', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+        if (await addColumn('invoices', 'last_reminder_date', 'DATE')) successCount++; else failCount++;
 
             // Create user_fcm_tokens table if not exists
             try {
@@ -868,6 +869,113 @@ async function startServer() {
         );
         return result.rows;
     };
+
+    // --- Fee due-date reminders ---------------------------------------------
+    // Sends in-app + push + email reminders to students with unpaid invoices,
+    // on a cadence around the due date (default: the 10th of the month). The
+    // last_reminder_date column makes it idempotent — at most one reminder per
+    // invoice per day, even if the job runs several times (restarts, retries).
+    const daysBetween = (a, b) => Math.round((a.getTime() - b.getTime()) / 86400000);
+
+    // Format/parse dates in LOCAL time (never UTC) so a positive-offset server
+    // timezone doesn't shift the calendar day — that would break the
+    // once-per-day idempotency guard and print off-by-one due dates.
+    const toDateStr = (d) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const parseLocalDate = (v) => {
+        if (!v) return null;
+        if (v instanceof Date) return new Date(v.getFullYear(), v.getMonth(), v.getDate());
+        const [y, m, d] = String(v).split('T')[0].split('-').map(Number);
+        return new Date(y, (m || 1) - 1, d || 1);
+    };
+
+    // The effective due date: the invoice's own due_date, else the 10th of its
+    // billing month (falling back to issue/created date, then today).
+    const effectiveDueDate = (invoice) => {
+        if (invoice.due_date) return parseLocalDate(invoice.due_date);
+        const base = parseLocalDate(invoice.issue_date) || parseLocalDate(invoice.created_at) || new Date();
+        return new Date(base.getFullYear(), base.getMonth(), 10);
+    };
+
+    // Reminder cadence relative to the due date: 3 and 1 days before, on the
+    // day, then 1, 3 and every 7 days overdue.
+    const shouldRemindToday = (due, today) => {
+        const d = daysBetween(due, today); // days until due (negative = overdue)
+        if (d === 3 || d === 1 || d === 0) return true;
+        const overdue = -d;
+        if (overdue > 0 && (overdue === 1 || overdue === 3 || overdue % 7 === 0)) return true;
+        return false;
+    };
+
+    const runFeeReminders = async () => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayStr = toDateStr(today);
+        let sent = 0, considered = 0;
+
+        const { rows } = await pool.query(`
+            SELECT i.id, i.course_name, i.amount, i.currency, i.due_date, i.issue_date,
+                   i.created_at, i.billing_period, i.last_reminder_date, i.status,
+                   u.id AS student_id, u.name AS student_name, u.email AS student_email, u.parent_id,
+                   p.id AS parent_id_real, p.name AS parent_name, p.email AS parent_email,
+                   (SELECT ip.status FROM invoice_payments ip
+                    WHERE ip.invoice_id = i.id ORDER BY ip.submitted_at DESC LIMIT 1) AS payment_status
+            FROM invoices i
+            JOIN users u ON i.student_id = u.id AND u.is_deleted = false
+            LEFT JOIN users p ON u.parent_id = p.id AND p.is_deleted = false
+            WHERE i.status IN ('pending', 'overdue')
+        `);
+
+        for (const inv of rows) {
+            considered++;
+            // Skip if a proof is already awaiting verification, or already reminded today.
+            if (inv.payment_status === 'submitted') continue;
+            if (inv.last_reminder_date && toDateStr(parseLocalDate(inv.last_reminder_date)) === todayStr) continue;
+
+            const due = effectiveDueDate(inv);
+            if (!shouldRemindToday(due, today)) continue;
+
+            // Send to the account that can actually receive it: the parent for a
+            // child profile, otherwise the student.
+            const recipientId = inv.parent_id_real || inv.student_id;
+            const recipientName = inv.parent_name || inv.student_name || 'Student';
+            const recipientEmail = inv.parent_email || inv.student_email;
+            const amount = `${inv.currency || 'INR'} ${inv.amount}`;
+            const overdue = daysBetween(today, due) > 0;
+            const forWhom = inv.parent_id_real ? ` for ${inv.student_name}` : '';
+            const dueStr = toDateStr(due);
+
+            const title = overdue ? 'Fee Payment Overdue' : 'Fee Payment Reminder';
+            const shortMsg = overdue
+                ? `Fee of ${amount}${forWhom} (${inv.course_name || 'classes'}) was due on ${dueStr}. Please pay at the earliest.`
+                : `Fee of ${amount}${forWhom} (${inv.course_name || 'classes'}) is due by ${dueStr}. Please pay and upload the receipt in the app.`;
+
+            try {
+                createNotificationForUser(recipientId, title, shortMsg, overdue ? 'Warning' : 'Info');
+                if (recipientEmail) {
+                    const body = `Dear ${recipientName},\n\n${shortMsg}\n\n📋 Invoice #${inv.id}\n📚 Course: ${inv.course_name || 'Not specified'}\n💰 Amount: ${amount}\n📅 Due: ${dueStr}\n\nYou can pay via UPI (GPay / PhonePe / CRED) and upload the payment receipt in the app. We'll confirm once verified.\n\nBest regards,\nNadanaloga Academy Team`;
+                    sendEmailBackground(recipientEmail, recipientName, `${title} - Invoice #${inv.id}`, body);
+                }
+                await pool.query('UPDATE invoices SET last_reminder_date = $1 WHERE id = $2', [todayStr, inv.id]);
+                sent++;
+            } catch (e) {
+                console.error(`[FeeReminders] Failed for invoice #${inv.id}:`, e.message);
+            }
+        }
+        console.log(`[FeeReminders] Considered ${considered} unpaid invoice(s), sent ${sent} reminder(s).`);
+        return { considered, sent };
+    };
+
+    // Manual trigger so an admin can fire the reminder run on demand.
+    app.post('/api/admin/run-fee-reminders', ensureAdmin, async (req, res) => {
+        try {
+            const result = await runFeeReminders();
+            res.json({ message: 'Fee reminders processed.', ...result });
+        } catch (error) {
+            console.error('Error running fee reminders:', error);
+            res.status(500).json({ message: 'Server error running fee reminders.' });
+        }
+    });
 
     // Health check endpoint
     app.get('/api/health', (req, res) => {
@@ -4476,6 +4584,15 @@ Please review and approve this registration in the admin panel.`;
         console.log(`[Server] Running on http://localhost:${PORT}`);
         console.log(`[Server] CORS is configured to allow requests from: ${whitelist.join(', ')}`);
         console.log(`[Server] Serving static files from: ${distPath}`);
+
+        // Daily fee reminders. No external scheduler/cron dependency: run shortly
+        // after startup, then every 6 hours. The per-invoice last_reminder_date
+        // guard keeps it to at most one reminder per invoice per day regardless of
+        // how often this fires (restarts, the 6-hour cadence, manual triggers).
+        const SIX_HOURS = 6 * 60 * 60 * 1000;
+        const safeRun = () => runFeeReminders().catch(e => console.error('[FeeReminders] run failed:', e.message));
+        setTimeout(safeRun, 60 * 1000); // 1 min after startup
+        setInterval(safeRun, SIX_HOURS);
     });
 }
 
