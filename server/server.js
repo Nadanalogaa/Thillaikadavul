@@ -3900,7 +3900,9 @@ Please review and approve this registration in the admin panel.`;
     app.get('/api/invoices', async (req, res) => {
         try {
             const result = await pool.query(`
-                SELECT i.*, u.id as student_id, u.name as student_name, u.email as student_email
+                SELECT i.*, u.id as student_id, u.name as student_name, u.email as student_email,
+                    (SELECT ip.status FROM invoice_payments ip
+                     WHERE ip.invoice_id = i.id ORDER BY ip.submitted_at DESC LIMIT 1) as payment_status
                 FROM invoices i
                 LEFT JOIN users u ON i.student_id = u.id
                 ORDER BY i.created_at DESC
@@ -4055,23 +4057,20 @@ Please review and approve this registration in the admin panel.`;
             const paymentAmount = amount || invoice.amount;
             const method = payment_method || 'UPI';
 
+            // Record the proof as 'submitted' (pending verification). The invoice is
+            // NOT auto-marked paid — an admin reviews the proof against the bank and
+            // approves it (PUT /api/invoice-payments/:id), which then marks it paid.
             const result = await pool.query(
                 `INSERT INTO invoice_payments (invoice_id, student_id, amount, payment_method, transaction_id, payment_date, proof_url, status)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved') RETURNING *`,
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, 'submitted') RETURNING *`,
                 [id, invoice.student_id, paymentAmount, method, transaction_id || null, payment_date || null, proofUrl]
             );
 
-            // Automatically mark invoice as paid
-            await pool.query(
-                `UPDATE invoices SET status = 'paid', updated_at = NOW() WHERE id = $1`,
-                [id]
-            );
-
-            console.log(`[InvoicePayment] Invoice #${id} automatically marked as paid`);
+            console.log(`[InvoicePayment] Proof submitted for invoice #${id}, awaiting admin verification`);
 
             res.status(201).json(result.rows[0]);
 
-            // Notify admins (fire-and-forget)
+            // Notify admins so they can verify (fire-and-forget)
             (async () => {
                 try {
                     const admins = await getActiveAdmins();
@@ -4079,8 +4078,8 @@ Please review and approve this registration in the admin panel.`;
                     for (const admin of admins) {
                         createNotificationForUser(
                             admin.id,
-                            'Payment Submitted',
-                            `Payment proof submitted for Invoice #${id} by ${displayName}.`,
+                            'Payment Awaiting Verification',
+                            `${displayName} submitted payment proof for Invoice #${id}. Please verify and approve.`,
                             'Info'
                         );
                     }
@@ -4157,10 +4156,13 @@ Please review and approve this registration in the admin panel.`;
                 return res.status(400).json({ message: 'Invalid status. Must be approved, rejected, or submitted.' });
             }
 
+            // Stamp approved_at in JS to avoid reusing $1 in two type contexts
+            // (varchar assignment + text comparison), which Postgres rejects.
+            const approvedAt = status === 'approved' ? new Date() : null;
             const result = await pool.query(
-                `UPDATE invoice_payments SET status = $1, notes = $2, approved_at = CASE WHEN $1 = 'approved' THEN NOW() ELSE approved_at END, updated_at = NOW()
-                 WHERE id = $3 RETURNING *`,
-                [status, notes || null, id]
+                `UPDATE invoice_payments SET status = $1, notes = $2, approved_at = COALESCE($3, approved_at), updated_at = NOW()
+                 WHERE id = $4 RETURNING *`,
+                [status, notes || null, approvedAt, id]
             );
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: 'Invoice payment not found' });

@@ -17,6 +17,7 @@ class InvoiceModel {
   final double? originalAmount;
   final double? discountPercentage;
   final double? discountAmount;
+  final String? paymentStatus; // latest proof status: submitted / approved / rejected
 
   const InvoiceModel({
     required this.id,
@@ -37,6 +38,7 @@ class InvoiceModel {
     this.originalAmount,
     this.discountPercentage,
     this.discountAmount,
+    this.paymentStatus,
   });
 
   factory InvoiceModel.fromJson(Map<String, dynamic> json) {
@@ -61,6 +63,7 @@ class InvoiceModel {
       originalAmount: _parseDouble(json['original_amount']),
       discountPercentage: _parseDouble(json['discount_percentage']),
       discountAmount: _parseDouble(json['discount_amount']),
+      paymentStatus: json['payment_status'] as String?,
     );
   }
 
@@ -97,6 +100,10 @@ class InvoiceModel {
   bool get isPending => status == 'pending';
   bool get isPaid => status == 'paid';
   bool get isOverdue => status == 'overdue';
+
+  /// True when the student has submitted payment proof that an admin has not
+  /// yet approved — the invoice is awaiting verification, so no re-payment.
+  bool get isAwaitingVerification => paymentStatus == 'submitted';
 
   bool get hasDiscount => discountPercentage != null && (discountPercentage ?? 0) > 0;
   String get discountText => hasDiscount

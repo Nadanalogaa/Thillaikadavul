@@ -691,9 +691,8 @@ class _InvoiceCard extends StatelessWidget {
                   ),
                 ),
               ],
-              if (invoice.status != 'paid' &&
-                  invoice.paymentDetails != null &&
-                  invoice.paymentDetails!.isNotEmpty) ...[
+              // Awaiting admin verification after the student submitted proof.
+              if (invoice.status != 'paid' && invoice.isAwaitingVerification) ...[
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(10),
@@ -703,62 +702,23 @@ class _InvoiceCard extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.hourglass_top,
-                        size: 16,
-                        color: AppColors.info,
-                      ),
+                      Icon(Icons.hourglass_top, size: 16, color: AppColors.info),
                       const SizedBox(width: 8),
-                      Text(
-                        'Under processing',
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.info,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Receipt uploaded',
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.textSecondary,
+                      Expanded(
+                        child: Text(
+                          'Payment under verification — the academy will confirm shortly.',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.info,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
               ],
-              if (showPayAction) ...[
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: (isPayEnabled?.call(invoice) ?? true)
-                        ? () => onPayNow?.call(invoice)
-                        : null,
-                    icon: const Icon(Icons.payment, size: 18),
-                    label: const Text('Pay Now'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.secondary,
-                      foregroundColor: Colors.black,
-                      minimumSize: const Size(double.infinity, 44),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ),
-                if (!(isPayEnabled?.call(invoice) ?? true))
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(
-                      'Payments open from 1st to 7th',
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
-              ],
-              if (showPayAction) ...[
+              // Pay action — hidden once proof is submitted (awaiting verification).
+              if (showPayAction && !invoice.isAwaitingVerification) ...[
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
