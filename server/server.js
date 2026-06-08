@@ -1090,19 +1090,20 @@ async function startServer() {
                 course_expertise: safeJsonArray(user.course_expertise)
             };
 
-            // If parent, fetch their children
-            if (parsedUser.role === 'Parent') {
-                console.log('[Login] Parent detected, fetching children for parent ID:', parsedUser.id);
-                const childrenResult = await pool.query(
-                    'SELECT id, display_name, name, grade, courses, photo_url, status FROM users WHERE parent_id = $1 AND is_deleted = false ORDER BY display_name',
-                    [parsedUser.id]
-                );
-                console.log('[Login] Children query returned:', childrenResult.rows.length, 'students');
+            // Fetch any linked child profiles (parent_id = this account). This applies to
+            // ANY primary account — a Parent, or a Teacher/Student who is also a parent —
+            // so a single login surfaces every profile in the family. Child profiles have
+            // no login of their own; they are switched to inside the primary's dashboard.
+            const childrenResult = await pool.query(
+                'SELECT id, display_name, name, grade, courses, photo_url, status FROM users WHERE parent_id = $1 AND is_deleted = false ORDER BY display_name',
+                [parsedUser.id]
+            );
+            if (childrenResult.rows.length > 0) {
                 parsedUser.students = childrenResult.rows.map(child => ({
                     ...child,
                     courses: safeJsonArray(child.courses)
                 }));
-                console.log('[Login] Added students array to response:', parsedUser.students.length);
+                console.log(`[Login] Account ${parsedUser.id} (${parsedUser.role}) has ${parsedUser.students.length} linked child profile(s)`);
             }
 
             req.session.user = parsedUser;
@@ -1929,6 +1930,84 @@ Please review and approve this registration in the admin panel.`;
         } catch (error) {
             console.error('Error fetching user:', error);
             res.status(500).json({ message: 'Server error fetching user.' });
+        }
+    });
+
+    // Add a child profile linked to a primary account. The child has no usable login
+    // of its own (a synthetic internal email + random password satisfy the NOT NULL /
+    // UNIQUE constraints, but no one signs in as the child). The family logs in with
+    // the primary account's real email and switches between profiles. This is how one
+    // email — a teacher who is also a parent, or a parent with several children — can
+    // hold multiple people without colliding on the unique email.
+    app.post('/api/users/:id/children', ensureAdmin, async (req, res) => {
+        try {
+            const { id } = req.params;
+            const userData = req.body || {};
+
+            const parentResult = await pool.query('SELECT id, email FROM users WHERE id = $1 AND is_deleted = false', [id]);
+            if (parentResult.rows.length === 0) {
+                return res.status(404).json({ message: 'Primary account not found.' });
+            }
+            if (!userData.name) {
+                return res.status(400).json({ message: 'Child name is required.' });
+            }
+
+            // Generate user_id (NDA-YYYY-XXXX)
+            const year = new Date().getFullYear();
+            const seqResult = await pool.query(`SELECT nextval('user_id_seq') as seq`);
+            const generatedUserId = `NDA-${year}-${String(seqResult.rows[0].seq).padStart(4, '0')}`;
+
+            // Synthetic, unique, non-functional email derived from the parent + user_id.
+            const parentEmail = parentResult.rows[0].email;
+            const syntheticEmail = (parentEmail && parentEmail.includes('@'))
+                ? parentEmail.replace('@', `+${generatedUserId.toLowerCase()}@`)
+                : `${generatedUserId.toLowerCase()}@child.nadanaloga.local`;
+            const placeholderPassword = await bcrypt.hash(uuidv4(), 10);
+
+            const result = await pool.query(
+                `INSERT INTO users (name, email, password, role, class_preference, photo_url, dob, sex, contact_number, address, date_of_joining, courses, father_name, standard, school_name, grade, notes, user_id, preferred_location_id, parent_id, display_name, is_primary)
+                 VALUES ($1, $2, $3, 'Student', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, false) RETURNING *`,
+                [
+                    userData.name,
+                    syntheticEmail,
+                    placeholderPassword,
+                    userData.class_preference || userData.classPreference,
+                    userData.photo_url || userData.photoUrl,
+                    userData.dob, userData.sex,
+                    userData.contact_number || userData.contactNumber,
+                    userData.address,
+                    userData.date_of_joining || userData.dateOfJoining,
+                    JSON.stringify(userData.courses || []),
+                    userData.father_name || userData.fatherName,
+                    userData.standard,
+                    userData.school_name || userData.schoolName,
+                    userData.grade, userData.notes,
+                    generatedUserId,
+                    userData.preferred_location_id || userData.preferredLocationId || null,
+                    id,
+                    userData.display_name || userData.displayName || userData.name,
+                ]
+            );
+
+            res.status(201).json(parseUserData(result.rows[0]));
+        } catch (error) {
+            console.error('Error adding child profile:', error);
+            res.status(500).json({ message: 'Server error adding child profile.' });
+        }
+    });
+
+    // List child profiles linked to a primary account.
+    app.get('/api/users/:id/children', ensureAdmin, async (req, res) => {
+        try {
+            const { id } = req.params;
+            const result = await pool.query(
+                'SELECT * FROM users WHERE parent_id = $1 AND is_deleted = false ORDER BY display_name',
+                [id]
+            );
+            res.json(result.rows.map(parseUserData));
+        } catch (error) {
+            console.error('Error listing child profiles:', error);
+            res.status(500).json({ message: 'Server error listing child profiles.' });
         }
     });
 
