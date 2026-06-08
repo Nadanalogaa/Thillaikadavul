@@ -269,8 +269,11 @@ export const refreshCurrentUser = async (): Promise<User | null> => {
       educationalQualifications: user.educational_qualifications,
       employmentType: user.employment_type,
       yearsOfExperience: user.years_of_experience,
-      dateOfJoining: user.date_of_joining
-    };
+      dateOfJoining: user.date_of_joining,
+      // /api/users/:id doesn't return linked children, so keep the ones loaded
+      // at login (any account can have children: a parent or a teacher-parent).
+      students: user.students || (currentUser as any)?.students || []
+    } as User;
 
     console.log('Mapped user data:', userData);
     console.log('Final courseExpertise:', userData.courseExpertise);

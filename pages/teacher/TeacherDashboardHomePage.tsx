@@ -232,6 +232,28 @@ const TeacherDashboardHomePage: React.FC = () => {
                 </div>
             </div>
 
+            {/* My Children — shown when this teacher is also a parent. One login
+                surfaces every family profile; opens the parent view to switch. */}
+            {((user as any)?.students?.length ?? 0) > 0 && (
+                <div className="relative z-10 px-6 pb-2">
+                    <Link
+                        to="/parent/dashboard"
+                        className="flex items-center justify-between rounded-xl border border-indigo-200 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/20 px-4 py-3 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors"
+                    >
+                        <div className="flex items-center gap-3">
+                            <span className="text-xl">👨‍👩‍👧‍👦</span>
+                            <div>
+                                <p className="text-sm font-semibold text-gray-900 dark:text-white">My Children</p>
+                                <p className="text-xs text-gray-600 dark:text-gray-400">
+                                    View {(user as any).students.length} child {(user as any).students.length === 1 ? 'profile' : 'profiles'} on this account
+                                </p>
+                            </div>
+                        </div>
+                        <span className="text-indigo-600 dark:text-indigo-400 text-sm font-medium">Open →</span>
+                    </Link>
+                </div>
+            )}
+
             {/* Main Content */}
             <div className="relative z-10 px-6 pb-6">
 

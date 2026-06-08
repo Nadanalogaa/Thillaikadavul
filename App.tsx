@@ -265,11 +265,11 @@ function App() {
             <Route path="/admin/notices" element={<AdminProtectedRoute><NoticesManagementPage /></AdminProtectedRoute>} />
             <Route path="/admin/trash" element={<AdminProtectedRoute><TrashPage /></AdminProtectedRoute>} />
 
-            {/* Parent Dashboard */}
+            {/* Parent Dashboard — also reachable by a teacher who is a parent */}
             <Route
               path="/parent/dashboard"
               element={
-                <UserProtectedRoute allowedRoles={[UserRole.Parent]}>
+                <UserProtectedRoute allowedRoles={[UserRole.Parent, UserRole.Teacher]}>
                   <ParentDashboard user={currentUser!} />
                 </UserProtectedRoute>
               }
@@ -277,7 +277,7 @@ function App() {
             <Route
               path="/parent/student/:studentId"
               element={
-                <UserProtectedRoute allowedRoles={[UserRole.Parent]}>
+                <UserProtectedRoute allowedRoles={[UserRole.Parent, UserRole.Teacher]}>
                   <ParentStudentView parentUser={currentUser!} />
                 </UserProtectedRoute>
               }
