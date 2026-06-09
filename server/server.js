@@ -870,6 +870,60 @@ async function startServer() {
         return result.rows;
     };
 
+    // Create a profile linked to an existing account (the family head) so one
+    // email can hold a teacher + her children, or a parent + several students.
+    // The linked profile shares the family's single login: it gets a synthetic,
+    // unique, non-functional email + random password (to satisfy the NOT NULL /
+    // UNIQUE constraints) but nobody signs in as it. Returns the created row.
+    const createLinkedFamilyProfile = async (existingAccountId, userData) => {
+        const headRes = await pool.query('SELECT id, email, parent_id FROM users WHERE id = $1 AND is_deleted = false', [existingAccountId]);
+        if (headRes.rows.length === 0) throw new Error('Existing account not found');
+        const existing = headRes.rows[0];
+        // Always link to the family head, never to another child.
+        const headId = existing.parent_id || existing.id;
+        let headEmail = existing.email;
+        if (existing.parent_id) {
+            const r = await pool.query('SELECT email FROM users WHERE id = $1', [headId]);
+            headEmail = r.rows[0]?.email || existing.email;
+        }
+
+        const year = new Date().getFullYear();
+        const seqResult = await pool.query(`SELECT nextval('user_id_seq') as seq`);
+        const generatedUserId = `NDA-${year}-${String(seqResult.rows[0].seq).padStart(4, '0')}`;
+        const syntheticEmail = (headEmail && headEmail.includes('@'))
+            ? headEmail.replace('@', `+${generatedUserId.toLowerCase()}@`)
+            : `${generatedUserId.toLowerCase()}@child.nadanaloga.local`;
+        const placeholderPassword = await bcrypt.hash(uuidv4(), 10);
+
+        const result = await pool.query(
+            `INSERT INTO users (name, email, password, role, class_preference, photo_url, dob, sex, contact_number, address, date_of_joining, courses, father_name, standard, school_name, grade, notes, course_expertise, user_id, preferred_location_id, parent_id, display_name, is_primary)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, false) RETURNING *`,
+            [
+                userData.name,
+                syntheticEmail,
+                placeholderPassword,
+                userData.role || 'Student',
+                userData.class_preference || userData.classPreference,
+                userData.photo_url || userData.photoUrl,
+                userData.dob, userData.sex,
+                userData.contact_number || userData.contactNumber,
+                userData.address,
+                userData.date_of_joining || userData.dateOfJoining,
+                JSON.stringify(userData.courses || []),
+                userData.father_name || userData.fatherName,
+                userData.standard,
+                userData.school_name || userData.schoolName,
+                userData.grade, userData.notes,
+                JSON.stringify(userData.course_expertise || userData.courseExpertise || []),
+                generatedUserId,
+                userData.preferred_location_id || userData.preferredLocationId || null,
+                headId,
+                userData.display_name || userData.displayName || userData.name,
+            ]
+        );
+        return result.rows[0];
+    };
+
     // --- Fee due-date reminders ---------------------------------------------
     // Sends in-app + push + email reminders to students with unpaid invoices,
     // on a cadence around the due date (default: the 10th of the month). The
@@ -1053,7 +1107,23 @@ async function startServer() {
                     delete parsedUser.password;
                     return res.status(201).json(parsedUser);
                 }
-                return res.status(409).json({ message: 'This email is already registered. Please try logging in.' });
+                // Email already belongs to an active account → attach this person
+                // as a linked family profile (shared single login) rather than
+                // rejecting, so a teacher + her children / a parent + multiple
+                // students can all share one email.
+                try {
+                    const linked = await createLinkedFamilyProfile(existingUser.id, { ...userData });
+                    const parsedLinked = {
+                        ...linked,
+                        courses: safeJsonArray(linked.courses),
+                        course_expertise: safeJsonArray(linked.course_expertise)
+                    };
+                    delete parsedLinked.password;
+                    return res.status(201).json(parsedLinked);
+                } catch (attachErr) {
+                    console.error('[Register] Failed to attach to family:', attachErr.message);
+                    return res.status(409).json({ message: 'This email is already registered. Please try logging in.' });
+                }
             }
 
             if (normalizedEmail === 'admin@nadanaloga.com') {
@@ -1869,7 +1939,14 @@ Nadanaloga Academy Team`;
                     res.status(201).json({ id: newUserId, message: 'Registration successful (re-activated).' });
                     return;
                 }
-                return res.status(409).json({ message: 'This email is already registered. Please try logging in.' });
+                // Email already in use → attach as a linked family profile (shared login).
+                try {
+                    const linked = await createLinkedFamilyProfile(existingUser.id, { ...userData });
+                    return res.status(201).json({ id: linked.id, message: 'Registration successful (added to family).' });
+                } catch (attachErr) {
+                    console.error('[RegisterWithEmail] Failed to attach to family:', attachErr.message);
+                    return res.status(409).json({ message: 'This email is already registered. Please try logging in.' });
+                }
             }
 
             if (normalizedEmail === 'admin@nadanaloga.com') userData.role = 'Admin';
