@@ -44,7 +44,7 @@ class _BatchListScreenState extends State<BatchListScreen> {
               .toList();
           _loadingCourses = false;
           // Expand all courses by default
-          _expandedCourses = _courses.map((c) => c.id).toSet();
+          _expandedCourses = _courses.map<int?>((c) => c.id).toSet();
         });
       }
     } catch (e) {
@@ -86,7 +86,7 @@ class _BatchListScreenState extends State<BatchListScreen> {
                 if (_expandedCourses.length == _courses.length) {
                   _expandedCourses.clear();
                 } else {
-                  _expandedCourses = _courses.map((c) => c.id).toSet();
+                  _expandedCourses = _courses.map<int?>((c) => c.id).toSet();
                 }
               });
             },
