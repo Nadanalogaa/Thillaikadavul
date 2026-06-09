@@ -164,8 +164,9 @@ class BatchModel {
     if (time24.isEmpty) return '';
 
     final parts = time24.split(':');
-    if (parts.length != 2) return time24;
+    if (parts.length < 2) return time24;
 
+    // Accept "HH:MM" and "HH:MM:SS" (Postgres TIME) — ignore any seconds.
     final hour = int.tryParse(parts[0]) ?? 0;
     final minute = parts[1];
 

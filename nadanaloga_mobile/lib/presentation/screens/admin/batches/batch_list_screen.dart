@@ -284,7 +284,7 @@ class _CourseSection extends StatelessWidget {
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
-                  childAspectRatio: 0.85,
+                  childAspectRatio: 0.78,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
                 ),
@@ -427,7 +427,7 @@ class _BatchGridCard extends StatelessWidget {
                           color: AppColors.primary,
                           fontWeight: FontWeight.w500,
                         ),
-                        maxLines: 2,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
