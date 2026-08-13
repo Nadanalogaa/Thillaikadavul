@@ -257,6 +257,7 @@ async function startServer() {
         if (await addColumn('courses', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
         if (await addColumn('fee_structures', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
         if (await addColumn('fee_structures', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+        if (await addColumn('fee_structures', 'grade', 'VARCHAR(100)')) successCount++; else failCount++;
         if (await addColumn('demo_bookings', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
         if (await addColumn('demo_bookings', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
         if (await addColumn('book_materials', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
@@ -1067,6 +1068,115 @@ async function startServer() {
         console.log(`[FeeReminders] Considered ${considered} unpaid invoice(s), sent ${sent} reminder(s).`);
         return { considered, sent };
     };
+
+    // --- Auto monthly invoice generation ------------------------------------
+    const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+    // Choose the best fee structure for a student's course, by grade then batch.
+    // A structure with a specific grade only applies if it matches the student's
+    // grade; a structure with no grade is a generic fallback.
+    const pickBestFeeStructure = (candidates, grade, batchIds) => {
+        const g = (grade || '').trim().toLowerCase();
+        const eligible = candidates.filter((c) => {
+            const cg = (c.grade || '').trim().toLowerCase();
+            return !cg || cg === g;
+        });
+        const search = eligible.length ? eligible : candidates;
+        let best = null, bestScore = -1;
+        for (const c of search) {
+            const cg = (c.grade || '').trim().toLowerCase();
+            let score = 0;
+            if (cg && cg === g) score += 2;
+            if (Array.isArray(c.batch_ids) && c.batch_ids.some((b) => batchIds.includes(b))) score += 1;
+            if (score > bestScore) { bestScore = score; best = c; }
+        }
+        return best;
+    };
+
+    // Create this month's invoice for every active student, from their course +
+    // grade + batch fee. Idempotent: one invoice per student+course+month.
+    const generateMonthlyInvoices = async () => {
+        const now = new Date();
+        const billingPeriod = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
+        const issueDate = toDateStr(new Date(now.getFullYear(), now.getMonth(), 1));
+        const dueDate = toDateStr(new Date(now.getFullYear(), now.getMonth(), 10));
+
+        const coursesRes = await pool.query('SELECT id, name FROM courses');
+        const courseIdByName = {};
+        coursesRes.rows.forEach((c) => { if (c.name) courseIdByName[String(c.name).trim().toLowerCase()] = c.id; });
+        const feeRes = await pool.query('SELECT * FROM fee_structures');
+        const feesByCourse = {};
+        feeRes.rows.forEach((f) => { (feesByCourse[f.course_id] = feesByCourse[f.course_id] || []).push(f); });
+        const batchRes = await pool.query('SELECT id, student_ids FROM batches');
+        const students = await pool.query(
+            "SELECT id, name, grade, courses FROM users WHERE LOWER(role) = 'student' AND is_deleted = false AND (status IS NULL OR status = 'active')"
+        );
+
+        let created = 0, skipped = 0;
+        for (const s of students.rows) {
+            const courseNames = safeJsonArray(s.courses);
+            if (courseNames.length === 0) continue;
+            const studentBatchIds = batchRes.rows
+                .filter((b) => Array.isArray(b.student_ids) && b.student_ids.includes(s.id))
+                .map((b) => b.id);
+
+            for (const cn of courseNames) {
+                const courseId = courseIdByName[String(cn).trim().toLowerCase()];
+                if (!courseId) continue;
+                const candidates = feesByCourse[courseId] || [];
+                if (candidates.length === 0) continue;
+                const best = pickBestFeeStructure(candidates, s.grade, studentBatchIds);
+                const monthly = best ? Number(best.monthly_fee) : 0;
+                if (!best || !monthly || monthly <= 0) continue;
+
+                // Idempotency — already have this student's invoice for this course + month?
+                const exists = await pool.query(
+                    'SELECT id FROM invoices WHERE student_id = $1 AND course_name = $2 AND billing_period = $3 LIMIT 1',
+                    [s.id, cn, billingPeriod]
+                );
+                if (exists.rows.length > 0) { skipped++; continue; }
+
+                // Apply any active per-student discount for this course.
+                let discountPct = null, discountAmt = null, finalAmount = monthly;
+                const dRes = await pool.query(
+                    `SELECT discount_percentage FROM student_discounts
+                     WHERE student_id = $1 AND course_id = $2 AND is_active = TRUE
+                     ORDER BY CASE WHEN discount_type = 'batch' THEN 1 ELSE 2 END, discount_percentage DESC LIMIT 1`,
+                    [s.id, courseId]
+                );
+                if (dRes.rows.length > 0) {
+                    discountPct = parseFloat(dRes.rows[0].discount_percentage);
+                    discountAmt = (monthly * discountPct) / 100;
+                    finalAmount = monthly - discountAmt;
+                }
+
+                const inv = await pool.query(
+                    `INSERT INTO invoices (student_id, fee_structure_id, course_name, amount, currency, issue_date, due_date, billing_period, status, original_amount, discount_percentage, discount_amount)
+                     VALUES ($1, $2, $3, $4, 'INR', $5, $6, $7, 'pending', $8, $9, $10) RETURNING id`,
+                    [s.id, best.id, cn, finalAmount, issueDate, dueDate, billingPeriod, monthly, discountPct, discountAmt]
+                );
+                created++;
+                try {
+                    createNotificationForUser(s.id, `${MONTH_NAMES[now.getMonth()]} Fee Ready`,
+                        `Your ${cn} fee of INR ${finalAmount} for ${billingPeriod} is ready. Please pay by ${dueDate}.`, 'Info');
+                } catch (_) {}
+                console.log(`[MonthlyInvoices] Invoice #${inv.rows[0].id} for ${s.name} (${cn}) ${billingPeriod}`);
+            }
+        }
+        console.log(`[MonthlyInvoices] ${billingPeriod}: created ${created}, skipped ${skipped} (already existed).`);
+        return { billingPeriod, created, skipped };
+    };
+
+    // Manual trigger so an admin can generate this month's invoices on demand.
+    app.post('/api/admin/generate-monthly-invoices', ensureAdmin, async (req, res) => {
+        try {
+            const result = await generateMonthlyInvoices();
+            res.json({ message: 'Monthly invoices generated.', ...result });
+        } catch (error) {
+            console.error('Error generating monthly invoices:', error);
+            res.status(500).json({ message: 'Server error generating monthly invoices.' });
+        }
+    });
 
     // Manual trigger so an admin can fire the reminder run on demand.
     app.post('/api/admin/run-fee-reminders', ensureAdmin, async (req, res) => {
@@ -3260,11 +3370,11 @@ Please review and approve this registration in the admin panel.`;
 
     app.post('/api/fee-structures', ensureSuperAdmin, async (req, res) => {
         try {
-            const { course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee, batch_ids } = req.body;
+            const { course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee, batch_ids, grade } = req.body;
             const result = await pool.query(
-                `INSERT INTO fee_structures (course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee, batch_ids)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-                [course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee, batch_ids || []]
+                `INSERT INTO fee_structures (course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee, batch_ids, grade)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+                [course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee, batch_ids || [], grade || null]
             );
             res.status(201).json(result.rows[0]);
 
@@ -3294,13 +3404,13 @@ Please review and approve this registration in the admin panel.`;
     app.put('/api/fee-structures/:id', ensureSuperAdmin, async (req, res) => {
         try {
             const { id } = req.params;
-            const { course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee, batch_ids } = req.body;
+            const { course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee, batch_ids, grade } = req.body;
             const result = await pool.query(
                 `UPDATE fee_structures SET
                     course_id = $1, mode = $2, monthly_fee = $3, quarterly_fee = $4,
-                    half_yearly_fee = $5, annual_fee = $6, batch_ids = $7, updated_at = NOW()
-                 WHERE id = $8 RETURNING *`,
-                [course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee, batch_ids || [], id]
+                    half_yearly_fee = $5, annual_fee = $6, batch_ids = $7, grade = $8, updated_at = NOW()
+                 WHERE id = $9 RETURNING *`,
+                [course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee, batch_ids || [], grade || null, id]
             );
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: 'Fee structure not found' });
@@ -4864,7 +4974,11 @@ Please review and approve this registration in the admin panel.`;
         // guard keeps it to at most one reminder per invoice per day regardless of
         // how often this fires (restarts, the 6-hour cadence, manual triggers).
         const SIX_HOURS = 6 * 60 * 60 * 1000;
-        const safeRun = () => runFeeReminders().catch(e => console.error('[FeeReminders] run failed:', e.message));
+        const safeRun = async () => {
+            // Generate this month's invoices first (idempotent), then chase unpaid ones.
+            await generateMonthlyInvoices().catch(e => console.error('[MonthlyInvoices] run failed:', e.message));
+            await runFeeReminders().catch(e => console.error('[FeeReminders] run failed:', e.message));
+        };
         setTimeout(safeRun, 60 * 1000); // 1 min after startup
         setInterval(safeRun, SIX_HOURS);
     });
