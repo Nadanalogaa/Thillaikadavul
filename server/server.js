@@ -1546,7 +1546,7 @@ What happens next?
 ✅ You'll receive a confirmation email once approved
 ✅ We'll contact you to discuss class schedules and batch allocation
 
-If you have any questions, feel free to contact us at nadanalogaa@gmail.com.
+If you have any questions, feel free to contact us at nadanaloga2026@gmail.com.
 
 Welcome to the Nadanaloga family!`;
 
@@ -1584,7 +1584,7 @@ Please review and approve this registration in the admin panel.`;
 
                 const adminMailOptions = {
                     from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
-                    to: 'nadanalogaa@gmail.com',
+                    to: 'nadanaloga2026@gmail.com',
                     subject: 'New Student Registration - Nadanaloga Academy',
                     html: createEmailTemplate('Admin', 'New Student Registration', adminMessage)
                 };
@@ -2162,7 +2162,7 @@ What happens next?
 ✅ You'll receive a confirmation email once approved
 ✅ We'll contact you to discuss class schedules and batch allocation
 
-If you have any questions, feel free to contact us at nadanalogaa@gmail.com.
+If you have any questions, feel free to contact us at nadanaloga2026@gmail.com.
 
 Welcome to the Nadanaloga family!`;
 
@@ -2200,7 +2200,7 @@ Please review and approve this registration in the admin panel.`;
 
                     const adminMailOptions = {
                         from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
-                        to: 'nadanalogaa@gmail.com',
+                        to: 'nadanaloga2026@gmail.com',
                         subject: 'New Student Registration - Nadanaloga Academy',
                         html: createEmailTemplate('Admin', 'New Student Registration', adminMessage)
                     };

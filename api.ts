@@ -447,7 +447,7 @@ This message was sent from the Nadanaloga Fine Arts Academy contact form.
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        to: 'nadanalogaa@gmail.com',
+        to: 'nadanaloga2026@gmail.com',
         subject: data.subject ? `Contact Form: ${data.subject}` : 'Contact Form Submission',
         body: emailBody,
         recipientName: 'Admin'

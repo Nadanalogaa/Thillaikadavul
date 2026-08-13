@@ -65,7 +65,7 @@ services:
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
-      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-"Nadanaloga <nadanalogaa@gmail.com>"}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-"Nadanaloga <nadanaloga2026@gmail.com>"}
       
       # Client URL for CORS
       CLIENT_URL: ${CLIENT_URL:-}

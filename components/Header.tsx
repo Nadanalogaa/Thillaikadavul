@@ -255,12 +255,12 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
 
               {/* Email */}
               <a
-                href="mailto:nadanalogaa@gmail.com"
+                href="mailto:nadanaloga2026@gmail.com"
                 className={`${theme === 'dark' ? 'text-gray-300 hover:text-indigo-400' : 'text-gray-700 hover:text-indigo-600'} transition-colors flex items-center space-x-1`}
                 title="Email us"
               >
                 <Mail className="w-3 h-3" />
-                <span className="font-medium">nadanalogaa@gmail.com</span>
+                <span className="font-medium">nadanaloga2026@gmail.com</span>
               </a>
             </div>
 
@@ -641,11 +641,11 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
                   </a>
                 </div>
                 <a
-                  href="mailto:nadanalogaa@gmail.com"
+                  href="mailto:nadanaloga2026@gmail.com"
                   className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} flex items-center space-x-2 py-1.5 px-2 text-xs`}
                 >
                   <Mail className="w-3.5 h-3.5" />
-                  <span>nadanalogaa@gmail.com</span>
+                  <span>nadanaloga2026@gmail.com</span>
                 </a>
               </div>
             </div>

@@ -219,7 +219,7 @@ This enrollment request was submitted through the Nadanaloga Fine Arts Academy w
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            to: 'nadanalogaa@gmail.com',
+            to: 'nadanaloga2026@gmail.com',
             subject: `New Enrollment Request - ${courseTitle}`,
             body: emailBody,
             recipientName: 'Admin'
