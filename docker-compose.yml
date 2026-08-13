@@ -66,7 +66,19 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-"Nadanaloga <nadanaloga2026@gmail.com>"}
-      
+
+      # Razorpay online payments
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
+
+      # WhatsApp admin alerts (Meta Cloud API)
+      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+      WHATSAPP_ADMIN_NUMBER: ${WHATSAPP_ADMIN_NUMBER:-}
+      WHATSAPP_TEMPLATE_NAME: ${WHATSAPP_TEMPLATE_NAME:-}
+      WHATSAPP_TEMPLATE_LANG: ${WHATSAPP_TEMPLATE_LANG:-en}
+
       # Client URL for CORS
       CLIENT_URL: ${CLIENT_URL:-}
     volumes:
