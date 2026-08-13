@@ -875,6 +875,49 @@ async function startServer() {
         return result.rows;
     };
 
+    // Send a WhatsApp alert to the admin via Meta WhatsApp Cloud API. No-ops until
+    // the env vars are set, so nothing breaks before onboarding is complete.
+    // Requires an approved template with 3 body params: {{1}} name, {{2}} amount, {{3}} txn.
+    const notifyAdminWhatsApp = async (studentName, amountStr, txnId, invoiceId) => {
+        const token = process.env.WHATSAPP_ACCESS_TOKEN;
+        const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+        const adminNumber = process.env.WHATSAPP_ADMIN_NUMBER;
+        const templateName = process.env.WHATSAPP_TEMPLATE_NAME;
+        const lang = process.env.WHATSAPP_TEMPLATE_LANG || 'en';
+        if (!token || !phoneNumberId || !adminNumber || !templateName) return; // not configured
+        try {
+            const resp = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    messaging_product: 'whatsapp',
+                    to: adminNumber,
+                    type: 'template',
+                    template: {
+                        name: templateName,
+                        language: { code: lang },
+                        components: [{
+                            type: 'body',
+                            parameters: [
+                                { type: 'text', text: String(studentName) },
+                                { type: 'text', text: String(amountStr) },
+                                { type: 'text', text: String(txnId) },
+                            ],
+                        }],
+                    },
+                }),
+            });
+            if (!resp.ok) {
+                const err = await resp.text();
+                console.error('[WhatsApp] send failed:', resp.status, err);
+            } else {
+                console.log(`[WhatsApp] Admin alerted for invoice #${invoiceId}`);
+            }
+        } catch (e) {
+            console.error('[WhatsApp] error:', e.message);
+        }
+    };
+
     // Create a profile linked to an existing account (the family head) so one
     // email can hold a teacher + her children, or a parent + several students.
     // The linked profile shares the family's single login: it gets a synthetic,
@@ -4117,15 +4160,20 @@ Please review and approve this registration in the admin panel.`;
         (async () => {
             try {
                 const amountStr = `${invoice.currency || 'INR'} ${invoice.amount}`;
+                let studentName = 'A student';
                 if (invoice.student_id) {
+                    const sr = await pool.query('SELECT name FROM users WHERE id = $1', [invoice.student_id]);
+                    studentName = sr.rows[0]?.name || studentName;
                     createNotificationForUser(invoice.student_id, 'Payment Received ✅',
                         `Your payment of ${amountStr} for ${invoice.course_name || 'fees'} was received. Thank you!`, 'Success');
                 }
+                const adminMsg = `${studentName} paid ${amountStr} for ${invoice.course_name || 'fees'} (Invoice #${invoiceId}). Txn: ${paymentId}`;
                 const admins = await getActiveAdmins();
                 for (const admin of admins) {
-                    createNotificationForUser(admin.id, 'Fee Payment Received',
-                        `Online payment of ${amountStr} received for Invoice #${invoiceId} (txn ${paymentId}).`, 'Success');
+                    createNotificationForUser(admin.id, 'Fee Payment Received', adminMsg, 'Success');
                 }
+                // WhatsApp alert to admin (no-op until Meta Cloud API is configured)
+                notifyAdminWhatsApp(studentName, amountStr, paymentId, invoiceId);
             } catch (e) { console.error('[Razorpay] notify error:', e.message); }
         })();
         console.log(`[Razorpay] Invoice #${invoiceId} auto-marked paid (payment ${paymentId})`);
