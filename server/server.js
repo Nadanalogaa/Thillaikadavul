@@ -10,6 +10,7 @@ const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 
 // Load environment variables
 dotenv.config();
@@ -678,7 +679,11 @@ async function startServer() {
     // --- Middleware ---
     // Trust first proxy (nginx) so secure cookies work behind reverse proxy
     app.set('trust proxy', 1);
-    app.use(express.json({ limit: '50mb' }));
+    app.use(express.json({
+        limit: '50mb',
+        // Keep the raw body so the Razorpay webhook can verify its HMAC signature.
+        verify: (req, res, buf) => { req.rawBody = buf; }
+    }));
     app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
     const whitelist = [
@@ -4078,6 +4083,150 @@ Please review and approve this registration in the admin panel.`;
         } catch (error) {
             console.error('Error deleting location:', error);
             res.status(500).json({ message: 'Server error deleting location.' });
+        }
+    });
+
+    // --- Razorpay online payments (auto-confirmed, no manual verification) ---
+    const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || '';
+    const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '';
+    const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || '';
+    const razorpayConfigured = () => RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET;
+
+    // Mark an invoice paid from a verified Razorpay payment + notify (idempotent).
+    const markInvoicePaidFromRazorpay = async (invoiceId, paymentId, amountPaise) => {
+        const invRes = await pool.query('SELECT * FROM invoices WHERE id = $1', [invoiceId]);
+        if (invRes.rows.length === 0) return;
+        const invoice = invRes.rows[0];
+        if (invoice.status === 'paid') return; // already done
+
+        // Skip if we already recorded this exact payment.
+        const dup = await pool.query('SELECT id FROM invoice_payments WHERE transaction_id = $1 LIMIT 1', [paymentId]);
+        if (dup.rows.length > 0) return;
+
+        await pool.query(
+            `INSERT INTO invoice_payments (invoice_id, student_id, amount, payment_method, transaction_id, payment_date, proof_url, status, approved_at)
+             VALUES ($1, $2, $3, 'Razorpay', $4, CURRENT_DATE, NULL, 'approved', NOW())`,
+            [invoiceId, invoice.student_id, (amountPaise != null ? amountPaise / 100 : invoice.amount), paymentId]
+        );
+        await pool.query(
+            `UPDATE invoices SET status = 'paid', payment_details = $1, updated_at = NOW() WHERE id = $2`,
+            [{ payment_method: 'Razorpay', transaction_id: paymentId, payment_date: new Date().toISOString().split('T')[0], payment_status: 'approved' }, invoiceId]
+        );
+
+        // Notify student + admins (fire-and-forget)
+        (async () => {
+            try {
+                const amountStr = `${invoice.currency || 'INR'} ${invoice.amount}`;
+                if (invoice.student_id) {
+                    createNotificationForUser(invoice.student_id, 'Payment Received ✅',
+                        `Your payment of ${amountStr} for ${invoice.course_name || 'fees'} was received. Thank you!`, 'Success');
+                }
+                const admins = await getActiveAdmins();
+                for (const admin of admins) {
+                    createNotificationForUser(admin.id, 'Fee Payment Received',
+                        `Online payment of ${amountStr} received for Invoice #${invoiceId} (txn ${paymentId}).`, 'Success');
+                }
+            } catch (e) { console.error('[Razorpay] notify error:', e.message); }
+        })();
+        console.log(`[Razorpay] Invoice #${invoiceId} auto-marked paid (payment ${paymentId})`);
+    };
+
+    // Create a Razorpay order for an invoice; the app opens checkout with it.
+    app.post('/api/invoices/:id/razorpay-order', ensureAuthenticated, async (req, res) => {
+        try {
+            if (!razorpayConfigured()) {
+                return res.status(503).json({ message: 'Online payments are not configured yet.' });
+            }
+            const { id } = req.params;
+            const invRes = await pool.query('SELECT * FROM invoices WHERE id = $1', [id]);
+            if (invRes.rows.length === 0) return res.status(404).json({ message: 'Invoice not found' });
+            const invoice = invRes.rows[0];
+
+            const user = req.session.user;
+            const isAdminUser = (user?.role && user.role.toLowerCase() === 'admin') || user?.is_super_admin === true;
+            if (!isAdminUser && invoice.student_id !== user?.id) {
+                return res.status(403).json({ message: 'Forbidden.' });
+            }
+            if (invoice.status === 'paid') return res.status(400).json({ message: 'Invoice already paid.' });
+
+            const amountPaise = Math.round(Number(invoice.amount) * 100);
+            const auth = Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString('base64');
+            const rpRes = await fetch('https://api.razorpay.com/v1/orders', {
+                method: 'POST',
+                headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    amount: amountPaise,
+                    currency: invoice.currency || 'INR',
+                    receipt: `invoice_${id}`,
+                    notes: { invoice_id: String(id), student_id: String(invoice.student_id || '') }
+                })
+            });
+            const order = await rpRes.json();
+            if (!rpRes.ok) {
+                console.error('[Razorpay] order creation failed:', order);
+                return res.status(502).json({ message: 'Could not create payment order.' });
+            }
+            res.json({
+                order_id: order.id,
+                amount: amountPaise,
+                currency: invoice.currency || 'INR',
+                key_id: RAZORPAY_KEY_ID,
+                invoice_id: Number(id),
+                name: 'Nadanaloga Academy',
+                description: invoice.course_name || 'Fee payment',
+                prefill: { name: user?.name || '', email: user?.email || '', contact: user?.contact_number || '' }
+            });
+        } catch (error) {
+            console.error('Error creating Razorpay order:', error);
+            res.status(500).json({ message: 'Server error creating payment order.' });
+        }
+    });
+
+    // Verify a checkout result from the app (instant confirmation path).
+    app.post('/api/razorpay/verify-payment', ensureAuthenticated, async (req, res) => {
+        try {
+            if (!razorpayConfigured()) return res.status(503).json({ message: 'Online payments not configured.' });
+            const { razorpay_order_id, razorpay_payment_id, razorpay_signature, invoice_id } = req.body;
+            if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+                return res.status(400).json({ message: 'Missing payment verification fields.' });
+            }
+            const expected = crypto.createHmac('sha256', RAZORPAY_KEY_SECRET)
+                .update(`${razorpay_order_id}|${razorpay_payment_id}`).digest('hex');
+            if (expected !== razorpay_signature) {
+                return res.status(400).json({ message: 'Payment signature verification failed.' });
+            }
+            if (invoice_id) await markInvoicePaidFromRazorpay(Number(invoice_id), razorpay_payment_id, null);
+            res.json({ message: 'Payment verified.', verified: true });
+        } catch (error) {
+            console.error('Error verifying Razorpay payment:', error);
+            res.status(500).json({ message: 'Server error verifying payment.' });
+        }
+    });
+
+    // Razorpay webhook — the authoritative confirmation (server-to-server).
+    app.post('/api/razorpay/webhook', async (req, res) => {
+        try {
+            if (!RAZORPAY_WEBHOOK_SECRET) return res.status(503).end();
+            const signature = req.headers['x-razorpay-signature'];
+            const expected = crypto.createHmac('sha256', RAZORPAY_WEBHOOK_SECRET)
+                .update(req.rawBody || Buffer.from('')).digest('hex');
+            if (signature !== expected) {
+                console.warn('[Razorpay] webhook signature mismatch');
+                return res.status(400).end();
+            }
+            const event = req.body?.event;
+            const entity = req.body?.payload?.payment?.entity || req.body?.payload?.order?.entity;
+            if (event === 'payment.captured' || event === 'order.paid') {
+                const paymentId = req.body?.payload?.payment?.entity?.id;
+                const amount = req.body?.payload?.payment?.entity?.amount;
+                const invoiceId = entity?.notes?.invoice_id ||
+                    req.body?.payload?.order?.entity?.notes?.invoice_id;
+                if (invoiceId) await markInvoicePaidFromRazorpay(Number(invoiceId), paymentId, amount);
+            }
+            res.status(200).json({ received: true });
+        } catch (error) {
+            console.error('Razorpay webhook error:', error);
+            res.status(500).end();
         }
     });
 
