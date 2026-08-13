@@ -567,6 +567,24 @@ class _FeeStructureCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                if (fee.grade != null && fee.grade!.isNotEmpty) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'Grade: ${fee.grade!}',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ],
                 const Spacer(),
                 PopupMenuButton<String>(
                   padding: EdgeInsets.zero,

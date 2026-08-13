@@ -7,6 +7,7 @@ class FeeStructureModel {
   final double? halfYearlyFee;
   final double? annualFee;
   final List<int> batchIds;
+  final String? grade;
   final String? createdAt;
   final String? updatedAt;
 
@@ -19,6 +20,7 @@ class FeeStructureModel {
     this.halfYearlyFee,
     this.annualFee,
     this.batchIds = const [],
+    this.grade,
     this.createdAt,
     this.updatedAt,
   });
@@ -33,6 +35,7 @@ class FeeStructureModel {
       halfYearlyFee: _parseDouble(json['half_yearly_fee']),
       annualFee: _parseDouble(json['annual_fee']),
       batchIds: _parseIntList(json['batch_ids']),
+      grade: json['grade'] as String?,
       createdAt: json['created_at'] as String?,
       updatedAt: json['updated_at'] as String?,
     );
@@ -47,6 +50,7 @@ class FeeStructureModel {
       'half_yearly_fee': halfYearlyFee,
       'annual_fee': annualFee,
       'batch_ids': batchIds,
+      'grade': grade,
     };
   }
 

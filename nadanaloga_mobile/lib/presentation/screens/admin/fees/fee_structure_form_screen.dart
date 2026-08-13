@@ -30,6 +30,7 @@ class _FeeStructureFormScreenState extends State<FeeStructureFormScreen> {
   final _quarterlyController = TextEditingController();
   final _halfYearlyController = TextEditingController();
   final _annualController = TextEditingController();
+  final _gradeController = TextEditingController();
 
   int? _courseId;
   String _mode = 'Hybrid';
@@ -84,6 +85,7 @@ class _FeeStructureFormScreenState extends State<FeeStructureFormScreen> {
             _halfYearlyController.text =
                 fs.halfYearlyFee?.toStringAsFixed(0) ?? '';
             _annualController.text = fs.annualFee?.toStringAsFixed(0) ?? '';
+            _gradeController.text = fs.grade ?? '';
 
             // Filter batches for the selected course
             if (_courseId != null) {
@@ -115,6 +117,7 @@ class _FeeStructureFormScreenState extends State<FeeStructureFormScreen> {
     _quarterlyController.dispose();
     _halfYearlyController.dispose();
     _annualController.dispose();
+    _gradeController.dispose();
     super.dispose();
   }
 
@@ -139,6 +142,9 @@ class _FeeStructureFormScreenState extends State<FeeStructureFormScreen> {
       'half_yearly_fee': _parseAmount(_halfYearlyController.text),
       'annual_fee': _parseAmount(_annualController.text),
       'batch_ids': _selectedBatchIds,
+      'grade': _gradeController.text.trim().isEmpty
+          ? null
+          : _gradeController.text.trim(),
     };
 
     if (widget.isEditing) {
@@ -330,6 +336,17 @@ class _FeeStructureFormScreenState extends State<FeeStructureFormScreen> {
                         onChanged: (v) {
                           if (v != null) setState(() => _mode = v);
                         },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Grade (optional) \u2014 leave blank to apply to all grades.
+                      TextFormField(
+                        controller: _gradeController,
+                        decoration: const InputDecoration(
+                          labelText: 'Grade (optional)',
+                          hintText: 'e.g. Beginner / Advanced \u2014 blank = all grades',
+                          prefixIcon: Icon(Icons.school_outlined),
+                        ),
                       ),
                       const SizedBox(height: 24),
 
