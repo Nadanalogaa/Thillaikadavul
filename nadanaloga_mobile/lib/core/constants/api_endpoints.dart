@@ -69,6 +69,8 @@ class ApiEndpoints {
   static const String invoices = '$apiPrefix/invoices';
   static String invoiceById(int id) => '$apiPrefix/invoices/$id';
   static String invoicePaymentProof(int id) => '$apiPrefix/invoices/$id/payment-proof';
+  static String razorpayOrder(int id) => '$apiPrefix/invoices/$id/razorpay-order';
+  static const String razorpayVerify = '$apiPrefix/razorpay/verify-payment';
   static const String invoicePayments = '$apiPrefix/invoice-payments';
   static String invoicePaymentById(int id) => '$apiPrefix/invoice-payments/$id';
 

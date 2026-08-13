@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
@@ -35,10 +36,17 @@ class _StudentFeesScreenState extends State<StudentFeesScreen>
   bool _uploadingReceipt = false;
   bool _handledInitialPayment = false;
 
+  late final Razorpay _razorpay;
+  InvoiceModel? _payingInvoice; // invoice currently in Razorpay checkout
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _onPaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _onExternalWallet);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _openInitialPaymentIfNeeded();
@@ -71,7 +79,94 @@ class _StudentFeesScreenState extends State<StudentFeesScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _razorpay.clear();
     super.dispose();
+  }
+
+  // --- Razorpay online payment (auto-confirmed) ---
+  Future<void> _payOnline(InvoiceModel invoice) async {
+    try {
+      final response = await _apiClient.createRazorpayOrder(invoice.id);
+      if (response.statusCode != 200 || response.data == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response.data?['message'] ?? 'Could not start payment.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
+      final data = response.data as Map<String, dynamic>;
+      _payingInvoice = invoice;
+      final prefill = (data['prefill'] as Map?) ?? {};
+      _razorpay.open({
+        'key': data['key_id'],
+        'order_id': data['order_id'],
+        'amount': data['amount'],
+        'currency': data['currency'] ?? 'INR',
+        'name': data['name'] ?? 'Nadanaloga Academy',
+        'description': data['description'] ?? 'Fee payment',
+        'prefill': {
+          'contact': prefill['contact'] ?? '',
+          'email': prefill['email'] ?? '',
+          'name': prefill['name'] ?? '',
+        },
+        'theme': {'color': '#3F51B5'},
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error),
+      );
+    }
+  }
+
+  Future<void> _onPaymentSuccess(PaymentSuccessResponse res) async {
+    final invoice = _payingInvoice;
+    try {
+      await _apiClient.verifyRazorpayPayment(
+        orderId: res.orderId ?? '',
+        paymentId: res.paymentId ?? '',
+        signature: res.signature ?? '',
+        invoiceId: invoice?.id ?? 0,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Payment successful! ✓ Invoice marked paid.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      widget.onRefresh();
+    } catch (e) {
+      if (!mounted) return;
+      // Payment went through at Razorpay; the webhook will still confirm it.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Payment received. It will reflect shortly.'),
+          backgroundColor: AppColors.info,
+        ),
+      );
+      widget.onRefresh();
+    } finally {
+      _payingInvoice = null;
+    }
+  }
+
+  void _onPaymentError(PaymentFailureResponse res) {
+    _payingInvoice = null;
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(res.message ?? 'Payment cancelled or failed.'),
+        backgroundColor: AppColors.error,
+      ),
+    );
+  }
+
+  void _onExternalWallet(ExternalWalletResponse res) {
+    // No-op: external wallet selected; confirmation still flows via webhook.
   }
 
   bool _isPaymentDue(InvoiceModel invoice) {
@@ -139,6 +234,34 @@ class _StudentFeesScreenState extends State<StudentFeesScreen>
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
+            // Primary: online payment (UPI/Card) — auto-confirmed, no receipt needed.
+            _buildPaymentButton(
+              'Pay Now (UPI / Card)',
+              Icons.lock,
+              AppColors.primary,
+              () {
+                Navigator.pop(context);
+                _payOnline(invoice);
+              },
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Instant & secure — no receipt upload needed',
+              style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Row(children: [
+              const Expanded(child: Divider()),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text('or pay manually',
+                    style: AppTextStyles.caption
+                        .copyWith(color: AppColors.textSecondary)),
+              ),
+              const Expanded(child: Divider()),
+            ]),
+            const SizedBox(height: 16),
             _buildPaymentButton(
               'Google Pay',
               Icons.account_balance_wallet,

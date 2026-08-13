@@ -141,6 +141,26 @@ class ApiClient {
     return _dio.get(ApiEndpoints.userChildren(parentId));
   }
 
+  /// Create a Razorpay order for an invoice (returns order_id, key_id, amount…).
+  Future<Response> createRazorpayOrder(int invoiceId) {
+    return _dio.post(ApiEndpoints.razorpayOrder(invoiceId));
+  }
+
+  /// Verify a Razorpay checkout result so the invoice is marked paid.
+  Future<Response> verifyRazorpayPayment({
+    required String orderId,
+    required String paymentId,
+    required String signature,
+    required int invoiceId,
+  }) {
+    return _dio.post(ApiEndpoints.razorpayVerify, data: {
+      'razorpay_order_id': orderId,
+      'razorpay_payment_id': paymentId,
+      'razorpay_signature': signature,
+      'invoice_id': invoiceId,
+    });
+  }
+
   Future<Response> makeAdmin(int id) {
     return _dio.put(ApiEndpoints.makeAdmin(id));
   }
