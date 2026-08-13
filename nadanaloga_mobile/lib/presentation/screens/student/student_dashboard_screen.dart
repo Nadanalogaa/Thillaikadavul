@@ -187,13 +187,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     });
   }
 
-  List<InvoiceModel> get _urgentFees {
-    final now = DateTime.now();
-    return widget.invoices.where((i) {
-      if (i.status != 'pending') return false;
-      return now.day >= 1 && now.day <= 7;
-    }).toList();
-  }
 
   bool _isInCurrentMonth(String? dateStr) {
     if (dateStr == null) return false;
@@ -273,6 +266,17 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.05, end: 0),
                   const SizedBox(height: 20),
 
+                  // This month's fee — the first thing a student sees on login.
+                  if (_currentMonthInvoice != null) ...[
+                    Text("This Month's Fee", style: AppTextStyles.h4),
+                    const SizedBox(height: 12),
+                    _MonthlyFeeCard(
+                      invoice: _currentMonthInvoice,
+                      onPayNow: (invoiceId) => widget.onOpenFees(invoiceId),
+                    ).animate(delay: 100.ms).fadeIn().slideY(begin: -0.05, end: 0),
+                    const SizedBox(height: 20),
+                  ],
+
                   // Batch Status - Show "Batch Pending" if no batches
                   if (widget.batches.isEmpty)
                     Container(
@@ -316,72 +320,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                         ],
                       ),
                     ).animate(delay: 150.ms).fadeIn().slideY(begin: -0.1, end: 0),
-
-                  // Urgent Fees Section (only if batches exist)
-                  if (widget.batches.isNotEmpty && _urgentFees.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      'Urgent: Fees Due (Pay by 7th)',
-                      style: AppTextStyles.h3.copyWith(color: AppColors.error),
-                    ),
-                    const SizedBox(height: 12),
-                    ..._urgentFees.map((invoice) => Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: AppColors.warning.withValues(alpha: 0.3)),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.payment, color: AppColors.warning, size: 28),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        invoice.courseName ?? 'Fee Payment',
-                                        style: AppTextStyles.bodyLarge.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      Text(
-                                        '₹${invoice.amount ?? 0}',
-                                        style: AppTextStyles.h3.copyWith(
-                                          color: AppColors.warning,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            ElevatedButton.icon(
-                              onPressed: () => widget.onOpenFees(invoice.id),
-                              icon: const Icon(Icons.payment, size: 20),
-                              label: const Text('Pay Now'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.secondary,
-                                foregroundColor: Colors.black,
-                                minimumSize: const Size(double.infinity, 48),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )).toList(),
-                  ],
 
                   if (widget.batches.isNotEmpty)
                     const SizedBox(height: 24),
@@ -482,15 +420,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
                   // Upcoming Classes / Schedule Preview
                   if (widget.batches.isNotEmpty) ...[
-                    Text('Fees This Month', style: AppTextStyles.h4)
-                        .animate(delay: 430.ms)
-                        .fadeIn(),
-                    const SizedBox(height: 12),
-                    _MonthlyFeeCard(
-                      invoice: _currentMonthInvoice,
-                      onPayNow: (invoiceId) => widget.onOpenFees(invoiceId),
-                    ),
-                    const SizedBox(height: 24),
                     Text('Your Schedule', style: AppTextStyles.h4)
                         .animate(delay: 450.ms)
                         .fadeIn(),
@@ -727,8 +656,9 @@ class _MonthlyFeeCard extends StatelessWidget {
     final status = invoice!.status;
     final isPaid = status == 'paid';
     final isProcessing = !isPaid &&
-        invoice!.paymentDetails != null &&
-        invoice!.paymentDetails!.isNotEmpty;
+        (invoice!.isAwaitingVerification ||
+            (invoice!.paymentDetails != null &&
+                invoice!.paymentDetails!.isNotEmpty));
     final color = isPaid ? AppColors.success : AppColors.warning;
 
     return Container(
