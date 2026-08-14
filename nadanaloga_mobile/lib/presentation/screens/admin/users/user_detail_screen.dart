@@ -391,57 +391,10 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
 
             // Enrollment — admin assigns the student's grade per course (drives fees).
             if (user.role == 'Student') ...[
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _SectionHeader(title: 'Grades & Fees (Enrollment)'),
-                  TextButton.icon(
-                    onPressed: () => _showAssignGrade(user),
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Assign Grade'),
-                  ),
-                ],
-              ),
-              if (_studentGrades.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 8),
-                  child: Text(
-                    'No grade assigned yet. Use "Assign Grade" to set the '
-                    'student\'s grade for each course — this sets their fee.',
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.textSecondary),
-                  ),
-                )
-              else
-                ..._studentGrades.map(
-                  (sg) => Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                        child: const Icon(Icons.grade,
-                            color: AppColors.primary, size: 20),
-                      ),
-                      title: Text('${sg.courseName ?? 'Course'} — ${sg.gradeName ?? 'Grade'}'),
-                      subtitle: Text('₹${sg.monthlyFee.toStringAsFixed(0)} / month',
-                          style: AppTextStyles.caption),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.edit, size: 20),
-                        onPressed: () => _showAssignGrade(user, existing: sg),
-                      ),
-                    ),
-                  ),
-                ),
-              if (_studentGrades.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(left: 4, top: 4),
-                  child: Text(
-                    'Total: ₹${_studentGrades.fold<double>(0, (s, g) => s + g.monthlyFee).toStringAsFixed(0)} / month',
-                    style: AppTextStyles.labelLarge
-                        .copyWith(color: AppColors.primary),
-                  ),
-                ),
+              const SizedBox(height: 20),
+              _SectionHeader(title: 'Grades & Fees'),
+              const SizedBox(height: 10),
+              _gradesFeesCard(user),
             ],
 
             const SizedBox(height: 32),
@@ -640,11 +593,144 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
     );
   }
 
-  void _showAssignGrade(UserModel student, {StudentGradeModel? existing}) {
+  Widget _gradesFeesCard(UserModel user) {
+    final total =
+        _studentGrades.fold<double>(0, (s, g) => s + g.monthlyFee);
+    final gradedCount = _studentGrades.length;
+    final courseCount = user.courses.length;
+
+    StudentGradeModel? gradeFor(String courseName) {
+      for (final g in _studentGrades) {
+        if ((g.courseName ?? '').toLowerCase() == courseName.toLowerCase()) {
+          return g;
+        }
+      }
+      return null;
+    }
+
+    int? courseIdFor(String courseName) {
+      for (final c in _allCourses) {
+        if (c.name.toLowerCase() == courseName.toLowerCase()) return c.id;
+      }
+      return null;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Total banner
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColors.primary,
+                AppColors.primary.withValues(alpha: 0.75),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Monthly Fee',
+                        style: TextStyle(color: Colors.white70, fontSize: 13)),
+                    const SizedBox(height: 2),
+                    Text(
+                      '₹${total.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      courseCount == 0
+                          ? 'No courses applied yet'
+                          : '$gradedCount of $courseCount course(s) graded',
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.account_balance_wallet,
+                  color: Colors.white, size: 40),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Per-course rows
+        if (courseCount == 0)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              'Student has not applied for any course yet.',
+              style: AppTextStyles.caption
+                  .copyWith(color: AppColors.textSecondary),
+            ),
+          )
+        else
+          ...user.courses.map((courseName) {
+            final sg = gradeFor(courseName);
+            final courseId = courseIdFor(courseName);
+            return Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: (sg != null
+                      ? AppColors.primary
+                      : AppColors.textSecondary)
+                      .withValues(alpha: 0.12),
+                  child: Icon(Icons.menu_book,
+                      color: sg != null
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                      size: 20),
+                ),
+                title: Text(courseName,
+                    style: AppTextStyles.labelLarge),
+                subtitle: sg != null
+                    ? Text(
+                        '${sg.gradeName ?? 'Grade'} · ₹${sg.monthlyFee.toStringAsFixed(0)}/month',
+                        style: AppTextStyles.caption
+                            .copyWith(color: AppColors.primary))
+                    : Text('No grade assigned',
+                        style: AppTextStyles.caption
+                            .copyWith(color: AppColors.textSecondary)),
+                trailing: sg != null
+                    ? IconButton(
+                        icon: const Icon(Icons.edit, size: 20),
+                        onPressed: () =>
+                            _showAssignGrade(user, existing: sg),
+                      )
+                    : TextButton(
+                        onPressed: courseId == null
+                            ? null
+                            : () => _showAssignGrade(user,
+                                presetCourseId: courseId),
+                        child: const Text('Assign'),
+                      ),
+              ),
+            );
+          }),
+      ],
+    );
+  }
+
+  void _showAssignGrade(UserModel student,
+      {StudentGradeModel? existing, int? presetCourseId}) {
     final formKey = GlobalKey<FormState>();
     int? courseId = existing?.courseId ??
+        presetCourseId ??
         (_allCourses.isNotEmpty ? _allCourses.first.id : null);
     int? gradeId = existing?.gradeId;
+    final lockCourse = existing != null || presetCourseId != null;
     bool saving = false;
 
     showDialog(
@@ -670,10 +756,12 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                         .map((c) =>
                             DropdownMenuItem(value: c.id, child: Text(c.name)))
                         .toList(),
-                    onChanged: (v) => setDialog(() {
-                      courseId = v;
-                      gradeId = null;
-                    }),
+                    onChanged: lockCourse
+                        ? null
+                        : (v) => setDialog(() {
+                              courseId = v;
+                              gradeId = null;
+                            }),
                     validator: (v) => v == null ? 'Select a course' : null,
                   ),
                   const SizedBox(height: 12),
