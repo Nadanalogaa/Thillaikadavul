@@ -214,6 +214,7 @@ export interface Batch {
   days?: string[]; // Weekdays when batch classes occur (e.g., ['Monday', 'Wednesday'])
   startTime?: string; // Class start time (e.g., '17:00')
   endTime?: string; // Class end time (e.g., '18:30')
+  studio?: string; // Studio/room the batch runs in (e.g., 'Old Studio', 'New Studio')
 }
 
 // --- Student Enrollment Type ---

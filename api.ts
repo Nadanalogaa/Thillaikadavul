@@ -1522,7 +1522,8 @@ export const getBatches = async (): Promise<Batch[]> => {
       locationId: batch.location_id,
       startDate: batch.start_date,
       endDate: batch.end_date,
-      isActive: batch.is_active !== false
+      isActive: batch.is_active !== false,
+      studio: batch.studio || undefined
     }));
   } catch (error) {
     console.error('Error in getBatches:', error);
@@ -1612,7 +1613,8 @@ export const addBatch = async (batchData: Partial<Batch>): Promise<Batch> => {
       schedule: batchData.schedule || [],
       max_students: batchData.capacity,
       mode: batchData.mode,
-      student_ids: uniqueStudentIds
+      student_ids: uniqueStudentIds,
+      studio: batchData.studio || null
     };
 
     // Only add course_id if courseId is provided and not empty
@@ -1663,7 +1665,8 @@ export const addBatch = async (batchData: Partial<Batch>): Promise<Batch> => {
       locationId: data.location_id,
       startDate: data.start_date,
       endDate: data.end_date,
-      isActive: data.is_active !== false
+      isActive: data.is_active !== false,
+      studio: data.studio || undefined
     };
   } catch (error) {
     console.error('Error in addBatch:', error);
@@ -1709,6 +1712,7 @@ export const updateBatch = async (batchId: string, batchData: Partial<Batch>): P
         start_date: batchData.startDate,
         end_date: batchData.endDate,
         is_active: batchData.isActive,
+        studio: batchData.studio,
         updated_at: new Date().toISOString()
       })
     });

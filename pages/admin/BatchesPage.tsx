@@ -29,6 +29,7 @@ const BatchesPage: React.FC = () => {
     const [courseFilter, setCourseFilter] = useState('');
     const [teacherFilter, setTeacherFilter] = useState('');
     const [modeFilter, setModeFilter] = useState('');
+    const [studioFilter, setStudioFilter] = useState('');
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
@@ -87,10 +88,14 @@ const BatchesPage: React.FC = () => {
             if (modeFilter && batch.mode !== modeFilter) {
                 return false;
             }
-            
+
+            if (studioFilter && batch.studio !== studioFilter) {
+                return false;
+            }
+
             return true;
         });
-    }, [batches, searchQuery, courseFilter, teacherFilter, modeFilter, usersMap]);
+    }, [batches, searchQuery, courseFilter, teacherFilter, modeFilter, studioFilter, usersMap]);
 
     const batchesByCourse = useMemo(() => {
         const grouped: { [courseName: string]: Batch[] } = {};
@@ -306,6 +311,14 @@ const BatchesPage: React.FC = () => {
                                     <option value="">All Modes</option>
                                     <option value="Online">Online</option>
                                     <option value="Offline">Offline</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="form-label text-xs">Filter by Studio</label>
+                                <select value={studioFilter} onChange={e => setStudioFilter(e.target.value)} className="w-full form-select">
+                                    <option value="">All Studios</option>
+                                    <option value="Old Studio">Old Studio</option>
+                                    <option value="New Studio">New Studio</option>
                                 </select>
                             </div>
                         </div>

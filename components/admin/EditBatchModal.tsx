@@ -190,6 +190,7 @@ const EditBatchModal: React.FC<EditBatchModalProps> = ({ isOpen, onClose, batch,
                 schedule: batch.schedule ? JSON.parse(JSON.stringify(batch.schedule)) : [],
                 mode: batch.mode,
                 locationId: batch.locationId,
+                studio: batch.studio || '',
             });
 
             // If schedule is already set, go to step 2
@@ -430,6 +431,7 @@ const EditBatchModal: React.FC<EditBatchModalProps> = ({ isOpen, onClose, batch,
 
         const dataToSave: Partial<Batch> = {
             ...formData,
+            studio: formData.studio || undefined,
             schedule: (formData.schedule || [])
                 .filter(s => s.timing)
                 .map(s => ({
@@ -594,11 +596,11 @@ const EditBatchModal: React.FC<EditBatchModalProps> = ({ isOpen, onClose, batch,
                             {formData.mode === ClassPreference.Offline && (
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Location *</label>
-                                    <select 
-                                        name="locationId" 
-                                        value={formData.locationId || ''} 
-                                        onChange={handleChange} 
-                                        required 
+                                    <select
+                                        name="locationId"
+                                        value={formData.locationId || ''}
+                                        onChange={handleChange}
+                                        required
                                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-brand-primary focus:border-brand-primary"
                                     >
                                         <option value="" disabled>Select location</option>
@@ -606,7 +608,20 @@ const EditBatchModal: React.FC<EditBatchModalProps> = ({ isOpen, onClose, batch,
                                     </select>
                                 </div>
                             )}
-                            <div className={formData.mode === ClassPreference.Offline ? "lg:col-span-2" : "lg:col-span-3"}>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Studio</label>
+                                <select
+                                    name="studio"
+                                    value={formData.studio || ''}
+                                    onChange={handleChange}
+                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-brand-primary focus:border-brand-primary"
+                                >
+                                    <option value="">Not assigned</option>
+                                    <option value="Old Studio">Old Studio</option>
+                                    <option value="New Studio">New Studio</option>
+                                </select>
+                            </div>
+                            <div className={formData.mode === ClassPreference.Offline ? "lg:col-span-1" : "lg:col-span-2"}>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                                 <textarea 
                                     name="description" 
@@ -642,6 +657,12 @@ const EditBatchModal: React.FC<EditBatchModalProps> = ({ isOpen, onClose, batch,
                                         <span className="text-green-700 font-medium">Teacher:</span>
                                         <span className="text-green-900 ml-2">{availableTeachers.find(t => t.id === formData.teacherId)?.name || 'Not selected'}</span>
                                     </div>
+                                    {formData.studio && (
+                                        <div>
+                                            <span className="text-green-700 font-medium">Studio:</span>
+                                            <span className="text-green-900 ml-2">{formData.studio}</span>
+                                        </div>
+                                    )}
                                 </div>
                                 <button
                                     type="button"
