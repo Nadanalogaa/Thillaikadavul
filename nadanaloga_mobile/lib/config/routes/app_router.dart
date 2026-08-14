@@ -6,6 +6,7 @@ import '../../di/injection_container.dart';
 import '../../presentation/bloc/auth/auth_bloc.dart';
 import '../../presentation/bloc/auth/auth_state.dart';
 import '../../presentation/bloc/batch/batch_bloc.dart';
+import '../../presentation/bloc/batch/batch_event.dart';
 import '../../presentation/bloc/course/course_bloc.dart';
 import '../../presentation/bloc/course/course_event.dart';
 import '../../presentation/bloc/fee/fee_bloc.dart';
@@ -72,7 +73,7 @@ import '../../presentation/screens/admin/drilldown/students_drilldown_screen.dar
 import '../../presentation/screens/admin/drilldown/student_list_by_course_screen.dart';
 import '../../presentation/screens/admin/drilldown/student_detail_drilldown_screen.dart';
 import '../../presentation/screens/admin/drilldown/teachers_drilldown_screen.dart';
-import '../../presentation/screens/admin/drilldown/batches_drilldown_screen.dart';
+import '../../presentation/screens/admin/batches/batch_list_screen.dart';
 import '../../presentation/screens/admin/drilldown/pending_fees_drilldown_screen.dart';
 import '../../presentation/screens/teacher/teacher_dashboard_screen.dart';
 import '../../presentation/screens/student/student_shell_screen.dart';
@@ -559,12 +560,9 @@ class AppRouter {
             ),
             GoRoute(
               path: 'drilldown/batches',
-              builder: (context, state) => MultiBlocProvider(
-                providers: [
-                  BlocProvider(create: (_) => sl<BatchBloc>()),
-                  BlocProvider(create: (_) => sl<CourseBloc>()),
-                ],
-                child: const BatchesDrilldownScreen(),
+              builder: (context, state) => BlocProvider(
+                create: (_) => sl<BatchBloc>()..add(LoadBatches()),
+                child: const BatchListScreen(),
               ),
             ),
             GoRoute(

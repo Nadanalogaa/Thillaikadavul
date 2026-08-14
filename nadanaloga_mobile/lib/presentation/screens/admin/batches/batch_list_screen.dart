@@ -91,6 +91,61 @@ class _BatchListScreenState extends State<BatchListScreen> {
     }
   }
 
+  Widget _buildSummary(int batchCount, int studentCount) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.75)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          _summaryStat(Icons.group_work, '$batchCount', 'Batches'),
+          Container(
+            width: 1,
+            height: 34,
+            color: Colors.white24,
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+          ),
+          _summaryStat(Icons.people, '$studentCount', 'Students'),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryStat(IconData icon, String value, String label) {
+    return Expanded(
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.white, size: 26),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                label,
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFilterBar(List<String> studios) {
     return Column(
       children: [
@@ -150,7 +205,7 @@ class _BatchListScreenState extends State<BatchListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Batches'),
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: Navigator.of(context).canPop(),
         actions: [
           IconButton(
             icon: Icon(_expandedCourses.length == _courses.length
@@ -224,8 +279,13 @@ class _BatchListScreenState extends State<BatchListScreen> {
                 return nameA.compareTo(nameB);
               });
 
+            final totalStudents = <int>{
+              for (final b in allBatches) ...b.allStudentIds,
+            }.length;
+
             return Column(
               children: [
+                _buildSummary(allBatches.length, totalStudents),
                 _buildFilterBar(studios),
                 Expanded(
                   child: filtered.isEmpty
