@@ -135,6 +135,12 @@ class _MoreMenuScreen extends StatelessWidget {
         onTap: () => context.push('/admin/grades'),
       ),
       _MenuItem(
+        icon: Icons.assessment_outlined,
+        title: 'Reports',
+        subtitle: 'Collections, dues, roster',
+        onTap: () => context.push('/admin/reports'),
+      ),
+      _MenuItem(
         icon: Icons.event,
         title: 'Events',
         subtitle: 'Manage events',

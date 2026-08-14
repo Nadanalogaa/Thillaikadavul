@@ -168,6 +168,20 @@ class ApiClient {
     return _dio.get(ApiEndpoints.familyFeeSummary);
   }
 
+  /// Fetch a report as JSON ({rows, count, total?}).
+  Future<Response> getReport(String type, {Map<String, dynamic>? query}) {
+    return _dio.get(ApiEndpoints.report(type), queryParameters: query);
+  }
+
+  /// Fetch a report as raw CSV text (for sharing/download).
+  Future<Response> getReportCsv(String type, {Map<String, dynamic>? query}) {
+    return _dio.get(
+      ApiEndpoints.report(type),
+      queryParameters: {...?query, 'format': 'csv'},
+      options: Options(responseType: ResponseType.plain),
+    );
+  }
+
   Future<Response> assignStudentGrade(int studentId, int courseId, int gradeId) {
     return _dio.post(ApiEndpoints.studentGrades(studentId),
         data: {'course_id': courseId, 'grade_id': gradeId});

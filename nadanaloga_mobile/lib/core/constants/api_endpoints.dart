@@ -70,6 +70,7 @@ class ApiEndpoints {
   static String invoiceById(int id) => '$apiPrefix/invoices/$id';
   static String invoicePaymentProof(int id) => '$apiPrefix/invoices/$id/payment-proof';
   static const String familyFeeSummary = '$apiPrefix/parent/fee-summary';
+  static String report(String type) => '$apiPrefix/reports/$type';
   static String razorpayOrder(int id) => '$apiPrefix/invoices/$id/razorpay-order';
   static const String razorpayVerify = '$apiPrefix/razorpay/verify-payment';
 
