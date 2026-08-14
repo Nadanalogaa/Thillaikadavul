@@ -39,6 +39,7 @@ import '../../presentation/screens/admin/users/edit_user_screen.dart';
 import '../../presentation/screens/admin/locations/location_list_screen.dart';
 import '../../presentation/screens/admin/locations/location_form_screen.dart';
 import '../../presentation/screens/admin/courses/course_list_screen.dart';
+import '../../presentation/screens/admin/grades/grade_management_screen.dart';
 import '../../presentation/screens/admin/courses/course_form_screen.dart';
 import '../../presentation/screens/admin/batches/batch_detail_screen.dart';
 import '../../presentation/screens/admin/batches/batch_form_screen.dart';
@@ -190,6 +191,12 @@ class AppRouter {
                   },
                 ),
               ],
+            ),
+
+            // Grade Management (grade-based fees)
+            GoRoute(
+              path: 'grades',
+              builder: (context, state) => const GradeManagementScreen(),
             ),
 
             // Batch routes

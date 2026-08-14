@@ -129,6 +129,12 @@ class _MoreMenuScreen extends StatelessWidget {
         onTap: () => context.push('/admin/courses'),
       ),
       _MenuItem(
+        icon: Icons.grade,
+        title: 'Grades & Fees',
+        subtitle: 'Set fees per grade',
+        onTap: () => context.push('/admin/grades'),
+      ),
+      _MenuItem(
         icon: Icons.event,
         title: 'Events',
         subtitle: 'Manage events',

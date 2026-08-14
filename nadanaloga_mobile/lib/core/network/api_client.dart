@@ -141,6 +141,37 @@ class ApiClient {
     return _dio.get(ApiEndpoints.userChildren(parentId));
   }
 
+  // --- Grades (grade-based fees) ---
+  Future<Response> getGrades({int? courseId}) {
+    return _dio.get(ApiEndpoints.grades,
+        queryParameters: courseId != null ? {'course_id': courseId} : null);
+  }
+
+  Future<Response> createGrade(Map<String, dynamic> data) {
+    return _dio.post(ApiEndpoints.grades, data: data);
+  }
+
+  Future<Response> updateGrade(int id, Map<String, dynamic> data) {
+    return _dio.put(ApiEndpoints.gradeById(id), data: data);
+  }
+
+  Future<Response> deleteGrade(int id) {
+    return _dio.delete(ApiEndpoints.gradeById(id));
+  }
+
+  Future<Response> getStudentGrades(int studentId) {
+    return _dio.get(ApiEndpoints.studentGrades(studentId));
+  }
+
+  Future<Response> assignStudentGrade(int studentId, int courseId, int gradeId) {
+    return _dio.post(ApiEndpoints.studentGrades(studentId),
+        data: {'course_id': courseId, 'grade_id': gradeId});
+  }
+
+  Future<Response> removeStudentGrade(int studentId, int courseId) {
+    return _dio.delete(ApiEndpoints.studentGradeByCourse(studentId, courseId));
+  }
+
   /// Create a Razorpay order for an invoice (returns order_id, key_id, amount…).
   Future<Response> createRazorpayOrder(int invoiceId) {
     return _dio.post(ApiEndpoints.razorpayOrder(invoiceId));
