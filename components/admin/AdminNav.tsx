@@ -17,6 +17,7 @@ const AdminNav: React.FC = () => {
         { name: 'Locations', path: '/admin/locations', icon: MapPinIcon },
         { name: 'Fees', path: '/admin/fees', icon: FeesIcon },
         { name: 'Grades & Fees', path: '/admin/grades', icon: FeesIcon },
+        { name: 'Reports', path: '/admin/reports', icon: FeesIcon },
         { name: 'Demo Bookings', path: '/admin/demo-bookings', icon: DemoClassIcon },
         { name: 'Events', path: '/admin/events', icon: CalendarIcon },
         { name: 'Grade Exams', path: '/admin/grade-exams', icon: CertificateIcon },

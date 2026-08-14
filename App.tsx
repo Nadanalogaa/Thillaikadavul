@@ -24,6 +24,7 @@ import TeacherListPage from './pages/admin/TeacherListPage';
 import BatchesPage from './pages/admin/BatchesPage';
 import FeeManagementPage from './pages/admin/FeeManagementPage';
 import GradeManagementPage from './pages/admin/GradeManagementPage';
+import ReportsPage from './pages/admin/ReportsPage';
 import type { User } from './types';
 import { UserRole } from './types';
 import { getCurrentUser, logout } from './api';
@@ -260,6 +261,7 @@ function App() {
             <Route path="/admin/locations" element={<AdminProtectedRoute><LocationsManagementPage /></AdminProtectedRoute>} />
             <Route path="/admin/fees" element={<AdminProtectedRoute><FeeManagementPage /></AdminProtectedRoute>} />
             <Route path="/admin/grades" element={<AdminProtectedRoute><GradeManagementPage /></AdminProtectedRoute>} />
+            <Route path="/admin/reports" element={<AdminProtectedRoute><ReportsPage /></AdminProtectedRoute>} />
             <Route path="/admin/demo-bookings" element={<AdminProtectedRoute><DemoBookingsManagementPage /></AdminProtectedRoute>} />
             <Route path="/admin/events" element={<AdminProtectedRoute><EventsManagementPage /></AdminProtectedRoute>} />
             <Route path="/admin/grade-exams" element={<AdminProtectedRoute><GradeExamsManagementPage /></AdminProtectedRoute>} />

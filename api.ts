@@ -1461,6 +1461,19 @@ export const assignStudentGrade = async (studentId: number, courseId: number, gr
   return await res.json();
 };
 
+// --- Reports ---
+export const getReport = async (type: string, params: Record<string, string> = {}): Promise<any> => {
+  const qs = new URLSearchParams(params).toString();
+  const res = await fetch(`/api/reports/${type}${qs ? '?' + qs : ''}`, { credentials: 'include' });
+  if (!res.ok) throw new Error('Failed to load report');
+  return await res.json();
+};
+
+export const reportCsvUrl = (type: string, params: Record<string, string> = {}): string => {
+  const qs = new URLSearchParams({ ...params, format: 'csv' }).toString();
+  return `/api/reports/${type}?${qs}`;
+};
+
 export const getBatches = async (): Promise<Batch[]> => {
   try {
     // First get the basic batch data
