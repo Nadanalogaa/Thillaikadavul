@@ -33,9 +33,8 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
   int? _teacherId;
   int? _locationId;
   String _mode = 'Hybrid';
-  List<String> _selectedDays = [];
-  TimeOfDay? _startTime;
-  TimeOfDay? _endTime;
+  String? _studio;
+  final List<_TimeSlot> _slots = [];
 
   List<CourseModel> _courses = [];
   List<LocationModel> _locations = [];
@@ -51,6 +50,7 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
     'Saturday',
     'Sunday'
   ];
+  static const _studios = ['Old Studio', 'New Studio'];
 
   @override
   void initState() {
@@ -99,12 +99,23 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
             _teacherId = batch.teacherId;
             _locationId = batch.locationId;
             _mode = batch.mode ?? 'Hybrid';
-            _selectedDays = batch.days;
-            if (batch.startTime != null) {
-              _startTime = _parseTime(batch.startTime!);
-            }
-            if (batch.endTime != null) {
-              _endTime = _parseTime(batch.endTime!);
+            _studio = _studios.contains(batch.studio) ? batch.studio : null;
+            _slots.clear();
+            if (batch.timeSlots.isNotEmpty) {
+              for (final ts in batch.timeSlots) {
+                _slots.add(_TimeSlot(
+                  day: ts.day,
+                  start: ts.startTime != null ? _parseTime(ts.startTime!) : null,
+                  end: ts.endTime != null ? _parseTime(ts.endTime!) : null,
+                ));
+              }
+            } else if (batch.days.isNotEmpty) {
+              // Migrate legacy single-time batches: same time on each day.
+              final s = batch.startTime != null ? _parseTime(batch.startTime!) : null;
+              final e = batch.endTime != null ? _parseTime(batch.endTime!) : null;
+              for (final d in batch.days) {
+                _slots.add(_TimeSlot(day: d, start: s, end: e));
+              }
             }
           }
         }
@@ -134,44 +145,135 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
     super.dispose();
   }
 
+  String _fmt(TimeOfDay t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: AppColors.error),
+    );
+  }
+
+  String _firstUnusedDay() {
+    for (final d in _weekdays) {
+      if (!_slots.any((s) => s.day == d)) return d;
+    }
+    return _weekdays.first;
+  }
+
+  void _addSlot() => setState(() => _slots.add(_TimeSlot(day: _firstUnusedDay())));
+
+  Future<void> _pickSlotTime(int index, bool isStart) async {
+    final current = isStart ? _slots[index].start : _slots[index].end;
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: current ?? TimeOfDay(hour: isStart ? 17 : 18, minute: 0),
+    );
+    if (picked != null) {
+      setState(() {
+        if (isStart) {
+          _slots[index].start = picked;
+        } else {
+          _slots[index].end = picked;
+        }
+      });
+    }
+  }
+
+  Widget _timeChip(String label, TimeOfDay? t, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        child: Text(
+          t != null ? t.format(context) : label,
+          style: TextStyle(
+              color: t != null ? null : Colors.grey.shade600, fontSize: 13),
+        ),
+      ),
+    );
+  }
+
+  Widget _slotRow(int index, _TimeSlot slot) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 4,
+              child: DropdownButtonFormField<String>(
+                value: slot.day,
+                isDense: true,
+                decoration: const InputDecoration(border: InputBorder.none),
+                items: _weekdays
+                    .map((d) => DropdownMenuItem(
+                        value: d, child: Text(d.substring(0, 3))))
+                    .toList(),
+                onChanged: (v) => setState(() {
+                  if (v != null) slot.day = v;
+                }),
+              ),
+            ),
+            Expanded(
+                flex: 3,
+                child: _timeChip(
+                    'Start', slot.start, () => _pickSlotTime(index, true))),
+            const Text('–', style: TextStyle(color: AppColors.textSecondary)),
+            Expanded(
+                flex: 3,
+                child: _timeChip(
+                    'End', slot.end, () => _pickSlotTime(index, false))),
+            IconButton(
+              icon: const Icon(Icons.close, size: 18, color: AppColors.error),
+              onPressed: () => setState(() => _slots.removeAt(index)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_selectedDays.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select at least one day'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+    if (_slots.isEmpty) {
+      _snack('Add at least one day and time');
       return;
+    }
+    for (final s in _slots) {
+      if (s.start == null || s.end == null) {
+        _snack('Set start and end time for every day');
+        return;
+      }
     }
 
-    if (_startTime == null || _endTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select start and end times'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-      return;
-    }
+    final timeSlots = _slots
+        .map((s) => {
+              'day': s.day,
+              'start_time': _fmt(s.start!),
+              'end_time': _fmt(s.end!),
+            })
+        .toList();
 
     final data = <String, dynamic>{
       'batch_name': _nameController.text.trim(),
       'course_id': _courseId,
       'teacher_id': _teacherId,
       'mode': _mode,
+      'studio': _studio,
       'location_id': _mode != 'Online' ? _locationId : null,
       'max_students': _maxStudentsController.text.trim().isEmpty
           ? null
           : int.tryParse(_maxStudentsController.text.trim()),
-      // Intentionally NOT sending `schedule` — the web app stores student
-      // assignments/timings there. Omitting it lets the backend preserve the
-      // existing value instead of wiping it on edit.
-      'days': _selectedDays,
-      'start_time': '${_startTime!.hour.toString().padLeft(2, '0')}:${_startTime!.minute.toString().padLeft(2, '0')}',
-      'end_time': '${_endTime!.hour.toString().padLeft(2, '0')}:${_endTime!.minute.toString().padLeft(2, '0')}',
+      // Intentionally NOT sending `schedule` — the web stores student
+      // assignments there; omitting it lets the backend preserve it.
+      'time_slots': timeSlots,
+      // Keep days + a representative start/end for backward-compatible display.
+      'days': _slots.map((s) => s.day).toList(),
+      'start_time': _fmt(_slots.first.start!),
+      'end_time': _fmt(_slots.first.end!),
     };
 
     if (widget.isEditing) {
@@ -296,98 +398,47 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Days selection
-                      Text('Days *', style: AppTextStyles.labelLarge),
-                      const SizedBox(height: 8),
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: _weekdays.map((day) {
-                              final isSelected = _selectedDays.contains(day);
-                              return FilterChip(
-                                label: Text(day.substring(0, 3)),
-                                selected: isSelected,
-                                onSelected: (selected) {
-                                  setState(() {
-                                    if (selected) {
-                                      _selectedDays.add(day);
-                                    } else {
-                                      _selectedDays.remove(day);
-                                    }
-                                  });
-                                },
-                                selectedColor: AppColors.primary.withValues(alpha: 0.2),
-                                checkmarkColor: AppColors.primary,
-                              );
-                            }).toList(),
-                          ),
+                      // Studio
+                      DropdownButtonFormField<String>(
+                        value: _studio,
+                        decoration: const InputDecoration(
+                          labelText: 'Studio',
+                          prefixIcon: Icon(Icons.home_work_outlined),
                         ),
+                        items: _studios
+                            .map((s) =>
+                                DropdownMenuItem(value: s, child: Text(s)))
+                            .toList(),
+                        onChanged: (v) => setState(() => _studio = v),
                       ),
                       const SizedBox(height: 16),
 
-                      // Time pickers
+                      // Class days & per-day timings
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Expanded(
-                            child: InkWell(
-                              onTap: () async {
-                                final time = await showTimePicker(
-                                  context: context,
-                                  initialTime: _startTime ?? const TimeOfDay(hour: 9, minute: 0),
-                                );
-                                if (time != null) {
-                                  setState(() => _startTime = time);
-                                }
-                              },
-                              child: InputDecorator(
-                                decoration: const InputDecoration(
-                                  labelText: 'Start Time *',
-                                  prefixIcon: Icon(Icons.access_time),
-                                ),
-                                child: Text(
-                                  _startTime != null
-                                      ? _startTime!.format(context)
-                                      : 'Select time',
-                                  style: _startTime != null
-                                      ? null
-                                      : TextStyle(color: Colors.grey.shade600),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: InkWell(
-                              onTap: () async {
-                                final time = await showTimePicker(
-                                  context: context,
-                                  initialTime: _endTime ?? const TimeOfDay(hour: 10, minute: 30),
-                                );
-                                if (time != null) {
-                                  setState(() => _endTime = time);
-                                }
-                              },
-                              child: InputDecorator(
-                                decoration: const InputDecoration(
-                                  labelText: 'End Time *',
-                                  prefixIcon: Icon(Icons.access_time),
-                                ),
-                                child: Text(
-                                  _endTime != null
-                                      ? _endTime!.format(context)
-                                      : 'Select time',
-                                  style: _endTime != null
-                                      ? null
-                                      : TextStyle(color: Colors.grey.shade600),
-                                ),
-                              ),
-                            ),
+                          Text('Class Days & Timings *',
+                              style: AppTextStyles.labelLarge),
+                          TextButton.icon(
+                            onPressed: _addSlot,
+                            icon: const Icon(Icons.add, size: 18),
+                            label: const Text('Add day'),
                           ),
                         ],
                       ),
+                      if (_slots.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text(
+                            'Add each day and its time — e.g. Mon 5–6 PM, Wed 6–7 PM.',
+                            style: AppTextStyles.caption
+                                .copyWith(color: AppColors.textSecondary),
+                          ),
+                        ),
+                      ..._slots
+                          .asMap()
+                          .entries
+                          .map((e) => _slotRow(e.key, e.value)),
                       const SizedBox(height: 24),
 
                       BlocBuilder<BatchBloc, BatchState>(
@@ -413,4 +464,12 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
       ),
     );
   }
+}
+
+/// Editable per-day time slot used by the batch form.
+class _TimeSlot {
+  String day;
+  TimeOfDay? start;
+  TimeOfDay? end;
+  _TimeSlot({required this.day, this.start, this.end});
 }

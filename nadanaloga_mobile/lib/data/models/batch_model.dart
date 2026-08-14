@@ -1,3 +1,21 @@
+/// A single day's time slot for a batch (per-day timings, e.g. Mon 5-6, Wed 6-7).
+class BatchTimeSlot {
+  final String day;
+  final String? startTime; // "HH:MM"
+  final String? endTime;
+
+  const BatchTimeSlot({required this.day, this.startTime, this.endTime});
+
+  factory BatchTimeSlot.fromJson(Map<String, dynamic> json) => BatchTimeSlot(
+        day: (json['day'] ?? '').toString(),
+        startTime: json['start_time'] as String?,
+        endTime: json['end_time'] as String?,
+      );
+
+  Map<String, dynamic> toJson() =>
+      {'day': day, 'start_time': startTime, 'end_time': endTime};
+}
+
 class BatchScheduleEntry {
   final String? timing;
   final List<int> studentIds;
@@ -42,6 +60,8 @@ class BatchModel {
   final List<String> days;
   final String? startTime;
   final String? endTime;
+  final String? studio;
+  final List<BatchTimeSlot> timeSlots;
 
   const BatchModel({
     required this.id,
@@ -60,6 +80,8 @@ class BatchModel {
     this.days = const [],
     this.startTime,
     this.endTime,
+    this.studio,
+    this.timeSlots = const [],
   });
 
   factory BatchModel.fromJson(Map<String, dynamic> json) {
@@ -80,6 +102,13 @@ class BatchModel {
       days: _parseStringList(json['days']),
       startTime: json['start_time'] as String?,
       endTime: json['end_time'] as String?,
+      studio: json['studio'] as String?,
+      timeSlots: (json['time_slots'] is List)
+          ? (json['time_slots'] as List)
+              .whereType<Map<String, dynamic>>()
+              .map((e) => BatchTimeSlot.fromJson(e))
+              .toList()
+          : const [],
     );
   }
 
@@ -98,6 +127,8 @@ class BatchModel {
       'days': days,
       'start_time': startTime,
       'end_time': endTime,
+      'studio': studio,
+      'time_slots': timeSlots.map((s) => s.toJson()).toList(),
     };
   }
 
@@ -137,6 +168,19 @@ class BatchModel {
       ids.addAll(entry.studentIds);
     }
     return ids.toList();
+  }
+
+  /// Per-day timings display, e.g. "Mon 5:00 PM-6:00 PM, Wed 6:00 PM-7:00 PM".
+  /// Falls back to the legacy single-time schedule when no slots are set.
+  String get formattedSlots {
+    if (timeSlots.isEmpty) return formattedSchedule;
+    return timeSlots.map((s) {
+      final d = s.day.length >= 3 ? s.day.substring(0, 3) : s.day;
+      final t = (s.startTime != null && s.endTime != null)
+          ? ' ${_formatTime(s.startTime!)}-${_formatTime(s.endTime!)}'
+          : '';
+      return '$d$t';
+    }).join(', ');
   }
 
   /// Format schedule display (e.g., "Tuesday & Thursday, 5:00 PM - 6:30 PM")

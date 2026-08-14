@@ -413,7 +413,7 @@ class _BatchGridCard extends StatelessWidget {
                 ],
               ),
               // Schedule
-              if (batch.formattedSchedule.isNotEmpty) ...[
+              if (batch.formattedSlots.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Row(
                   children: [
@@ -421,7 +421,7 @@ class _BatchGridCard extends StatelessWidget {
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        batch.formattedSchedule,
+                        batch.formattedSlots,
                         style: AppTextStyles.caption.copyWith(
                           fontSize: 10,
                           color: AppColors.primary,
@@ -431,6 +431,18 @@ class _BatchGridCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                  ],
+                ),
+              ],
+              if (batch.studio != null && batch.studio!.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.home_work_outlined,
+                        size: 13, color: AppColors.textSecondary),
+                    const SizedBox(width: 4),
+                    Text(batch.studio!,
+                        style: AppTextStyles.caption.copyWith(fontSize: 10)),
                   ],
                 ),
               ],

@@ -253,6 +253,8 @@ async function startServer() {
         // Add timestamps to other tables
         if (await addColumn('batches', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
         if (await addColumn('batches', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+        if (await addColumn('batches', 'studio', 'VARCHAR(100)')) successCount++; else failCount++;
+        if (await addColumn('batches', 'time_slots', 'JSONB DEFAULT \'[]\'')) successCount++; else failCount++;
         if (await addColumn('courses', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
         if (await addColumn('courses', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
         if (await addColumn('fee_structures', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
@@ -2812,12 +2814,12 @@ Please review and approve this registration in the admin panel.`;
     app.post('/api/batches', ensureAdmin, async (req, res) => {
         try {
             const batchData = req.body;
-            const { batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode, location_id, days, start_time, end_time } = batchData;
+            const { batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode, location_id, days, start_time, end_time, studio, time_slots } = batchData;
 
             const result = await pool.query(
-                `INSERT INTO batches (batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode, location_id, days, start_time, end_time)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
-                [batch_name, course_id, teacher_id, JSON.stringify(schedule), start_date, end_date, max_students, student_ids || [], mode, location_id || null, days || [], start_time || null, end_time || null]
+                `INSERT INTO batches (batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode, location_id, days, start_time, end_time, studio, time_slots)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
+                [batch_name, course_id, teacher_id, JSON.stringify(schedule), start_date, end_date, max_students, student_ids || [], mode, location_id || null, days || [], start_time || null, end_time || null, studio || null, JSON.stringify(time_slots || [])]
             );
             res.status(201).json(parseBatchData(result.rows[0]));
 
@@ -2858,7 +2860,7 @@ Please review and approve this registration in the admin panel.`;
     app.put('/api/batches/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
-            const { batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode, location_id, days, start_time, end_time } = req.body;
+            const { batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode, location_id, days, start_time, end_time, studio, time_slots } = req.body;
 
             // Load the full existing batch so we can MERGE: a client (e.g. the mobile
             // app) that doesn't manage a field must not wipe it. Only fields the client
@@ -2876,13 +2878,17 @@ Please review and approve this registration in the admin panel.`;
             const mergedSchedule = schedule !== undefined
                 ? JSON.stringify(schedule)
                 : (typeof old.schedule === 'string' ? old.schedule : JSON.stringify(old.schedule || []));
+            const mergedTimeSlots = time_slots !== undefined
+                ? JSON.stringify(time_slots)
+                : (typeof old.time_slots === 'string' ? old.time_slots : JSON.stringify(old.time_slots || []));
 
             const result = await pool.query(
                 `UPDATE batches SET
                     batch_name = $1, course_id = $2, teacher_id = $3, schedule = $4,
                     start_date = $5, end_date = $6, max_students = $7, student_ids = $8, mode = $9,
-                    location_id = $10, days = $11, start_time = $12, end_time = $13, updated_at = NOW()
-                 WHERE id = $14 RETURNING *`,
+                    location_id = $10, days = $11, start_time = $12, end_time = $13,
+                    studio = $14, time_slots = $15, updated_at = NOW()
+                 WHERE id = $16 RETURNING *`,
                 [
                     pick(batch_name, old.batch_name),
                     pick(course_id, old.course_id),
@@ -2897,6 +2903,8 @@ Please review and approve this registration in the admin panel.`;
                     days !== undefined ? days : (old.days || []),
                     start_time !== undefined ? start_time : (old.start_time || null),
                     end_time !== undefined ? end_time : (old.end_time || null),
+                    studio !== undefined ? studio : (old.studio || null),
+                    mergedTimeSlots,
                     id,
                 ]
             );
