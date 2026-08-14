@@ -6,6 +6,7 @@ import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_text_styles.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../data/models/course_model.dart';
+import '../../../../data/models/grade_model.dart';
 import '../../../../data/models/location_model.dart';
 import '../../../../di/injection_container.dart';
 import '../../../bloc/user_management/user_management_bloc.dart';
@@ -32,8 +33,10 @@ class _AddUserScreenState extends State<AddUserScreen> {
   String _classPreference = 'Hybrid';
   int? _selectedLocationId;
   final Set<String> _selectedCourses = {};
+  final Map<int, int?> _courseGrades = {}; // courseId -> gradeId
 
   List<CourseModel> _courses = [];
+  List<GradeModel> _grades = [];
   List<LocationModel> _locations = [];
   bool _loadingData = true;
 
@@ -49,6 +52,7 @@ class _AddUserScreenState extends State<AddUserScreen> {
       final results = await Future.wait([
         apiClient.getCourses(),
         apiClient.getLocations(),
+        apiClient.getGrades(),
       ]);
 
       if (results[0].statusCode == 200) {
@@ -59,6 +63,11 @@ class _AddUserScreenState extends State<AddUserScreen> {
       if (results[1].statusCode == 200) {
         _locations = (results[1].data as List)
             .map((j) => LocationModel.fromJson(j))
+            .toList();
+      }
+      if (results[2].statusCode == 200) {
+        _grades = (results[2].data as List)
+            .map((j) => GradeModel.fromJson(j))
             .toList();
       }
     } catch (_) {}
@@ -101,7 +110,53 @@ class _AddUserScreenState extends State<AddUserScreen> {
       userData['preferred_location_id'] = _selectedLocationId;
     }
 
+    // Grade per course (students only) — assigned server-side at creation.
+    if (_role == 'Student') {
+      final selectedIds = _courses
+          .where((c) => _selectedCourses.contains(c.name))
+          .map((c) => c.id)
+          .toSet();
+      final courseGrades = <Map<String, dynamic>>[];
+      _courseGrades.forEach((courseId, gradeId) {
+        if (gradeId != null && selectedIds.contains(courseId)) {
+          courseGrades.add({'course_id': courseId, 'grade_id': gradeId});
+        }
+      });
+      if (courseGrades.isNotEmpty) {
+        userData['course_grades'] = courseGrades;
+      }
+    }
+
     context.read<UserManagementBloc>().add(AddUser(userData));
+  }
+
+  Widget _courseGradeDropdown(CourseModel course) {
+    final gradesForCourse =
+        _grades.where((g) => g.courseId == course.id).toList();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DropdownButtonFormField<int>(
+        value: _courseGrades[course.id],
+        isExpanded: true,
+        decoration: InputDecoration(
+          labelText: course.name,
+          prefixIcon: const Icon(Icons.grade),
+          helperText: gradesForCourse.isEmpty
+              ? 'No grades configured for this course'
+              : null,
+        ),
+        items: gradesForCourse
+            .map((g) => DropdownMenuItem(
+                  value: g.id,
+                  child: Text(
+                      '${g.name}  ·  ₹${g.monthlyFee.toStringAsFixed(0)}'),
+                ))
+            .toList(),
+        onChanged: gradesForCourse.isEmpty
+            ? null
+            : (v) => setState(() => _courseGrades[course.id] = v),
+      ),
+    );
   }
 
   @override
@@ -304,6 +359,24 @@ class _AddUserScreenState extends State<AddUserScreen> {
                             );
                           }).toList(),
                         ),
+                        const SizedBox(height: 16),
+                        // Grade per selected course (students only)
+                        if (_role == 'Student' &&
+                            _selectedCourses.isNotEmpty) ...[
+                          Text('Grade per course (optional)',
+                              style: AppTextStyles.labelLarge),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Sets the monthly fee. You can also assign this later '
+                            'from the student\'s profile.',
+                            style: AppTextStyles.caption
+                                .copyWith(color: AppColors.textSecondary),
+                          ),
+                          const SizedBox(height: 8),
+                          ..._courses
+                              .where((c) => _selectedCourses.contains(c.name))
+                              .map(_courseGradeDropdown),
+                        ],
                         const SizedBox(height: 24),
                       ],
 

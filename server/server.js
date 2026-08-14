@@ -958,6 +958,28 @@ async function startServer() {
         }
     };
 
+    // Assign a newly-created student's grade for each course, from a
+    // [{course_id, grade_id}] list optionally sent at registration time.
+    const assignCourseGradesForStudent = async (studentId, courseGrades) => {
+        if (!Array.isArray(courseGrades)) return;
+        for (const cg of courseGrades) {
+            const courseId = cg.course_id ?? cg.courseId;
+            const gradeId = cg.grade_id ?? cg.gradeId;
+            if (!courseId || !gradeId) continue;
+            try {
+                await pool.query(
+                    `INSERT INTO student_course_grades (student_id, course_id, grade_id)
+                     VALUES ($1, $2, $3)
+                     ON CONFLICT (student_id, course_id)
+                     DO UPDATE SET grade_id = EXCLUDED.grade_id, updated_at = NOW()`,
+                    [studentId, courseId, gradeId]
+                );
+            } catch (e) {
+                console.error('[Register] grade assign failed:', e.message);
+            }
+        }
+    };
+
     // Create a profile linked to an existing account (the family head) so one
     // email can hold a teacher + her children, or a parent + several students.
     // The linked profile shares the family's single login: it gets a synthetic,
@@ -1336,6 +1358,7 @@ async function startServer() {
                 // students can all share one email.
                 try {
                     const linked = await createLinkedFamilyProfile(existingUser.id, { ...userData });
+                    await assignCourseGradesForStudent(linked.id, userData.course_grades || userData.courseGrades);
                     const parsedLinked = {
                         ...linked,
                         courses: safeJsonArray(linked.courses),
@@ -1395,6 +1418,9 @@ async function startServer() {
                 await pool.query('UPDATE users SET is_super_admin = true WHERE id = $1', [newUser.id]);
                 newUser.is_super_admin = true;
             }
+
+            // Admin may assign a grade per course at registration time.
+            await assignCourseGradesForStudent(newUser.id, userData.course_grades || userData.courseGrades);
 
             const parsedUser = {
                 ...newUser,
