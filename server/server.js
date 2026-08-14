@@ -4656,6 +4656,121 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
+    // --- Reports (admin/superadmin, filterable, CSV-downloadable) ---
+    const csvEscape = (v) => {
+        if (v === null || v === undefined) return '';
+        const s = String(v);
+        return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const buildCsv = (columns, rows) => {
+        const header = columns.map((c) => csvEscape(c.label)).join(',');
+        const body = rows
+            .map((r) => columns.map((c) => csvEscape(r[c.key])).join(','))
+            .join('\n');
+        return header + '\n' + body;
+    };
+    const sendReport = (res, filename, columns, rows, extra, format) => {
+        if (String(format || '').toLowerCase() === 'csv') {
+            res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
+            return res.send(buildCsv(columns, rows));
+        }
+        res.json({ rows, count: rows.length, ...extra });
+    };
+
+    // Fee collections (approved payments) in a date range.
+    app.get('/api/reports/collections', ensureAdmin, async (req, res) => {
+        try {
+            const { from, to, method, format } = req.query;
+            const params = [];
+            let where = "WHERE ip.status = 'approved'";
+            if (from) { params.push(from); where += ` AND ip.payment_date >= $${params.length}`; }
+            if (to) { params.push(to); where += ` AND ip.payment_date <= $${params.length}`; }
+            if (method) { params.push(method); where += ` AND ip.payment_method = $${params.length}`; }
+            const result = await pool.query(
+                `SELECT to_char(ip.payment_date, 'YYYY-MM-DD') AS date, u.name AS student, i.course_name AS course,
+                        ip.amount, ip.payment_method AS method, ip.transaction_id AS txn
+                 FROM invoice_payments ip
+                 LEFT JOIN invoices i ON ip.invoice_id = i.id
+                 LEFT JOIN users u ON ip.student_id = u.id
+                 ${where} ORDER BY ip.payment_date DESC NULLS LAST, ip.id DESC`, params
+            );
+            const total = result.rows.reduce((s, r) => s + Number(r.amount || 0), 0);
+            const columns = [
+                { key: 'date', label: 'Date' }, { key: 'student', label: 'Student' },
+                { key: 'course', label: 'Course/Grade' }, { key: 'amount', label: 'Amount' },
+                { key: 'method', label: 'Method' }, { key: 'txn', label: 'Transaction ID' },
+            ];
+            sendReport(res, `collections_${from || 'all'}_${to || 'all'}`, columns, result.rows, { total }, format);
+        } catch (error) {
+            console.error('Error building collections report:', error);
+            res.status(500).json({ message: 'Server error building report.' });
+        }
+    });
+
+    // Outstanding fees (unpaid/overdue invoices).
+    app.get('/api/reports/outstanding', ensureAdmin, async (req, res) => {
+        try {
+            const { status, billing_period, format } = req.query;
+            const params = [];
+            let where = "WHERE i.status IN ('pending', 'overdue')";
+            if (status) { params.push(status); where += ` AND i.status = $${params.length}`; }
+            if (billing_period) { params.push(billing_period); where += ` AND i.billing_period = $${params.length}`; }
+            const result = await pool.query(
+                `SELECT u.name AS student, u.contact_number AS phone, i.course_name AS course,
+                        i.amount, i.status, i.billing_period, to_char(i.due_date, 'YYYY-MM-DD') AS due
+                 FROM invoices i LEFT JOIN users u ON i.student_id = u.id
+                 ${where} ORDER BY i.due_date NULLS LAST, u.name`, params
+            );
+            const total = result.rows.reduce((s, r) => s + Number(r.amount || 0), 0);
+            const columns = [
+                { key: 'student', label: 'Student' }, { key: 'phone', label: 'Phone' },
+                { key: 'course', label: 'Course/Grade' }, { key: 'amount', label: 'Amount' },
+                { key: 'status', label: 'Status' }, { key: 'billing_period', label: 'Period' },
+                { key: 'due', label: 'Due Date' },
+            ];
+            sendReport(res, 'outstanding_fees', columns, result.rows, { total }, format);
+        } catch (error) {
+            console.error('Error building outstanding report:', error);
+            res.status(500).json({ message: 'Server error building report.' });
+        }
+    });
+
+    // Student roster with grade + courses.
+    app.get('/api/reports/students', ensureAdmin, async (req, res) => {
+        try {
+            const { status, format } = req.query;
+            const params = [];
+            let where = "WHERE LOWER(u.role) = 'student' AND u.is_deleted = false";
+            if (status) { params.push(status); where += ` AND u.status = $${params.length}`; }
+            const result = await pool.query(
+                `SELECT u.name AS student, u.email, u.contact_number AS phone, u.courses,
+                        COALESCE(string_agg(DISTINCT c.name || ' - ' || g.name, ', '), '') AS grades,
+                        to_char(u.created_at, 'YYYY-MM-DD') AS joined, u.status
+                 FROM users u
+                 LEFT JOIN student_course_grades scg ON scg.student_id = u.id
+                 LEFT JOIN courses c ON scg.course_id = c.id
+                 LEFT JOIN grades g ON scg.grade_id = g.id
+                 ${where}
+                 GROUP BY u.id ORDER BY u.name`, params
+            );
+            const rows = result.rows.map((r) => ({
+                ...r,
+                courses: Array.isArray(safeJsonArray(r.courses)) ? safeJsonArray(r.courses).join(', ') : '',
+            }));
+            const columns = [
+                { key: 'student', label: 'Student' }, { key: 'email', label: 'Email' },
+                { key: 'phone', label: 'Phone' }, { key: 'courses', label: 'Courses' },
+                { key: 'grades', label: 'Grades' }, { key: 'joined', label: 'Joined' },
+                { key: 'status', label: 'Status' },
+            ];
+            sendReport(res, 'student_roster', columns, rows, {}, format);
+        } catch (error) {
+            console.error('Error building students report:', error);
+            res.status(500).json({ message: 'Server error building report.' });
+        }
+    });
+
     // --- Invoice API Endpoints ---
     app.get('/api/invoices', async (req, res) => {
         try {
