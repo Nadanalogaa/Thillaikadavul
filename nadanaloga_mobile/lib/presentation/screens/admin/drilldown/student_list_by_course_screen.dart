@@ -465,6 +465,20 @@ class _AccordionStudentCardState extends State<_AccordionStudentCard> {
                       Expanded(child: _CompactInfoItem(icon: Icons.email_outlined, label: 'Email', value: student.email)),
                     ],
                   ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(child: _CompactInfoItem(icon: Icons.menu_book_outlined, label: 'Courses', value: student.coursesLabel ?? '-')),
+                      Expanded(child: _CompactInfoItem(icon: Icons.grade_outlined, label: 'Grade', value: student.gradeLabel ?? '-')),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(child: _CompactInfoItem(icon: Icons.group_work_outlined, label: 'Batch', value: student.batchLabel ?? '-')),
+                      const Expanded(child: SizedBox()),
+                    ],
+                  ),
 
                   const SizedBox(height: 12),
 

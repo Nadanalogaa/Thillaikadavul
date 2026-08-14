@@ -2323,6 +2323,46 @@ Please review and approve this registration in the admin panel.`;
             query += ' ORDER BY created_at DESC';
             const result = await pool.query(query, params);
             const users = result.rows.map(parseUserData);
+
+            // Enrich students with their per-course grade summary + batch names (for list tiles).
+            const studentIds = users
+                .filter(u => String(u.role).toLowerCase() === 'student')
+                .map(u => u.id);
+            if (studentIds.length > 0) {
+                const gradeRows = await pool.query(
+                    `SELECT scg.student_id, c.name AS course_name, g.name AS grade_name,
+                            g.monthly_fee, g.currency
+                     FROM student_course_grades scg
+                     LEFT JOIN courses c ON scg.course_id = c.id
+                     LEFT JOIN grades g ON scg.grade_id = g.id
+                     WHERE scg.student_id = ANY($1)`, [studentIds]);
+                const gradeMap = new Map();
+                for (const r of gradeRows.rows) {
+                    if (!gradeMap.has(r.student_id)) gradeMap.set(r.student_id, []);
+                    gradeMap.get(r.student_id).push({
+                        course_name: r.course_name,
+                        grade_name: r.grade_name,
+                        monthly_fee: r.monthly_fee,
+                        currency: r.currency,
+                    });
+                }
+                const batchRows = await pool.query('SELECT batch_name, student_ids FROM batches');
+                const batchMap = new Map();
+                for (const b of batchRows.rows) {
+                    const ids = Array.isArray(b.student_ids) ? b.student_ids : [];
+                    for (const sid of ids) {
+                        if (!batchMap.has(sid)) batchMap.set(sid, []);
+                        batchMap.get(sid).push(b.batch_name);
+                    }
+                }
+                for (const u of users) {
+                    if (String(u.role).toLowerCase() === 'student') {
+                        u.course_grades = gradeMap.get(u.id) || [];
+                        u.batch_names = batchMap.get(u.id) || [];
+                    }
+                }
+            }
+
             res.json(users);
         } catch (error) {
             console.error('Error fetching users:', error);

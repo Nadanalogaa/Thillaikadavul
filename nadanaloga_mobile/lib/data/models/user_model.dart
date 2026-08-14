@@ -1,3 +1,29 @@
+/// A student's assigned grade for a single course (with its monthly fee).
+class CourseGrade {
+  final String? courseName;
+  final String? gradeName;
+  final double monthlyFee;
+  final String currency;
+
+  const CourseGrade({
+    this.courseName,
+    this.gradeName,
+    this.monthlyFee = 0,
+    this.currency = 'INR',
+  });
+
+  factory CourseGrade.fromJson(Map<String, dynamic> json) {
+    return CourseGrade(
+      courseName: json['course_name'] as String?,
+      gradeName: json['grade_name'] as String?,
+      monthlyFee: (json['monthly_fee'] is num)
+          ? (json['monthly_fee'] as num).toDouble()
+          : double.tryParse('${json['monthly_fee']}') ?? 0,
+      currency: json['currency'] as String? ?? 'INR',
+    );
+  }
+}
+
 class UserModel {
   final int id;
   final String? userId; // NDA-YYYY-XXXX
@@ -28,6 +54,8 @@ class UserModel {
   final String? updatedAt;
   final List<UserModel>? students; // For parent role - list of their children
   final int? parentId; // Set on child profiles linked to a primary account
+  final List<CourseGrade> courseGrades; // Assigned grade per course (students)
+  final List<String> batchNames; // Batches this student belongs to
 
   const UserModel({
     required this.id,
@@ -59,6 +87,8 @@ class UserModel {
     this.updatedAt,
     this.students,
     this.parentId,
+    this.courseGrades = const [],
+    this.batchNames = const [],
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -94,6 +124,12 @@ class UserModel {
           ? (json['students'] as List).map((s) => UserModel.fromJson(s)).toList()
           : null,
       parentId: json['parent_id'] as int?,
+      courseGrades: (json['course_grades'] is List)
+          ? (json['course_grades'] as List)
+              .map((e) => CourseGrade.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : const [],
+      batchNames: _parseStringList(json['batch_names']),
     );
   }
 
@@ -235,6 +271,8 @@ class UserModel {
       updatedAt: updatedAt,
       students: students,
       parentId: parentId,
+      courseGrades: courseGrades,
+      batchNames: batchNames,
     );
   }
 
@@ -242,4 +280,28 @@ class UserModel {
   bool get isTeacher => role == 'Teacher';
   bool get isStudent => role == 'Student';
   bool get isParent => role == 'Parent';
+
+  // --- Tile display helpers ---
+
+  /// Comma-separated course names, or null if none.
+  String? get coursesLabel => courses.isEmpty ? null : courses.join(', ');
+
+  /// Grade label for tiles: joins assigned grade names (new per-course model),
+  /// falling back to the legacy single [grade] string.
+  String? get gradeLabel {
+    final names = courseGrades
+        .map((g) => g.gradeName)
+        .where((n) => n != null && n.isNotEmpty)
+        .cast<String>()
+        .toList();
+    if (names.isNotEmpty) return names.join(', ');
+    return (grade != null && grade!.isNotEmpty) ? grade : null;
+  }
+
+  /// Comma-separated batch names, or null if none.
+  String? get batchLabel => batchNames.isEmpty ? null : batchNames.join(', ');
+
+  /// Total assigned monthly fee across all course-grades.
+  double get monthlyFeeTotal =>
+      courseGrades.fold(0, (sum, g) => sum + g.monthlyFee);
 }
