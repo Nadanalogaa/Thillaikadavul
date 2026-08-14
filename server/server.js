@@ -286,6 +286,43 @@ async function startServer() {
                 console.error('[DB] ✗ Failed to create user_fcm_tokens table:', error.message);
             }
 
+            // Grade-based fees: a Grade belongs to a Course and carries the fee.
+            try {
+                await client.query(`
+                    CREATE TABLE IF NOT EXISTS grades (
+                        id SERIAL PRIMARY KEY,
+                        course_id INTEGER,
+                        name VARCHAR(100) NOT NULL,
+                        monthly_fee NUMERIC DEFAULT 0,
+                        currency VARCHAR(10) DEFAULT 'INR',
+                        is_active BOOLEAN DEFAULT true,
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ DEFAULT NOW()
+                    )
+                `);
+                console.log('[DB] ✓ Ensured grades table exists');
+            } catch (error) {
+                console.error('[DB] ✗ Failed to create grades table:', error.message);
+            }
+
+            // Which grade a student holds in each course they study (one per course).
+            try {
+                await client.query(`
+                    CREATE TABLE IF NOT EXISTS student_course_grades (
+                        id SERIAL PRIMARY KEY,
+                        student_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                        course_id INTEGER,
+                        grade_id INTEGER,
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ DEFAULT NOW(),
+                        UNIQUE(student_id, course_id)
+                    )
+                `);
+                console.log('[DB] ✓ Ensured student_course_grades table exists');
+            } catch (error) {
+                console.error('[DB] ✗ Failed to create student_course_grades table:', error.message);
+            }
+
             // Create salaries table if not exists
             try {
                 await client.query(`
@@ -1101,6 +1138,19 @@ async function startServer() {
         const issueDate = toDateStr(new Date(now.getFullYear(), now.getMonth(), 1));
         const dueDate = toDateStr(new Date(now.getFullYear(), now.getMonth(), 10));
 
+        // Grade-based fees (preferred): a student's grade in each course.
+        const gradeMapRes = await pool.query(`
+            SELECT scg.student_id, scg.course_id, c.name AS course_name,
+                   g.name AS grade_name, g.monthly_fee
+            FROM student_course_grades scg
+            LEFT JOIN courses c ON scg.course_id = c.id
+            LEFT JOIN grades g ON scg.grade_id = g.id
+            WHERE g.is_active = true
+        `);
+        const gradeFeesByStudent = {};
+        gradeMapRes.rows.forEach((r) => { (gradeFeesByStudent[r.student_id] = gradeFeesByStudent[r.student_id] || []).push(r); });
+
+        // Legacy fee_structures — fallback for students not yet on grades.
         const coursesRes = await pool.query('SELECT id, name FROM courses');
         const courseIdByName = {};
         coursesRes.rows.forEach((c) => { if (c.name) courseIdByName[String(c.name).trim().toLowerCase()] = c.id; });
@@ -1108,59 +1158,72 @@ async function startServer() {
         const feesByCourse = {};
         feeRes.rows.forEach((f) => { (feesByCourse[f.course_id] = feesByCourse[f.course_id] || []).push(f); });
         const batchRes = await pool.query('SELECT id, student_ids FROM batches');
+
         const students = await pool.query(
             "SELECT id, name, grade, courses FROM users WHERE LOWER(role) = 'student' AND is_deleted = false AND (status IS NULL OR status = 'active')"
         );
 
         let created = 0, skipped = 0;
-        for (const s of students.rows) {
-            const courseNames = safeJsonArray(s.courses);
-            if (courseNames.length === 0) continue;
-            const studentBatchIds = batchRes.rows
-                .filter((b) => Array.isArray(b.student_ids) && b.student_ids.includes(s.id))
-                .map((b) => b.id);
 
-            for (const cn of courseNames) {
-                const courseId = courseIdByName[String(cn).trim().toLowerCase()];
-                if (!courseId) continue;
-                const candidates = feesByCourse[courseId] || [];
-                if (candidates.length === 0) continue;
-                const best = pickBestFeeStructure(candidates, s.grade, studentBatchIds);
-                const monthly = best ? Number(best.monthly_fee) : 0;
-                if (!best || !monthly || monthly <= 0) continue;
-
-                // Idempotency — already have this student's invoice for this course + month?
-                const exists = await pool.query(
-                    'SELECT id FROM invoices WHERE student_id = $1 AND course_name = $2 AND billing_period = $3 LIMIT 1',
-                    [s.id, cn, billingPeriod]
-                );
-                if (exists.rows.length > 0) { skipped++; continue; }
-
-                // Apply any active per-student discount for this course.
-                let discountPct = null, discountAmt = null, finalAmount = monthly;
+        // Create one idempotent, discount-aware invoice line for a student's course.
+        const createLine = async (student, courseName, courseId, monthly, feeStructureId) => {
+            if (!monthly || monthly <= 0) return;
+            const exists = await pool.query(
+                'SELECT id FROM invoices WHERE student_id = $1 AND course_name = $2 AND billing_period = $3 LIMIT 1',
+                [student.id, courseName, billingPeriod]
+            );
+            if (exists.rows.length > 0) { skipped++; return; }
+            let discountPct = null, discountAmt = null, finalAmount = monthly;
+            if (courseId) {
                 const dRes = await pool.query(
                     `SELECT discount_percentage FROM student_discounts
                      WHERE student_id = $1 AND course_id = $2 AND is_active = TRUE
                      ORDER BY CASE WHEN discount_type = 'batch' THEN 1 ELSE 2 END, discount_percentage DESC LIMIT 1`,
-                    [s.id, courseId]
+                    [student.id, courseId]
                 );
                 if (dRes.rows.length > 0) {
                     discountPct = parseFloat(dRes.rows[0].discount_percentage);
                     discountAmt = (monthly * discountPct) / 100;
                     finalAmount = monthly - discountAmt;
                 }
+            }
+            const inv = await pool.query(
+                `INSERT INTO invoices (student_id, fee_structure_id, course_name, amount, currency, issue_date, due_date, billing_period, status, original_amount, discount_percentage, discount_amount)
+                 VALUES ($1, $2, $3, $4, 'INR', $5, $6, $7, 'pending', $8, $9, $10) RETURNING id`,
+                [student.id, feeStructureId || null, courseName, finalAmount, issueDate, dueDate, billingPeriod, monthly, discountPct, discountAmt]
+            );
+            created++;
+            try {
+                createNotificationForUser(student.id, `${MONTH_NAMES[now.getMonth()]} Fee Ready`,
+                    `Your ${courseName} fee of INR ${finalAmount} for ${billingPeriod} is ready. Please pay by ${dueDate}.`, 'Info');
+            } catch (_) {}
+            console.log(`[MonthlyInvoices] Invoice #${inv.rows[0].id} for ${student.name} (${courseName}) ${billingPeriod}`);
+        };
 
-                const inv = await pool.query(
-                    `INSERT INTO invoices (student_id, fee_structure_id, course_name, amount, currency, issue_date, due_date, billing_period, status, original_amount, discount_percentage, discount_amount)
-                     VALUES ($1, $2, $3, $4, 'INR', $5, $6, $7, 'pending', $8, $9, $10) RETURNING id`,
-                    [s.id, best.id, cn, finalAmount, issueDate, dueDate, billingPeriod, monthly, discountPct, discountAmt]
-                );
-                created++;
-                try {
-                    createNotificationForUser(s.id, `${MONTH_NAMES[now.getMonth()]} Fee Ready`,
-                        `Your ${cn} fee of INR ${finalAmount} for ${billingPeriod} is ready. Please pay by ${dueDate}.`, 'Info');
-                } catch (_) {}
-                console.log(`[MonthlyInvoices] Invoice #${inv.rows[0].id} for ${s.name} (${cn}) ${billingPeriod}`);
+        for (const s of students.rows) {
+            const gradeFees = gradeFeesByStudent[s.id];
+            if (gradeFees && gradeFees.length > 0) {
+                // Grade-based: one line per course-grade (fee comes from the grade).
+                for (const gf of gradeFees) {
+                    const label = `${gf.course_name || 'Course'} - ${gf.grade_name || 'Grade'}`;
+                    await createLine(s, label, gf.course_id, Number(gf.monthly_fee), null);
+                }
+            } else {
+                // Legacy fallback (fee_structures) until this student is put on grades.
+                const courseNames = safeJsonArray(s.courses);
+                if (courseNames.length === 0) continue;
+                const studentBatchIds = batchRes.rows
+                    .filter((b) => Array.isArray(b.student_ids) && b.student_ids.includes(s.id))
+                    .map((b) => b.id);
+                for (const cn of courseNames) {
+                    const courseId = courseIdByName[String(cn).trim().toLowerCase()];
+                    if (!courseId) continue;
+                    const candidates = feesByCourse[courseId] || [];
+                    if (candidates.length === 0) continue;
+                    const best = pickBestFeeStructure(candidates, s.grade, studentBatchIds);
+                    if (!best) continue;
+                    await createLine(s, cn, courseId, Number(best.monthly_fee), best.id);
+                }
             }
         }
         console.log(`[MonthlyInvoices] ${billingPeriod}: created ${created}, skipped ${skipped} (already existed).`);
@@ -3354,6 +3417,123 @@ Please review and approve this registration in the admin panel.`;
         } catch (error) {
             console.error('Error creating notifications:', error);
             res.status(500).json({ message: 'Server error creating notifications.' });
+        }
+    });
+
+    // --- Grade Management (grade-based fees) ---
+    // Grades belong to a course and carry the monthly fee. A student's fee is the
+    // sum of the grade fees across the courses they study.
+    app.get('/api/grades', async (req, res) => {
+        try {
+            const { course_id } = req.query;
+            const params = [];
+            let where = 'WHERE g.is_active = true';
+            if (course_id) { params.push(course_id); where += ` AND g.course_id = $${params.length}`; }
+            const result = await pool.query(
+                `SELECT g.*, c.name AS course_name
+                 FROM grades g LEFT JOIN courses c ON g.course_id = c.id
+                 ${where} ORDER BY c.name NULLS FIRST, g.name`, params
+            );
+            res.json(result.rows);
+        } catch (error) {
+            console.error('Error fetching grades:', error);
+            res.status(500).json({ message: 'Server error fetching grades.' });
+        }
+    });
+
+    app.post('/api/grades', ensureAdmin, async (req, res) => {
+        try {
+            const { course_id, name, monthly_fee, currency } = req.body;
+            if (!name) return res.status(400).json({ message: 'Grade name is required.' });
+            const result = await pool.query(
+                `INSERT INTO grades (course_id, name, monthly_fee, currency) VALUES ($1, $2, $3, $4) RETURNING *`,
+                [course_id || null, name, monthly_fee || 0, currency || 'INR']
+            );
+            res.status(201).json(result.rows[0]);
+        } catch (error) {
+            console.error('Error creating grade:', error);
+            res.status(500).json({ message: 'Server error creating grade.' });
+        }
+    });
+
+    app.put('/api/grades/:id', ensureAdmin, async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { course_id, name, monthly_fee, currency, is_active } = req.body;
+            const result = await pool.query(
+                `UPDATE grades SET course_id = $1, name = $2, monthly_fee = $3, currency = $4,
+                    is_active = COALESCE($5, is_active), updated_at = NOW() WHERE id = $6 RETURNING *`,
+                [course_id || null, name, monthly_fee || 0, currency || 'INR', is_active, id]
+            );
+            if (result.rows.length === 0) return res.status(404).json({ message: 'Grade not found' });
+            res.json(result.rows[0]);
+        } catch (error) {
+            console.error('Error updating grade:', error);
+            res.status(500).json({ message: 'Server error updating grade.' });
+        }
+    });
+
+    app.delete('/api/grades/:id', ensureAdmin, async (req, res) => {
+        try {
+            const { id } = req.params;
+            // Soft-delete so historical invoices/assignments stay intact.
+            const result = await pool.query('UPDATE grades SET is_active = false, updated_at = NOW() WHERE id = $1 RETURNING id', [id]);
+            if (result.rows.length === 0) return res.status(404).json({ message: 'Grade not found' });
+            res.json({ message: 'Grade deleted.' });
+        } catch (error) {
+            console.error('Error deleting grade:', error);
+            res.status(500).json({ message: 'Server error deleting grade.' });
+        }
+    });
+
+    // A student's grade in each course they study (with fee).
+    app.get('/api/students/:id/grades', ensureAdmin, async (req, res) => {
+        try {
+            const { id } = req.params;
+            const result = await pool.query(
+                `SELECT scg.id, scg.course_id, c.name AS course_name, scg.grade_id,
+                        g.name AS grade_name, g.monthly_fee, g.currency
+                 FROM student_course_grades scg
+                 LEFT JOIN courses c ON scg.course_id = c.id
+                 LEFT JOIN grades g ON scg.grade_id = g.id
+                 WHERE scg.student_id = $1 ORDER BY c.name`, [id]
+            );
+            res.json(result.rows);
+        } catch (error) {
+            console.error('Error fetching student grades:', error);
+            res.status(500).json({ message: 'Server error fetching student grades.' });
+        }
+    });
+
+    // Assign / update a student's grade for a course (one grade per course).
+    app.post('/api/students/:id/grades', ensureAdmin, async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { course_id, grade_id } = req.body;
+            if (!course_id || !grade_id) return res.status(400).json({ message: 'course_id and grade_id are required.' });
+            const result = await pool.query(
+                `INSERT INTO student_course_grades (student_id, course_id, grade_id)
+                 VALUES ($1, $2, $3)
+                 ON CONFLICT (student_id, course_id)
+                 DO UPDATE SET grade_id = EXCLUDED.grade_id, updated_at = NOW()
+                 RETURNING *`,
+                [id, course_id, grade_id]
+            );
+            res.status(201).json(result.rows[0]);
+        } catch (error) {
+            console.error('Error assigning student grade:', error);
+            res.status(500).json({ message: 'Server error assigning student grade.' });
+        }
+    });
+
+    app.delete('/api/students/:id/grades/:courseId', ensureAdmin, async (req, res) => {
+        try {
+            const { id, courseId } = req.params;
+            await pool.query('DELETE FROM student_course_grades WHERE student_id = $1 AND course_id = $2', [id, courseId]);
+            res.json({ message: 'Student course grade removed.' });
+        } catch (error) {
+            console.error('Error removing student grade:', error);
+            res.status(500).json({ message: 'Server error removing student grade.' });
         }
     });
 
