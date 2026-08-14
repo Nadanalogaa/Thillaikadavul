@@ -2921,21 +2921,42 @@ Please review and approve this registration in the admin panel.`;
                 (async () => {
                     try {
                         const students = await getUsersByIds(newStudentIds.map(Number));
+                        // Use the persisted batch row so this works even on a partial edit.
+                        const batchRow = result.rows[0] || {};
+                        const bName = batchRow.batch_name || batch_name;
+                        const bCourseId = batchRow.course_id;
                         let courseName = '';
                         let teacherName = '';
-                        if (course_id) {
-                            const cr = await pool.query('SELECT name FROM courses WHERE id = $1', [course_id]);
+                        if (bCourseId) {
+                            const cr = await pool.query('SELECT name FROM courses WHERE id = $1', [bCourseId]);
                             courseName = cr.rows[0]?.name || '';
                         }
-                        if (teacher_id) {
-                            const tr = await pool.query('SELECT name FROM users WHERE id = $1', [teacher_id]);
+                        if (batchRow.teacher_id) {
+                            const tr = await pool.query('SELECT name FROM users WHERE id = $1', [batchRow.teacher_id]);
                             teacherName = tr.rows[0]?.name || '';
                         }
-                        const scheduleStr = schedule ? (typeof schedule === 'string' ? schedule : JSON.stringify(schedule)) : '';
+                        // Build the per-day schedule text from time_slots.
+                        let slots = batchRow.time_slots;
+                        if (typeof slots === 'string') { try { slots = JSON.parse(slots || '[]'); } catch (_) { slots = []; } }
+                        const scheduleText = (Array.isArray(slots) && slots.length)
+                            ? slots.map(s => `${String(s.day || '').slice(0, 3)} ${s.start_time || ''}-${s.end_time || ''}`.trim()).join(', ')
+                            : 'To be confirmed';
+
                         for (const student of students) {
-                            const msg = `Congratulations! You have been allocated to a new batch.\n\n📚 Course: ${courseName || 'Not specified'}\n👥 Batch: ${batch_name}\n👨‍🏫 Teacher: ${teacherName || 'To be assigned'}\n📅 Schedule: ${scheduleStr || 'To be confirmed'}\n🚀 Start Date: ${start_date || 'To be announced'}\n\nPlease log in to your portal for more details.`;
-                            sendEmailBackground(student.email, student.name, `Batch Allocation - ${courseName || batch_name}`, msg);
-                            createNotificationForUser(student.id, 'Batch Allocation', `You have been added to batch "${batch_name}" for ${courseName || 'a course'}.`, 'Success');
+                            // The student's grade in this batch's course.
+                            let gradeName = '';
+                            if (bCourseId) {
+                                const gr = await pool.query(
+                                    `SELECT g.name FROM student_course_grades scg
+                                     JOIN grades g ON scg.grade_id = g.id
+                                     WHERE scg.student_id = $1 AND scg.course_id = $2 LIMIT 1`,
+                                    [student.id, bCourseId]);
+                                gradeName = gr.rows[0]?.name || '';
+                            }
+                            const line = `${courseName || 'Course'}${gradeName ? ' • ' + gradeName : ''} • Batch ${bName} (${scheduleText})`;
+                            const emailMsg = `Congratulations! Your enrollment is confirmed.\n\n📚 Course: ${courseName || 'Not specified'}\n🎓 Grade: ${gradeName || 'To be assigned'}\n👥 Batch: ${bName}\n👨‍🏫 Teacher: ${teacherName || 'To be assigned'}\n📅 Schedule: ${scheduleText}\n\nPlease log in to your portal for more details.`;
+                            sendEmailBackground(student.email, student.name, `Enrollment Confirmed - ${courseName || bName}`, emailMsg);
+                            createNotificationForUser(student.id, 'Enrollment Confirmed', `You've been enrolled — ${line}.`, 'Success');
                         }
                         console.log(`[Batch] Sent allocation emails to ${students.length} newly added students for batch "${batch_name}"`);
                     } catch (e) {
