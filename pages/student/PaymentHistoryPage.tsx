@@ -99,6 +99,19 @@ const PaymentHistoryPage: React.FC = () => {
     const paidAmount = invoices.filter(inv => inv.status === InvoiceStatus.Paid).reduce((sum, inv) => sum + inv.amount, 0);
     const pendingAmount = invoices.filter(inv => inv.status !== InvoiceStatus.Paid).reduce((sum, inv) => sum + inv.amount, 0);
 
+    // Combined family split: per-student pending totals (only meaningful for a parent with multiple students)
+    const familyPending = (() => {
+        const map = new Map<string, { name: string; amount: number }>();
+        invoices.filter(inv => inv.status !== InvoiceStatus.Paid).forEach(inv => {
+            const id = inv.student?.id || inv.studentId || 'unknown';
+            const name = inv.student?.name || 'Student';
+            const entry = map.get(id) || { name, amount: 0 };
+            entry.amount += inv.amount;
+            map.set(id, entry);
+        });
+        return Array.from(map.values()).sort((a, b) => b.amount - a.amount);
+    })();
+
     return (
         <DashboardHeader 
             userName={currentUser?.name || 'Guardian'} 
@@ -188,6 +201,43 @@ const PaymentHistoryPage: React.FC = () => {
                         </div>
                     </div>
                 </motion.div>
+
+                {/* Combined family split — shown for a parent with more than one student */}
+                {familyPending.length > 1 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`rounded-2xl p-6 shadow-lg border backdrop-blur-sm mb-8 ${
+                            theme === 'dark'
+                                ? 'bg-gray-800/90 border-gray-700/50'
+                                : 'bg-white/90 border-indigo-200/50'
+                        }`}
+                    >
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                Family Due — Combined
+                            </h3>
+                            <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+                                ₹{pendingAmount.toLocaleString()}
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            {familyPending.map((s, i) => (
+                                <div key={i} className={`flex items-center justify-between py-2 px-3 rounded-lg ${
+                                    theme === 'dark' ? 'bg-gray-700/40' : 'bg-indigo-50/60'
+                                }`}>
+                                    <div className="flex items-center gap-2">
+                                        <User className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-300' : 'text-indigo-500'}`} />
+                                        <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>{s.name}</span>
+                                    </div>
+                                    <span className={`text-sm font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                        ₹{s.amount.toLocaleString()}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </motion.div>
+                )}
 
                 {/* Filter Tabs */}
                 <motion.div
