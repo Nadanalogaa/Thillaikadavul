@@ -1414,6 +1414,53 @@ export const deleteCourseByAdmin = async (courseId: string): Promise<void> => {
 };
 
 // Batch functions
+// --- Grades (grade-based fees) ---
+export const getGrades = async (courseId?: number): Promise<any[]> => {
+  const url = courseId ? `/api/grades?course_id=${courseId}` : '/api/grades';
+  const res = await fetch(url, { credentials: 'include' });
+  if (!res.ok) return [];
+  return await res.json();
+};
+
+export const createGrade = async (data: any): Promise<any> => {
+  const res = await fetch('/api/grades', {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'Failed to create grade');
+  return await res.json();
+};
+
+export const updateGrade = async (id: number, data: any): Promise<any> => {
+  const res = await fetch(`/api/grades/${id}`, {
+    method: 'PUT', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'Failed to update grade');
+  return await res.json();
+};
+
+export const deleteGrade = async (id: number): Promise<void> => {
+  const res = await fetch(`/api/grades/${id}`, { method: 'DELETE', credentials: 'include' });
+  if (!res.ok) throw new Error('Failed to delete grade');
+};
+
+export const getStudentGrades = async (studentId: number): Promise<any[]> => {
+  const res = await fetch(`/api/students/${studentId}/grades`, { credentials: 'include' });
+  if (!res.ok) return [];
+  return await res.json();
+};
+
+export const assignStudentGrade = async (studentId: number, courseId: number, gradeId: number): Promise<any> => {
+  const res = await fetch(`/api/students/${studentId}/grades`, {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ course_id: courseId, grade_id: gradeId }),
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'Failed to assign grade');
+  return await res.json();
+};
+
 export const getBatches = async (): Promise<Batch[]> => {
   try {
     // First get the basic batch data
