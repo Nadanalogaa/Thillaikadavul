@@ -163,6 +163,11 @@ class ApiClient {
     return _dio.get(ApiEndpoints.studentGrades(studentId));
   }
 
+  /// Combined family fee summary (total unpaid + per-student split).
+  Future<Response> getFamilyFeeSummary() {
+    return _dio.get(ApiEndpoints.familyFeeSummary);
+  }
+
   Future<Response> assignStudentGrade(int studentId, int courseId, int gradeId) {
     return _dio.post(ApiEndpoints.studentGrades(studentId),
         data: {'course_id': courseId, 'grade_id': gradeId});

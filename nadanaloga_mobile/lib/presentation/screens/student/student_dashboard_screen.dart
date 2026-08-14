@@ -54,12 +54,94 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   List<NoticeModel> _notices = [];
   List<BookMaterialModel> _materials = [];
   List<GradeExamModel> _exams = [];
+  Map<String, dynamic>? _familySummary; // combined fees for a parent's children
 
   @override
   void initState() {
     super.initState();
     _loadLocationIfNeeded();
     _loadHighlights();
+    _loadFamilySummary();
+  }
+
+  Future<void> _loadFamilySummary() async {
+    final state = context.read<AuthBloc>().state;
+    if (state is! AuthAuthenticated) return;
+    // Only relevant when this account has children (a parent).
+    if ((state.user.students ?? []).isEmpty) return;
+    try {
+      final resp = await _apiClient.getFamilyFeeSummary();
+      if (mounted && resp.statusCode == 200 && resp.data is Map) {
+        setState(() => _familySummary = Map<String, dynamic>.from(resp.data));
+      }
+    } catch (_) {}
+  }
+
+  /// Parent's combined family fees: one total, tap to expand the per-student split.
+  Widget _familyFeesCard() {
+    final fs = _familySummary;
+    if (fs == null) return const SizedBox.shrink();
+    final students = (fs['students'] as List?) ?? [];
+    if (students.isEmpty) return const SizedBox.shrink();
+    final total = (fs['total_due'] as num?)?.toDouble() ?? 0;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 20),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: AppColors.primary.withValues(alpha: 0.2)),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          leading: CircleAvatar(
+            backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+            child: const Icon(Icons.family_restroom, color: AppColors.primary),
+          ),
+          title: Text('Family Fees — This Month',
+              style: AppTextStyles.labelLarge),
+          subtitle: Text(
+            '₹${total.toStringAsFixed(0)} due · ${students.length} ${students.length == 1 ? 'student' : 'students'} — tap for details',
+            style: AppTextStyles.caption
+                .copyWith(color: AppColors.textSecondary),
+          ),
+          trailing: Text('₹${total.toStringAsFixed(0)}',
+              style: AppTextStyles.h4.copyWith(color: AppColors.primary)),
+          childrenPadding:
+              const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          children: [
+            for (final s in students)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    const Icon(Icons.person_outline,
+                        size: 16, color: AppColors.textSecondary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('${s['student_name'] ?? 'Student'}',
+                          style: AppTextStyles.bodyMedium),
+                    ),
+                    Text(
+                      '₹${((s['total'] as num?)?.toDouble() ?? 0).toStringAsFixed(0)}',
+                      style: AppTextStyles.labelLarge,
+                    ),
+                  ],
+                ),
+              ),
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Open each child (tabs above) to pay their fee.',
+                style: AppTextStyles.caption
+                    .copyWith(color: AppColors.textSecondary),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -265,6 +347,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     classPreference: displayUser?.classPreference,
                   ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.05, end: 0),
                   const SizedBox(height: 20),
+
+                  // Family fees — combined total across all children (parents).
+                  _familyFeesCard(),
 
                   // This month's fee — the first thing a student sees on login.
                   if (_currentMonthInvoice != null) ...[

@@ -4612,6 +4612,50 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
+    // Combined family fee summary for the logged-in parent/student: the
+    // total unpaid across all their students, plus a per-student split.
+    app.get('/api/parent/fee-summary', ensureAuthenticated, async (req, res) => {
+        try {
+            const user = req.session.user;
+            const childrenRes = await pool.query(
+                'SELECT id, name, display_name FROM users WHERE parent_id = $1 AND is_deleted = false',
+                [user.id]
+            );
+            const nameById = {};
+            childrenRes.rows.forEach((r) => { nameById[r.id] = r.display_name || r.name; });
+            const studentIds = childrenRes.rows.map((r) => r.id);
+            // A primary Student account is itself a student.
+            if (String(user.role || '').toLowerCase() === 'student') {
+                studentIds.push(user.id);
+                nameById[user.id] = nameById[user.id] || user.name;
+            }
+            if (studentIds.length === 0) {
+                return res.json({ students: [], total_due: 0, count: 0 });
+            }
+
+            const invRes = await pool.query(
+                `SELECT * FROM invoices WHERE student_id = ANY($1) AND status IN ('pending', 'overdue')
+                 ORDER BY due_date NULLS LAST, id`,
+                [studentIds]
+            );
+            const byStudent = {};
+            for (const inv of invRes.rows) {
+                const sid = inv.student_id;
+                if (!byStudent[sid]) {
+                    byStudent[sid] = { student_id: sid, student_name: nameById[sid] || 'Student', invoices: [], total: 0 };
+                }
+                byStudent[sid].invoices.push(inv);
+                byStudent[sid].total += Number(inv.amount || 0);
+            }
+            const students = Object.values(byStudent).filter((s) => s.invoices.length > 0);
+            const totalDue = students.reduce((sum, s) => sum + s.total, 0);
+            res.json({ students, total_due: totalDue, count: students.length });
+        } catch (error) {
+            console.error('Error building family fee summary:', error);
+            res.status(500).json({ message: 'Server error building fee summary.' });
+        }
+    });
+
     // --- Invoice API Endpoints ---
     app.get('/api/invoices', async (req, res) => {
         try {
