@@ -541,6 +541,9 @@ export const registerUser = async (userData: Partial<User>[], sendEmails: boolea
       if (user.educationalQualifications) completeUserData.educational_qualifications = user.educationalQualifications;
       if (user.employmentType) completeUserData.employment_type = user.employmentType;
       if (user.courses && user.courses.length > 0) completeUserData.courses = user.courses;
+      if ((user as any).course_grades && (user as any).course_grades.length > 0) {
+        completeUserData.course_grades = (user as any).course_grades;
+      }
       if (user.schedules) completeUserData.schedules = user.schedules;
       if (user.documents) completeUserData.documents = user.documents;
       if (user.preferredTimings && user.preferredTimings.length > 0) {

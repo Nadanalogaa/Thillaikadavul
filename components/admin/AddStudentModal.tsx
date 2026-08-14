@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import type { User, Course } from '../../types';
 import { UserRole, Sex, Grade, ClassPreference, UserStatus } from '../../types';
 import { GRADES } from '../../constants';
-import { getCourses } from '../../api';
+import { getCourses, getGrades } from '../../api';
 import Modal from '../Modal';
 import CourseTimingManager from './CourseTimingManager';
 import { UploadIcon, XCircleIcon } from '../icons';
@@ -29,26 +29,27 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onSa
         photoUrl: '',
     });
     const [courses, setCourses] = useState<Course[]>([]);
+    const [grades, setGrades] = useState<any[]>([]);
+    const [courseGrades, setCourseGrades] = useState<Record<string, string>>({}); // courseId -> gradeId
     const [isLoading, setIsLoading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (isOpen) {
-            const fetchCourses = async () => {
+            const fetchData = async () => {
                 try {
-                    const fetchedCourses = await getCourses();
-                    console.log('Fetched courses:', fetchedCourses);
+                    const [fetchedCourses, fetchedGrades] = await Promise.all([getCourses(), getGrades()]);
                     // Remove duplicates based on course name
-                    const uniqueCourses = fetchedCourses.filter((course, index, array) => 
+                    const uniqueCourses = fetchedCourses.filter((course, index, array) =>
                         array.findIndex(c => c.name === course.name) === index
                     );
-                    console.log('Unique courses after deduplication:', uniqueCourses);
                     setCourses(uniqueCourses);
+                    setGrades(fetchedGrades || []);
                 } catch (error) {
-                    console.error("Failed to fetch courses for add student modal", error);
+                    console.error("Failed to fetch courses/grades for add student modal", error);
                 }
             };
-            fetchCourses();
+            fetchData();
         }
     }, [isOpen]);
 
@@ -99,7 +100,15 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onSa
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        await onSave(formData);
+        // Build course_grades [{course_id, grade_id}] for the selected courses that have a grade chosen.
+        const selectedCourseIds = new Set(
+            courses.filter(c => (formData.courses || []).includes(c.name)).map(c => c.id)
+        );
+        const course_grades = Object.entries(courseGrades)
+            .filter(([courseId, gradeId]) => gradeId && selectedCourseIds.has(courseId))
+            .map(([courseId, gradeId]) => ({ course_id: courseId, grade_id: gradeId }));
+        await onSave({ ...formData, ...(course_grades.length ? { course_grades } : {}) } as any);
+        setCourseGrades({});
         // Reset form after saving
         setFormData({
             role: UserRole.Student,
@@ -286,8 +295,34 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onSa
                                                 })()}
                                             </div>
                                         </div>
+                                        {(formData.courses || []).length > 0 && (
+                                            <div className="sm:col-span-2">
+                                                <h4 className="text-sm font-semibold text-gray-900 mb-1">Grade per course (optional)</h4>
+                                                <p className="text-xs text-gray-500 mb-3">Sets the monthly fee. You can also assign this later from the student's profile.</p>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                    {courses.filter(c => (formData.courses || []).includes(c.name)).map(course => {
+                                                        const options = grades.filter((g: any) => String(g.course_id) === String(course.id));
+                                                        return (
+                                                            <div key={course.id}>
+                                                                <label className="block text-xs font-medium text-gray-700 mb-1">{course.name}</label>
+                                                                <select
+                                                                    value={courseGrades[course.id] || ''}
+                                                                    onChange={e => setCourseGrades(prev => ({ ...prev, [course.id]: e.target.value }))}
+                                                                    className="block w-full form-select"
+                                                                >
+                                                                    <option value="">{options.length ? '— Not assigned —' : 'No grades for this course'}</option>
+                                                                    {options.map((g: any) => (
+                                                                        <option key={g.id} value={g.id}>{g.name} (₹{Number(g.monthly_fee).toFixed(0)})</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
                                         <div>
-                                            <label htmlFor="grade-add" className="block text-sm font-medium text-gray-700">Grade</label>
+                                            <label htmlFor="grade-add" className="block text-sm font-medium text-gray-700">Grade (legacy)</label>
                                             <select id="grade-add" name="grade" value={formData.grade} onChange={handleChange} className="mt-1 block w-full form-select">
                                                 {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
                                             </select>
