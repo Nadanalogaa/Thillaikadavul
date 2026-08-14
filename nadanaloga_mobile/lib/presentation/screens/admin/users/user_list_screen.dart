@@ -33,6 +33,7 @@ class _UserListView extends StatefulWidget {
 class _UserListViewState extends State<_UserListView> {
   final _searchController = TextEditingController();
   String? _selectedRole;
+  String? _selectedStatus; // null = all, 'active', 'inactive'
 
   @override
   void dispose() {
@@ -126,6 +127,26 @@ class _UserListViewState extends State<_UserListView> {
                     _loadUsers();
                   },
                 ),
+                const SizedBox(width: 16),
+                Container(width: 1, height: 24, color: AppColors.divider),
+                const SizedBox(width: 16),
+                _FilterChip(
+                  label: 'Any status',
+                  selected: _selectedStatus == null,
+                  onSelected: () => setState(() => _selectedStatus = null),
+                ),
+                const SizedBox(width: 8),
+                _FilterChip(
+                  label: 'Active',
+                  selected: _selectedStatus == 'active',
+                  onSelected: () => setState(() => _selectedStatus = 'active'),
+                ),
+                const SizedBox(width: 8),
+                _FilterChip(
+                  label: 'Inactive',
+                  selected: _selectedStatus == 'inactive',
+                  onSelected: () => setState(() => _selectedStatus = 'inactive'),
+                ),
               ],
             ),
           ),
@@ -153,7 +174,15 @@ class _UserListViewState extends State<_UserListView> {
                 }
 
                 if (state is UserManagementLoaded) {
-                  if (state.users.isEmpty) {
+                  final users = _selectedStatus == null
+                      ? state.users
+                      : state.users.where((u) {
+                          final s = (u.status ?? 'active').toLowerCase();
+                          return _selectedStatus == 'active'
+                              ? s == 'active'
+                              : s != 'active';
+                        }).toList();
+                  if (users.isEmpty) {
                     return EmptyStateWidget(
                       icon: Icons.people_outline,
                       title: 'No users found',
@@ -167,9 +196,9 @@ class _UserListViewState extends State<_UserListView> {
                     onRefresh: () async => _loadUsers(),
                     child: ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: state.users.length,
+                      itemCount: users.length,
                       itemBuilder: (context, index) {
-                        final user = state.users[index];
+                        final user = users[index];
                         return UserCard(
                           user: user,
                           onTap: () => context.push('/admin/users/${user.id}'),

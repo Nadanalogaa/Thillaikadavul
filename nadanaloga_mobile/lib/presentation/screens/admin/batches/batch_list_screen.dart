@@ -25,11 +25,32 @@ class _BatchListScreenState extends State<BatchListScreen> {
   List<CourseModel> _courses = [];
   bool _loadingCourses = true;
   Set<int?> _expandedCourses = {};
+  final _searchController = TextEditingController();
+  String _search = '';
+  String? _studioFilter; // null = any, else studio name
 
   @override
   void initState() {
     super.initState();
     _loadCourses();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<BatchModel> _applyFilters(List<BatchModel> batches) {
+    final q = _search.trim().toLowerCase();
+    return batches.where((b) {
+      if (_studioFilter != null && (b.studio ?? '') != _studioFilter) {
+        return false;
+      }
+      if (q.isEmpty) return true;
+      final studio = (b.studio ?? '').toLowerCase();
+      return b.batchName.toLowerCase().contains(q) || studio.contains(q);
+    }).toList();
   }
 
   Future<void> _loadCourses() async {
@@ -68,6 +89,60 @@ class _BatchListScreenState extends State<BatchListScreen> {
     } catch (_) {
       return 'Unknown Course';
     }
+  }
+
+  Widget _buildFilterBar(List<String> studios) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Search batch or studio...',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _search.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _search = '');
+                      },
+                    )
+                  : null,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              contentPadding: const EdgeInsets.symmetric(vertical: 0),
+            ),
+            onChanged: (v) => setState(() => _search = v),
+          ),
+        ),
+        if (studios.isNotEmpty)
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(
+              children: [
+                _batchFilterChip('All studios', _studioFilter == null,
+                    () => setState(() => _studioFilter = null)),
+                for (final s in studios) ...[
+                  const SizedBox(width: 8),
+                  _batchFilterChip(s, _studioFilter == s,
+                      () => setState(() => _studioFilter = s)),
+                ],
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _batchFilterChip(String label, bool selected, VoidCallback onTap) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onTap(),
+    );
   }
 
   @override
@@ -114,7 +189,15 @@ class _BatchListScreenState extends State<BatchListScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (state is BatchLoaded) {
-            if (state.batches.isEmpty) {
+            final allBatches = state.batches;
+            final studios = allBatches
+                .map((b) => b.studio)
+                .where((s) => s != null && s.isNotEmpty)
+                .cast<String>()
+                .toSet()
+                .toList()
+              ..sort();
+            if (allBatches.isEmpty) {
               return EmptyStateWidget(
                 icon: Icons.group_work_outlined,
                 title: 'No batches yet',
@@ -129,7 +212,8 @@ class _BatchListScreenState extends State<BatchListScreen> {
               );
             }
 
-            final groupedBatches = _groupBatchesByCourse(state.batches);
+            final filtered = _applyFilters(allBatches);
+            final groupedBatches = _groupBatchesByCourse(filtered);
             final sortedCourseIds = groupedBatches.keys.toList()
               ..sort((a, b) {
                 final nameA = _getCourseName(a);
@@ -140,7 +224,17 @@ class _BatchListScreenState extends State<BatchListScreen> {
                 return nameA.compareTo(nameB);
               });
 
-            return RefreshIndicator(
+            return Column(
+              children: [
+                _buildFilterBar(studios),
+                Expanded(
+                  child: filtered.isEmpty
+                      ? const EmptyStateWidget(
+                          icon: Icons.search_off,
+                          title: 'No matching batches',
+                          subtitle: 'Try a different search or filter.',
+                        )
+                      : RefreshIndicator(
               onRefresh: () async {
                 context.read<BatchBloc>().add(LoadBatches());
                 await _loadCourses();
@@ -174,6 +268,9 @@ class _BatchListScreenState extends State<BatchListScreen> {
                   );
                 },
               ),
+            ),
+                ),
+              ],
             );
           }
           return const SizedBox.shrink();
