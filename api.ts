@@ -1461,6 +1461,13 @@ export const assignStudentGrade = async (studentId: number, courseId: number, gr
   return await res.json();
 };
 
+export const removeStudentGrade = async (studentId: number, courseId: number): Promise<void> => {
+  const res = await fetch(`/api/students/${studentId}/grades/${courseId}`, {
+    method: 'DELETE', credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to remove grade');
+};
+
 // --- Reports ---
 export const getReport = async (type: string, params: Record<string, string> = {}): Promise<any> => {
   const qs = new URLSearchParams(params).toString();

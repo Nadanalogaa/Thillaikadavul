@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleGenAI } from '@google/genai';
 import type { User, Course, Batch, Invoice, ClassPreference, CourseTimingSlot } from '../../types';
-import { getAdminUserById, getCourses, getBatches, getAdminInvoices, updateUserByAdmin, updateBatch } from '../../api';
+import { getAdminUserById, getCourses, getBatches, getAdminInvoices, updateUserByAdmin, updateBatch, getGrades, getStudentGrades, assignStudentGrade, removeStudentGrade } from '../../api';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import { CourseIcon, SparklesIcon } from '../../components/icons';
 import WizardTabs from '../../components/WizardTabs';
@@ -42,22 +42,29 @@ const StudentProfileViewPage: React.FC<StudentProfileViewPageProps> = ({ student
     const [currentStep, setCurrentStep] = useState(1);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
-    
-    const steps = ['Profile', 'Account & Contact', 'Schedule & Courses', 'Fee History'];
+    const [studentGrades, setStudentGrades] = useState<any[]>([]);
+    const [allGrades, setAllGrades] = useState<any[]>([]);
+    const [savingGradeCourseId, setSavingGradeCourseId] = useState<string | null>(null);
+
+    const steps = ['Profile', 'Account & Contact', 'Schedule & Courses', 'Grades & Fees', 'Fee History'];
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const [fetchedStudent, fetchedCourses, fetchedBatches, allInvoices] = await Promise.all([
+            const [fetchedStudent, fetchedCourses, fetchedBatches, allInvoices, sGrades, gGrades] = await Promise.all([
                 getAdminUserById(studentId),
                 getCourses(),
                 getBatches(),
                 getAdminInvoices(), // Fetch all invoices and filter locally
+                getStudentGrades(Number(studentId)),
+                getGrades(),
             ]);
             setStudent(fetchedStudent);
             setCourses(fetchedCourses);
             setBatches(fetchedBatches);
             setInvoices(allInvoices.filter(inv => inv.student?.id === studentId));
+            setStudentGrades(sGrades || []);
+            setAllGrades(gGrades || []);
             setError(null);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Could not fetch student data.");
@@ -184,6 +191,27 @@ const StudentProfileViewPage: React.FC<StudentProfileViewPageProps> = ({ student
         }).filter((e): e is NonNullable<typeof e> => e !== null);
     };
 
+    const handleAssignGrade = async (courseId: string, gradeId: string) => {
+        if (!student) return;
+        setSavingGradeCourseId(courseId);
+        try {
+            if (!gradeId) {
+                await removeStudentGrade(Number(student.id), Number(courseId));
+            } else {
+                await assignStudentGrade(Number(student.id), Number(courseId), Number(gradeId));
+            }
+            const refreshed = await getStudentGrades(Number(student.id));
+            setStudentGrades(refreshed || []);
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Failed to update grade');
+        } finally {
+            setSavingGradeCourseId(null);
+        }
+    };
+
+    const gradesTotal = studentGrades.reduce((sum, g) => sum + Number(g.monthly_fee || 0), 0);
+    const gradesCurrency = studentGrades[0]?.currency || 'INR';
+
     if (isLoading) return <div className="p-8 text-center">Loading student profile...</div>;
     if (error) return <div className="p-8 text-center text-red-500 bg-red-100 rounded-md">{error}</div>;
     if (!student) return <div className="p-8 text-center">Student not found.</div>;
@@ -305,7 +333,69 @@ const StudentProfileViewPage: React.FC<StudentProfileViewPageProps> = ({ student
                         </div>
                     </div>
                 );
-            case 4: // Fee History
+            case 4: // Grades & Fees (Enrollment)
+                return (
+                    <div>
+                        <div className="flex items-center justify-between mb-4">
+                            <h4 className="text-sm font-medium text-gray-500">Grade per course determines the monthly fee. Admin assigns a grade for each enrolled course.</h4>
+                            <div className="bg-brand-primary/5 text-brand-primary font-semibold px-4 py-2 rounded-md">
+                                Total: {gradesTotal.toFixed(0)} {gradesCurrency}/month
+                            </div>
+                        </div>
+                        {(student.courses && student.courses.length > 0) ? (
+                            <div className="space-y-3">
+                                {student.courses.map(courseName => {
+                                    const course = courses.find(c => c.name === courseName);
+                                    const courseId = course?.id;
+                                    const assigned = studentGrades.find(g => String(g.course_id) === String(courseId));
+                                    const options = allGrades.filter(g => String(g.course_id) === String(courseId));
+                                    return (
+                                        <div key={courseName} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-gray-50 rounded-lg border">
+                                            <div className="flex items-center space-x-2">
+                                                <CourseIcon iconName={course?.icon || ''} className="h-5 w-5 text-brand-primary" />
+                                                <div>
+                                                    <p className="font-semibold text-gray-800">{courseName}</p>
+                                                    {assigned ? (
+                                                        <p className="text-sm text-gray-600">{assigned.grade_name} · {Number(assigned.monthly_fee).toFixed(0)} {assigned.currency || 'INR'}/month</p>
+                                                    ) : (
+                                                        <p className="text-sm text-gray-400 italic">No grade assigned</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {!courseId ? (
+                                                    <span className="text-xs text-gray-400 italic">Course not found</span>
+                                                ) : options.length === 0 ? (
+                                                    <span className="text-xs text-gray-400 italic">No grades configured for this course</span>
+                                                ) : (
+                                                    <select
+                                                        value={assigned?.grade_id || ''}
+                                                        disabled={savingGradeCourseId === String(courseId)}
+                                                        onChange={e => handleAssignGrade(String(courseId), e.target.value)}
+                                                        className="border border-gray-300 rounded-md px-3 py-2 text-sm disabled:opacity-50"
+                                                    >
+                                                        <option value="">— Not assigned —</option>
+                                                        {options.map(g => (
+                                                            <option key={g.id} value={g.id}>
+                                                                {g.name} ({Number(g.monthly_fee).toFixed(0)} {g.currency || 'INR'})
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                )}
+                                                {savingGradeCourseId === String(courseId) && <span className="text-xs text-gray-500">Saving…</span>}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="text-center text-sm text-gray-500 py-6 border-2 border-dashed rounded-lg">
+                                Student has not applied for any course yet.
+                            </div>
+                        )}
+                    </div>
+                );
+            case 5: // Fee History
                 return (
                     <div className="bg-white rounded-lg shadow-sm border overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
