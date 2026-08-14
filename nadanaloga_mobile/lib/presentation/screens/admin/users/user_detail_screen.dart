@@ -6,6 +6,8 @@ import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_text_styles.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../data/models/user_model.dart';
+import '../../../../data/models/grade_model.dart';
+import '../../../../data/models/course_model.dart';
 import '../../../../di/injection_container.dart';
 import '../../../bloc/auth/auth_bloc.dart';
 import '../../../bloc/auth/auth_state.dart';
@@ -27,6 +29,9 @@ class UserDetailScreen extends StatefulWidget {
 class _UserDetailScreenState extends State<UserDetailScreen> {
   UserModel? _user;
   List<UserModel> _children = [];
+  List<StudentGradeModel> _studentGrades = [];
+  List<GradeModel> _allGrades = [];
+  List<CourseModel> _allCourses = [];
   bool _loading = true;
   String? _error;
 
@@ -55,9 +60,40 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                 .toList();
           }
         } catch (_) {}
+        final loaded = UserModel.fromJson(response.data);
+        // For students, load their grade assignments + the grade/course catalog.
+        List<StudentGradeModel> studentGrades = [];
+        List<GradeModel> allGrades = [];
+        List<CourseModel> allCourses = [];
+        if (loaded.role == 'Student') {
+          try {
+            final r = await Future.wait([
+              api.getStudentGrades(widget.userId),
+              api.getGrades(),
+              api.getCourses(),
+            ]);
+            if (r[0].statusCode == 200 && r[0].data is List) {
+              studentGrades = (r[0].data as List)
+                  .map((j) => StudentGradeModel.fromJson(j))
+                  .toList();
+            }
+            if (r[1].statusCode == 200 && r[1].data is List) {
+              allGrades =
+                  (r[1].data as List).map((j) => GradeModel.fromJson(j)).toList();
+            }
+            if (r[2].statusCode == 200 && r[2].data is List) {
+              allCourses = (r[2].data as List)
+                  .map((j) => CourseModel.fromJson(j))
+                  .toList();
+            }
+          } catch (_) {}
+        }
         setState(() {
-          _user = UserModel.fromJson(response.data);
+          _user = loaded;
           _children = children;
+          _studentGrades = studentGrades;
+          _allGrades = allGrades;
+          _allCourses = allCourses;
           _loading = false;
         });
       } else {
@@ -353,6 +389,61 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                 ),
             ],
 
+            // Enrollment — admin assigns the student's grade per course (drives fees).
+            if (user.role == 'Student') ...[
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _SectionHeader(title: 'Grades & Fees (Enrollment)'),
+                  TextButton.icon(
+                    onPressed: () => _showAssignGrade(user),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Assign Grade'),
+                  ),
+                ],
+              ),
+              if (_studentGrades.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 8),
+                  child: Text(
+                    'No grade assigned yet. Use "Assign Grade" to set the '
+                    'student\'s grade for each course — this sets their fee.',
+                    style: AppTextStyles.caption
+                        .copyWith(color: AppColors.textSecondary),
+                  ),
+                )
+              else
+                ..._studentGrades.map(
+                  (sg) => Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                        child: const Icon(Icons.grade,
+                            color: AppColors.primary, size: 20),
+                      ),
+                      title: Text('${sg.courseName ?? 'Course'} — ${sg.gradeName ?? 'Grade'}'),
+                      subtitle: Text('₹${sg.monthlyFee.toStringAsFixed(0)} / month',
+                          style: AppTextStyles.caption),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.edit, size: 20),
+                        onPressed: () => _showAssignGrade(user, existing: sg),
+                      ),
+                    ),
+                  ),
+                ),
+              if (_studentGrades.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, top: 4),
+                  child: Text(
+                    'Total: ₹${_studentGrades.fold<double>(0, (s, g) => s + g.monthlyFee).toStringAsFixed(0)} / month',
+                    style: AppTextStyles.labelLarge
+                        .copyWith(color: AppColors.primary),
+                  ),
+                ),
+            ],
+
             const SizedBox(height: 32),
           ],
         ),
@@ -546,6 +637,126 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
           },
         );
       },
+    );
+  }
+
+  void _showAssignGrade(UserModel student, {StudentGradeModel? existing}) {
+    final formKey = GlobalKey<FormState>();
+    int? courseId = existing?.courseId ??
+        (_allCourses.isNotEmpty ? _allCourses.first.id : null);
+    int? gradeId = existing?.gradeId;
+    bool saving = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialog) {
+          final gradesForCourse =
+              _allGrades.where((g) => g.courseId == courseId).toList();
+          return AlertDialog(
+            title: Text(existing == null ? 'Assign Grade' : 'Change Grade'),
+            content: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<int>(
+                    value: courseId,
+                    decoration: const InputDecoration(
+                        labelText: 'Course *',
+                        prefixIcon: Icon(Icons.menu_book)),
+                    items: _allCourses
+                        .map((c) =>
+                            DropdownMenuItem(value: c.id, child: Text(c.name)))
+                        .toList(),
+                    onChanged: (v) => setDialog(() {
+                      courseId = v;
+                      gradeId = null;
+                    }),
+                    validator: (v) => v == null ? 'Select a course' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<int>(
+                    value: gradeId,
+                    decoration: const InputDecoration(
+                        labelText: 'Grade *', prefixIcon: Icon(Icons.grade)),
+                    items: gradesForCourse
+                        .map((g) => DropdownMenuItem(
+                            value: g.id,
+                            child: Text(
+                                '${g.name}  ·  ₹${g.monthlyFee.toStringAsFixed(0)}')))
+                        .toList(),
+                    onChanged: (v) => setDialog(() => gradeId = v),
+                    validator: (v) => v == null ? 'Select a grade' : null,
+                  ),
+                  if (gradesForCourse.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        'No grades for this course. Add them in Grades & Fees first.',
+                        style: AppTextStyles.caption
+                            .copyWith(color: AppColors.error),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed:
+                    saving ? null : () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: saving
+                    ? null
+                    : () async {
+                        if (!formKey.currentState!.validate()) return;
+                        setDialog(() => saving = true);
+                        try {
+                          final r = await sl<ApiClient>().assignStudentGrade(
+                              student.id, courseId!, gradeId!);
+                          if (!mounted) return;
+                          if (r.statusCode == 200 || r.statusCode == 201) {
+                            Navigator.of(dialogContext).pop();
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              const SnackBar(
+                                  content: Text(
+                                      'Grade assigned — student notified'),
+                                  backgroundColor: AppColors.success),
+                            );
+                            _loadUser();
+                          } else {
+                            setDialog(() => saving = false);
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              SnackBar(
+                                  content: Text(r.data?['message'] ??
+                                      'Failed to assign grade'),
+                                  backgroundColor: AppColors.error),
+                            );
+                          }
+                        } catch (e) {
+                          if (!mounted) return;
+                          setDialog(() => saving = false);
+                          ScaffoldMessenger.of(this.context).showSnackBar(
+                            SnackBar(
+                                content: Text('Error: $e'),
+                                backgroundColor: AppColors.error),
+                          );
+                        }
+                      },
+                child: saving
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text('Save'),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 

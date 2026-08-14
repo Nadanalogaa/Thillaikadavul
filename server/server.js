@@ -3520,6 +3520,21 @@ Please review and approve this registration in the admin panel.`;
                 [id, course_id, grade_id]
             );
             res.status(201).json(result.rows[0]);
+
+            // Notify the student of the enrollment (fire-and-forget).
+            (async () => {
+                try {
+                    const info = await pool.query(
+                        `SELECT c.name AS course_name, g.name AS grade_name, g.monthly_fee
+                         FROM grades g LEFT JOIN courses c ON c.id = $1 WHERE g.id = $2`,
+                        [course_id, grade_id]
+                    );
+                    const row = info.rows[0] || {};
+                    createNotificationForUser(Number(id), 'Enrollment Updated',
+                        `You've been enrolled in ${row.course_name || 'a course'} — ${row.grade_name || 'Grade'} (fee INR ${row.monthly_fee || 0}/month).`,
+                        'Info');
+                } catch (e) { console.error('[Grade assign] notify error:', e.message); }
+            })();
         } catch (error) {
             console.error('Error assigning student grade:', error);
             res.status(500).json({ message: 'Server error assigning student grade.' });
