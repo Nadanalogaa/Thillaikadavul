@@ -3,13 +3,21 @@ import 'package:flutter/material.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_text_styles.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../data/models/grade_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../di/injection_container.dart';
 
 class StudentPickerSheet extends StatefulWidget {
   final List<int> excludeIds;
+  final int? batchCourseId; // when set, offer a grade dropdown for this course
+  final String? batchCourseName;
 
-  const StudentPickerSheet({super.key, this.excludeIds = const []});
+  const StudentPickerSheet({
+    super.key,
+    this.excludeIds = const [],
+    this.batchCourseId,
+    this.batchCourseName,
+  });
 
   @override
   State<StudentPickerSheet> createState() => _StudentPickerSheetState();
@@ -18,6 +26,8 @@ class StudentPickerSheet extends StatefulWidget {
 class _StudentPickerSheetState extends State<StudentPickerSheet> {
   List<UserModel> _students = [];
   final Set<int> _selected = {};
+  final Map<int, int> _gradeByStudent = {}; // studentId -> gradeId
+  List<GradeModel> _grades = [];
   bool _loading = true;
   final _searchController = TextEditingController();
 
@@ -25,6 +35,18 @@ class _StudentPickerSheetState extends State<StudentPickerSheet> {
   void initState() {
     super.initState();
     _loadStudents();
+    _loadGrades();
+  }
+
+  Future<void> _loadGrades() async {
+    if (widget.batchCourseId == null) return;
+    try {
+      final r = await sl<ApiClient>().getGrades(courseId: widget.batchCourseId);
+      if (r.statusCode == 200) {
+        _grades = (r.data as List).map((j) => GradeModel.fromJson(j)).toList();
+        if (mounted) setState(() {});
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadStudents([String? search]) async {
@@ -69,7 +91,10 @@ class _StudentPickerSheetState extends State<StudentPickerSheet> {
                   ),
                   if (_selected.isNotEmpty)
                     FilledButton(
-                      onPressed: () => Navigator.pop(context, _selected.toList()),
+                      onPressed: () => Navigator.pop(context, {
+                        'ids': _selected.toList(),
+                        'grades': Map<int, int>.from(_gradeByStudent),
+                      }),
                       child: Text('Add (${_selected.length})'),
                     ),
                 ],
@@ -108,29 +133,76 @@ class _StudentPickerSheetState extends State<StudentPickerSheet> {
                           itemBuilder: (context, index) {
                             final student = _students[index];
                             final isSelected = _selected.contains(student.id);
-                            return CheckboxListTile(
-                              value: isSelected,
-                              onChanged: (v) {
-                                setState(() {
-                                  if (v == true) {
-                                    _selected.add(student.id);
-                                  } else {
-                                    _selected.remove(student.id);
-                                  }
-                                });
-                              },
-                              title: Text(student.name),
-                              subtitle: Text(
-                                student.userId ?? student.email,
-                                style: AppTextStyles.caption,
-                              ),
-                              secondary: CircleAvatar(
-                                backgroundColor: AppColors.studentAccent,
-                                child: Text(
-                                  student.name[0].toUpperCase(),
-                                  style: const TextStyle(color: Colors.white),
+                            final gradesForCourse = _grades
+                                .where((g) => g.courseId == widget.batchCourseId)
+                                .toList();
+                            final existing = widget.batchCourseName == null
+                                ? null
+                                : student.courseGrades.where((g) =>
+                                    (g.courseName ?? '').toLowerCase() ==
+                                    widget.batchCourseName!.toLowerCase());
+                            final existingGrade = (existing != null &&
+                                    existing.isNotEmpty)
+                                ? existing.first.gradeName
+                                : null;
+                            return Column(
+                              children: [
+                                CheckboxListTile(
+                                  value: isSelected,
+                                  onChanged: (v) {
+                                    setState(() {
+                                      if (v == true) {
+                                        _selected.add(student.id);
+                                      } else {
+                                        _selected.remove(student.id);
+                                        _gradeByStudent.remove(student.id);
+                                      }
+                                    });
+                                  },
+                                  title: Text(student.name),
+                                  subtitle: Text(
+                                    existingGrade != null
+                                        ? '${student.userId ?? student.email} · Grade: $existingGrade'
+                                        : (student.userId ?? student.email),
+                                    style: AppTextStyles.caption,
+                                  ),
+                                  secondary: CircleAvatar(
+                                    backgroundColor: AppColors.studentAccent,
+                                    child: Text(
+                                      student.name[0].toUpperCase(),
+                                      style: const TextStyle(color: Colors.white),
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                if (isSelected && gradesForCourse.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(72, 0, 16, 8),
+                                    child: DropdownButtonFormField<int>(
+                                      value: _gradeByStudent[student.id],
+                                      isExpanded: true,
+                                      decoration: InputDecoration(
+                                        isDense: true,
+                                        labelText: existingGrade != null
+                                            ? 'Change grade (${widget.batchCourseName})'
+                                            : 'Assign grade (${widget.batchCourseName})',
+                                        prefixIcon:
+                                            const Icon(Icons.grade, size: 18),
+                                      ),
+                                      items: gradesForCourse
+                                          .map((g) => DropdownMenuItem(
+                                                value: g.id,
+                                                child: Text(
+                                                    '${g.name} · ₹${g.monthlyFee.toStringAsFixed(0)}'),
+                                              ))
+                                          .toList(),
+                                      onChanged: (v) => setState(() {
+                                        if (v != null) {
+                                          _gradeByStudent[student.id] = v;
+                                        }
+                                      }),
+                                    ),
+                                  ),
+                              ],
                             );
                           },
                         ),

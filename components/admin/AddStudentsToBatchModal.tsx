@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import Modal from '../Modal';
 import ModalHeader from '../ModalHeader';
 import type { Batch, User } from '../../types';
+import { getGrades, assignStudentGrade } from '../../api';
 
 interface AddStudentsToBatchModalProps {
     isOpen: boolean;
@@ -23,6 +24,8 @@ const AddStudentsToBatchModal: React.FC<AddStudentsToBatchModalProps> = ({ isOpe
     const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
     const [search, setSearch] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [grades, setGrades] = useState<any[]>([]);
+    const [gradeByStudent, setGradeByStudent] = useState<Record<string, string>>({});
     const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -30,6 +33,12 @@ const AddStudentsToBatchModal: React.FC<AddStudentsToBatchModalProps> = ({ isOpe
             const allStudentIdsInBatch = new Set((batch.schedule || []).flatMap(s => s.studentIds));
             setSelectedStudentIds(Array.from(allStudentIdsInBatch));
             setSearch(''); // Reset search on new batch
+            setGradeByStudent({});
+            if (batch.courseId) {
+                getGrades(Number(batch.courseId)).then(setGrades).catch(() => setGrades([]));
+            } else {
+                setGrades([]);
+            }
         }
     }, [batch]);
 
@@ -125,6 +134,21 @@ const AddStudentsToBatchModal: React.FC<AddStudentsToBatchModalProps> = ({ isOpe
         };
         
         await onSave(dataToSave);
+
+        // Assign the batch course's grade for any selected student the admin picked one for.
+        const assignments = Object.entries(gradeByStudent).filter(
+            ([studentId, gradeId]) => gradeId && selectedStudentIds.includes(studentId)
+        );
+        if (assignments.length && batch.courseId) {
+            try {
+                await Promise.all(assignments.map(([studentId, gradeId]) =>
+                    assignStudentGrade(Number(studentId), Number(batch.courseId), Number(gradeId))
+                ));
+            } catch (err) {
+                console.error('Failed to assign grade(s) for batch students:', err);
+            }
+        }
+
         setIsLoading(false);
     };
 
@@ -205,6 +229,21 @@ const AddStudentsToBatchModal: React.FC<AddStudentsToBatchModalProps> = ({ isOpe
                                                                     </li>
                                                                 ))}
                                                             </ul>
+                                                        </div>
+                                                    )}
+                                                    {isSelected && grades.length > 0 && (
+                                                        <div className="mt-2 flex items-center gap-2" onClick={e => e.preventDefault()}>
+                                                            <span className="text-xs text-gray-500">Grade ({batch.courseName}):</span>
+                                                            <select
+                                                                value={gradeByStudent[student.id] || ''}
+                                                                onChange={e => setGradeByStudent(prev => ({ ...prev, [student.id]: e.target.value }))}
+                                                                className="text-xs border border-gray-300 rounded px-2 py-1"
+                                                            >
+                                                                <option value="">— Leave unchanged —</option>
+                                                                {grades.map((g: any) => (
+                                                                    <option key={g.id} value={g.id}>{g.name} (₹{Number(g.monthly_fee).toFixed(0)})</option>
+                                                                ))}
+                                                            </select>
                                                         </div>
                                                     )}
                                                 </div>

@@ -230,17 +230,35 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
 
   void _showStudentPicker(BuildContext context) async {
     final currentIds = List<int>.from(_details?['student_ids'] ?? []);
-    final selectedIds = await showModalBottomSheet<List<int>>(
+    final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => StudentPickerSheet(excludeIds: currentIds),
+      builder: (_) => StudentPickerSheet(
+        excludeIds: currentIds,
+        batchCourseId: _details?['course_id'] as int?,
+        batchCourseName: _details?['course_name'] as String?,
+      ),
     );
-    if (selectedIds != null && selectedIds.isNotEmpty && mounted) {
-      final newIds = [...currentIds, ...selectedIds];
-      context.read<BatchBloc>().add(UpdateBatch(
-        id: widget.batchId,
-        data: {'batch_name': _details!['batch_name'], 'student_ids': newIds},
-      ));
+    if (result == null || !mounted) return;
+    final selectedIds = List<int>.from(result['ids'] ?? []);
+    final gradeByStudent = Map<int, int>.from(result['grades'] ?? {});
+    if (selectedIds.isEmpty) return;
+
+    final newIds = [...currentIds, ...selectedIds];
+    context.read<BatchBloc>().add(UpdateBatch(
+      id: widget.batchId,
+      data: {'batch_name': _details!['batch_name'], 'student_ids': newIds},
+    ));
+
+    // Assign the batch course's grade for any student the admin picked one for.
+    final courseId = _details?['course_id'] as int?;
+    if (courseId != null && gradeByStudent.isNotEmpty) {
+      final api = sl<ApiClient>();
+      for (final entry in gradeByStudent.entries) {
+        try {
+          await api.assignStudentGrade(entry.key, courseId, entry.value);
+        } catch (_) {}
+      }
     }
   }
 
