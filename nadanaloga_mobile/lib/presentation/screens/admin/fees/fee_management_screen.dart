@@ -29,6 +29,10 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
   List<BatchModel> _batches = [];
   bool _loadingCourses = true;
   Set<int?> _expandedCourses = {};
+  // Invoice filters
+  String _invStatus = '';
+  String _invSearch = '';
+  String _invCourse = '';
 
   @override
   void initState() {
@@ -295,13 +299,54 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
           onAction: () => context.push('/admin/fees/invoices/add'),
         );
       }
-      return RefreshIndicator(
+      // Distinct course labels for the filter dropdown.
+      final courseOptions = state.invoices
+          .map((i) => i.courseName)
+          .where((c) => c != null && c.isNotEmpty)
+          .cast<String>()
+          .toSet()
+          .toList()
+        ..sort();
+      final q = _invSearch.trim().toLowerCase();
+      final filtered = state.invoices.where((inv) {
+        if (_invStatus.isNotEmpty && inv.status.toLowerCase() != _invStatus) {
+          return false;
+        }
+        if (_invCourse.isNotEmpty && inv.courseName != _invCourse) return false;
+        if (q.isNotEmpty) {
+          final name = (inv.studentName ?? '').toLowerCase();
+          if (!name.contains(q)) return false;
+        }
+        return true;
+      }).toList();
+      final total = filtered.fold<double>(0, (s, i) => s + (i.amount ?? 0));
+
+      return Column(
+        children: [
+          _buildInvoiceFilterBar(courseOptions),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            color: AppColors.primary.withValues(alpha: 0.05),
+            child: Text(
+              '${filtered.length} invoice(s) · Total ₹${total.toStringAsFixed(0)}',
+              style: AppTextStyles.caption.copyWith(
+                  color: AppColors.primary, fontWeight: FontWeight.w600),
+            ),
+          ),
+          Expanded(
+            child: filtered.isEmpty
+                ? const EmptyStateWidget(
+                    icon: Icons.search_off,
+                    title: 'No matching invoices',
+                    subtitle: 'Try a different filter.')
+                : RefreshIndicator(
         onRefresh: () async => context.read<FeeBloc>().add(LoadInvoices()),
         child: ListView.builder(
           padding: const EdgeInsets.all(16),
-          itemCount: state.invoices.length,
+          itemCount: filtered.length,
           itemBuilder: (context, index) {
-            final inv = state.invoices[index];
+            final inv = filtered[index];
             return Card(
               margin: const EdgeInsets.only(bottom: 10),
               child: ListTile(
@@ -330,6 +375,20 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
                           style: AppTextStyles.bodyMedium
                               .copyWith(fontWeight: FontWeight.w600),
                         ),
+                        if (inv.hasDiscount) ...[
+                          const SizedBox(width: 6),
+                          Text(
+                            '\u20B9${inv.originalAmount?.toStringAsFixed(0) ?? ''}',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.textSecondary,
+                              decoration: TextDecoration.lineThrough,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text('-${inv.discountPercentage?.toStringAsFixed(0)}%',
+                              style: AppTextStyles.caption
+                                  .copyWith(color: AppColors.success)),
+                        ],
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -368,9 +427,62 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
             );
           },
         ),
+                  ),
+          ),
+        ],
       );
     }
     return const SizedBox.shrink();
+  }
+
+  Widget _buildInvoiceFilterBar(List<String> courseOptions) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: TextField(
+            decoration: InputDecoration(
+              hintText: 'Search student...',
+              prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              contentPadding: const EdgeInsets.symmetric(vertical: 0),
+            ),
+            onChanged: (v) => setState(() => _invSearch = v),
+          ),
+        ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Row(
+            children: [
+              for (final s in const ['', 'pending', 'paid', 'overdue']) ...[
+                ChoiceChip(
+                  label: Text(s.isEmpty ? 'All' : s[0].toUpperCase() + s.substring(1)),
+                  selected: _invStatus == s,
+                  onSelected: (_) => setState(() => _invStatus = s),
+                ),
+                const SizedBox(width: 8),
+              ],
+              if (courseOptions.isNotEmpty) ...[
+                Container(width: 1, height: 24, color: AppColors.divider),
+                const SizedBox(width: 12),
+                DropdownButton<String>(
+                  value: _invCourse.isEmpty ? null : _invCourse,
+                  hint: const Text('All courses'),
+                  underline: const SizedBox.shrink(),
+                  items: [
+                    const DropdownMenuItem(value: '', child: Text('All courses')),
+                    ...courseOptions.map((c) =>
+                        DropdownMenuItem(value: c, child: Text(c))),
+                  ],
+                  onChanged: (v) => setState(() => _invCourse = v ?? ''),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   Color _statusColor(String status) {

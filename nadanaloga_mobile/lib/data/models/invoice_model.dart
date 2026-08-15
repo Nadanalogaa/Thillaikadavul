@@ -17,6 +17,9 @@ class InvoiceModel {
   final double? originalAmount;
   final double? discountPercentage;
   final double? discountAmount;
+  final int? courseId;
+  final int? gradeId;
+  final int? batchId;
   final String? paymentStatus; // latest proof status: submitted / approved / rejected
 
   const InvoiceModel({
@@ -38,6 +41,9 @@ class InvoiceModel {
     this.originalAmount,
     this.discountPercentage,
     this.discountAmount,
+    this.courseId,
+    this.gradeId,
+    this.batchId,
     this.paymentStatus,
   });
 
@@ -63,6 +69,9 @@ class InvoiceModel {
       originalAmount: _parseDouble(json['original_amount']),
       discountPercentage: _parseDouble(json['discount_percentage']),
       discountAmount: _parseDouble(json['discount_amount']),
+      courseId: json['course_id'] as int?,
+      gradeId: json['grade_id'] as int?,
+      batchId: json['batch_id'] as int?,
       paymentStatus: json['payment_status'] as String?,
     );
   }
