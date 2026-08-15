@@ -34,6 +34,7 @@ class _UserListViewState extends State<_UserListView> {
   final _searchController = TextEditingController();
   String? _selectedRole;
   String? _selectedStatus; // null = all, 'active', 'inactive'
+  bool _discountOnly = false;
 
   @override
   void dispose() {
@@ -147,6 +148,14 @@ class _UserListViewState extends State<_UserListView> {
                   selected: _selectedStatus == 'inactive',
                   onSelected: () => setState(() => _selectedStatus = 'inactive'),
                 ),
+                const SizedBox(width: 16),
+                Container(width: 1, height: 24, color: AppColors.divider),
+                const SizedBox(width: 16),
+                _FilterChip(
+                  label: 'Discounted',
+                  selected: _discountOnly,
+                  onSelected: () => setState(() => _discountOnly = !_discountOnly),
+                ),
               ],
             ),
           ),
@@ -174,14 +183,16 @@ class _UserListViewState extends State<_UserListView> {
                 }
 
                 if (state is UserManagementLoaded) {
-                  final users = _selectedStatus == null
-                      ? state.users
-                      : state.users.where((u) {
-                          final s = (u.status ?? 'active').toLowerCase();
-                          return _selectedStatus == 'active'
-                              ? s == 'active'
-                              : s != 'active';
-                        }).toList();
+                  var users = state.users;
+                  if (_selectedStatus != null) {
+                    users = users.where((u) {
+                      final s = (u.status ?? 'active').toLowerCase();
+                      return _selectedStatus == 'active' ? s == 'active' : s != 'active';
+                    }).toList();
+                  }
+                  if (_discountOnly) {
+                    users = users.where((u) => u.hasDiscount).toList();
+                  }
                   if (users.isEmpty) {
                     return EmptyStateWidget(
                       icon: Icons.people_outline,

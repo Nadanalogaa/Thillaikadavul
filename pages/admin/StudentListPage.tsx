@@ -51,6 +51,7 @@ const StudentListPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [sortConfig, setSortConfig] = useState<SortConfig>(null);
     const [gradeFilter, setGradeFilter] = useState('');
+    const [discountFilter, setDiscountFilter] = useState(''); // '', 'yes', 'no'
     const [courseFilters, setCourseFilters] = useState<string[]>([]);
     const [isCourseFilterOpen, setIsCourseFilterOpen] = useState(false);
     const [courseSearch, setCourseSearch] = useState('');
@@ -169,6 +170,11 @@ const StudentListPage: React.FC = () => {
         processStudents = processStudents.filter(student => {
             if (gradeFilter && student.grade !== gradeFilter) return false;
             if (preferenceFilter && student.classPreference !== preferenceFilter) return false;
+            if (discountFilter) {
+                const hasDisc = (student.courseGrades || []).some(g => Number(g.discount_percentage || 0) > 0);
+                if (discountFilter === 'yes' && !hasDisc) return false;
+                if (discountFilter === 'no' && hasDisc) return false;
+            }
             
             if (courseFilters.length > 0) {
                 if (!student.courses || student.courses.length === 0) return false;
@@ -231,7 +237,7 @@ const StudentListPage: React.FC = () => {
         }
 
         return processStudents;
-    }, [students, searchQuery, gradeFilter, preferenceFilter, courseFilters, batchFilter, sortConfig, batches, studentBatchEnrollments]);
+    }, [students, searchQuery, gradeFilter, discountFilter, preferenceFilter, courseFilters, batchFilter, sortConfig, batches, studentBatchEnrollments]);
 
     const areAllVisibleSelected = useMemo(() =>
         filteredAndSortedStudents.length > 0 &&
@@ -459,6 +465,14 @@ const StudentListPage: React.FC = () => {
                                 <select id="grade-filter" value={gradeFilter} onChange={e => setGradeFilter(e.target.value)} className="w-full form-select mt-1">
                                     <option value="">All Grades</option>
                                     {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label htmlFor="discount-filter" className="text-sm font-medium text-gray-700">Discount</label>
+                                <select id="discount-filter" value={discountFilter} onChange={e => setDiscountFilter(e.target.value)} className="w-full form-select mt-1">
+                                    <option value="">All</option>
+                                    <option value="yes">Has discount</option>
+                                    <option value="no">No discount</option>
                                 </select>
                             </div>
                             <div className="relative" ref={courseFilterRef}>
