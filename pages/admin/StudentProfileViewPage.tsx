@@ -45,6 +45,7 @@ const StudentProfileViewPage: React.FC<StudentProfileViewPageProps> = ({ student
     const [studentGrades, setStudentGrades] = useState<any[]>([]);
     const [allGrades, setAllGrades] = useState<any[]>([]);
     const [savingGradeCourseId, setSavingGradeCourseId] = useState<string | null>(null);
+    const [editingGradeCourseId, setEditingGradeCourseId] = useState<string | null>(null);
 
     const steps = ['Profile', 'Account & Contact', 'Schedule & Courses', 'Grades & Fees', 'Fee History'];
 
@@ -202,6 +203,7 @@ const StudentProfileViewPage: React.FC<StudentProfileViewPageProps> = ({ student
             }
             const refreshed = await getStudentGrades(Number(student.id));
             setStudentGrades(refreshed || []);
+            setEditingGradeCourseId(null);
         } catch (err) {
             alert(err instanceof Error ? err.message : 'Failed to update grade');
         } finally {
@@ -367,20 +369,41 @@ const StudentProfileViewPage: React.FC<StudentProfileViewPageProps> = ({ student
                                                     <span className="text-xs text-gray-400 italic">Course not found</span>
                                                 ) : options.length === 0 ? (
                                                     <span className="text-xs text-gray-400 italic">No grades configured for this course</span>
-                                                ) : (
-                                                    <select
-                                                        value={assigned?.grade_id || ''}
-                                                        disabled={savingGradeCourseId === String(courseId)}
-                                                        onChange={e => handleAssignGrade(String(courseId), e.target.value)}
-                                                        className="border border-gray-300 rounded-md px-3 py-2 text-sm disabled:opacity-50"
+                                                ) : (assigned && editingGradeCourseId !== String(courseId)) ? (
+                                                    // Grade already set (e.g. at registration) → show it read-only with an Edit action.
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setEditingGradeCourseId(String(courseId))}
+                                                        className="inline-flex items-center gap-1 border border-brand-primary text-brand-primary text-sm font-medium px-3 py-2 rounded-md hover:bg-brand-primary/10"
                                                     >
-                                                        <option value="">— Not assigned —</option>
-                                                        {options.map(g => (
-                                                            <option key={g.id} value={g.id}>
-                                                                {g.name} ({Number(g.monthly_fee).toFixed(0)} {g.currency || 'INR'})
-                                                            </option>
-                                                        ))}
-                                                    </select>
+                                                        ✏️ Edit
+                                                    </button>
+                                                ) : (
+                                                    <>
+                                                        <select
+                                                            value={assigned?.grade_id || ''}
+                                                            disabled={savingGradeCourseId === String(courseId)}
+                                                            onChange={e => handleAssignGrade(String(courseId), e.target.value)}
+                                                            className="border border-gray-300 rounded-md px-3 py-2 text-sm disabled:opacity-50"
+                                                            autoFocus={editingGradeCourseId === String(courseId)}
+                                                        >
+                                                            <option value="">— Not assigned —</option>
+                                                            {options.map(g => (
+                                                                <option key={g.id} value={g.id}>
+                                                                    {g.name} ({Number(g.monthly_fee).toFixed(0)} {g.currency || 'INR'})
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        {editingGradeCourseId === String(courseId) && assigned && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setEditingGradeCourseId(null)}
+                                                                className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1"
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                        )}
+                                                    </>
                                                 )}
                                                 {savingGradeCourseId === String(courseId) && <span className="text-xs text-gray-500">Saving…</span>}
                                             </div>
