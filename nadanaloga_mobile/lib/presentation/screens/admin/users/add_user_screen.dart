@@ -359,23 +359,49 @@ class _AddUserScreenState extends State<AddUserScreen> {
                             );
                           }).toList(),
                         ),
-                        const SizedBox(height: 16),
-                        // Grade per selected course (students only)
-                        if (_role == 'Student' &&
-                            _selectedCourses.isNotEmpty) ...[
-                          Text('Grade per course (optional)',
-                              style: AppTextStyles.labelLarge),
+                        const SizedBox(height: 20),
+                        // Grade & Fees — per selected course (students only)
+                        if (_role == 'Student') ...[
+                          Row(
+                            children: [
+                              const Icon(Icons.grade,
+                                  size: 20, color: AppColors.primary),
+                              const SizedBox(width: 6),
+                              Text('Grade & Fees',
+                                  style: AppTextStyles.labelLarge
+                                      .copyWith(color: AppColors.primary)),
+                            ],
+                          ),
                           const SizedBox(height: 4),
                           Text(
-                            'Sets the monthly fee. You can also assign this later '
-                            'from the student\'s profile.',
+                            'Pick a grade for each course — it sets the monthly fee. '
+                            'Optional; you can also assign it later from the '
+                            'student profile or a batch.',
                             style: AppTextStyles.caption
                                 .copyWith(color: AppColors.textSecondary),
                           ),
-                          const SizedBox(height: 8),
-                          ..._courses
-                              .where((c) => _selectedCourses.contains(c.name))
-                              .map(_courseGradeDropdown),
+                          const SizedBox(height: 10),
+                          if (_selectedCourses.isEmpty)
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.06),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                    color: AppColors.primary
+                                        .withValues(alpha: 0.2)),
+                              ),
+                              child: Text(
+                                '☝  Select a course above to set its grade here.',
+                                style: AppTextStyles.caption
+                                    .copyWith(color: AppColors.textSecondary),
+                              ),
+                            )
+                          else
+                            ..._courses
+                                .where((c) => _selectedCourses.contains(c.name))
+                                .map(_courseGradeDropdown),
                         ],
                         const SizedBox(height: 24),
                       ],
