@@ -594,8 +594,11 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
   }
 
   Widget _gradesFeesCard(UserModel user) {
-    final total =
+    final gross =
         _studentGrades.fold<double>(0, (s, g) => s + g.monthlyFee);
+    final total =
+        _studentGrades.fold<double>(0, (s, g) => s + g.netAmount);
+    final hasAnyDiscount = _studentGrades.any((g) => g.hasDiscount);
     final gradedCount = _studentGrades.length;
     final courseCount = user.courses.length;
 
@@ -642,17 +645,38 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                     const Text('Monthly Fee',
                         style: TextStyle(color: Colors.white70, fontSize: 13)),
                     const SizedBox(height: 2),
-                    Text(
-                      '₹${total.toStringAsFixed(0)}',
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '₹${total.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 26,
+                              fontWeight: FontWeight.bold),
+                        ),
+                        if (hasAnyDiscount) ...[
+                          const SizedBox(width: 8),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(
+                              '₹${gross.toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 15,
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     Text(
                       courseCount == 0
                           ? 'No courses applied yet'
-                          : '$gradedCount of $courseCount course(s) graded',
+                          : hasAnyDiscount
+                              ? '$gradedCount of $courseCount graded · discount applied'
+                              : '$gradedCount of $courseCount course(s) graded',
                       style:
                           const TextStyle(color: Colors.white70, fontSize: 12),
                     ),
@@ -696,10 +720,16 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                 title: Text(courseName,
                     style: AppTextStyles.labelLarge),
                 subtitle: sg != null
-                    ? Text(
-                        '${sg.gradeName ?? 'Grade'} · ₹${sg.monthlyFee.toStringAsFixed(0)}/month',
-                        style: AppTextStyles.caption
-                            .copyWith(color: AppColors.primary))
+                    ? (sg.hasDiscount
+                        ? Text(
+                            '${sg.gradeName ?? 'Grade'} · ₹${sg.netAmount.toStringAsFixed(0)}/month '
+                            '(₹${sg.monthlyFee.toStringAsFixed(0)} − ${sg.discountPercentage.toStringAsFixed(0)}%)',
+                            style: AppTextStyles.caption
+                                .copyWith(color: AppColors.success))
+                        : Text(
+                            '${sg.gradeName ?? 'Grade'} · ₹${sg.monthlyFee.toStringAsFixed(0)}/month',
+                            style: AppTextStyles.caption
+                                .copyWith(color: AppColors.primary)))
                     : Text('No grade assigned',
                         style: AppTextStyles.caption
                             .copyWith(color: AppColors.textSecondary)),

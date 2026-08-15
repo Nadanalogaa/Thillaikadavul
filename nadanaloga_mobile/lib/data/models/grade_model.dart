@@ -44,6 +44,8 @@ class StudentGradeModel {
   final int? gradeId;
   final String? gradeName;
   final double monthlyFee;
+  final double discountPercentage;
+  final double netAmount;
 
   const StudentGradeModel({
     required this.id,
@@ -52,16 +54,26 @@ class StudentGradeModel {
     this.gradeId,
     this.gradeName,
     this.monthlyFee = 0,
+    this.discountPercentage = 0,
+    this.netAmount = 0,
   });
 
+  bool get hasDiscount => discountPercentage > 0;
+
   factory StudentGradeModel.fromJson(Map<String, dynamic> json) {
+    final fee = GradeModel._toDouble(json['monthly_fee']);
+    final pct = GradeModel._toDouble(json['discount_percentage']);
     return StudentGradeModel(
       id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
       courseId: json['course_id'] as int?,
       courseName: json['course_name'] as String?,
       gradeId: json['grade_id'] as int?,
       gradeName: json['grade_name'] as String?,
-      monthlyFee: GradeModel._toDouble(json['monthly_fee']),
+      monthlyFee: fee,
+      discountPercentage: pct,
+      netAmount: json['net_amount'] != null
+          ? GradeModel._toDouble(json['net_amount'])
+          : (pct > 0 ? fee - (fee * pct) / 100 : fee),
     );
   }
 }

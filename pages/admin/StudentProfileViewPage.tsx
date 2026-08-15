@@ -211,7 +211,14 @@ const StudentProfileViewPage: React.FC<StudentProfileViewPageProps> = ({ student
         }
     };
 
-    const gradesTotal = studentGrades.reduce((sum, g) => sum + Number(g.monthly_fee || 0), 0);
+    const netAmountOf = (g: any) => {
+        const fee = Number(g.monthly_fee || 0);
+        const pct = Number(g.discount_percentage || 0);
+        return g.net_amount != null ? Number(g.net_amount) : (pct > 0 ? fee - (fee * pct) / 100 : fee);
+    };
+    const gradesTotal = studentGrades.reduce((sum, g) => sum + netAmountOf(g), 0);
+    const gradesGross = studentGrades.reduce((sum, g) => sum + Number(g.monthly_fee || 0), 0);
+    const anyDiscount = studentGrades.some(g => Number(g.discount_percentage || 0) > 0);
     const gradesCurrency = studentGrades[0]?.currency || 'INR';
 
     if (isLoading) return <div className="p-8 text-center">Loading student profile...</div>;
@@ -342,6 +349,7 @@ const StudentProfileViewPage: React.FC<StudentProfileViewPageProps> = ({ student
                             <h4 className="text-sm font-medium text-gray-500">Grade per course determines the monthly fee. Admin assigns a grade for each enrolled course.</h4>
                             <div className="bg-brand-primary/5 text-brand-primary font-semibold px-4 py-2 rounded-md">
                                 Total: {gradesTotal.toFixed(0)} {gradesCurrency}/month
+                                {anyDiscount && <span className="ml-2 text-xs text-gray-400 line-through">{gradesGross.toFixed(0)}</span>}
                             </div>
                         </div>
                         {(student.courses && student.courses.length > 0) ? (
@@ -358,7 +366,11 @@ const StudentProfileViewPage: React.FC<StudentProfileViewPageProps> = ({ student
                                                 <div>
                                                     <p className="font-semibold text-gray-800">{courseName}</p>
                                                     {assigned ? (
-                                                        <p className="text-sm text-gray-600">{assigned.grade_name} · {Number(assigned.monthly_fee).toFixed(0)} {assigned.currency || 'INR'}/month</p>
+                                                        Number(assigned.discount_percentage || 0) > 0 ? (
+                                                            <p className="text-sm text-green-700">{assigned.grade_name} · {netAmountOf(assigned).toFixed(0)} {assigned.currency || 'INR'}/month <span className="text-gray-400">({Number(assigned.monthly_fee).toFixed(0)} − {Number(assigned.discount_percentage)}%)</span></p>
+                                                        ) : (
+                                                            <p className="text-sm text-gray-600">{assigned.grade_name} · {Number(assigned.monthly_fee).toFixed(0)} {assigned.currency || 'INR'}/month</p>
+                                                        )
                                                     ) : (
                                                         <p className="text-sm text-gray-400 italic">No grade assigned</p>
                                                     )}

@@ -613,7 +613,19 @@ const StudentListPage: React.FC = () => {
                                                         Joined: {user.dateOfJoining ? new Date(user.dateOfJoining).toLocaleDateString() : 'N/A'}
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.grade}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    <div className="flex items-center gap-2">
+                                                        <span>{(user.courseGrades && user.courseGrades.length > 0)
+                                                            ? user.courseGrades.map(g => g.grade_name).filter(Boolean).join(', ')
+                                                            : (user.grade || '—')}</span>
+                                                        {(() => {
+                                                            const maxPct = Math.max(0, ...((user.courseGrades || []).map(g => Number(g.discount_percentage) || 0)));
+                                                            return maxPct > 0 ? (
+                                                                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">{maxPct}% off</span>
+                                                            ) : null;
+                                                        })()}
+                                                    </div>
+                                                </td>
                                                 <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
                                                     {(() => {
                                                         const enrollments = studentBatchEnrollments.get(user.id);

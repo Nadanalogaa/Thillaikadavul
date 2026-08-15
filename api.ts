@@ -802,7 +802,9 @@ export const getAdminUsers = async (): Promise<User[]> => {
       photoUrl: user.photo_url,
       dateOfJoining: user.date_of_joining,
       courses: user.courses || [],
-      courseExpertise: user.course_expertise || []
+      courseExpertise: user.course_expertise || [],
+      courseGrades: user.course_grades || [],
+      batchNames: user.batch_names || []
     }));
   } catch (error) {
     console.error('Error in getAdminUsers:', error);

@@ -4,22 +4,32 @@ class CourseGrade {
   final String? gradeName;
   final double monthlyFee;
   final String currency;
+  final double discountPercentage;
+  final double netAmount;
 
   const CourseGrade({
     this.courseName,
     this.gradeName,
     this.monthlyFee = 0,
     this.currency = 'INR',
+    this.discountPercentage = 0,
+    this.netAmount = 0,
   });
 
+  static double _toD(dynamic v) => (v is num) ? v.toDouble() : double.tryParse('$v') ?? 0;
+
   factory CourseGrade.fromJson(Map<String, dynamic> json) {
+    final fee = _toD(json['monthly_fee']);
+    final pct = _toD(json['discount_percentage']);
     return CourseGrade(
       courseName: json['course_name'] as String?,
       gradeName: json['grade_name'] as String?,
-      monthlyFee: (json['monthly_fee'] is num)
-          ? (json['monthly_fee'] as num).toDouble()
-          : double.tryParse('${json['monthly_fee']}') ?? 0,
+      monthlyFee: fee,
       currency: json['currency'] as String? ?? 'INR',
+      discountPercentage: pct,
+      netAmount: json['net_amount'] != null
+          ? _toD(json['net_amount'])
+          : (pct > 0 ? fee - (fee * pct) / 100 : fee),
     );
   }
 }
@@ -301,7 +311,25 @@ class UserModel {
   /// Comma-separated batch names, or null if none.
   String? get batchLabel => batchNames.isEmpty ? null : batchNames.join(', ');
 
-  /// Total assigned monthly fee across all course-grades.
+  /// Total assigned monthly fee across all course-grades (before discount).
   double get monthlyFeeTotal =>
       courseGrades.fold(0, (sum, g) => sum + g.monthlyFee);
+
+  /// Total payable per month after discounts.
+  double get netFeeTotal =>
+      courseGrades.fold(0, (sum, g) => sum + g.netAmount);
+
+  /// Highest discount % across this student's course-grades (0 if none).
+  double get maxDiscountPercent =>
+      courseGrades.fold<double>(0, (m, g) => g.discountPercentage > m ? g.discountPercentage : m);
+
+  bool get hasDiscount => maxDiscountPercent > 0;
+
+  /// Discount label for tiles, e.g. "10% off" (null if none).
+  String? get discountLabel {
+    final d = maxDiscountPercent;
+    if (d <= 0) return null;
+    final s = d == d.truncateToDouble() ? d.toStringAsFixed(0) : d.toStringAsFixed(1);
+    return '$s% off';
+  }
 }

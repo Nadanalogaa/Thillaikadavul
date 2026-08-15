@@ -147,6 +147,8 @@ export interface User {
   
   // Teacher specific
   courseExpertise?: string[];
+  courseGrades?: { course_name?: string; grade_name?: string; monthly_fee?: number; currency?: string; discount_percentage?: number; net_amount?: number }[];
+  batchNames?: string[];
   educationalQualifications?: string;
   employmentType?: EmploymentType;
   yearsOfExperience?: number;

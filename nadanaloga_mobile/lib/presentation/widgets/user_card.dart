@@ -99,8 +99,8 @@ class UserCard extends StatelessWidget {
           const SizedBox(height: 3),
           _infoRow(Icons.menu_book, user.coursesLabel!),
         ],
-        // Grade + Batch chips
-        if (user.gradeLabel != null || user.batchLabel != null) ...[
+        // Grade + Discount + Batch chips
+        if (user.gradeLabel != null || user.batchLabel != null || user.discountLabel != null) ...[
           const SizedBox(height: 6),
           Wrap(
             spacing: 6,
@@ -108,6 +108,8 @@ class UserCard extends StatelessWidget {
             children: [
               if (user.gradeLabel != null)
                 _chip(Icons.grade, user.gradeLabel!, AppColors.primary),
+              if (user.discountLabel != null)
+                _chip(Icons.local_offer, user.discountLabel!, AppColors.success),
               if (user.batchLabel != null)
                 _chip(Icons.group_work, user.batchLabel!, AppColors.studentAccent),
             ],
