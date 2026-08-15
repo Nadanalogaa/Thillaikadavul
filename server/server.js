@@ -325,6 +325,55 @@ async function startServer() {
                 console.error('[DB] ✗ Failed to create student_course_grades table:', error.message);
             }
 
+            // Per-student discounts (course-level or batch-level, percentage).
+            try {
+                await client.query(`
+                    CREATE TABLE IF NOT EXISTS student_discounts (
+                        id SERIAL PRIMARY KEY,
+                        student_id INTEGER NOT NULL,
+                        discount_type TEXT NOT NULL CHECK (discount_type IN ('course', 'batch')),
+                        course_id INTEGER,
+                        batch_id INTEGER,
+                        discount_percentage DECIMAL(5,2) NOT NULL CHECK (discount_percentage >= 0 AND discount_percentage <= 100),
+                        reason TEXT,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        created_at TIMESTAMP DEFAULT NOW(),
+                        updated_at TIMESTAMP DEFAULT NOW(),
+                        CONSTRAINT course_required CHECK (course_id IS NOT NULL),
+                        CONSTRAINT batch_type_validation CHECK (
+                            (discount_type = 'course' AND batch_id IS NULL) OR
+                            (discount_type = 'batch' AND batch_id IS NOT NULL)
+                        ),
+                        CONSTRAINT unique_active_discount UNIQUE (student_id, discount_type, course_id, batch_id, is_active)
+                    )
+                `);
+                await client.query(`CREATE INDEX IF NOT EXISTS idx_student_discounts_student ON student_discounts(student_id) WHERE is_active = TRUE`);
+                await client.query(`CREATE INDEX IF NOT EXISTS idx_student_discounts_course ON student_discounts(course_id) WHERE is_active = TRUE`);
+                console.log('[DB] ✓ Ensured student_discounts table exists');
+            } catch (error) {
+                console.error('[DB] ✗ Failed to create student_discounts table:', error.message);
+            }
+
+            // Invoice course/grade/batch ids for clean course/batch/grade filtering.
+            try {
+                await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS course_id INTEGER`);
+                await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS grade_id INTEGER`);
+                await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS batch_id INTEGER`);
+                await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS original_amount NUMERIC`);
+                await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS discount_percentage NUMERIC DEFAULT 0`);
+                await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS discount_amount NUMERIC DEFAULT 0`);
+                console.log('[DB] ✓ Ensured invoice course/grade/batch + discount columns exist');
+            } catch (error) {
+                console.error('[DB] ✗ Failed to add invoice columns:', error.message);
+            }
+
+            // fee_structures batch support.
+            try {
+                await client.query(`ALTER TABLE fee_structures ADD COLUMN IF NOT EXISTS batch_ids INTEGER[] DEFAULT ARRAY[]::INTEGER[]`);
+            } catch (error) {
+                console.error('[DB] ✗ Failed to add fee_structures.batch_ids:', error.message);
+            }
+
             // Create salaries table if not exists
             try {
                 await client.query(`
@@ -1164,7 +1213,7 @@ async function startServer() {
 
         // Grade-based fees (preferred): a student's grade in each course.
         const gradeMapRes = await pool.query(`
-            SELECT scg.student_id, scg.course_id, c.name AS course_name,
+            SELECT scg.student_id, scg.course_id, scg.grade_id, c.name AS course_name,
                    g.name AS grade_name, g.monthly_fee
             FROM student_course_grades scg
             LEFT JOIN courses c ON scg.course_id = c.id
@@ -1181,7 +1230,14 @@ async function startServer() {
         const feeRes = await pool.query('SELECT * FROM fee_structures');
         const feesByCourse = {};
         feeRes.rows.forEach((f) => { (feesByCourse[f.course_id] = feesByCourse[f.course_id] || []).push(f); });
-        const batchRes = await pool.query('SELECT id, student_ids FROM batches');
+        const batchRes = await pool.query('SELECT id, course_id, student_ids FROM batches');
+        // Resolve which batch a student belongs to for a given course (for invoice filtering).
+        const resolveBatchId = (studentId, courseId) => {
+            if (!courseId) return null;
+            const b = batchRes.rows.find((r) =>
+                r.course_id === courseId && Array.isArray(r.student_ids) && r.student_ids.includes(studentId));
+            return b ? b.id : null;
+        };
 
         const students = await pool.query(
             "SELECT id, name, grade, courses FROM users WHERE LOWER(role) = 'student' AND is_deleted = false AND (status IS NULL OR status = 'active')"
@@ -1190,7 +1246,7 @@ async function startServer() {
         let created = 0, skipped = 0;
 
         // Create one idempotent, discount-aware invoice line for a student's course.
-        const createLine = async (student, courseName, courseId, monthly, feeStructureId) => {
+        const createLine = async (student, courseName, courseId, monthly, feeStructureId, gradeId, batchId) => {
             if (!monthly || monthly <= 0) return;
             const exists = await pool.query(
                 'SELECT id FROM invoices WHERE student_id = $1 AND course_name = $2 AND billing_period = $3 LIMIT 1',
@@ -1212,9 +1268,9 @@ async function startServer() {
                 }
             }
             const inv = await pool.query(
-                `INSERT INTO invoices (student_id, fee_structure_id, course_name, amount, currency, issue_date, due_date, billing_period, status, original_amount, discount_percentage, discount_amount)
-                 VALUES ($1, $2, $3, $4, 'INR', $5, $6, $7, 'pending', $8, $9, $10) RETURNING id`,
-                [student.id, feeStructureId || null, courseName, finalAmount, issueDate, dueDate, billingPeriod, monthly, discountPct, discountAmt]
+                `INSERT INTO invoices (student_id, fee_structure_id, course_name, amount, currency, issue_date, due_date, billing_period, status, original_amount, discount_percentage, discount_amount, course_id, grade_id, batch_id)
+                 VALUES ($1, $2, $3, $4, 'INR', $5, $6, $7, 'pending', $8, $9, $10, $11, $12, $13) RETURNING id`,
+                [student.id, feeStructureId || null, courseName, finalAmount, issueDate, dueDate, billingPeriod, monthly, discountPct, discountAmt, courseId || null, gradeId || null, batchId || null]
             );
             created++;
             try {
@@ -1230,7 +1286,8 @@ async function startServer() {
                 // Grade-based: one line per course-grade (fee comes from the grade).
                 for (const gf of gradeFees) {
                     const label = `${gf.course_name || 'Course'} - ${gf.grade_name || 'Grade'}`;
-                    await createLine(s, label, gf.course_id, Number(gf.monthly_fee), null);
+                    await createLine(s, label, gf.course_id, Number(gf.monthly_fee), null,
+                        gf.grade_id, resolveBatchId(s.id, gf.course_id));
                 }
             } else {
                 // Legacy fallback (fee_structures) until this student is put on grades.
@@ -1246,7 +1303,8 @@ async function startServer() {
                     if (candidates.length === 0) continue;
                     const best = pickBestFeeStructure(candidates, s.grade, studentBatchIds);
                     if (!best) continue;
-                    await createLine(s, cn, courseId, Number(best.monthly_fee), best.id);
+                    await createLine(s, cn, courseId, Number(best.monthly_fee), best.id,
+                        null, resolveBatchId(s.id, courseId));
                 }
             }
         }
@@ -2356,8 +2414,12 @@ Please review and approve this registration in the admin panel.`;
                 .map(u => u.id);
             if (studentIds.length > 0) {
                 const gradeRows = await pool.query(
-                    `SELECT scg.student_id, c.name AS course_name, g.name AS grade_name,
-                            g.monthly_fee, g.currency
+                    `SELECT scg.student_id, scg.course_id, c.name AS course_name, g.name AS grade_name,
+                            g.monthly_fee, g.currency,
+                            (SELECT sd.discount_percentage FROM student_discounts sd
+                             WHERE sd.student_id = scg.student_id AND sd.course_id = scg.course_id AND sd.is_active = TRUE
+                             ORDER BY CASE WHEN sd.discount_type = 'batch' THEN 1 ELSE 2 END, sd.discount_percentage DESC
+                             LIMIT 1) AS discount_percentage
                      FROM student_course_grades scg
                      LEFT JOIN courses c ON scg.course_id = c.id
                      LEFT JOIN grades g ON scg.grade_id = g.id
@@ -2365,11 +2427,16 @@ Please review and approve this registration in the admin panel.`;
                 const gradeMap = new Map();
                 for (const r of gradeRows.rows) {
                     if (!gradeMap.has(r.student_id)) gradeMap.set(r.student_id, []);
+                    const fee = Number(r.monthly_fee || 0);
+                    const pct = r.discount_percentage != null ? Number(r.discount_percentage) : 0;
+                    const net = pct > 0 ? fee - (fee * pct) / 100 : fee;
                     gradeMap.get(r.student_id).push({
                         course_name: r.course_name,
                         grade_name: r.grade_name,
                         monthly_fee: r.monthly_fee,
                         currency: r.currency,
+                        discount_percentage: pct,
+                        net_amount: net,
                     });
                 }
                 const batchRows = await pool.query('SELECT batch_name, student_ids FROM batches');
@@ -3587,13 +3654,22 @@ Please review and approve this registration in the admin panel.`;
             const { id } = req.params;
             const result = await pool.query(
                 `SELECT scg.id, scg.course_id, c.name AS course_name, scg.grade_id,
-                        g.name AS grade_name, g.monthly_fee, g.currency
+                        g.name AS grade_name, g.monthly_fee, g.currency,
+                        (SELECT sd.discount_percentage FROM student_discounts sd
+                         WHERE sd.student_id = scg.student_id AND sd.course_id = scg.course_id AND sd.is_active = TRUE
+                         ORDER BY CASE WHEN sd.discount_type = 'batch' THEN 1 ELSE 2 END, sd.discount_percentage DESC
+                         LIMIT 1) AS discount_percentage
                  FROM student_course_grades scg
                  LEFT JOIN courses c ON scg.course_id = c.id
                  LEFT JOIN grades g ON scg.grade_id = g.id
                  WHERE scg.student_id = $1 ORDER BY c.name`, [id]
             );
-            res.json(result.rows);
+            const rows = result.rows.map((r) => {
+                const fee = Number(r.monthly_fee || 0);
+                const pct = r.discount_percentage != null ? Number(r.discount_percentage) : 0;
+                return { ...r, discount_percentage: pct, net_amount: pct > 0 ? fee - (fee * pct) / 100 : fee };
+            });
+            res.json(rows);
         } catch (error) {
             console.error('Error fetching student grades:', error);
             res.status(500).json({ message: 'Server error fetching student grades.' });
@@ -4840,14 +4916,26 @@ Please review and approve this registration in the admin panel.`;
     // --- Invoice API Endpoints ---
     app.get('/api/invoices', async (req, res) => {
         try {
+            const { course_id, batch_id, grade_id, status, billing_period, student_id, search } = req.query;
+            const params = [];
+            const where = [];
+            if (course_id) { params.push(course_id); where.push(`i.course_id = $${params.length}`); }
+            if (batch_id) { params.push(batch_id); where.push(`i.batch_id = $${params.length}`); }
+            if (grade_id) { params.push(grade_id); where.push(`i.grade_id = $${params.length}`); }
+            if (status) { params.push(String(status).toLowerCase()); where.push(`LOWER(i.status) = $${params.length}`); }
+            if (billing_period) { params.push(billing_period); where.push(`i.billing_period = $${params.length}`); }
+            if (student_id) { params.push(student_id); where.push(`i.student_id = $${params.length}`); }
+            if (search) { params.push(`%${search}%`); where.push(`(u.name ILIKE $${params.length} OR u.email ILIKE $${params.length} OR u.user_id ILIKE $${params.length})`); }
+            const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
             const result = await pool.query(`
                 SELECT i.*, u.id as student_id, u.name as student_name, u.email as student_email,
                     (SELECT ip.status FROM invoice_payments ip
                      WHERE ip.invoice_id = i.id ORDER BY ip.submitted_at DESC LIMIT 1) as payment_status
                 FROM invoices i
                 LEFT JOIN users u ON i.student_id = u.id
+                ${whereSql}
                 ORDER BY i.created_at DESC
-            `);
+            `, params);
             const invoices = result.rows.map(row => ({
                 ...row,
                 student: row.student_id ? {
