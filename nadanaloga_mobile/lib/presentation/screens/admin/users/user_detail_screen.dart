@@ -791,6 +791,50 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
               ),
             ),
             actions: [
+              if (existing != null && existing.courseId != null)
+                TextButton(
+                  onPressed: saving
+                      ? null
+                      : () async {
+                          setDialog(() => saving = true);
+                          try {
+                            final r = await sl<ApiClient>()
+                                .removeStudentGrade(
+                                    student.id, existing.courseId!);
+                            if (!mounted) return;
+                            if (r.statusCode == 200 ||
+                                r.statusCode == 204) {
+                              Navigator.of(dialogContext).pop();
+                              ScaffoldMessenger.of(this.context)
+                                  .showSnackBar(
+                                const SnackBar(
+                                    content: Text('Grade removed'),
+                                    backgroundColor: AppColors.warning),
+                              );
+                              _loadUser();
+                            } else {
+                              setDialog(() => saving = false);
+                              ScaffoldMessenger.of(this.context)
+                                  .showSnackBar(
+                                SnackBar(
+                                    content: Text(r.data?['message'] ??
+                                        'Failed to remove grade'),
+                                    backgroundColor: AppColors.error),
+                              );
+                            }
+                          } catch (e) {
+                            if (!mounted) return;
+                            setDialog(() => saving = false);
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              SnackBar(
+                                  content: Text('Error: $e'),
+                                  backgroundColor: AppColors.error),
+                            );
+                          }
+                        },
+                  child: const Text('Remove',
+                      style: TextStyle(color: AppColors.error)),
+                ),
               TextButton(
                 onPressed:
                     saving ? null : () => Navigator.of(dialogContext).pop(),
