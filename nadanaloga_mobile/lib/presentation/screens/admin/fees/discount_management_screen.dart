@@ -77,7 +77,17 @@ class _CourseDiscountsTabState extends State<_CourseDiscountsTab> {
   List<StudentDiscountModel> _discounts = [];
   int? _selectedCourseId;
   List<int> _selectedStudentIds = [];
+  String _studentSearch = '';
   bool _loading = true;
+
+  List<UserModel> get _filteredStudents {
+    final q = _studentSearch.trim().toLowerCase();
+    if (q.isEmpty) return _students;
+    return _students.where((s) =>
+        s.name.toLowerCase().contains(q) ||
+        (s.email).toLowerCase().contains(q) ||
+        (s.userId ?? '').toLowerCase().contains(q)).toList();
+  }
 
   @override
   void initState() {
@@ -278,6 +288,18 @@ class _CourseDiscountsTabState extends State<_CourseDiscountsTab> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            TextField(
+                              decoration: InputDecoration(
+                                isDense: true,
+                                hintText: 'Search students...',
+                                prefixIcon: const Icon(Icons.search, size: 18),
+                                border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8)),
+                              ),
+                              onChanged: (v) =>
+                                  setState(() => _studentSearch = v),
+                            ),
+                            const SizedBox(height: 8),
                             Row(
                               children: [
                                 Text(
@@ -287,20 +309,25 @@ class _CourseDiscountsTabState extends State<_CourseDiscountsTab> {
                                 const Spacer(),
                                 TextButton(
                                   onPressed: () {
+                                    final visible = _filteredStudents;
                                     setState(() {
-                                      if (_selectedStudentIds.length ==
-                                          _students.length) {
-                                        _selectedStudentIds.clear();
+                                      final allSel = visible.isNotEmpty &&
+                                          visible.every((s) =>
+                                              _selectedStudentIds.contains(s.id));
+                                      if (allSel) {
+                                        _selectedStudentIds.removeWhere((id) =>
+                                            visible.any((s) => s.id == id));
                                       } else {
-                                        _selectedStudentIds =
-                                            _students.map((s) => s.id).toList();
+                                        for (final s in visible) {
+                                          if (!_selectedStudentIds
+                                              .contains(s.id)) {
+                                            _selectedStudentIds.add(s.id);
+                                          }
+                                        }
                                       }
                                     });
                                   },
-                                  child: Text(_selectedStudentIds.length ==
-                                          _students.length
-                                      ? 'Deselect All'
-                                      : 'Select All'),
+                                  child: const Text('Select all shown'),
                                 ),
                               ],
                             ),
@@ -309,9 +336,9 @@ class _CourseDiscountsTabState extends State<_CourseDiscountsTab> {
                               constraints: const BoxConstraints(maxHeight: 200),
                               child: ListView.builder(
                                 shrinkWrap: true,
-                                itemCount: _students.length,
+                                itemCount: _filteredStudents.length,
                                 itemBuilder: (context, index) {
-                                  final student = _students[index];
+                                  final student = _filteredStudents[index];
                                   final isSelected =
                                       _selectedStudentIds.contains(student.id);
                                   return CheckboxListTile(
@@ -477,7 +504,17 @@ class _BatchDiscountsTabState extends State<_BatchDiscountsTab> {
   int? _selectedCourseId;
   int? _selectedBatchId;
   List<int> _selectedStudentIds = [];
+  String _studentSearch = '';
   bool _loading = true;
+
+  List<UserModel> get _filteredStudents {
+    final q = _studentSearch.trim().toLowerCase();
+    if (q.isEmpty) return _students;
+    return _students.where((s) =>
+        s.name.toLowerCase().contains(q) ||
+        (s.email).toLowerCase().contains(q) ||
+        (s.userId ?? '').toLowerCase().contains(q)).toList();
+  }
 
   @override
   void initState() {
@@ -729,6 +766,18 @@ class _BatchDiscountsTabState extends State<_BatchDiscountsTab> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            TextField(
+                              decoration: InputDecoration(
+                                isDense: true,
+                                hintText: 'Search students...',
+                                prefixIcon: const Icon(Icons.search, size: 18),
+                                border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8)),
+                              ),
+                              onChanged: (v) =>
+                                  setState(() => _studentSearch = v),
+                            ),
+                            const SizedBox(height: 8),
                             Row(
                               children: [
                                 Text(
@@ -738,20 +787,25 @@ class _BatchDiscountsTabState extends State<_BatchDiscountsTab> {
                                 const Spacer(),
                                 TextButton(
                                   onPressed: () {
+                                    final visible = _filteredStudents;
                                     setState(() {
-                                      if (_selectedStudentIds.length ==
-                                          _students.length) {
-                                        _selectedStudentIds.clear();
+                                      final allSel = visible.isNotEmpty &&
+                                          visible.every((s) =>
+                                              _selectedStudentIds.contains(s.id));
+                                      if (allSel) {
+                                        _selectedStudentIds.removeWhere((id) =>
+                                            visible.any((s) => s.id == id));
                                       } else {
-                                        _selectedStudentIds =
-                                            _students.map((s) => s.id).toList();
+                                        for (final s in visible) {
+                                          if (!_selectedStudentIds
+                                              .contains(s.id)) {
+                                            _selectedStudentIds.add(s.id);
+                                          }
+                                        }
                                       }
                                     });
                                   },
-                                  child: Text(_selectedStudentIds.length ==
-                                          _students.length
-                                      ? 'Deselect All'
-                                      : 'Select All'),
+                                  child: const Text('Select all shown'),
                                 ),
                               ],
                             ),
@@ -760,9 +814,9 @@ class _BatchDiscountsTabState extends State<_BatchDiscountsTab> {
                               constraints: const BoxConstraints(maxHeight: 200),
                               child: ListView.builder(
                                 shrinkWrap: true,
-                                itemCount: _students.length,
+                                itemCount: _filteredStudents.length,
                                 itemBuilder: (context, index) {
-                                  final student = _students[index];
+                                  final student = _filteredStudents[index];
                                   final isSelected =
                                       _selectedStudentIds.contains(student.id);
                                   return CheckboxListTile(
