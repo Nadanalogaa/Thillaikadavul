@@ -1471,6 +1471,54 @@ export const removeStudentGrade = async (studentId: number, courseId: number): P
   if (!res.ok) throw new Error('Failed to remove grade');
 };
 
+// --- Student Discounts (per-student, per-course/batch percentage) ---
+export const getStudentDiscounts = async (params: Record<string, string> = {}): Promise<any[]> => {
+  const qs = new URLSearchParams(params).toString();
+  const res = await fetch(`/api/student-discounts${qs ? '?' + qs : ''}`, { credentials: 'include' });
+  if (!res.ok) return [];
+  return await res.json();
+};
+
+export const createStudentDiscount = async (data: {
+  student_id: number; discount_type: 'course' | 'batch'; course_id: number; batch_id?: number | null; discount_percentage: number; reason?: string;
+}): Promise<any> => {
+  const res = await fetch('/api/student-discounts', {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'Failed to create discount');
+  return await res.json();
+};
+
+export const deleteStudentDiscount = async (id: number): Promise<void> => {
+  const res = await fetch(`/api/student-discounts/${id}`, { method: 'DELETE', credentials: 'include' });
+  if (!res.ok) throw new Error('Failed to remove discount');
+};
+
+// --- Invoices (server-side filtered) ---
+export const getInvoices = async (params: Record<string, string> = {}): Promise<any[]> => {
+  const qs = new URLSearchParams(params).toString();
+  const res = await fetch(`/api/invoices${qs ? '?' + qs : ''}`, { credentials: 'include' });
+  if (!res.ok) return [];
+  return await res.json();
+};
+
+export const markInvoicePaid = async (invoiceId: number | string, paymentDetails: any = {}): Promise<any> => {
+  const res = await fetch(`/api/invoices/${invoiceId}`, {
+    method: 'PUT', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: 'paid', payment_details: { payment_method: 'Offline', ...paymentDetails, payment_date: new Date().toISOString() } }),
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'Failed to mark paid');
+  return await res.json();
+};
+
+export const generateMonthlyInvoicesApi = async (): Promise<any> => {
+  const res = await fetch('/api/admin/generate-monthly-invoices', { method: 'POST', credentials: 'include' });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'Failed to generate invoices');
+  return await res.json();
+};
+
 // --- Reports ---
 export const getReport = async (type: string, params: Record<string, string> = {}): Promise<any> => {
   const qs = new URLSearchParams(params).toString();
