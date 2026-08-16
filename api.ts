@@ -1533,6 +1533,16 @@ export const purgeLegacyInvoices = async (): Promise<any> => {
   return await res.json();
 };
 
+export const sendInvoiceReminders = async (invoiceIds: (string | number)[]): Promise<any> => {
+  const res = await fetch('/api/invoices/send-reminders', {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ invoice_ids: invoiceIds }),
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'Failed to send reminders');
+  return await res.json();
+};
+
 // --- Reports ---
 export const getReport = async (type: string, params: Record<string, string> = {}): Promise<any> => {
   const qs = new URLSearchParams(params).toString();

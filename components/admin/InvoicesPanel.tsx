@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getInvoices, getCourses, getBatches, getGrades, markInvoicePaid, generateMonthlyInvoicesApi, purgeLegacyInvoices } from '../../api';
+import { getInvoices, getCourses, getBatches, getGrades, markInvoicePaid, generateMonthlyInvoicesApi, purgeLegacyInvoices, sendInvoiceReminders } from '../../api';
 import type { Course, Batch } from '../../types';
 
 const statusBadge = (status: string) => {
@@ -23,6 +23,7 @@ const InvoicesPanel: React.FC = () => {
   const [gradeId, setGradeId] = useState('');
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     (async () => {
@@ -95,6 +96,34 @@ const InvoicesPanel: React.FC = () => {
     }
   };
 
+  const toggle = (id: string) => setSelected(prev => {
+    const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n;
+  });
+
+  const unpaidSelected = invoices.filter(i => selected.has(String(i.id)) && (i.status || '').toLowerCase() !== 'paid');
+
+  const doRemind = async () => {
+    if (unpaidSelected.length === 0) { setMessage('Select one or more unpaid invoices first.'); return; }
+    setMessage(null);
+    try {
+      const r = await sendInvoiceReminders(unpaidSelected.map(i => i.id));
+      const links = (r.reminders || []).filter((x: any) => x.wa_link);
+      // Open WhatsApp for each parent (first few directly, rest listed).
+      links.slice(0, 5).forEach((x: any) => window.open(x.wa_link, '_blank'));
+      setMessage(`Reminders sent to ${r.count} student(s) (in-app). WhatsApp opened for ${Math.min(links.length, 5)}${links.length > 5 ? ` — ${links.length - 5} more, click rows individually` : ''}.`);
+      setSelected(new Set());
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : 'Failed to send reminders.');
+    }
+  };
+
+  const waLinkFor = (inv: any) => {
+    let d = String(inv.student?.phone || '').replace(/\D/g, '');
+    if (d.length === 10) d = '91' + d;
+    const msg = `Dear Parent, reminder from Nadanaloga Academy: ${inv.student?.name || ''}'s fee of INR ${Number(inv.amount || 0).toFixed(0)} for ${inv.billing_period || 'this month'} is pending. Kindly pay soon. Thank you.`;
+    return d ? `https://wa.me/${d}?text=${encodeURIComponent(msg)}` : null;
+  };
+
   const total = invoices.reduce((s, i) => s + Number(i.amount || 0), 0);
 
   return (
@@ -149,26 +178,41 @@ const InvoicesPanel: React.FC = () => {
 
       {message && <div className="mb-3 text-sm bg-blue-50 text-blue-700 rounded-md px-3 py-2">{message}</div>}
 
-      <div className="bg-brand-primary/5 rounded-md px-4 py-2 mb-3 text-sm text-brand-primary font-semibold">
-        {invoices.length} invoice(s){status ? ` · ${status}` : ''} · Total ₹{total.toFixed(0)}
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="bg-brand-primary/5 rounded-md px-4 py-2 text-sm text-brand-primary font-semibold">
+          {invoices.length} invoice(s){status ? ` · ${status}` : ''} · Total ₹{total.toFixed(0)}
+        </div>
+        <button onClick={doRemind} disabled={unpaidSelected.length === 0}
+          className="bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white text-sm font-semibold px-4 py-2 rounded-md whitespace-nowrap">
+          ⟟ Remind {unpaidSelected.length > 0 ? `(${unpaidSelected.length})` : ''} via WhatsApp
+        </button>
       </div>
 
       <div className="bg-white shadow-md rounded-lg overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              {['Student', 'Course / Grade', 'Period', 'Amount', 'Status', 'Due', ''].map(h =>
+              <th className="px-3 py-3"></th>
+              {['Student', 'Phone', 'Course / Grade', 'Period', 'Amount', 'Status', 'Due', ''].map(h =>
                 <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>)}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {loading && <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500">Loading…</td></tr>}
+            {loading && <tr><td colSpan={9} className="px-4 py-8 text-center text-sm text-gray-500">Loading…</td></tr>}
             {!loading && invoices.map(inv => {
               const hasDisc = Number(inv.discount_percentage || 0) > 0;
               const isPaid = (inv.status || '').toLowerCase() === 'paid';
+              const phone = inv.student?.phone || inv.student_phone;
+              const wa = waLinkFor(inv);
               return (
-                <tr key={inv.id}>
+                <tr key={inv.id} className={selected.has(String(inv.id)) ? 'bg-brand-primary/5' : ''}>
+                  <td className="px-3 py-3">
+                    {!isPaid && <input type="checkbox" checked={selected.has(String(inv.id))} onChange={() => toggle(String(inv.id))} className="h-4 w-4" />}
+                  </td>
                   <td className="px-4 py-3 text-sm text-gray-800">{inv.student?.name || inv.student_name || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                    {phone ? <a href={`tel:${phone}`} className="text-brand-primary hover:underline">{phone}</a> : '—'}
+                  </td>
                   <td className="px-4 py-3 text-sm text-gray-600">{inv.course_name}</td>
                   <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{inv.billing_period}</td>
                   <td className="px-4 py-3 text-sm whitespace-nowrap">
@@ -182,7 +226,13 @@ const InvoicesPanel: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{inv.due_date ? new Date(inv.due_date).toLocaleDateString() : '—'}</td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    {!isPaid && wa && (
+                      <a href={wa} target="_blank" rel="noreferrer" title="WhatsApp reminder"
+                        className="inline-block text-sm border border-green-500 text-green-700 px-2 py-1.5 rounded-md hover:bg-green-50 mr-2">
+                        WhatsApp
+                      </a>
+                    )}
                     {!isPaid && (
                       <button onClick={() => doMarkPaid(inv)} disabled={busyId === String(inv.id)}
                         className="text-sm bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-md disabled:opacity-50">
@@ -194,7 +244,7 @@ const InvoicesPanel: React.FC = () => {
               );
             })}
             {!loading && invoices.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500">No invoices match these filters.</td></tr>
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-sm text-gray-500">No invoices match these filters.</td></tr>
             )}
           </tbody>
         </table>
