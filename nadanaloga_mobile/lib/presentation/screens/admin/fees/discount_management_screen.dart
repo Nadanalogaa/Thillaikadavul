@@ -332,7 +332,7 @@ class _CourseDiscountsTabState extends State<_CourseDiscountsTab> {
                             Row(
                               children: [
                                 Text(
-                                  'Selected: ${_selectedStudentIds.length}/${_students.length}',
+                                  'Selected: ${_selectedStudentIds.length}/${_filteredStudents.length}',
                                   style: AppTextStyles.caption,
                                 ),
                                 const Spacer(),
@@ -537,12 +537,45 @@ class _BatchDiscountsTabState extends State<_BatchDiscountsTab> {
   bool _loading = true;
 
   List<UserModel> get _filteredStudents {
+    var list = _students;
+    // Students in the selected batch (if chosen), else in the selected course.
+    if (_selectedBatchId != null) {
+      BatchModel? batch;
+      for (final b in _courseBatches) {
+        if (b.id == _selectedBatchId) {
+          batch = b;
+          break;
+        }
+      }
+      if (batch != null) {
+        final ids = batch.allStudentIds.toSet();
+        list = list.where((s) => ids.contains(s.id)).toList();
+      }
+    } else if (_selectedCourseId != null) {
+      String? courseName;
+      for (final c in _courses) {
+        if (c.id == _selectedCourseId) {
+          courseName = c.name;
+          break;
+        }
+      }
+      if (courseName != null) {
+        final cn = courseName.toLowerCase();
+        list = list
+            .where((s) => s.courses.any((c) => c.toLowerCase() == cn))
+            .toList();
+      }
+    }
     final q = _studentSearch.trim().toLowerCase();
-    if (q.isEmpty) return _students;
-    return _students.where((s) =>
-        s.name.toLowerCase().contains(q) ||
-        (s.email).toLowerCase().contains(q) ||
-        (s.userId ?? '').toLowerCase().contains(q)).toList();
+    if (q.isNotEmpty) {
+      list = list
+          .where((s) =>
+              s.name.toLowerCase().contains(q) ||
+              (s.email).toLowerCase().contains(q) ||
+              (s.userId ?? '').toLowerCase().contains(q))
+          .toList();
+    }
+    return list;
   }
 
   @override
@@ -810,7 +843,7 @@ class _BatchDiscountsTabState extends State<_BatchDiscountsTab> {
                             Row(
                               children: [
                                 Text(
-                                  'Selected: ${_selectedStudentIds.length}/${_students.length}',
+                                  'Selected: ${_selectedStudentIds.length}/${_filteredStudents.length}',
                                   style: AppTextStyles.caption,
                                 ),
                                 const Spacer(),
