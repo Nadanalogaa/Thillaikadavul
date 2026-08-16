@@ -446,6 +446,14 @@ class ApiClient {
     return _dio.get(ApiEndpoints.invoices);
   }
 
+  Future<Response> generateMonthlyInvoices() {
+    return _dio.post('/api/admin/generate-monthly-invoices');
+  }
+
+  Future<Response> purgeLegacyInvoices() {
+    return _dio.post('/api/admin/purge-legacy-invoices');
+  }
+
   Future<Response> createInvoice(Map<String, dynamic> data) {
     return _dio.post(ApiEndpoints.invoices, data: data);
   }

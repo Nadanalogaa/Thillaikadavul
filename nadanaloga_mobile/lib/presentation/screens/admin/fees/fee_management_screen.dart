@@ -60,6 +60,69 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
     setState(() {});
   }
 
+  Future<void> _generateInvoices() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Generate monthly invoices?'),
+        content: const Text(
+            'Creates this month\'s invoices for all students who have a grade assigned. Existing ones are skipped.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Generate')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      final r = await sl<ApiClient>().generateMonthlyInvoices();
+      if (!mounted) return;
+      final msg = r.data is Map ? (r.data['message'] ?? 'Done') : 'Done';
+      final created = r.data is Map ? (r.data['created'] ?? 0) : 0;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$msg (created $created)'), backgroundColor: AppColors.success));
+      context.read<FeeBloc>().add(LoadInvoices());
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error));
+      }
+    }
+  }
+
+  Future<void> _clearOldInvoices() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Clear old (₹) invoices?'),
+        content: const Text(
+            'Deletes the old unpaid invoices that were NOT made from grades (the legacy ₹ ones). Paid invoices and grade-based invoices are kept. Then use "Generate monthly invoices" to recreate them from grades.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Delete old'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      final r = await sl<ApiClient>().purgeLegacyInvoices();
+      if (!mounted) return;
+      final msg = r.data is Map ? (r.data['message'] ?? 'Cleared') : 'Cleared';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$msg — now tap Generate.'), backgroundColor: AppColors.success));
+      context.read<FeeBloc>().add(LoadInvoices());
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error));
+      }
+    }
+  }
+
   Future<void> _loadCoursesAndBatches() async {
     try {
       final apiClient = sl<ApiClient>();
@@ -151,6 +214,31 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
             tooltip: 'Payment Proofs',
             onPressed: () => context.push('/admin/fees/payments'),
           ),
+          PopupMenuButton<String>(
+            tooltip: 'Invoice actions',
+            onSelected: (v) {
+              if (v == 'generate') _generateInvoices();
+              if (v == 'clear') _clearOldInvoices();
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'generate',
+                child: ListTile(
+                  leading: Icon(Icons.autorenew),
+                  title: Text('Generate monthly invoices'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem(
+                value: 'clear',
+                child: ListTile(
+                  leading: Icon(Icons.delete_sweep, color: Colors.red),
+                  title: Text('Clear old (₹) invoices'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
+          ),
         ],
         bottom: TabBar(
           controller: _tabController,
@@ -200,16 +288,17 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
               heroTag: 'discounts',
             ),
           ),
-          // Main FAB — invoices tab adds an invoice; grades tab manages grades.
-          FloatingActionButton(
+          // Main FAB — invoices tab generates monthly invoices; grades tab manages grades.
+          FloatingActionButton.extended(
             onPressed: () {
               if (_tabController.index == 0) {
-                context.push('/admin/fees/invoices/add');
+                _generateInvoices();
               } else {
                 context.push('/admin/grades');
               }
             },
-            child: Icon(_tabController.index == 0 ? Icons.add : Icons.grade),
+            icon: Icon(_tabController.index == 0 ? Icons.autorenew : Icons.grade),
+            label: Text(_tabController.index == 0 ? 'Generate' : 'Grades'),
             heroTag: 'add',
           ),
         ],
