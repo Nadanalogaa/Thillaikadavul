@@ -154,6 +154,10 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
         ],
         bottom: TabBar(
           controller: _tabController,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
+          labelStyle: const TextStyle(fontWeight: FontWeight.w600),
           tabs: const [
             Tab(text: 'Invoices'),
             Tab(text: 'Grades & Fees'),

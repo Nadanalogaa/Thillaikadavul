@@ -42,6 +42,10 @@ class _DiscountManagementScreenState extends State<DiscountManagementScreen>
         title: const Text('Discount Management'),
         bottom: TabBar(
           controller: _tabController,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
+          labelStyle: const TextStyle(fontWeight: FontWeight.w600),
           tabs: const [
             Tab(text: 'Course Discounts'),
             Tab(text: 'Batch Discounts'),
