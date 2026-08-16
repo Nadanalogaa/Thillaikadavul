@@ -66,6 +66,7 @@ class UserModel {
   final int? parentId; // Set on child profiles linked to a primary account
   final List<CourseGrade> courseGrades; // Assigned grade per course (students)
   final List<String> batchNames; // Batches this student belongs to
+  final String? lastPaid; // Most recent paid-invoice date (ISO)
 
   const UserModel({
     required this.id,
@@ -99,6 +100,7 @@ class UserModel {
     this.parentId,
     this.courseGrades = const [],
     this.batchNames = const [],
+    this.lastPaid,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -140,6 +142,7 @@ class UserModel {
               .toList()
           : const [],
       batchNames: _parseStringList(json['batch_names']),
+      lastPaid: json['last_paid'] as String?,
     );
   }
 

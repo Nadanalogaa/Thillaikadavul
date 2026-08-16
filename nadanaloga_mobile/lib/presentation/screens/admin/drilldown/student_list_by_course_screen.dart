@@ -279,21 +279,6 @@ class _AccordionStudentCardState extends State<_AccordionStudentCard> {
     }
   }
 
-  void _showMarkPaidSheet(BuildContext context, UserModel student) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _MarkPaidBottomSheet(
-        student: student,
-        onPaymentRecorded: () {
-          // Refresh users to update any related data
-          context.read<UserManagementBloc>().add(LoadUsers());
-        },
-      ),
-    );
-  }
-
   Future<void> _confirmDeleteStudent(BuildContext context, UserModel student) async {
     final confirmed = await ConfirmDialog.show(
       context,
@@ -480,56 +465,39 @@ class _AccordionStudentCardState extends State<_AccordionStudentCard> {
                     ],
                   ),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
 
-                  // Action Buttons - Row 1
+                  // Last paid (read-only). Marking paid lives on Fee Management.
+                  Row(
+                    children: [
+                      Icon(Icons.payments_outlined,
+                          size: 14, color: AppColors.textSecondary),
+                      const SizedBox(width: 4),
+                      Text(
+                        student.lastPaid != null
+                            ? 'Last paid: ${_formatDate(student.lastPaid)}'
+                            : 'Last paid: no payments yet',
+                        style: AppTextStyles.caption
+                            .copyWith(color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Details (same screen as the Users tab) + Delete.
                   Row(
                     children: [
                       Expanded(
+                        flex: 2,
                         child: OutlinedButton.icon(
-                          onPressed: () => context.push('/admin/drilldown/student/${student.id}'),
+                          onPressed: () => context.push('/admin/users/${student.id}'),
                           icon: const Icon(Icons.visibility, size: 14),
                           label: const Text('Details'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.primary,
                             side: BorderSide(color: AppColors.primary.withOpacity(0.5)),
-                            padding: const EdgeInsets.symmetric(vertical: 6),
-                            textStyle: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w600, fontSize: 11),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => context.push('/admin/drilldown/student/${student.id}?fees=true'),
-                          icon: const Icon(Icons.receipt_long, size: 14),
-                          label: const Text('Invoices'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.info,
-                            side: BorderSide(color: AppColors.info.withOpacity(0.5)),
-                            padding: const EdgeInsets.symmetric(vertical: 6),
-                            textStyle: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w600, fontSize: 11),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  // Mark Paid and Delete Buttons - Row
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: ElevatedButton.icon(
-                          onPressed: () => _showMarkPaidSheet(context, student),
-                          icon: const Icon(Icons.check_circle_outline, size: 16),
-                          label: const Text('Mark as Paid'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.success,
-                            foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 8),
-                            textStyle: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w600),
-                            elevation: 0,
+                            textStyle: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w600, fontSize: 11),
                           ),
                         ),
                       ),

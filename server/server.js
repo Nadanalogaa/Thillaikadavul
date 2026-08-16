@@ -2435,10 +2435,17 @@ Please review and approve this registration in the admin panel.`;
                         batchMap.get(sid).push(b.batch_name);
                     }
                 }
+                // Most recent paid invoice per student (for "last paid").
+                const paidRows = await pool.query(
+                    `SELECT student_id, MAX(COALESCE(updated_at, created_at)) AS last_paid
+                     FROM invoices WHERE LOWER(status) = 'paid' AND student_id = ANY($1)
+                     GROUP BY student_id`, [studentIds]);
+                const paidMap = new Map(paidRows.rows.map(r => [r.student_id, r.last_paid]));
                 for (const u of users) {
                     if (String(u.role).toLowerCase() === 'student') {
                         u.course_grades = gradeMap.get(u.id) || [];
                         u.batch_names = batchMap.get(u.id) || [];
+                        u.last_paid = paidMap.get(u.id) || null;
                     }
                 }
             }
