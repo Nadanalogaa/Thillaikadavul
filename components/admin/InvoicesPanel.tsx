@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getInvoices, getCourses, getBatches, getGrades, markInvoicePaid, generateMonthlyInvoicesApi } from '../../api';
+import { getInvoices, getCourses, getBatches, getGrades, markInvoicePaid, generateMonthlyInvoicesApi, purgeLegacyInvoices } from '../../api';
 import type { Course, Batch } from '../../types';
 
 const statusBadge = (status: string) => {
@@ -81,6 +81,20 @@ const InvoicesPanel: React.FC = () => {
     }
   };
 
+  const doPurgeLegacy = async () => {
+    if (!window.confirm("Delete OLD unpaid invoices (the pre-grade ₹ ones)? Grade-based and paid invoices are kept. Then use 'Generate Monthly' to recreate them from grades.")) return;
+    setLoading(true); setMessage(null);
+    try {
+      const r = await purgeLegacyInvoices();
+      setMessage(`${r.message} Now click "Generate Monthly" to recreate from grades.`);
+      await load();
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : 'Failed to clear old invoices.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const total = invoices.reduce((s, i) => s + Number(i.amount || 0), 0);
 
   return (
@@ -127,6 +141,9 @@ const InvoicesPanel: React.FC = () => {
         </div>
         <button onClick={doGenerate} className="border border-brand-primary text-brand-primary font-semibold px-4 py-2 rounded-md hover:bg-brand-primary/10 whitespace-nowrap">
           + Generate Monthly
+        </button>
+        <button onClick={doPurgeLegacy} className="border border-red-300 text-red-600 font-semibold px-4 py-2 rounded-md hover:bg-red-50 whitespace-nowrap">
+          Clear old (₹) invoices
         </button>
       </div>
 

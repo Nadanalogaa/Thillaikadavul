@@ -3820,6 +3820,22 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
+    // Delete only the OLD unpaid invoices (legacy = not grade-based: grade_id IS
+    // NULL). Grade-based invoices and any PAID invoice (history) are kept. Use
+    // this once to clear pre-grade ₹ invoices, then re-generate from grades.
+    app.post('/api/admin/purge-legacy-invoices', ensureSuperAdmin, async (req, res) => {
+        try {
+            const result = await pool.query(
+                `DELETE FROM invoices WHERE LOWER(status) <> 'paid' AND grade_id IS NULL RETURNING id`
+            );
+            console.log(`[Purge] Deleted ${result.rows.length} legacy unpaid invoices.`);
+            res.json({ message: `Deleted ${result.rows.length} old unpaid invoice(s).`, deleted: result.rows.length });
+        } catch (error) {
+            console.error('Error purging legacy invoices:', error);
+            res.status(500).json({ message: 'Server error purging legacy invoices.' });
+        }
+    });
+
     // --- Student Discount API Endpoints ---
     // GET all discounts
     app.get('/api/student-discounts', async (req, res) => {
