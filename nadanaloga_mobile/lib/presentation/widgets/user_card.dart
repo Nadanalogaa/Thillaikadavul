@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/theme/app_colors.dart';
 import '../../config/theme/app_text_styles.dart';
@@ -72,29 +73,28 @@ class UserCard extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 4),
-        // Phone + ID row
-        Row(
-          children: [
-            if (user.contactNumber != null && user.contactNumber!.isNotEmpty) ...[
-              const Icon(Icons.phone, size: 13, color: AppColors.textSecondary),
-              const SizedBox(width: 3),
-              Text(user.contactNumber!, style: AppTextStyles.caption),
-              const SizedBox(width: 10),
-            ],
-            if (user.userId != null)
-              Flexible(
-                child: Text(
-                  user.userId!,
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w500,
+        // Tappable phone (dials on tap). ID removed per request.
+        if (user.contactNumber != null && user.contactNumber!.isNotEmpty)
+          InkWell(
+            onTap: () => _dial(user.contactNumber!),
+            borderRadius: BorderRadius.circular(6),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  const Icon(Icons.phone, size: 14, color: AppColors.primary),
+                  const SizedBox(width: 4),
+                  Text(
+                    user.contactNumber!,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                ],
               ),
-          ],
-        ),
+            ),
+          ),
         if (user.coursesLabel != null) ...[
           const SizedBox(height: 3),
           _infoRow(Icons.menu_book, user.coursesLabel!),
@@ -196,6 +196,13 @@ class UserCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _dial(String number) async {
+    final uri = Uri(scheme: 'tel', path: number.replaceAll(RegExp(r'[^0-9+]'), ''));
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
   }
 
   Color _avatarColor(String role) {

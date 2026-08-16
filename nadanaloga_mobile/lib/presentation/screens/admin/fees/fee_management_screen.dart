@@ -15,6 +15,7 @@ import '../../../bloc/fee/fee_event.dart';
 import '../../../bloc/fee/fee_state.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/empty_state_widget.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class FeeManagementScreen extends StatefulWidget {
   const FeeManagementScreen({super.key});
@@ -31,10 +32,11 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
   List<GradeModel> _grades = [];
   bool _loadingCourses = true;
   Set<int?> _expandedCourses = {};
-  // Invoice filters
+  // Invoice filters + selection
   String _invStatus = '';
   String _invSearch = '';
   String _invCourse = '';
+  final Set<int> _selectedInv = {};
 
   @override
   void initState() {
@@ -58,6 +60,70 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
       context.read<FeeBloc>().add(LoadInvoices());
     }
     setState(() {});
+  }
+
+  Future<void> _dial(String number) async {
+    final uri = Uri(scheme: 'tel', path: number.replaceAll(RegExp(r'[^0-9+]'), ''));
+    if (await canLaunchUrl(uri)) await launchUrl(uri);
+  }
+
+  String _waDigits(String? phone) {
+    var d = (phone ?? '').replaceAll(RegExp(r'\D'), '');
+    if (d.length == 10) d = '91$d';
+    return d;
+  }
+
+  Future<void> _openWhatsApp(String phone, String message) async {
+    final d = _waDigits(phone);
+    if (d.isEmpty) return;
+    final uri = Uri.parse('https://wa.me/$d?text=${Uri.encodeComponent(message)}');
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _remindOne(dynamic inv) async {
+    final msg =
+        'Dear Parent, a gentle reminder from Nadanaloga Academy: ${inv.studentName ?? 'your child'}\'s '
+        'fee of INR ${inv.amount?.toStringAsFixed(0) ?? ''} for ${inv.billingPeriod ?? 'this month'} is pending. '
+        'Kindly pay at your earliest. Thank you.';
+    // Fire the server-side reminder (in-app notification) then open WhatsApp.
+    try {
+      await sl<ApiClient>().sendInvoiceReminders([inv.id]);
+    } catch (_) {}
+    if ((inv.studentPhone ?? '').isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No phone number on file for this student.')));
+      }
+      return;
+    }
+    await _openWhatsApp(inv.studentPhone, msg);
+  }
+
+  Future<void> _remindSelected() async {
+    final ids = _selectedInv.toList();
+    if (ids.isEmpty) return;
+    try {
+      final r = await sl<ApiClient>().sendInvoiceReminders(ids);
+      if (!mounted) return;
+      final reminders = (r.data is Map ? r.data['reminders'] : []) as List? ?? [];
+      // Open WhatsApp for each (up to a few) that has a number.
+      final withPhone = reminders.where((x) => x['wa_link'] != null).toList();
+      for (final x in withPhone.take(5)) {
+        await launchUrl(Uri.parse(x['wa_link']),
+            mode: LaunchMode.externalApplication);
+      }
+      setState(() => _selectedInv.clear());
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+            'Reminders sent to ${reminders.length} student(s). WhatsApp opened for ${withPhone.take(5).length}.'),
+        backgroundColor: AppColors.success,
+      ));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error));
+      }
+    }
   }
 
   Future<void> _generateInvoices() async {
@@ -496,6 +562,31 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
                   color: AppColors.primary, fontWeight: FontWeight.w600),
             ),
           ),
+          if (_selectedInv.isNotEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: AppColors.success.withValues(alpha: 0.12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text('${_selectedInv.length} selected',
+                        style: AppTextStyles.bodyMedium),
+                  ),
+                  TextButton(
+                    onPressed: () => setState(() => _selectedInv.clear()),
+                    child: const Text('Clear'),
+                  ),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.success),
+                    onPressed: _remindSelected,
+                    icon: const Icon(Icons.chat, size: 18),
+                    label: const Text('Remind via WhatsApp'),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: filtered.isEmpty
                 ? const EmptyStateWidget(
@@ -571,18 +662,50 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
                         ),
                       ],
                     ),
-                    if (inv.dueDate != null)
-                      Text(
-                        'Due: ${inv.dueDate!.split('T').first}',
-                        style: AppTextStyles.caption,
-                      ),
+                    Row(
+                      children: [
+                        if (inv.studentPhone != null &&
+                            inv.studentPhone!.isNotEmpty)
+                          InkWell(
+                            onTap: () => _dial(inv.studentPhone!),
+                            child: Row(children: [
+                              const Icon(Icons.phone,
+                                  size: 12, color: AppColors.primary),
+                              const SizedBox(width: 3),
+                              Text(inv.studentPhone!,
+                                  style: AppTextStyles.caption
+                                      .copyWith(color: AppColors.primary)),
+                            ]),
+                          ),
+                        if (inv.dueDate != null) ...[
+                          const SizedBox(width: 10),
+                          Text('Due: ${inv.dueDate!.split('T').first}',
+                              style: AppTextStyles.caption),
+                        ],
+                      ],
+                    ),
                   ],
                 ),
                 trailing: inv.isPending
-                    ? IconButton(
-                        icon: const Icon(Icons.payment, color: AppColors.success),
-                        onPressed: () =>
-                            context.push('/admin/fees/invoices/${inv.id}/pay'),
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.chat, color: AppColors.success),
+                            tooltip: 'WhatsApp reminder',
+                            onPressed: () => _remindOne(inv),
+                          ),
+                          Checkbox(
+                            value: _selectedInv.contains(inv.id),
+                            onChanged: (v) => setState(() {
+                              if (v == true) {
+                                _selectedInv.add(inv.id);
+                              } else {
+                                _selectedInv.remove(inv.id);
+                              }
+                            }),
+                          ),
+                        ],
                       )
                     : null,
               ),

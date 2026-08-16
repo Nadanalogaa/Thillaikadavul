@@ -12,6 +12,7 @@ class InvoiceModel {
   final Map<String, dynamic>? paymentDetails;
   final String? studentName;
   final String? studentEmail;
+  final String? studentPhone;
   final String? createdAt;
   final String? updatedAt;
   final double? originalAmount;
@@ -36,6 +37,7 @@ class InvoiceModel {
     this.paymentDetails,
     this.studentName,
     this.studentEmail,
+    this.studentPhone,
     this.createdAt,
     this.updatedAt,
     this.originalAmount,
@@ -64,6 +66,7 @@ class InvoiceModel {
           : null,
       studentName: json['student_name'] as String?,
       studentEmail: json['student_email'] as String?,
+      studentPhone: json['student_phone'] as String?,
       createdAt: json['created_at'] as String?,
       updatedAt: json['updated_at'] as String?,
       originalAmount: _parseDouble(json['original_amount']),

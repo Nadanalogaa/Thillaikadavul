@@ -454,6 +454,10 @@ class ApiClient {
     return _dio.post('/api/admin/purge-legacy-invoices');
   }
 
+  Future<Response> sendInvoiceReminders(List<int> invoiceIds) {
+    return _dio.post('/api/invoices/send-reminders', data: {'invoice_ids': invoiceIds});
+  }
+
   Future<Response> createInvoice(Map<String, dynamic> data) {
     return _dio.post(ApiEndpoints.invoices, data: data);
   }
