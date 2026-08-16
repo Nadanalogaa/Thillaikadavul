@@ -7,6 +7,7 @@ import '../../../../config/theme/app_text_styles.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../data/models/batch_model.dart';
 import '../../../../data/models/course_model.dart';
+import '../../../../data/models/grade_model.dart';
 import '../../../../data/models/fee_structure_model.dart';
 import '../../../../di/injection_container.dart';
 import '../../../bloc/fee/fee_bloc.dart';
@@ -27,6 +28,7 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
   late TabController _tabController;
   List<CourseModel> _courses = [];
   List<BatchModel> _batches = [];
+  List<GradeModel> _grades = [];
   bool _loadingCourses = true;
   Set<int?> _expandedCourses = {};
   // Invoice filters
@@ -43,16 +45,19 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
         _loadTab(_tabController.index);
       }
     });
+    // Invoices is the default first tab.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<FeeBloc>().add(LoadInvoices());
+    });
     _loadCoursesAndBatches();
   }
 
   void _loadTab(int index) {
-    final bloc = context.read<FeeBloc>();
+    // Tab 0 = Invoices, Tab 1 = Grades & Fees (grades loaded into state).
     if (index == 0) {
-      bloc.add(LoadFeeStructures());
-    } else {
-      bloc.add(LoadInvoices());
+      context.read<FeeBloc>().add(LoadInvoices());
     }
+    setState(() {});
   }
 
   Future<void> _loadCoursesAndBatches() async {
@@ -61,6 +66,7 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
       final results = await Future.wait([
         apiClient.getCourses(),
         apiClient.getBatches(),
+        apiClient.getGrades(),
       ]);
 
       if (!mounted) return;
@@ -76,6 +82,13 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
       if (results[1].statusCode == 200 && results[1].data is List) {
         _batches = (results[1].data as List)
             .map((b) => BatchModel.fromJson(b))
+            .toList();
+      }
+
+      // Parse grades
+      if (results[2].statusCode == 200 && results[2].data is List) {
+        _grades = (results[2].data as List)
+            .map((g) => GradeModel.fromJson(g))
             .toList();
       }
 
@@ -133,24 +146,6 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
       appBar: AppBar(
         title: const Text('Fee Management'),
         actions: [
-          if (_tabController.index == 0)
-            IconButton(
-              icon: Icon(_expandedCourses.length == _courses.length
-                  ? Icons.unfold_less
-                  : Icons.unfold_more),
-              onPressed: () {
-                setState(() {
-                  if (_expandedCourses.length == _courses.length) {
-                    _expandedCourses.clear();
-                  } else {
-                    _expandedCourses = _courses.map((c) => c.id).toSet();
-                  }
-                });
-              },
-              tooltip: _expandedCourses.length == _courses.length
-                  ? 'Collapse All'
-                  : 'Expand All',
-            ),
           IconButton(
             icon: const Icon(Icons.receipt_long),
             tooltip: 'Payment Proofs',
@@ -160,8 +155,8 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: 'Fee Structures'),
             Tab(text: 'Invoices'),
+            Tab(text: 'Grades & Fees'),
           ],
         ),
       ),
@@ -182,8 +177,8 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
           return TabBarView(
             controller: _tabController,
             children: [
-              _buildStructuresTab(state),
               _buildInvoicesTab(state),
+              _buildGradesFeesTab(),
             ],
           );
         },
@@ -191,28 +186,26 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Discount Management Button (only show on Fee Structures tab)
-          if (_tabController.index == 0)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: FloatingActionButton.extended(
-                onPressed: () => context.push('/admin/fees/discounts'),
-                icon: const Icon(Icons.local_offer),
-                label: const Text('Discounts'),
-                backgroundColor: AppColors.warning,
-                heroTag: 'discounts',
-              ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: FloatingActionButton.extended(
+              onPressed: () => context.push('/admin/fees/discounts'),
+              icon: const Icon(Icons.local_offer),
+              label: const Text('Discounts'),
+              backgroundColor: AppColors.warning,
+              heroTag: 'discounts',
             ),
-          // Main FAB
+          ),
+          // Main FAB — invoices tab adds an invoice; grades tab manages grades.
           FloatingActionButton(
             onPressed: () {
               if (_tabController.index == 0) {
-                context.push('/admin/fees/structures/add');
-              } else {
                 context.push('/admin/fees/invoices/add');
+              } else {
+                context.push('/admin/grades');
               }
             },
-            child: const Icon(Icons.add),
+            child: Icon(_tabController.index == 0 ? Icons.add : Icons.grade),
             heroTag: 'add',
           ),
         ],
@@ -283,6 +276,82 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
       );
     }
     return const SizedBox.shrink();
+  }
+
+  Widget _buildGradesFeesTab() {
+    if (_loadingCourses) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    final coursesWithGrades = _courses
+        .where((c) => _grades.any((g) => g.courseId == c.id))
+        .toList();
+    return RefreshIndicator(
+      onRefresh: _loadCoursesAndBatches,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Each grade sets its course fee. Assign a student a grade from their profile.',
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => context.push('/admin/grades'),
+                  child: const Text('Manage'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (coursesWithGrades.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: Center(
+                child: Text('No grades configured yet.\nTap "Manage" to add grades per course.',
+                    textAlign: TextAlign.center),
+              ),
+            )
+          else
+            ...coursesWithGrades.map((c) {
+              final grades = _grades.where((g) => g.courseId == c.id).toList();
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(c.name, style: AppTextStyles.labelLarge),
+                      const SizedBox(height: 8),
+                      ...grades.map((g) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(g.name, style: AppTextStyles.bodyMedium),
+                                Text('₹${g.monthlyFee.toStringAsFixed(0)}/mo',
+                                    style: AppTextStyles.bodyMedium.copyWith(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          )),
+                    ],
+                  ),
+                ),
+              );
+            }),
+        ],
+      ),
+    );
   }
 
   Widget _buildInvoicesTab(FeeState state) {

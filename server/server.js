@@ -1280,36 +1280,23 @@ async function startServer() {
             console.log(`[MonthlyInvoices] Invoice #${inv.rows[0].id} for ${student.name} (${courseName}) ${billingPeriod}`);
         };
 
+        // Fees are grade-based only. A student with no grade assigned gets no
+        // invoice (they show as "not assigned" until an admin sets their grade).
+        let noGrade = 0;
         for (const s of students.rows) {
             const gradeFees = gradeFeesByStudent[s.id];
             if (gradeFees && gradeFees.length > 0) {
-                // Grade-based: one line per course-grade (fee comes from the grade).
                 for (const gf of gradeFees) {
                     const label = `${gf.course_name || 'Course'} - ${gf.grade_name || 'Grade'}`;
                     await createLine(s, label, gf.course_id, Number(gf.monthly_fee), null,
                         gf.grade_id, resolveBatchId(s.id, gf.course_id));
                 }
             } else {
-                // Legacy fallback (fee_structures) until this student is put on grades.
-                const courseNames = safeJsonArray(s.courses);
-                if (courseNames.length === 0) continue;
-                const studentBatchIds = batchRes.rows
-                    .filter((b) => Array.isArray(b.student_ids) && b.student_ids.includes(s.id))
-                    .map((b) => b.id);
-                for (const cn of courseNames) {
-                    const courseId = courseIdByName[String(cn).trim().toLowerCase()];
-                    if (!courseId) continue;
-                    const candidates = feesByCourse[courseId] || [];
-                    if (candidates.length === 0) continue;
-                    const best = pickBestFeeStructure(candidates, s.grade, studentBatchIds);
-                    if (!best) continue;
-                    await createLine(s, cn, courseId, Number(best.monthly_fee), best.id,
-                        null, resolveBatchId(s.id, courseId));
-                }
+                noGrade++;
             }
         }
-        console.log(`[MonthlyInvoices] ${billingPeriod}: created ${created}, skipped ${skipped} (already existed).`);
-        return { billingPeriod, created, skipped };
+        console.log(`[MonthlyInvoices] ${billingPeriod}: created ${created}, skipped ${skipped} (existed), ${noGrade} student(s) had no grade.`);
+        return { billingPeriod, created, skipped, noGrade };
     };
 
     // Manual trigger so an admin can generate this month's invoices on demand.
@@ -3817,6 +3804,19 @@ Please review and approve this registration in the admin panel.`;
         } catch (error) {
             console.error('Error deleting fee structure:', error);
             res.status(500).json({ message: 'Server error deleting fee structure.' });
+        }
+    });
+
+    // Purge ALL legacy fee_structures (the old ₹-per-course amounts). Fees are
+    // grade-based now, so these are obsolete. Students/invoices are untouched.
+    app.post('/api/admin/purge-fee-structures', ensureSuperAdmin, async (req, res) => {
+        try {
+            const result = await pool.query('DELETE FROM fee_structures RETURNING id');
+            console.log(`[Purge] Deleted ${result.rows.length} legacy fee_structures.`);
+            res.json({ message: `Deleted ${result.rows.length} legacy fee structure(s).`, deleted: result.rows.length });
+        } catch (error) {
+            console.error('Error purging fee structures:', error);
+            res.status(500).json({ message: 'Server error purging fee structures.' });
         }
     });
 

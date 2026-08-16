@@ -1521,6 +1521,12 @@ export const generateMonthlyInvoicesApi = async (): Promise<any> => {
   return await res.json();
 };
 
+export const purgeFeeStructures = async (): Promise<any> => {
+  const res = await fetch('/api/admin/purge-fee-structures', { method: 'POST', credentials: 'include' });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'Failed to purge fee structures');
+  return await res.json();
+};
+
 // --- Reports ---
 export const getReport = async (type: string, params: Record<string, string> = {}): Promise<any> => {
   const qs = new URLSearchParams(params).toString();
