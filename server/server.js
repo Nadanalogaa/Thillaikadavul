@@ -3904,6 +3904,21 @@ Please review and approve this registration in the admin panel.`;
                 [student_id, discount_type, course_id, batch_id || null, discount_percentage, reason]
             );
 
+            // Apply the discount to this student's UNPAID invoices for the course so
+            // they immediately show the discounted amount (original struck through).
+            try {
+                await pool.query(
+                    `UPDATE invoices
+                     SET original_amount = COALESCE(original_amount, amount),
+                         discount_percentage = $3,
+                         discount_amount = ROUND(COALESCE(original_amount, amount) * $3 / 100.0, 2),
+                         amount = ROUND(COALESCE(original_amount, amount) * (100 - $3) / 100.0, 2),
+                         updated_at = NOW()
+                     WHERE student_id = $1 AND course_id = $2 AND LOWER(status) <> 'paid'`,
+                    [student_id, course_id, discount_percentage]
+                );
+            } catch (e) { console.error('[Discount] invoice update failed:', e.message); }
+
             res.status(201).json(result.rows[0]);
         } catch (error) {
             console.error('Error creating discount:', error);
@@ -3943,13 +3958,25 @@ Please review and approve this registration in the admin panel.`;
         try {
             const { id } = req.params;
             const result = await pool.query(
-                'UPDATE student_discounts SET is_active = FALSE, updated_at = NOW() WHERE id = $1 RETURNING id',
+                'UPDATE student_discounts SET is_active = FALSE, updated_at = NOW() WHERE id = $1 RETURNING id, student_id, course_id',
                 [id]
             );
 
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: 'Discount not found' });
             }
+
+            // Restore full price on this student's unpaid invoices for the course.
+            try {
+                const { student_id, course_id } = result.rows[0];
+                await pool.query(
+                    `UPDATE invoices
+                     SET amount = COALESCE(original_amount, amount),
+                         discount_percentage = 0, discount_amount = 0, updated_at = NOW()
+                     WHERE student_id = $1 AND course_id = $2 AND LOWER(status) <> 'paid'`,
+                    [student_id, course_id]
+                );
+            } catch (e) { console.error('[Discount] invoice restore failed:', e.message); }
 
             res.json({ message: 'Discount deleted successfully' });
         } catch (error) {
@@ -4929,6 +4956,43 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
+    // Send payment reminders for a set of unpaid invoices. Creates an in-app
+    // notification for each student and returns a WhatsApp deep-link (wa.me) per
+    // invoice so the admin can send the reminder to the parent with one tap.
+    app.post('/api/invoices/send-reminders', ensureAdmin, async (req, res) => {
+        try {
+            const { invoice_ids } = req.body;
+            if (!Array.isArray(invoice_ids) || invoice_ids.length === 0) {
+                return res.status(400).json({ message: 'invoice_ids required' });
+            }
+            const rows = (await pool.query(
+                `SELECT i.id, i.amount, i.currency, i.billing_period, i.due_date, i.status,
+                        u.id AS student_id, u.name AS student_name, u.contact_number AS phone
+                 FROM invoices i LEFT JOIN users u ON i.student_id = u.id
+                 WHERE i.id = ANY($1) AND LOWER(i.status) <> 'paid'`,
+                [invoice_ids]
+            )).rows;
+            const results = rows.map((r) => {
+                const amt = Number(r.amount || 0).toFixed(0);
+                const msg = `Dear Parent, a gentle reminder from Nadanaloga Academy: ${r.student_name}'s fee of INR ${amt} for ${r.billing_period || 'this month'} is pending${r.due_date ? ` (due ${String(r.due_date).split('T')[0]})` : ''}. Kindly pay at your earliest. Thank you.`;
+                // Normalise Indian numbers to wa.me format (91XXXXXXXXXX).
+                let digits = String(r.phone || '').replace(/\D/g, '');
+                if (digits.length === 10) digits = '91' + digits;
+                const waLink = digits ? `https://wa.me/${digits}?text=${encodeURIComponent(msg)}` : null;
+                // In-app reminder too.
+                try {
+                    if (r.student_id) createNotificationForUser(r.student_id, 'Fee Reminder',
+                        `Your fee of INR ${amt} for ${r.billing_period || 'this month'} is pending. Please pay soon.`, 'Warning');
+                } catch (_) {}
+                return { invoice_id: r.id, student_name: r.student_name, phone: r.phone || null, amount: amt, message: msg, wa_link: waLink };
+            });
+            res.json({ count: results.length, reminders: results });
+        } catch (error) {
+            console.error('Error sending reminders:', error);
+            res.status(500).json({ message: 'Server error sending reminders.' });
+        }
+    });
+
     // --- Invoice API Endpoints ---
     app.get('/api/invoices', async (req, res) => {
         try {
@@ -4945,6 +5009,7 @@ Please review and approve this registration in the admin panel.`;
             const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
             const result = await pool.query(`
                 SELECT i.*, u.id as student_id, u.name as student_name, u.email as student_email,
+                    u.contact_number as student_phone,
                     (SELECT ip.status FROM invoice_payments ip
                      WHERE ip.invoice_id = i.id ORDER BY ip.submitted_at DESC LIMIT 1) as payment_status
                 FROM invoices i
@@ -4957,7 +5022,8 @@ Please review and approve this registration in the admin panel.`;
                 student: row.student_id ? {
                     id: row.student_id,
                     name: row.student_name,
-                    email: row.student_email
+                    email: row.student_email,
+                    phone: row.student_phone
                 } : null
             }));
             res.json(invoices);
