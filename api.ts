@@ -3901,11 +3901,10 @@ export const createDemoBooking = async (bookingData: {
       source: data.source
     };
 
-    // Send notifications
-    await notificationService.notifyDemoBooking(demoBooking);
-
-    // Create admin notifications in the database
-    await createDemoBookingNotification(demoBooking);
+    // Emails (confirmation to parent + notification to admin) and in-app admin
+    // notifications are sent SERVER-SIDE by POST /api/demo-bookings. The old
+    // client-side notificationService.notifyDemoBooking only logged a fake
+    // "CUSTOMER DEMO BOOKING EMAIL" to the console and never sent anything.
 
     return demoBooking;
   } catch (error) {
