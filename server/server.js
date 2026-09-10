@@ -852,6 +852,9 @@ async function startServer() {
         });
     };
 
+    // Where admin notification emails go (new registrations, demo bookings, etc.).
+    const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || 'nadanaloga2026@gmail.com';
+
     // Send push notification via FCM (fire-and-forget)
     const sendPushNotification = async (userId, title, body) => {
         if (!firebaseMessaging) {
@@ -1493,6 +1496,28 @@ async function startServer() {
                 }
             } catch (notifError) {
                 console.error('Error creating registration notifications:', notifError.message);
+            }
+
+            // Email the registrant + admin on EVERY registration path (web, mobile,
+            // self-register, admin-add) — sent server-side so it never depends on the client.
+            try {
+                const coursesList = (safeJsonArray(userData.courses).length > 0)
+                    ? safeJsonArray(userData.courses).join(', ')
+                    : 'No specific courses selected';
+                const welcomeMsg = `Thank you for registering with Nadanaloga Academy!\n\n` +
+                    `Your registration has been received:\n\n` +
+                    `Name: ${userData.name}\nEmail: ${normalizedEmail}\n` +
+                    `Courses: ${coursesList}\nContact: ${userData.contact_number || userData.contactNumber || 'Not provided'}\n\n` +
+                    `Our team will review your application and get in touch about class schedules. Welcome to the Nadanaloga family!`;
+                sendEmailBackground(normalizedEmail, userData.name || 'Student', 'Welcome to Nadanaloga Academy!', welcomeMsg);
+
+                const adminMsg = `A new ${userData.role || 'Student'} has registered:\n\n` +
+                    `Name: ${userData.name}\nEmail: ${normalizedEmail}\n` +
+                    `Contact: ${userData.contact_number || userData.contactNumber || 'Not provided'}\n` +
+                    `Courses: ${coursesList}\n\nPlease review them in the admin panel.`;
+                sendEmailBackground(ADMIN_NOTIFY_EMAIL, 'Admin', 'New Registration - Nadanaloga Academy', adminMsg);
+            } catch (mailErr) {
+                console.error('[Register] email error:', mailErr.message);
             }
 
             res.status(201).json(parsedUser);
@@ -4087,6 +4112,27 @@ Please review and approve this registration in the admin panel.`;
                     console.error('[DemoBooking] Error sending admin notifications:', e.message);
                 }
             })();
+
+            // Email the parent (confirmation) + admin (notification).
+            try {
+                const who = student_name || parent_name || 'Student';
+                const when = [preferred_date, preferred_time].filter(Boolean).join(' ');
+                if (email) {
+                    const confMsg = `Thank you for booking a demo class with Nadanaloga Academy!\n\n` +
+                        `Student: ${who}\nCourse: ${course || 'Not specified'}\n` +
+                        `Preferred: ${when || 'To be confirmed'}\n${location ? `Location: ${location}\n` : ''}` +
+                        `\nOur team will contact you shortly to confirm the schedule. See you soon!`;
+                    sendEmailBackground(email, parent_name || who, 'Demo Class Booking Received - Nadanaloga', confMsg);
+                }
+                const adminMsg = `A new demo class booking was received:\n\n` +
+                    `Student: ${student_name || 'N/A'}\nParent: ${parent_name || 'N/A'}\n` +
+                    `Email: ${email || 'N/A'}\nPhone: ${phone || 'N/A'}\nCourse: ${course || 'N/A'}\n` +
+                    `Preferred: ${when || 'N/A'}\n${location ? `Location: ${location}\n` : ''}${notes ? `Notes: ${notes}\n` : ''}` +
+                    `\nReview it in the admin panel (Demo Bookings).`;
+                sendEmailBackground(ADMIN_NOTIFY_EMAIL, 'Admin', 'New Demo Booking - Nadanaloga Academy', adminMsg);
+            } catch (mailErr) {
+                console.error('[DemoBooking] email error:', mailErr.message);
+            }
         } catch (error) {
             console.error('Error creating demo booking:', error);
             res.status(500).json({ message: 'Server error creating demo booking.' });

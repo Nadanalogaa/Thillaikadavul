@@ -646,41 +646,9 @@ export const registerUser = async (userData: Partial<User>[], sendEmails: boolea
         }
         data = await registerResponse.json();
 
-        // Send registration emails for students via backend SMTP
-        if (sendEmails && data.role === 'Student') {
-          try {
-            const response = await fetch('/api/send-registration-emails', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                userName: data.name,
-                userEmail: data.email,
-                courses: data.courses || [],
-                contactNumber: data.contact_number,
-                fatherName: data.father_name,
-                standard: data.standard,
-                schoolName: data.school_name,
-                address: data.address,
-                dateOfJoining: data.date_of_joining,
-                notes: data.notes
-              })
-            });
-
-            if (response.ok) {
-              console.log('Registration emails sent successfully');
-            } else {
-              console.error('Failed to send registration emails:', response.statusText);
-            }
-          } catch (emailError) {
-            console.error('Failed to send registration emails:', emailError);
-            // Don't fail the registration if emails fail
-          }
-        }
-
-        // In-app notifications are now created server-side during registration
-        // (no need for frontend notification service call here)
+        // Registration emails (welcome + admin) are now sent server-side inside
+        // /api/register, so every path (web, mobile, self, admin) emails reliably.
+        // No frontend call needed here (avoids duplicate emails).
       }
 
       console.log('User registered successfully:', data);
