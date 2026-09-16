@@ -1694,7 +1694,11 @@ async function startServer() {
 
             // Normalize role to title case (e.g., 'admin' → 'Admin')
             if (user.role) {
-                user.role = user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase();
+                // trim(): a role stored as 'Teacher ' used to come back as
+                // 'Teacher ' and fail every exact role comparison in the apps
+                // (routing sent the user straight back to the login screen).
+                const r = user.role.trim();
+                user.role = r.charAt(0).toUpperCase() + r.slice(1).toLowerCase();
             }
 
             // Parse JSON fields before returning

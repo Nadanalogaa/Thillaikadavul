@@ -667,7 +667,7 @@ class AppRouter {
 
         // Logged in but on auth page -> go to dashboard
         if (authState is AuthAuthenticated && isOnAuthPage) {
-          return _dashboardForRole(authState.user.role);
+          return dashboardForRole(authState.user.role);
         }
 
         return null;
@@ -676,18 +676,23 @@ class AppRouter {
     return _router!;
   }
 
-  static String _dashboardForRole(String role) {
-    switch (role) {
-      case 'Admin':
+  /// Where a signed-in user lands. Single source of truth — the login screen
+  /// uses this too, so the two can never disagree.
+  ///
+  /// Matching is trimmed + case-insensitive, and an UNKNOWN role falls back to
+  /// the student dashboard, never '/login': returning '/login' for a signed-in
+  /// user bounced them straight back to the login screen (a role stored as
+  /// 'Teacher ' or anything unexpected locked the account out of the app).
+  static String dashboardForRole(String? role) {
+    switch ((role ?? '').trim().toLowerCase()) {
+      case 'admin':
         return '/admin';
-      case 'Teacher':
+      case 'teacher':
         return '/teacher';
-      case 'Student':
-        return '/student';
-      case 'Parent':
-        return '/student'; // Parents use the unified student dashboard
+      case 'student':
+      case 'parent': // Parents use the unified household/student dashboard
       default:
-        return '/login';
+        return '/student';
     }
   }
 }

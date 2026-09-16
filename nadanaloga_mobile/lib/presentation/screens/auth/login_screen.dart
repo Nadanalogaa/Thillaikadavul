@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../config/routes/app_router.dart';
 import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
 import '../../../core/network/api_client.dart';
@@ -74,18 +75,9 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _goHome(String role) {
-    switch (role) {
-      case 'Admin':
-        context.go('/admin');
-      case 'Teacher':
-        context.go('/teacher');
-      case 'Student':
-        context.go('/student');
-      case 'Parent':
-        context.go('/parent');
-      default:
-        context.go('/login');
-    }
+    // Shared with the router's redirect so the two can never disagree, and so an
+    // unknown role can never send a signed-in user back to '/login'.
+    context.go(AppRouter.dashboardForRole(role));
   }
 
   Future<void> _handleAuthenticated(AuthAuthenticated state) async {

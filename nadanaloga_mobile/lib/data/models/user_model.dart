@@ -253,7 +253,9 @@ class UserModel {
 
   /// Normalizes role strings to title case (e.g., 'admin' → 'Admin').
   static String _normalizeRole(String role) {
-    switch (role.toLowerCase()) {
+    // Trim: a role stored as 'Teacher ' used to survive unmatched and then fail
+    // every role comparison downstream (routing, teaching/student views).
+    switch (role.trim().toLowerCase()) {
       case 'admin':
         return 'Admin';
       case 'teacher':
@@ -263,7 +265,7 @@ class UserModel {
       case 'parent':
         return 'Parent';
       default:
-        return role;
+        return role.trim();
     }
   }
 
