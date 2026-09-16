@@ -1559,6 +1559,20 @@ async function startServer() {
         }
     });
 
+    // Phone numbers are stored exactly as they were typed ("+91 98765 43210",
+    // "098765...", "9876543210"), so an exact digits comparison misses most
+    // variants and the user sees "Invalid credentials" with the right password.
+    // Compare the LAST 10 DIGITS (the significant part of an Indian mobile
+    // number), falling back to an exact match for shorter/odd numbers.
+    // `param` is the SQL placeholder holding the digits-only typed number.
+    // Hoisted so every query below can use it.
+    function phoneMatchSql(param) {
+        const digitsOf = `regexp_replace(COALESCE(contact_number, ''), '\\D', '', 'g')`;
+        return `((length(${digitsOf}) >= 10 AND length(${param}) >= 10
+                  AND right(${digitsOf}, 10) = right(${param}, 10))
+                 OR ${digitsOf} = ${param})`;
+    }
+
     // Every switchable profile behind one identity. Identity = the phone number:
     // all non-deleted accounts sharing it (a teacher who is also a student, etc.)
     // plus every child profile linked to any of them. One shared password
@@ -1572,10 +1586,10 @@ async function startServer() {
             rows = (await pool.query(
                 `SELECT ${cols} FROM users
                  WHERE is_deleted = false AND (
-                    regexp_replace(COALESCE(contact_number, ''), '\\D', '', 'g') = $1
+                    ${phoneMatchSql('$1')}
                     OR parent_id IN (
                         SELECT id FROM users
-                        WHERE regexp_replace(COALESCE(contact_number, ''), '\\D', '', 'g') = $1
+                        WHERE ${phoneMatchSql('$1')}
                           AND is_deleted = false
                     )
                  )
@@ -1653,7 +1667,7 @@ async function startServer() {
                 // formatting differences (spaces, +91, etc.) don't matter. May return multiple
                 // rows when a family shares one phone number — resolved by password below.
                 result = await pool.query(
-                    "SELECT * FROM users WHERE regexp_replace(contact_number, '\\D', '', 'g') = $1 AND is_deleted = false",
+                    `SELECT * FROM users WHERE ${phoneMatchSql('$1')} AND is_deleted = false`,
                     [phoneDigits]
                 );
             } else {
@@ -1729,7 +1743,7 @@ async function startServer() {
         if (id.toUpperCase().startsWith('NDA-')) {
             return (await pool.query('SELECT * FROM users WHERE user_id = $1 AND is_deleted = false', [id.toUpperCase()])).rows;
         } else if (!id.includes('@') && /^\d{7,}$/.test(digits)) {
-            return (await pool.query("SELECT * FROM users WHERE regexp_replace(contact_number, '\\D', '', 'g') = $1 AND is_deleted = false", [digits])).rows;
+            return (await pool.query(`SELECT * FROM users WHERE ${phoneMatchSql('$1')} AND is_deleted = false`, [digits])).rows;
         }
         return (await pool.query('SELECT * FROM users WHERE email = $1 AND is_deleted = false', [id.toLowerCase()])).rows;
     };
@@ -3014,6 +3028,61 @@ Please review and approve this registration in the admin panel.`;
         } catch (error) {
             console.error('Switch profile error:', error);
             res.status(500).json({ message: 'Server error switching profile.' });
+        }
+    });
+
+    // Why can't this phone log in? Admin-only diagnostic. Reports what the
+    // server sees for a number — never password hashes, only whether an account
+    // is usable. Covers the real causes: number stored with a country code /
+    // leading zero, the account being deleted, or the phone existing ONLY on
+    // child profiles (children get a random placeholder password and can never
+    // log in themselves — the parent logs in and sees them).
+    app.get('/api/admin/phone-diagnostic', ensureAdmin, async (req, res) => {
+        try {
+            const raw = String(req.query.phone || '');
+            const digits = raw.replace(/\D/g, '');
+            if (!digits) return res.status(400).json({ message: 'Pass ?phone=...' });
+            const rows = (await pool.query(
+                `SELECT id, name, email, role, contact_number, parent_id, is_primary,
+                        is_deleted, must_change_password,
+                        (email LIKE '%@child.nadanaloga.local') AS is_child_placeholder
+                 FROM users WHERE ${phoneMatchSql('$1')}
+                 ORDER BY is_deleted, parent_id NULLS FIRST, id`,
+                [digits]
+            )).rows;
+            const accounts = rows.map(r => {
+                const stored = String(r.contact_number || '');
+                const sto = stored.replace(/\D/g, '');
+                const canLogIn = !r.is_deleted && !r.parent_id && !r.is_child_placeholder;
+                return {
+                    id: r.id, name: r.name, role: r.role,
+                    stored_number: stored,
+                    matches_exactly: sto === digits,
+                    matched_by_last10: sto !== digits,
+                    is_deleted: r.is_deleted,
+                    is_child_profile: !!r.parent_id || r.is_child_placeholder,
+                    must_change_password: r.must_change_password === true,
+                    can_log_in: canLogIn,
+                    reason: r.is_deleted ? 'Account is deleted'
+                        : (r.parent_id || r.is_child_placeholder)
+                            ? 'Child profile — has no login of its own; the parent logs in'
+                            : 'Can log in (if the password is correct)',
+                };
+            });
+            res.json({
+                typed: raw, digits,
+                found: accounts.length,
+                can_log_in_count: accounts.filter(a => a.can_log_in).length,
+                summary: accounts.length === 0
+                    ? 'No account has this number. Check the number saved on the student/teacher record.'
+                    : accounts.some(a => a.can_log_in)
+                        ? 'An account with this number can log in — if it still fails, the password is wrong (use Forgot password or reset it from the admin).'
+                        : 'This number exists but only on profiles that cannot log in (see reason per account).',
+                accounts,
+            });
+        } catch (error) {
+            console.error('Phone diagnostic error:', error);
+            res.status(500).json({ message: 'Server error running the diagnostic.' });
         }
     });
 
