@@ -1,4 +1,6 @@
 import 'package:equatable/equatable.dart';
+
+import '../../../data/models/user_model.dart';
 import 'package:image_picker/image_picker.dart';
 
 abstract class AuthEvent extends Equatable {
@@ -53,3 +55,15 @@ class AuthRegisterRequested extends AuthEvent {
 }
 
 class AuthLogoutRequested extends AuthEvent {}
+
+/// The user switched to another profile within the same login
+/// (teacher <-> student <-> child). Carries the already-switched user
+/// returned by /api/switch-profile so the app re-enters as that profile.
+class AuthProfileSwitched extends AuthEvent {
+  final UserModel user;
+
+  const AuthProfileSwitched(this.user);
+
+  @override
+  List<Object?> get props => [user];
+}

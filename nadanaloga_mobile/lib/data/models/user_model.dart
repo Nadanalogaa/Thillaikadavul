@@ -34,6 +34,42 @@ class CourseGrade {
   }
 }
 
+/// One switchable profile behind a login: the person's own role-accounts
+/// (e.g. Teacher, Student) and any linked child profiles. Grouped by phone.
+class ProfileModel {
+  final int id;
+  final String name;
+  final String role;
+  final bool isChild;
+  final String? photoUrl;
+  final List<String> courses;
+  final String? grade;
+
+  const ProfileModel({
+    required this.id,
+    required this.name,
+    required this.role,
+    this.isChild = false,
+    this.photoUrl,
+    this.courses = const [],
+    this.grade,
+  });
+
+  factory ProfileModel.fromJson(Map<String, dynamic> json) {
+    return ProfileModel(
+      id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
+      name: json['name'] ?? '',
+      role: json['role'] as String? ?? 'Student',
+      isChild: json['kind'] == 'child',
+      photoUrl: json['photo_url'] as String?,
+      courses: (json['courses'] is List)
+          ? (json['courses'] as List).map((e) => e.toString()).toList()
+          : const [],
+      grade: json['grade'] as String?,
+    );
+  }
+}
+
 class UserModel {
   final int id;
   final String? userId; // NDA-YYYY-XXXX
@@ -68,6 +104,7 @@ class UserModel {
   final List<String> batchNames; // Batches this student belongs to
   final String? lastPaid; // Most recent paid-invoice date (ISO)
   final bool mustChangePassword; // On the default password → set own on first login
+  final List<ProfileModel> profiles; // Every switchable profile behind this login
 
   const UserModel({
     required this.id,
@@ -103,6 +140,7 @@ class UserModel {
     this.batchNames = const [],
     this.lastPaid,
     this.mustChangePassword = false,
+    this.profiles = const [],
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -146,6 +184,11 @@ class UserModel {
       batchNames: _parseStringList(json['batch_names']),
       lastPaid: json['last_paid'] as String?,
       mustChangePassword: json['must_change_password'] == true,
+      profiles: (json['profiles'] is List)
+          ? (json['profiles'] as List)
+              .map((e) => ProfileModel.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : const [],
     );
   }
 
@@ -290,6 +333,7 @@ class UserModel {
       courseGrades: courseGrades,
       batchNames: batchNames,
       mustChangePassword: mustChangePassword,
+      profiles: profiles,
     );
   }
 

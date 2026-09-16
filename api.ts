@@ -164,7 +164,9 @@ export const loginUser = async (email: string, password: string): Promise<User> 
       documents: user.documents || [],
       notes: user.notes,
       students: user.students || [],  // Add students array for parent accounts
-      mustChangePassword: user.must_change_password === true
+      mustChangePassword: user.must_change_password === true,
+      // Every switchable profile behind this login (grouped by phone number).
+      profiles: Array.isArray(user.profiles) ? user.profiles : []
     } as any;
 
     currentUser = userData;
@@ -312,6 +314,60 @@ export const forgotPassword = async (identifier: string): Promise<{ success: boo
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.message || 'Could not send reset code.');
   return data;
+};
+
+// Map a raw server user row to the frontend User shape. Kept identical to the
+// mapping inside loginUser so a switched profile has exactly the same shape as
+// a freshly logged-in one.
+const mapServerUser = (user: any): User => ({
+  id: user.id.toString(),
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  classPreference: user.class_preference || 'Online',
+  contactNumber: user.contact_number,
+  address: user.address,
+  country: user.country,
+  state: user.state,
+  city: user.city,
+  postalCode: user.postal_code,
+  fatherName: user.father_name,
+  dob: user.dob,
+  sex: user.sex,
+  schoolName: user.school_name,
+  standard: user.standard,
+  grade: user.grade,
+  photoUrl: user.photo_url,
+  courses: Array.isArray(user.courses) ? user.courses : [],
+  courseExpertise: Array.isArray(user.course_expertise) ? user.course_expertise : [],
+  preferredTimings: Array.isArray(user.preferred_timings) ? user.preferred_timings : [],
+  availableTimeSlots: Array.isArray(user.available_time_slots) ? user.available_time_slots : [],
+  educationalQualifications: user.educational_qualifications,
+  employmentType: user.employment_type,
+  yearsOfExperience: user.years_of_experience,
+  dateOfJoining: user.date_of_joining,
+  schedules: user.schedules || [],
+  documents: user.documents || [],
+  notes: user.notes,
+  students: user.students || [],
+  mustChangePassword: user.must_change_password === true,
+  profiles: Array.isArray(user.profiles) ? user.profiles : [],
+} as any);
+
+// Switch the active profile within the current login (teacher <-> student <-> child).
+// The server only allows profiles this login unlocked; the session is rebound so
+// all later API calls act as the chosen profile.
+export const switchProfile = async (profileId: number | string): Promise<User> => {
+  const res = await fetch('/api/switch-profile', {
+    method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ profile_id: profileId }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message || 'Could not switch profile.');
+  const userData = mapServerUser(data);
+  currentUser = userData;
+  safeSetLocalStorage('currentUser', userData);
+  return userData;
 };
 
 export const setPassword = async (newPassword: string): Promise<{ success: boolean; message: string }> => {

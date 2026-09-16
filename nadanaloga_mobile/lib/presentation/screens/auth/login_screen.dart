@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
 import '../../../core/network/api_client.dart';
+import '../../../data/models/user_model.dart';
 import '../../../di/injection_container.dart';
 import '../../bloc/auth/auth_bloc.dart';
 import '../../bloc/auth/auth_event.dart';
@@ -23,6 +24,10 @@ class _LoginScreenState extends State<LoginScreen>
   final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  // Set once a profile is picked (or the login had only one). Gates both the
+  // forced set-password sheet and the "Continue as…" picker so neither
+  // reappears when AuthProfileSwitched re-fires the auth listener.
+  bool _profileChosen = false;
   late AnimationController _animController;
   late Animation<Offset> _slideAnimation;
 
@@ -81,15 +86,18 @@ class _LoginScreenState extends State<LoginScreen>
         context.go('/teacher');
       case 'Student':
         context.go('/student');
+      case 'Parent':
+        context.go('/parent');
       default:
         context.go('/login');
     }
   }
 
   Future<void> _handleAuthenticated(AuthAuthenticated state) async {
-    if (state.user.mustChangePassword) {
-      // Force a password change before entering the app. The sheet cannot be
-      // dismissed until a new password is set (or the user backs out).
+    // Forced password change — only on the initial login, never after switching
+    // into another profile (child profiles are flagged but never log in).
+    if (!_profileChosen && state.user.mustChangePassword) {
+      // The sheet cannot be dismissed until a new password is set (or the user backs out).
       final done = await showModalBottomSheet<bool>(
         context: context,
         isScrollControlled: true,
@@ -105,6 +113,46 @@ class _LoginScreenState extends State<LoginScreen>
         return;
       }
     }
+    if (!mounted) return;
+
+    // "Continue as…" — one phone number can unlock several profiles (a teacher
+    // who is also a student, plus her children). Pick one before entering.
+    if (!_profileChosen && state.user.profiles.length > 1) {
+      final picked = await showModalBottomSheet<ProfileModel>(
+        context: context,
+        isScrollControlled: true,
+        isDismissible: false,
+        enableDrag: false,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _ProfilePickerSheet(profiles: state.user.profiles),
+      );
+      if (!mounted) return;
+      if (picked == null) {
+        context.read<AuthBloc>().add(AuthLogoutRequested());
+        return;
+      }
+      _profileChosen = true;
+      if (picked.id != state.user.id) {
+        try {
+          final r = await sl<ApiClient>().switchProfile(picked.id);
+          if (r.statusCode == 200 && r.data is Map) {
+            final switched =
+                UserModel.fromJson(Map<String, dynamic>.from(r.data as Map));
+            if (!mounted) return;
+            // Re-enters the auth listener with _profileChosen set, which routes
+            // straight to the switched profile's dashboard.
+            context.read<AuthBloc>().add(AuthProfileSwitched(switched));
+            return;
+          }
+        } catch (_) {}
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Could not open that profile. Continuing as yourself.'),
+          backgroundColor: AppColors.error,
+        ));
+      }
+    }
+    _profileChosen = true;
     if (!mounted) return;
     _goHome(state.user.role);
   }
@@ -282,6 +330,90 @@ class _LoginScreenState extends State<LoginScreen>
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Continue as…" picker shown when one login unlocks several profiles.
+/// Not dismissible; pops with the chosen [ProfileModel] (null if backed out).
+class _ProfilePickerSheet extends StatelessWidget {
+  final List<ProfileModel> profiles;
+  const _ProfilePickerSheet({required this.profiles});
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Continue as', style: AppTextStyles.h3),
+              const SizedBox(height: 6),
+              Text(
+                'This login has more than one profile. Choose who to continue as — you can switch later.',
+                style:
+                    AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 12),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: profiles.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, i) {
+                    final p = profiles[i];
+                    final subtitle = [
+                      p.role,
+                      if (p.isChild) 'Child',
+                      if (p.courses.isNotEmpty) p.courses.join(', '),
+                    ].join(' · ');
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: CircleAvatar(
+                        backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                        backgroundImage:
+                            p.photoUrl != null ? NetworkImage(p.photoUrl!) : null,
+                        child: p.photoUrl == null
+                            ? Text(
+                                p.name.isNotEmpty ? p.name[0].toUpperCase() : '?',
+                                style: AppTextStyles.labelLarge
+                                    .copyWith(color: AppColors.primary),
+                              )
+                            : null,
+                      ),
+                      title: Text(p.name, style: AppTextStyles.labelLarge),
+                      subtitle: Text(subtitle,
+                          style: AppTextStyles.caption
+                              .copyWith(color: AppColors.textSecondary)),
+                      trailing: const Icon(Icons.chevron_right,
+                          color: AppColors.textSecondary),
+                      onTap: () => Navigator.pop(context, p),
+                    );
+                  },
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel & log out'),
+              ),
+            ],
           ),
         ),
       ),

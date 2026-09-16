@@ -108,6 +108,18 @@ export interface Location {
 }
 
 
+/** One switchable profile behind a login: the person's own role-accounts and any linked children. */
+export interface UserProfile {
+  id: number | string;
+  name: string;
+  role: string;
+  /** 'self' = one of this person's own accounts (e.g. Teacher, Student); 'child' = a linked child profile. */
+  kind: 'self' | 'child';
+  photo_url?: string | null;
+  courses?: string[];
+  grade?: string | null;
+}
+
 export interface User {
   id: string;
   userId?: string | null;
@@ -150,6 +162,10 @@ export interface User {
   courseGrades?: { course_name?: string; grade_name?: string; monthly_fee?: number; currency?: string; discount_percentage?: number; net_amount?: number }[];
   batchNames?: string[];
   mustChangePassword?: boolean;
+  /** Every switchable profile behind this login (grouped by phone number). */
+  profiles?: UserProfile[];
+  /** Set client-side once the user has picked a profile this session. */
+  activeProfileChosen?: boolean;
   educationalQualifications?: string;
   employmentType?: EmploymentType;
   yearsOfExperience?: number;
