@@ -133,103 +133,58 @@ const StudentCoursesPage: React.FC = () => {
     const studentEnrollments = enrollments.get(currentStudent?.id) || [];
     const studentName = currentStudent?.name || `Student ${activeTabIndex + 1}`;
 
-    return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 relative overflow-hidden">
-            {/* Animated Background Elements */}
-            <div className="absolute inset-0 pointer-events-none">
-                <motion.div
-                    className="absolute top-20 right-20 w-32 h-32 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full"
-                    animate={{
-                        y: [0, -30, 0],
-                        rotate: [0, 180, 360],
-                    }}
-                    transition={{
-                        duration: 15,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                />
-                <motion.div
-                    className="absolute top-1/3 left-10 w-24 h-24 bg-gradient-to-br from-blue-400/20 to-indigo-400/20 rounded-lg rotate-12"
-                    animate={{
-                        y: [0, 20, 0],
-                        rotate: [12, 25, 12],
-                    }}
-                    transition={{
-                        duration: 12,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                />
-                <motion.div
-                    className="absolute bottom-20 right-1/3 w-20 h-20 bg-gradient-to-br from-green-400/20 to-emerald-400/20 rounded-full"
-                    animate={{
-                        y: [0, -25, 0],
-                        scale: [1, 1.2, 1],
-                    }}
-                    transition={{
-                        duration: 10,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                />
-            </div>
+    const showTabs = family.length > 1;
 
+    return (
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
             {/* Main Content */}
-            <div className="relative z-10 p-6 space-y-8">
+            <div className="p-6 space-y-6">
 
                 {/* Student Tabs */}
                 {family.length > 0 && (
-                    <motion.section
+                    <section
                         ref={tabsRef}
-                        initial={{ opacity: 0, y: 50 }}
-                        animate={tabsInView ? { opacity: 1, y: 0 } : {}}
-                        transition={{ duration: 1, delay: 0.2 }}
-                        className={`rounded-3xl shadow-2xl border backdrop-blur-sm overflow-hidden ${
-                            theme === 'dark' 
-                                ? 'bg-gray-800/90 border-gray-700/50' 
-                                : 'bg-white/90 border-purple-200/50'
+                        className={`rounded-2xl border overflow-hidden shadow-sm ${
+                            theme === 'dark'
+                                ? 'bg-gray-800 border-gray-700'
+                                : 'bg-white border-gray-200'
                         }`}
                     >
                         {/* Tab Header */}
-                        <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-purple-200'}`}>
+                        <div className={`p-5 sm:p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
                             <div className="flex items-center space-x-4">
-                                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+                                <div className="w-11 h-11 bg-indigo-600 rounded-xl flex items-center justify-center">
                                     <BookOpen className="w-6 h-6 text-white" />
                                 </div>
                                 <div>
-                                    <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                                    <h2 className={`text-xl sm:text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                                         My Courses
                                     </h2>
-                                    <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                                        View and manage courses for each family member
+                                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                                        {showTabs ? 'View and manage courses for each family member' : 'Your enrolled courses and schedule'}
                                     </p>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Student Navigation Tabs */}
-                        <div className={`px-6 py-4 ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gradient-to-r from-purple-50/50 to-blue-50/50'}`}>
+                        {/* Student Navigation Tabs — only for multi-member families */}
+                        {showTabs && (
+                        <div className={`px-6 py-3 border-b ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
                             <div className="flex space-x-2 overflow-x-auto">
                                 {family.map((student, index) => {
                                     const active = index === activeTabIndex;
                                     const studentName = student.name || `Student ${index + 1}`;
                                     const studentEnrollments = enrollments.get(student.id) || [];
-                                    
+
                                     return (
-                                        <motion.button
+                                        <button
                                             key={student.id}
-                                            whileHover={{ scale: 1.02 }}
-                                            whileTap={{ scale: 0.98 }}
-                                            initial={{ opacity: 0, x: 50 }}
-                                            animate={tabsInView ? { opacity: 1, x: 0 } : {}}
-                                            transition={{ duration: 0.6, delay: index * 0.1 }}
-                                            className={`flex items-center space-x-3 px-6 py-3 rounded-xl transition-all duration-300 whitespace-nowrap font-semibold min-w-fit ${
-                                                active 
-                                                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg ring-2 ring-purple-300 dark:ring-purple-600 transform scale-105' 
+                                            className={`flex items-center space-x-3 px-5 py-2 rounded-lg transition-colors whitespace-nowrap font-semibold min-w-fit ${
+                                                active
+                                                    ? 'bg-indigo-600 text-white'
                                                     : theme === 'dark'
-                                                        ? 'bg-gray-600/50 text-gray-300 hover:bg-gray-500/50 hover:text-white'
-                                                        : 'bg-white/70 text-gray-700 hover:bg-white hover:text-purple-600 border border-gray-200 hover:border-purple-300'
+                                                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
+                                                        : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
                                             }`}
                                             onClick={() => setActiveTabIndex(index)}
                                         >
@@ -254,20 +209,21 @@ const StudentCoursesPage: React.FC = () => {
                                                 {studentEnrollments.length}
                                             </span>
                                             {active && <Star className="w-4 h-4 text-yellow-300" fill="currentColor" />}
-                                        </motion.button>
+                                        </button>
                                     );
                                 })}
                             </div>
                         </div>
+                        )}
 
                         {/* Tab Content */}
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={activeTabIndex}
-                                initial={{ opacity: 0, x: 50 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -50 }}
-                                transition={{ duration: 0.3 }}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.2 }}
                                 className="p-6"
                             >
 
@@ -523,7 +479,7 @@ const StudentCoursesPage: React.FC = () => {
                             </motion.div>
                             </motion.div>
                         </AnimatePresence>
-                    </motion.section>
+                    </section>
                 )}
 
                 {family.length === 0 && (

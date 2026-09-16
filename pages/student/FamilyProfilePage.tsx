@@ -425,83 +425,38 @@ const FamilyProfilePage: React.FC = () => {
         );
     }
 
-    return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 relative overflow-hidden">
-            {/* Animated Background Elements */}
-            <div className="absolute inset-0 pointer-events-none">
-                <motion.div
-                    className="absolute top-20 right-20 w-32 h-32 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full"
-                    animate={{
-                        y: [0, -30, 0],
-                        rotate: [0, 180, 360],
-                    }}
-                    transition={{
-                        duration: 15,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                />
-                <motion.div
-                    className="absolute top-1/3 left-10 w-24 h-24 bg-gradient-to-br from-blue-400/20 to-indigo-400/20 rounded-lg rotate-12"
-                    animate={{
-                        y: [0, 20, 0],
-                        rotate: [12, 25, 12],
-                    }}
-                    transition={{
-                        duration: 12,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                />
-                <motion.div
-                    className="absolute bottom-20 right-1/3 w-20 h-20 bg-gradient-to-br from-green-400/20 to-emerald-400/20 rounded-full"
-                    animate={{
-                        y: [0, -25, 0],
-                        scale: [1, 1.2, 1],
-                    }}
-                    transition={{
-                        duration: 10,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                />
-            </div>
+    const showTabs = family.length > 1;
 
+    return (
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
             {/* Main Content */}
-            <div className="relative z-10 p-6 space-y-8">
+            <div className="p-6 space-y-6">
 
                 {family.length > 0 && activeStudent ? (
-                    <motion.div
+                    <div
                         ref={tabsRef}
-                        initial={{ opacity: 0, y: 50 }}
-                        animate={tabsInView ? { opacity: 1, y: 0 } : {}}
-                        transition={{ duration: 1, delay: 0.2 }}
-                        className={`rounded-3xl shadow-2xl border backdrop-blur-sm overflow-hidden ${
-                            theme === 'dark' 
-                                ? 'bg-gray-800/90 border-gray-700/50' 
-                                : 'bg-white/90 border-purple-200/50'
+                        className={`rounded-2xl border overflow-hidden shadow-sm ${
+                            theme === 'dark'
+                                ? 'bg-gray-800 border-gray-700'
+                                : 'bg-white border-gray-200'
                         }`}
                     >
-                        {/* Student Navigation Tabs */}
-                        <div className={`px-6 py-4 border-b ${theme === 'dark' ? 'border-gray-700 bg-gray-700/50' : 'border-purple-200 bg-gradient-to-r from-purple-50/50 to-blue-50/50'}`}>
+                        {/* Student Navigation Tabs — only for multi-member families */}
+                        {showTabs && (
+                        <div className={`px-6 py-3 border-b ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'}`}>
                             <div className="flex space-x-2 overflow-x-auto">
                                 {family.map((student, index) => {
                                     const active = activeStudentIndex === index;
                                     return (
-                                        <motion.button
+                                        <button
                                             key={student.id}
-                                            whileHover={{ scale: 1.02 }}
-                                            whileTap={{ scale: 0.98 }}
-                                            initial={{ opacity: 0, x: 50 }}
-                                            animate={tabsInView ? { opacity: 1, x: 0 } : {}}
-                                            transition={{ duration: 0.6, delay: index * 0.1 }}
                                             onClick={() => { setActiveStudentIndex(index); setActiveSubTab('profile'); }}
-                                            className={`flex items-center space-x-3 px-6 py-3 rounded-xl transition-all duration-300 whitespace-nowrap font-semibold min-w-fit ${
-                                                active 
-                                                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg ring-2 ring-purple-300 dark:ring-purple-600 transform scale-105' 
+                                            className={`flex items-center space-x-3 px-5 py-2 rounded-lg transition-colors whitespace-nowrap font-semibold min-w-fit ${
+                                                active
+                                                    ? 'bg-indigo-600 text-white'
                                                     : theme === 'dark'
-                                                        ? 'bg-gray-600/50 text-gray-300 hover:bg-gray-500/50 hover:text-white'
-                                                        : 'bg-white/70 text-gray-700 hover:bg-white hover:text-purple-600 border border-gray-200 hover:border-purple-300'
+                                                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
+                                                        : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
                                             }`}
                                         >
                                             <div className="relative">
@@ -516,43 +471,29 @@ const FamilyProfilePage: React.FC = () => {
                                             </div>
                                             <span>{student.name}</span>
                                             {active && <Star className="w-4 h-4 text-yellow-300" fill="currentColor" />}
-                                        </motion.button>
+                                        </button>
                                     );
                                 })}
                             </div>
                         </div>
-                        
+                        )}
+
                         {/* Student Header */}
                         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-4">
-                                    <div className="relative">
-                                        <img 
-                                            src={activeStudent.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeStudent.name || 'Student')}&background=7B61FF&color=fff&size=128`} 
-                                            alt={activeStudent.name} 
-                                            className="w-20 h-20 rounded-full object-cover border-4 border-purple-300 dark:border-purple-600 shadow-lg"
-                                        />
-                                        <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-400 border-3 border-white dark:border-gray-800 rounded-full flex items-center justify-center">
-                                            <CheckCircle className="w-4 h-4 text-white" />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <h2 className={`text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-1`}>
-                                            {activeStudent.name}
-                                        </h2>
-                                        <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-lg`}>
-                                            {getGuardianEmail(activeStudent.email)}
-                                        </p>
-                                    </div>
+                            <div className="flex items-center space-x-4">
+                                <img
+                                    src={activeStudent.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeStudent.name || 'Student')}&background=4f46e5&color=fff&size=128`}
+                                    alt={activeStudent.name}
+                                    className="w-16 h-16 rounded-full object-cover border border-gray-200 dark:border-gray-600"
+                                />
+                                <div>
+                                    <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-0.5`}>
+                                        {activeStudent.name}
+                                    </h2>
+                                    <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                                        {getGuardianEmail(activeStudent.email)}
+                                    </p>
                                 </div>
-                                <motion.button 
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all duration-300"
-                                >
-                                    <Edit3 className="w-4 h-4" />
-                                    <span>Edit Profile</span>
-                                </motion.button>
                             </div>
                         </div>
 
@@ -613,28 +554,26 @@ const FamilyProfilePage: React.FC = () => {
                                 )}
                             </AnimatePresence>
                         </div>
-                    </motion.div>
+                    </div>
                 ) : (
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className={`text-center py-16 rounded-2xl ${theme === 'dark' ? 'bg-gray-800/50' : 'bg-white/50'} border-2 border-dashed ${theme === 'dark' ? 'border-gray-600' : 'border-purple-200'} backdrop-blur-sm`}
+                    <div
+                        className={`text-center py-16 rounded-2xl border-2 border-dashed ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
                     >
-                        <Users className={`w-24 h-24 mx-auto mb-6 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
-                        <h3 className={`text-2xl font-bold mb-4 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                        <Users className={`w-16 h-16 mx-auto mb-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
+                        <h3 className={`text-xl font-bold mb-2 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
                             No Students Found
                         </h3>
                         <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mb-6`}>
                             No students found in this family account.
                         </p>
-                        <Link 
-                            to="/dashboard/student/add" 
-                            className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300"
+                        <Link
+                            to="/dashboard/student/add"
+                            className="inline-flex items-center space-x-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors"
                         >
-                            <Sparkles className="w-4 h-4" />
+                            <Plus className="w-4 h-4" />
                             <span>Add Your First Student</span>
                         </Link>
-                    </motion.div>
+                    </div>
                 )}
             </div>
         </div>
