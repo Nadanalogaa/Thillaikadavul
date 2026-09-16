@@ -1559,6 +1559,57 @@ async function startServer() {
         }
     });
 
+    // Every switchable profile behind one identity. Identity = the phone number:
+    // all non-deleted accounts sharing it (a teacher who is also a student, etc.)
+    // plus every child profile linked to any of them. One shared password
+    // unlocks the whole set; the app shows a "Continue as…" picker.
+    // Hoisted function declaration so both /api/login and /api/switch-profile can use it.
+    async function buildProfilesForUser(user) {
+        const digits = String(user.contact_number || '').replace(/\D/g, '');
+        const cols = 'id, name, display_name, role, photo_url, courses, grade, parent_id';
+        let rows;
+        if (digits.length >= 7) {
+            rows = (await pool.query(
+                `SELECT ${cols} FROM users
+                 WHERE is_deleted = false AND (
+                    regexp_replace(COALESCE(contact_number, ''), '\\D', '', 'g') = $1
+                    OR parent_id IN (
+                        SELECT id FROM users
+                        WHERE regexp_replace(COALESCE(contact_number, ''), '\\D', '', 'g') = $1
+                          AND is_deleted = false
+                    )
+                 )
+                 ORDER BY parent_id NULLS FIRST, COALESCE(display_name, name)`,
+                [digits]
+            )).rows;
+        } else {
+            // No usable phone on this account: just itself and its own children.
+            rows = (await pool.query(
+                `SELECT ${cols} FROM users
+                 WHERE is_deleted = false AND (id = $1 OR parent_id = $1)
+                 ORDER BY parent_id NULLS FIRST, COALESCE(display_name, name)`,
+                [user.id]
+            )).rows;
+        }
+        const seen = new Set();
+        const profiles = [];
+        for (const r of rows) {
+            if (seen.has(r.id)) continue;
+            seen.add(r.id);
+            const role = String(r.role || 'Student');
+            profiles.push({
+                id: r.id,
+                name: r.display_name || r.name,
+                role: role.charAt(0).toUpperCase() + role.slice(1).toLowerCase(),
+                kind: r.parent_id ? 'child' : 'self',
+                photo_url: r.photo_url || null,
+                courses: safeJsonArray(r.courses),
+                grade: r.grade || null,
+            });
+        }
+        return profiles;
+    }
+
     app.post('/api/login', async (req, res) => {
         try {
             const { email, password, identifier } = req.body;
@@ -1634,6 +1685,14 @@ async function startServer() {
                 }));
                 console.log(`[Login] Account ${parsedUser.id} (${parsedUser.role}) has ${parsedUser.students.length} linked child profile(s)`);
             }
+
+            // All switchable profiles behind this identity (grouped by phone number).
+            // Remembered in the session so /api/switch-profile can only move between
+            // profiles this login actually unlocked.
+            const profiles = await buildProfilesForUser(parsedUser);
+            parsedUser.profiles = profiles;
+            req.session.profileIds = profiles.map(p => p.id);
+            req.session.profiles = profiles;
 
             req.session.user = parsedUser;
             res.json(parsedUser);
@@ -2898,6 +2957,50 @@ Please review and approve this registration in the admin panel.`;
 
     // First-login: the signed-in user sets a new password (no current password
     // needed — they just authenticated). Clears the must_change_password flag.
+    // Switch the active profile within one login (teacher <-> student <-> child).
+    // Only profiles that this login unlocked (recorded in the session at /api/login)
+    // are allowed, so a session can never jump to an unrelated account. Rebinds
+    // req.session.user so every subsequent API call acts as the chosen profile.
+    app.post('/api/switch-profile', ensureAuthenticated, async (req, res) => {
+        try {
+            const profileId = Number(req.body.profile_id);
+            const allowed = (req.session.profileIds || []).map(Number);
+            if (!Number.isInteger(profileId) || !allowed.includes(profileId)) {
+                return res.status(403).json({ message: 'That profile is not available for this login.' });
+            }
+            const row = (await pool.query(
+                'SELECT * FROM users WHERE id = $1 AND is_deleted = false', [profileId]
+            )).rows[0];
+            if (!row) return res.status(404).json({ message: 'Profile not found.' });
+
+            delete row.password;
+            if (row.role) {
+                row.role = row.role.charAt(0).toUpperCase() + row.role.slice(1).toLowerCase();
+            }
+            const parsed = {
+                ...row,
+                courses: safeJsonArray(row.courses),
+                course_expertise: safeJsonArray(row.course_expertise),
+            };
+            // This profile's own children (a parent switching to themselves gets them).
+            const kids = (await pool.query(
+                'SELECT id, display_name, name, grade, courses, photo_url, status FROM users WHERE parent_id = $1 AND is_deleted = false ORDER BY display_name',
+                [row.id]
+            )).rows;
+            if (kids.length > 0) {
+                parsed.students = kids.map(c => ({ ...c, courses: safeJsonArray(c.courses) }));
+            }
+            // Keep the full picker available after switching.
+            parsed.profiles = req.session.profiles || [];
+
+            req.session.user = parsed;
+            res.json(parsed);
+        } catch (error) {
+            console.error('Switch profile error:', error);
+            res.status(500).json({ message: 'Server error switching profile.' });
+        }
+    });
+
     app.post('/api/set-password', ensureAuthenticated, async (req, res) => {
         try {
             const { new_password } = req.body;
