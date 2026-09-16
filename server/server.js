@@ -5776,12 +5776,18 @@ Please review and approve this registration in the admin panel.`;
     // Must be registered BEFORE the React catch-all below.
     const appWebPath = path.join(__dirname, '..', 'app_web');
     if (fs.existsSync(appWebPath)) {
-        app.use('/app', express.static(appWebPath));
+        // no-cache: assets must be revalidated every load (via ETag), so a new
+        // deploy is picked up immediately instead of Safari/other browsers serving
+        // a stale main.dart.js. Cheap (304 when unchanged); no service worker here.
+        const noCache = (res) => res.setHeader('Cache-Control', 'no-cache');
+        app.use('/app', express.static(appWebPath, { setHeaders: noCache }));
         // Flutter web uses client-side routing; send its index.html for /app/* deep links.
         app.get('/app/*', (req, res) => {
+            noCache(res);
             res.sendFile(path.join(appWebPath, 'index.html'));
         });
         app.get('/app', (req, res) => {
+            noCache(res);
             res.sendFile(path.join(appWebPath, 'index.html'));
         });
     }

@@ -4,12 +4,15 @@ class ApiEndpoints {
 
   // Base URL.
   // - Native (Android/iOS): absolute production URL.
-  // - Web: empty so requests are SAME-ORIGIN relative to whatever host served
-  //   the page (nadanaloga.com or www.nadanaloga.com). This avoids CORS and
-  //   ensures the session cookie is sent — a hardcoded host would be cross-origin
-  //   when the page is opened on the other host and every call would fail with a
-  //   "connection error". kIsWeb is a compile-time constant, so this stays const.
-  static const String baseUrl = kIsWeb ? '' : 'https://www.nadanaloga.com';
+  // - Web: the page's own origin (e.g. https://nadanaloga.com or
+  //   https://www.nadanaloga.com) via Uri.base, so every request is SAME-ORIGIN
+  //   with whatever host served /app. This avoids CORS, sends the session cookie,
+  //   and — unlike an empty/relative base — produces an unambiguous absolute URL
+  //   that isn't affected by the page's <base href="/app/">. A hardcoded host
+  //   would be cross-origin when the page is opened on the other host, and every
+  //   call would fail with a "connection error".
+  static final String baseUrl =
+      kIsWeb ? Uri.base.origin : 'https://www.nadanaloga.com';
   static const String apiPrefix = '/api';
 
   // Auth
