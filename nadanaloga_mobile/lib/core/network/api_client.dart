@@ -75,6 +75,10 @@ class ApiClient {
     return _dio.post('/api/forgot-password', data: {'identifier': identifier});
   }
 
+  Future<Response> setPassword(String newPassword) {
+    return _dio.post('/api/set-password', data: {'new_password': newPassword});
+  }
+
   Future<Response> resetPassword({
     required String identifier,
     required String otp,

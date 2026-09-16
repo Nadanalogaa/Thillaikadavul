@@ -67,6 +67,7 @@ class UserModel {
   final List<CourseGrade> courseGrades; // Assigned grade per course (students)
   final List<String> batchNames; // Batches this student belongs to
   final String? lastPaid; // Most recent paid-invoice date (ISO)
+  final bool mustChangePassword; // On the default password → set own on first login
 
   const UserModel({
     required this.id,
@@ -101,6 +102,7 @@ class UserModel {
     this.courseGrades = const [],
     this.batchNames = const [],
     this.lastPaid,
+    this.mustChangePassword = false,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -143,6 +145,7 @@ class UserModel {
           : const [],
       batchNames: _parseStringList(json['batch_names']),
       lastPaid: json['last_paid'] as String?,
+      mustChangePassword: json['must_change_password'] == true,
     );
   }
 
@@ -286,6 +289,7 @@ class UserModel {
       parentId: parentId,
       courseGrades: courseGrades,
       batchNames: batchNames,
+      mustChangePassword: mustChangePassword,
     );
   }
 

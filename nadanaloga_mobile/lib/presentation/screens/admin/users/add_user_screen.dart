@@ -21,6 +21,7 @@ class AddUserScreen extends StatefulWidget {
 }
 
 class _AddUserScreenState extends State<AddUserScreen> {
+  static final _emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -211,7 +212,9 @@ class _AddUserScreenState extends State<AddUserScreen> {
                         keyboardType: TextInputType.emailAddress,
                         validator: (v) {
                           if (v == null || v.trim().isEmpty) return 'Required';
-                          if (!v.contains('@')) return 'Invalid email';
+                          if (!_emailRegex.hasMatch(v.trim())) {
+                            return 'Enter a valid email address';
+                          }
                           return null;
                         },
                       ),
@@ -262,6 +265,15 @@ class _AddUserScreenState extends State<AddUserScreen> {
                           prefixIcon: Icon(Icons.phone),
                         ),
                         keyboardType: TextInputType.phone,
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return null; // optional
+                          final digits =
+                              v.replaceAll(RegExp(r'[^0-9]'), '');
+                          if (digits.length != 10) {
+                            return 'Enter a 10-digit phone number';
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 16),
 
