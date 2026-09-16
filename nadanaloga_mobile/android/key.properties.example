@@ -1,0 +1,14 @@
+# Copy this file to `key.properties` (same folder) and fill in your real values.
+# key.properties is gitignored — never commit it or the .jks keystore.
+#
+# Create the keystore first:
+#   keytool -genkey -v -keystore ~/nadanaloga-release.jks \
+#     -keyalg RSA -keysize 2048 -validity 10000 -alias nadanaloga
+#
+# Then set the four values below.
+
+storePassword=CHANGE_ME
+keyPassword=CHANGE_ME
+keyAlias=nadanaloga
+# Absolute path to the .jks file (or a path relative to the android/ folder):
+storeFile=/Users/ayyappanp/nadanaloga-release.jks
