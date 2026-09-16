@@ -52,27 +52,14 @@ const TeacherBatchesPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none">
-        <motion.div
-          className="absolute top-24 left-16 w-24 h-24 bg-gradient-to-br from-purple-400/20 to-indigo-400/20 rounded-full"
-          animate={{ y: [0, -25, 0], rotate: [0, 180, 360] }}
-          transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.div
-          className="absolute bottom-20 right-24 w-28 h-28 bg-gradient-to-br from-emerald-400/20 to-teal-400/20 rounded-3xl"
-          animate={{ y: [0, 20, 0], rotate: [10, -10, 10] }}
-          transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      </div>
-
-      <div className="relative z-10 px-6 py-6 space-y-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="px-6 py-6 space-y-8">
         <motion.div
           ref={headerRef}
           initial={{ opacity: 0, y: 30 }}
           animate={headerInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.7 }}
-          className={`rounded-3xl border backdrop-blur-sm ${theme === 'dark' ? 'border-gray-700/60 bg-gray-900/60' : 'border-indigo-100/70 bg-white/80'} p-6 shadow-xl`}
+          className={`rounded-2xl border ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'} p-6 shadow-sm`}
         >
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
@@ -108,7 +95,7 @@ const TeacherBatchesPage: React.FC = () => {
           transition={{ duration: 0.8, delay: 0.15 }}
         >
           {batches.length === 0 ? (
-            <div className={`rounded-3xl border ${theme === 'dark' ? 'border-gray-700 bg-gray-800/80' : 'border-indigo-100 bg-white/85'} p-10 text-center shadow-xl`}
+            <div className={`rounded-2xl border ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'} p-10 text-center shadow-sm`}
             >
               <CalendarDays className="w-12 h-12 mx-auto text-indigo-500 mb-4" />
               <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">No batches assigned yet</h3>
@@ -125,14 +112,14 @@ const TeacherBatchesPage: React.FC = () => {
                   animate={cardsInView ? { opacity: 1, y: 0 } : {}}
                   transition={{ duration: 0.5, delay: index * 0.08 }}
                   whileHover={{ y: -6 }}
-                  className={`rounded-3xl border p-6 shadow-xl transition-colors duration-500 ${theme === 'dark' ? 'border-gray-700/60 bg-gray-900/70 hover:bg-gray-900' : 'border-indigo-100 bg-white/90 hover:bg-white'}`}
+                  className={`rounded-2xl border p-6 shadow-sm transition-colors duration-500 ${theme === 'dark' ? 'border-gray-700 bg-gray-800 hover:bg-gray-800' : 'border-gray-200 bg-white hover:bg-white'}`}
                 >
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs uppercase tracking-wider text-indigo-500 font-semibold">{batch.courseName}</p>
                       <h2 className="mt-1 text-xl font-bold text-gray-900 dark:text-white">{batch.name}</h2>
                     </div>
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 text-white flex items-center justify-center font-semibold">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-semibold">
                       {batch.name?.charAt(0) || 'B'}
                     </div>
                   </div>

@@ -51,7 +51,7 @@ const InfoField: React.FC<{
             className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gradient-to-br from-purple-50 to-blue-50'} border ${theme === 'dark' ? 'border-gray-600/30' : 'border-purple-200/50'} backdrop-blur-sm group hover:shadow-lg transition-all duration-300 ${onClick ? 'cursor-pointer hover:scale-102' : ''}`}
         >
             <div className="flex items-center space-x-3 mb-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
                     <Icon className="w-4 h-4 text-white" />
                 </div>
                 <h4 className={`text-xs font-semibold uppercase tracking-wide ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
@@ -176,9 +176,9 @@ const TeacherProfilePage: React.FC = () => {
 
     if (!user) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 flex items-center justify-center">
+            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
                 <div className="text-center">
-                    <div className="w-8 h-8 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4"></div>
+                    <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
                     <p className="text-gray-600 dark:text-gray-400">Loading profile...</p>
                 </div>
             </div>
@@ -186,58 +186,18 @@ const TeacherProfilePage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 relative overflow-hidden">
-            {/* Animated Background Elements */}
-            <div className="absolute inset-0 pointer-events-none">
-                <motion.div
-                    className="absolute top-20 right-20 w-32 h-32 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full"
-                    animate={{
-                        y: [0, -30, 0],
-                        rotate: [0, 180, 360],
-                    }}
-                    transition={{
-                        duration: 15,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                />
-                <motion.div
-                    className="absolute top-1/3 left-10 w-24 h-24 bg-gradient-to-br from-blue-400/20 to-indigo-400/20 rounded-lg rotate-12"
-                    animate={{
-                        y: [0, 20, 0],
-                        rotate: [12, 25, 12],
-                    }}
-                    transition={{
-                        duration: 12,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                />
-                <motion.div
-                    className="absolute bottom-20 right-1/3 w-20 h-20 bg-gradient-to-br from-green-400/20 to-emerald-400/20 rounded-full"
-                    animate={{
-                        y: [0, -25, 0],
-                        scale: [1, 1.2, 1],
-                    }}
-                    transition={{
-                        duration: 10,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                />
-            </div>
-
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
             {/* Main Content */}
-            <div className="relative z-10 p-6 space-y-8">
+            <div className="p-6 space-y-8">
                 <motion.div
                     ref={profileRef}
                     initial={{ opacity: 0, y: 50 }}
                     animate={profileInView ? { opacity: 1, y: 0 } : {}}
                     transition={{ duration: 1, delay: 0.2 }}
-                    className={`rounded-3xl shadow-2xl border backdrop-blur-sm overflow-hidden ${
-                        theme === 'dark' 
-                            ? 'bg-gray-800/90 border-gray-700/50' 
-                            : 'bg-white/90 border-purple-200/50'
+                    className={`rounded-2xl border shadow-sm overflow-hidden ${
+                        theme === 'dark'
+                            ? 'bg-gray-800 border-gray-700'
+                            : 'bg-white border-gray-200'
                     }`}
                 >
                     {/* Profile Header */}
@@ -248,7 +208,7 @@ const TeacherProfilePage: React.FC = () => {
                                     <img 
                                         src={user.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'Teacher')}&background=7B61FF&color=fff&size=128`} 
                                         alt={user.name} 
-                                        className="w-20 h-20 rounded-full object-cover border-4 border-purple-300 dark:border-purple-600 shadow-lg"
+                                        className="w-20 h-20 rounded-full object-cover border-4 border-indigo-300 dark:border-indigo-600 shadow-lg"
                                     />
                                     <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-400 border-3 border-white dark:border-gray-800 rounded-full flex items-center justify-center">
                                         <CheckCircle className="w-4 h-4 text-white" />
@@ -262,7 +222,7 @@ const TeacherProfilePage: React.FC = () => {
                                         {user.email}
                                     </p>
                                     <div className="flex items-center space-x-2 mt-2">
-                                        <span className="px-3 py-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-semibold rounded-full">
+                                        <span className="px-3 py-1 bg-purple-600 text-white text-sm font-semibold rounded-full">
                                             Teacher
                                         </span>
                                         {user.employmentType && (
@@ -277,7 +237,7 @@ const TeacherProfilePage: React.FC = () => {
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
                                 onClick={isEditing ? cancelEdit : () => setIsEditing(true)}
-                                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all duration-300"
+                                className="flex items-center space-x-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-all duration-300"
                             >
                                 <Edit3 className="w-4 h-4" />
                                 <span>{isEditing ? 'Cancel Edit' : 'Edit Profile'}</span>
@@ -464,7 +424,7 @@ const TeacherProfilePage: React.FC = () => {
                                                             onClick={() => handleCourseExpertiseChange(course.name)}
                                                             className={`flex items-center space-x-2 px-4 py-3 rounded-xl border-2 transition-all duration-300 ${
                                                                 isSelected 
-                                                                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white border-purple-600 shadow-lg' 
+                                                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg'
                                                                     : theme === 'dark'
                                                                         ? 'bg-gray-600 text-gray-300 border-gray-500 hover:border-purple-500'
                                                                         : 'bg-white text-gray-700 border-gray-300 hover:border-purple-500'
@@ -501,7 +461,7 @@ const TeacherProfilePage: React.FC = () => {
                                             disabled={isLoading}
                                             whileHover={{ scale: isLoading ? 1 : 1.05 }}
                                             whileTap={{ scale: isLoading ? 1 : 0.95 }}
-                                            className={`flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all duration-300 ${
+                                            className={`flex items-center space-x-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-all duration-300 ${
                                                 isLoading ? 'opacity-75 cursor-not-allowed' : ''
                                             }`}
                                         >
@@ -599,7 +559,7 @@ const TeacherProfilePage: React.FC = () => {
                                         className={`p-6 rounded-xl ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gradient-to-br from-purple-50 to-blue-50'} border ${theme === 'dark' ? 'border-gray-600/30' : 'border-purple-200/50'} backdrop-blur-sm`}
                                     >
                                         <div className="flex items-center space-x-3 mb-4">
-                                            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+                                            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center">
                                                 <BookOpen className="w-5 h-5 text-white" />
                                             </div>
                                             <h3 className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>

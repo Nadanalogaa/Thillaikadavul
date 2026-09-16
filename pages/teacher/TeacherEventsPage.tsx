@@ -226,10 +226,10 @@ const TeacherEventsPage: React.FC = () => {
                                         animate={eventsInView ? { opacity: 1, scale: 1, y: 0 } : {}}
                                         transition={{ duration: 0.6, delay: index * 0.1 }}
                                         whileHover={{ scale: 1.02, y: -8 }}
-                                        className={`relative rounded-3xl p-8 border backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all duration-500 overflow-hidden group ${
-                                            theme === 'dark' 
-                                                ? 'bg-gray-800/60 border-gray-600/30' 
-                                                : 'bg-white/90 border-white/70'
+                                        className={`relative rounded-2xl p-8 border shadow-sm transition-all duration-500 overflow-hidden group ${
+                                            theme === 'dark'
+                                                ? 'bg-gray-800 border-gray-700'
+                                                : 'bg-white border-gray-200'
                                         }`}
                                     >
                                         {/* Background decoration */}
@@ -345,7 +345,7 @@ const TeacherEventsPage: React.FC = () => {
                                             onClick={() => setCurrentPage(page)}
                                             className={`w-10 h-10 rounded-lg font-semibold transition-all duration-300 ${
                                                 currentPage === page
-                                                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg'
+                                                    ? 'bg-indigo-600 text-white'
                                                     : theme === 'dark'
                                                         ? 'text-gray-300 hover:bg-gray-700'
                                                         : 'text-gray-600 hover:bg-gray-100'
@@ -377,7 +377,7 @@ const TeacherEventsPage: React.FC = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={eventsInView ? { opacity: 1, y: 0 } : {}}
                         transition={{ duration: 0.8 }}
-                        className={`text-center py-16 rounded-3xl ${theme === 'dark' ? 'bg-gray-800/50' : 'bg-gradient-to-br from-purple-50 to-blue-50'} border-2 border-dashed ${theme === 'dark' ? 'border-gray-600' : 'border-purple-200'} backdrop-blur-sm`}
+                        className={`text-center py-16 rounded-2xl ${theme === 'dark' ? 'bg-gray-800/50' : 'bg-gray-100'} border-2 border-dashed ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'}`}
                     >
                         <Bell className={`w-20 h-20 mx-auto mb-6 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
                         <h3 className={`text-2xl font-bold mb-4 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>

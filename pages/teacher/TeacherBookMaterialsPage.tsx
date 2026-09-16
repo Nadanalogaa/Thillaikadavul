@@ -192,7 +192,7 @@ const TeacherBookMaterialsPage: React.FC = () => {
                         onClick={() => setSelectedCourse('All')}
                         className={`px-6 py-3 rounded-full font-semibold transition-all duration-300 ${
                             selectedCourse === 'All'
-                                ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg'
+                                ? 'bg-indigo-600 text-white shadow-sm'
                                 : theme === 'dark'
                                     ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                                     : 'bg-white text-gray-700 hover:bg-gray-50 shadow-md'
@@ -242,7 +242,7 @@ const TeacherBookMaterialsPage: React.FC = () => {
                                     initial={{ opacity: 0, y: 30 }}
                                     animate={materialsInView ? { opacity: 1, y: 0 } : {}}
                                     transition={{ duration: 0.8, delay: courseIndex * 0.1 }}
-                                    className={`rounded-3xl p-8 ${courseTheme.bgGradient} border ${theme === 'dark' ? 'border-gray-600/30' : 'border-white/50'} backdrop-blur-sm shadow-xl`}
+                                    className={`rounded-2xl p-8 ${courseTheme.bgGradient} border ${theme === 'dark' ? 'border-gray-600/30' : 'border-white/50'} backdrop-blur-sm shadow-lg`}
                                 >
                                     <div className="flex items-center space-x-4 mb-6">
                                         <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${courseTheme.gradient} flex items-center justify-center shadow-lg`}>
@@ -269,10 +269,10 @@ const TeacherBookMaterialsPage: React.FC = () => {
                                                     animate={materialsInView ? { opacity: 1, scale: 1 } : {}}
                                                     transition={{ duration: 0.6, delay: (courseIndex * 0.1) + (materialIndex * 0.05) }}
                                                     whileHover={{ scale: 1.02, y: -5 }}
-                                                    className={`p-6 rounded-2xl border backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 group ${
-                                                        theme === 'dark' 
-                                                            ? 'bg-gray-800/60 border-gray-600/30' 
-                                                            : 'bg-white/80 border-white/70'
+                                                    className={`p-6 rounded-2xl border shadow-sm transition-all duration-300 group ${
+                                                        theme === 'dark'
+                                                            ? 'bg-gray-800 border-gray-700'
+                                                            : 'bg-white border-gray-200'
                                                     }`}
                                                 >
                                                     <div className="flex items-start justify-between mb-4">
@@ -335,7 +335,7 @@ const TeacherBookMaterialsPage: React.FC = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={materialsInView ? { opacity: 1, y: 0 } : {}}
                         transition={{ duration: 0.8 }}
-                        className={`text-center py-16 rounded-3xl ${theme === 'dark' ? 'bg-gray-800/50' : 'bg-gradient-to-br from-purple-50 to-blue-50'} border-2 border-dashed ${theme === 'dark' ? 'border-gray-600' : 'border-purple-200'} backdrop-blur-sm`}
+                        className={`text-center py-16 rounded-2xl ${theme === 'dark' ? 'bg-gray-800/50' : 'bg-gray-100'} border-2 border-dashed ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'}`}
                     >
                         <Folder className={`w-20 h-20 mx-auto mb-6 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
                         <h3 className={`text-2xl font-bold mb-4 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>

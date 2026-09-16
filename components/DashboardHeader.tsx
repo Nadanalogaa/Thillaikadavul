@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface DashboardHeaderProps {
@@ -31,65 +30,12 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     const firstName = userName?.split(' ')[0] || userRole;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 relative overflow-hidden">
-            {/* Animated Background Elements */}
-            <div className="absolute inset-0 pointer-events-none">
-                <motion.div
-                    className="absolute top-20 right-20 w-32 h-32 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full"
-                    animate={{
-                        y: [0, -30, 0],
-                        rotate: [0, 180, 360],
-                    }}
-                    transition={{
-                        duration: 15,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                />
-                <motion.div
-                    className="absolute top-1/3 left-10 w-24 h-24 bg-gradient-to-br from-blue-400/20 to-indigo-400/20 rounded-lg rotate-12"
-                    animate={{
-                        y: [0, 20, 0],
-                        rotate: [12, 25, 12],
-                    }}
-                    transition={{
-                        duration: 12,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                />
-                <motion.div
-                    className="absolute bottom-20 right-1/3 w-20 h-20 bg-gradient-to-br from-green-400/20 to-emerald-400/20 rounded-full"
-                    animate={{
-                        y: [0, -25, 0],
-                        scale: [1, 1.2, 1],
-                    }}
-                    transition={{
-                        duration: 10,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                />
-                
-                {/* Background Pattern Dots */}
-                <div className="absolute inset-0">
-                    <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-purple-300/40 dark:bg-purple-600/40 rounded-full"></div>
-                    <div className="absolute top-1/3 right-1/3 w-3 h-3 bg-pink-300/40 dark:bg-pink-600/40 rounded-full"></div>
-                    <div className="absolute bottom-1/4 left-1/2 w-2 h-2 bg-blue-300/40 dark:bg-blue-600/40 rounded-full"></div>
-                    <div className="absolute top-2/3 left-1/5 w-2 h-2 bg-indigo-300/40 dark:bg-indigo-600/40 rounded-full"></div>
-                </div>
-            </div>
-
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
             {/* Header Section */}
             {(showWelcome || pageTitle) && (
-                <div className="relative z-10 px-6 py-4">
+                <div className="px-6 py-5">
                     <div className="flex justify-between items-center">
-                        <motion.div
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ duration: 0.6 }}
-                            className="flex flex-col"
-                        >
+                        <div className="flex flex-col">
                             {showWelcome && (
                                 <>
                                     <h1 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-1`}>
@@ -124,13 +70,13 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                                     )}
                                 </div>
                             )}
-                        </motion.div>
+                        </div>
                     </div>
                 </div>
             )}
 
             {/* Main Content */}
-            <div className="relative z-10 pb-6">
+            <div className="pb-6">
                 {children}
             </div>
         </div>

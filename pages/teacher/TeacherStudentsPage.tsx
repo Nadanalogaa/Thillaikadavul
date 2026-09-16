@@ -129,7 +129,7 @@ const TeacherStudentsPage: React.FC = () => {
   }, [batchGroups]);
 
   const emptyState = useMemo(() => (
-    <div className={`rounded-3xl border ${theme === 'dark' ? 'border-gray-700 bg-gray-800/80' : 'border-emerald-100 bg-white/80'} p-10 text-center shadow-xl`}
+    <div className={`rounded-2xl border ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'} p-10 text-center shadow-sm`}
     >
       <Users className="w-12 h-12 mx-auto text-emerald-500 mb-4" />
       <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">No students allocated yet</h3>
@@ -144,27 +144,14 @@ const TeacherStudentsPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none">
-        <motion.div
-          className="absolute top-20 right-20 w-32 h-32 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full"
-          animate={{ y: [0, -30, 0], rotate: [0, 180, 360] }}
-          transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.div
-          className="absolute bottom-24 left-16 w-24 h-24 bg-gradient-to-br from-blue-400/20 to-indigo-400/20 rounded-2xl"
-          animate={{ y: [0, 25, 0], rotate: [5, 15, 5] }}
-          transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      </div>
-
-      <div className="relative z-10 px-6 py-6 space-y-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="px-6 py-6 space-y-8">
         <motion.div
           ref={headerRef}
           initial={{ opacity: 0, y: 30 }}
           animate={headerInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.7 }}
-          className={`rounded-3xl border backdrop-blur-sm ${theme === 'dark' ? 'border-gray-700/60 bg-gray-900/60' : 'border-emerald-100/70 bg-white/80'} p-6 shadow-xl`}
+          className={`rounded-2xl border ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'} p-6 shadow-sm`}
         >
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
@@ -209,9 +196,9 @@ const TeacherStudentsPage: React.FC = () => {
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: index * 0.05 }}
-                  className={`rounded-3xl border shadow-2xl backdrop-blur-sm overflow-hidden ${theme === 'dark' ? 'border-gray-700/70 bg-gray-900/70' : 'border-emerald-100 bg-white/90'}`}
+                  className={`rounded-2xl border shadow-sm overflow-hidden ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}
                 >
-                  <div className={`px-6 py-5 border-b ${theme === 'dark' ? 'border-gray-800' : 'border-emerald-100'}`}>
+                  <div className={`px-6 py-5 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                       <div>
                         <div className="flex items-center space-x-3 text-sm uppercase tracking-widest text-emerald-500">
