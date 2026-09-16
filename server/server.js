@@ -354,6 +354,27 @@ async function startServer() {
                 console.error('[DB] ✗ Failed to create student_discounts table:', error.message);
             }
 
+            // One-time password-reset codes (OTP). Channel-agnostic (emailed today,
+            // WhatsApp later); stored hashed with a short expiry.
+            try {
+                await client.query(`
+                    CREATE TABLE IF NOT EXISTS password_reset_otps (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER,
+                        code_hash TEXT NOT NULL,
+                        channel TEXT DEFAULT 'email',
+                        expires_at TIMESTAMPTZ NOT NULL,
+                        used BOOLEAN DEFAULT false,
+                        attempts INTEGER DEFAULT 0,
+                        created_at TIMESTAMPTZ DEFAULT NOW()
+                    )
+                `);
+                await client.query(`CREATE INDEX IF NOT EXISTS idx_pwreset_user ON password_reset_otps(user_id) WHERE used = false`);
+                console.log('[DB] ✓ Ensured password_reset_otps table exists');
+            } catch (error) {
+                console.error('[DB] ✗ Failed to create password_reset_otps table:', error.message);
+            }
+
             // Invoice course/grade/batch ids for clean course/batch/grade filtering.
             try {
                 await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS course_id INTEGER`);
@@ -1608,6 +1629,84 @@ async function startServer() {
         } catch (error) {
             console.error('Login error:', error);
             res.status(500).json({ message: 'Server error during login.' });
+        }
+    });
+
+    // Find account(s) by phone / email / NDA-id (same rules as login).
+    const findAccountsByIdentifier = async (identifier) => {
+        const id = String(identifier || '').trim();
+        const digits = id.replace(/\D/g, '');
+        if (id.toUpperCase().startsWith('NDA-')) {
+            return (await pool.query('SELECT * FROM users WHERE user_id = $1 AND is_deleted = false', [id.toUpperCase()])).rows;
+        } else if (!id.includes('@') && /^\d{7,}$/.test(digits)) {
+            return (await pool.query("SELECT * FROM users WHERE regexp_replace(contact_number, '\\D', '', 'g') = $1 AND is_deleted = false", [digits])).rows;
+        }
+        return (await pool.query('SELECT * FROM users WHERE email = $1 AND is_deleted = false', [id.toLowerCase()])).rows;
+    };
+    // The primary login account for a match (a shared phone can return a family).
+    const pickPrimaryAccount = (rows) =>
+        rows.find(r => (r.is_primary !== false) && r.email && r.email.includes('@') && !r.email.includes('@child.nadanaloga.local'))
+        || rows.find(r => r.email && r.email.includes('@') && !r.email.includes('@child.nadanaloga.local'))
+        || rows[0];
+    const maskEmail = (e) => {
+        if (!e || !e.includes('@')) return null;
+        const [u, d] = e.split('@');
+        return `${u.slice(0, 1)}${'*'.repeat(Math.max(1, u.length - 1))}@${d}`;
+    };
+
+    // Step 1: request a reset code (emailed today; WhatsApp/SMS can be added later).
+    app.post('/api/forgot-password', async (req, res) => {
+        try {
+            const { identifier } = req.body;
+            if (!identifier) return res.status(400).json({ message: 'Enter your phone number, email, or ID.' });
+            const account = pickPrimaryAccount(await findAccountsByIdentifier(identifier));
+            if (account && account.email && account.email.includes('@') && !account.email.includes('@child.nadanaloga.local')) {
+                const code = String(Math.floor(100000 + Math.random() * 900000));
+                const codeHash = await bcrypt.hash(code, 10);
+                const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+                await pool.query('UPDATE password_reset_otps SET used = true WHERE user_id = $1 AND used = false', [account.id]);
+                await pool.query(
+                    'INSERT INTO password_reset_otps (user_id, code_hash, channel, expires_at) VALUES ($1, $2, $3, $4)',
+                    [account.id, codeHash, 'email', expiresAt]
+                );
+                sendEmailBackground(account.email, account.name || 'there', 'Nadanaloga Password Reset Code',
+                    `Your Nadanaloga password reset code is ${code}\n\nThis code expires in 10 minutes. If you did not request a password reset, please ignore this email.`);
+                return res.json({ success: true, message: 'A reset code has been sent to your email.', channel: 'email', emailHint: maskEmail(account.email) });
+            }
+            // Don't reveal whether the account exists.
+            res.json({ success: true, message: 'If an account exists, a reset code has been sent to its email.', channel: 'email', emailHint: null });
+        } catch (error) {
+            console.error('forgot-password error:', error);
+            res.status(500).json({ message: 'Server error requesting reset code.' });
+        }
+    });
+
+    // Step 2: verify the code and set a new password.
+    app.post('/api/reset-password', async (req, res) => {
+        try {
+            const { identifier, otp, password } = req.body;
+            if (!identifier || !otp || !password) return res.status(400).json({ message: 'Identifier, code and new password are required.' });
+            if (String(password).length < 6) return res.status(400).json({ message: 'Password must be at least 6 characters.' });
+            const account = pickPrimaryAccount(await findAccountsByIdentifier(identifier));
+            if (!account) return res.status(400).json({ message: 'Invalid code or account.' });
+            const otpRow = (await pool.query(
+                'SELECT * FROM password_reset_otps WHERE user_id = $1 AND used = false AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1',
+                [account.id]
+            )).rows[0];
+            if (!otpRow) return res.status(400).json({ message: 'Code expired or not found. Please request a new one.' });
+            if (otpRow.attempts >= 5) return res.status(429).json({ message: 'Too many attempts. Please request a new code.' });
+            const ok = await bcrypt.compare(String(otp).trim(), otpRow.code_hash);
+            if (!ok) {
+                await pool.query('UPDATE password_reset_otps SET attempts = attempts + 1 WHERE id = $1', [otpRow.id]);
+                return res.status(400).json({ message: 'Incorrect code.' });
+            }
+            const hashed = await bcrypt.hash(password, 10);
+            await pool.query('UPDATE users SET password = $1, updated_at = NOW() WHERE id = $2', [hashed, account.id]);
+            await pool.query('UPDATE password_reset_otps SET used = true WHERE id = $1', [otpRow.id]);
+            res.json({ success: true, message: 'Password updated. You can now log in with your new password.' });
+        } catch (error) {
+            console.error('reset-password error:', error);
+            res.status(500).json({ message: 'Server error resetting password.' });
         }
     });
 
