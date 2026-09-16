@@ -61,19 +61,6 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
             title: const Text('Profile'),
             backgroundColor: AppColors.studentAccent,
             automaticallyImplyLeading: false,
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.edit_outlined),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Edit profile coming soon!'),
-                      backgroundColor: AppColors.info,
-                    ),
-                  );
-                },
-              ),
-            ],
           ),
           body: user == null
               ? const Center(child: CircularProgressIndicator())
@@ -225,42 +212,21 @@ class _ProfileHeaderCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.studentAccent.withValues(alpha: 0.15),
-            AppColors.studentAccent.withValues(alpha: 0.05),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppColors.studentAccent.withValues(alpha: 0.2),
+          color: AppColors.studentAccent.withValues(alpha: 0.15),
         ),
       ),
       child: Column(
         children: [
           // Avatar
           Container(
-            width: 100,
-            height: 100,
+            width: 88,
+            height: 88,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.studentAccent,
-                  AppColors.studentAccent.withValues(alpha: 0.7),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: AppColors.studentAccent,
               shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.studentAccent.withValues(alpha: 0.3),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
             ),
             child: Center(
               child: Text(

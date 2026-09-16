@@ -197,18 +197,9 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
                   margin: const EdgeInsets.fromLTRB(12, 10, 12, 0),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(3),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.06),
-                        blurRadius: 10,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
+                    borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: AppColors.studentAccent.withValues(alpha: 0.08),
+                      color: AppColors.studentAccent.withValues(alpha: 0.15),
                     ),
                   ),
                   child: Padding(
@@ -358,42 +349,14 @@ class _StudentMoreMenuScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Only real, working destinations. Courses/Events/Notices/Materials/Exams
+    // are shown inline on the dashboard, so they don't belong here as well.
     final menuItems = <_MenuItem>[
       _MenuItem(
-        icon: Icons.menu_book,
-        title: 'Courses',
-        subtitle: 'View all courses',
-        onTap: () => _showComingSoon(context, 'Courses'),
-      ),
-      _MenuItem(
-        icon: Icons.event,
-        title: 'Events',
-        subtitle: 'Upcoming events',
-        onTap: () => _showComingSoon(context, 'Events'),
-      ),
-      _MenuItem(
-        icon: Icons.campaign,
-        title: 'Notices',
-        subtitle: 'Announcements',
-        onTap: () => _showComingSoon(context, 'Notices'),
-      ),
-      _MenuItem(
-        icon: Icons.auto_stories,
-        title: 'Materials',
-        subtitle: 'Study materials',
-        onTap: () => _showComingSoon(context, 'Materials'),
-      ),
-      _MenuItem(
-        icon: Icons.quiz,
-        title: 'Exams',
-        subtitle: 'Grade exams',
-        onTap: () => _showComingSoon(context, 'Exams'),
-      ),
-      _MenuItem(
-        icon: Icons.notifications,
+        icon: Icons.notifications_outlined,
         title: 'Notifications',
-        subtitle: 'View all',
-        onTap: () => _showComingSoon(context, 'Notifications'),
+        subtitle: 'View all announcements',
+        onTap: () => context.push('/student/notifications'),
       ),
       _MenuItem(
         icon: Icons.lock_reset,
@@ -401,16 +364,19 @@ class _StudentMoreMenuScreen extends StatelessWidget {
         subtitle: 'Update your password',
         onTap: () {
           final id = user?.id;
-          if (id == null) {
-            _showComingSoon(context, 'Change Password');
-            return;
-          }
+          if (id == null) return;
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => StudentChangePasswordScreen(userId: id),
             ),
           );
         },
+      ),
+      _MenuItem(
+        icon: Icons.logout,
+        title: 'Log out',
+        subtitle: 'Sign out of your account',
+        onTap: () => context.read<AuthBloc>().add(AuthLogoutRequested()),
       ),
     ];
 
@@ -419,28 +385,30 @@ class _StudentMoreMenuScreen extends StatelessWidget {
         title: const Text('More'),
         backgroundColor: AppColors.studentAccent,
       ),
-      body: GridView.builder(
-        padding: const EdgeInsets.all(16),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 0.95,
-        ),
+      body: ListView.separated(
+        padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: menuItems.length,
+        separatorBuilder: (_, __) =>
+            const Divider(height: 1, indent: 72, endIndent: 16),
         itemBuilder: (context, index) {
           final item = menuItems[index];
-          return _MoreMenuCard(item: item);
+          final isLogout = item.title == 'Log out';
+          final color = isLogout ? AppColors.error : AppColors.studentAccent;
+          return ListTile(
+            leading: CircleAvatar(
+              backgroundColor: color.withValues(alpha: 0.12),
+              child: Icon(item.icon, color: color),
+            ),
+            title: Text(item.title, style: AppTextStyles.labelLarge),
+            subtitle: Text(item.subtitle,
+                style: AppTextStyles.caption
+                    .copyWith(color: AppColors.textSecondary)),
+            trailing: isLogout
+                ? null
+                : const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+            onTap: item.onTap,
+          );
         },
-      ),
-    );
-  }
-
-  void _showComingSoon(BuildContext context, String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature coming soon!'),
-        backgroundColor: AppColors.info,
       ),
     );
   }
@@ -460,49 +428,3 @@ class _MenuItem {
   });
 }
 
-class _MoreMenuCard extends StatelessWidget {
-  final _MenuItem item;
-
-  const _MoreMenuCard({required this.item});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        onTap: item.onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.studentAccent.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(item.icon, color: AppColors.studentAccent, size: 24),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                item.title,
-                style: AppTextStyles.labelSmall,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              Text(
-                item.subtitle,
-                style: AppTextStyles.caption.copyWith(fontSize: 10),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

@@ -392,19 +392,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 16),
-                          OutlinedButton.icon(
-                            onPressed: () {}, // TODO: Contact support
-                            icon: const Icon(Icons.support_agent),
-                            label: const Text('Contact Support'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.info,
-                              side: BorderSide(color: AppColors.info),
-                            ),
-                          ),
                         ],
                       ),
-                    ).animate(delay: 150.ms).fadeIn().slideY(begin: -0.1, end: 0),
+                    ),
 
                   if (widget.batches.isNotEmpty)
                     const SizedBox(height: 24),
