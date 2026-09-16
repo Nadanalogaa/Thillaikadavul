@@ -99,6 +99,17 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onSa
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        // Format validation: valid email + 10-digit phone.
+        const email = (formData.email || '').trim();
+        const phoneDigits = (formData.contactNumber || '').replace(/\D/g, '');
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            alert('Please enter a valid email address.');
+            return;
+        }
+        if (phoneDigits && phoneDigits.length !== 10) {
+            alert('Please enter a valid 10-digit phone number.');
+            return;
+        }
         setIsLoading(true);
         // Build course_grades [{course_id, grade_id}] for the selected courses that have a grade chosen.
         const selectedCourseIds = new Set(

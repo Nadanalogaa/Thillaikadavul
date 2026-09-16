@@ -13,6 +13,7 @@ import CoursesPage from './pages/CoursesPage';
 import Modal from './components/Modal';
 import LoginForm from './components/LoginForm';
 import ForgotPasswordModal from './components/ForgotPasswordModal';
+import SetPasswordModal from './components/SetPasswordModal';
 import RegisterPage from './pages/RegisterPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminLoginPage from './pages/AdminLoginPage';
@@ -354,6 +355,15 @@ function App() {
         </Modal>
 
         <ForgotPasswordModal isOpen={isForgotOpen} onClose={() => setForgotOpen(false)} initialIdentifier={loginEmail} />
+
+        <SetPasswordModal
+          isOpen={!!currentUser?.mustChangePassword}
+          onDone={() => {
+            const updated = { ...(currentUser as any), mustChangePassword: false };
+            setCurrentUser(updated);
+            try { localStorage.setItem('currentUser', JSON.stringify(updated)); } catch { /* ignore */ }
+          }}
+        />
       </div>
     </ThemeProvider>
   );

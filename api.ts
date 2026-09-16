@@ -163,7 +163,8 @@ export const loginUser = async (email: string, password: string): Promise<User> 
       schedules: user.schedules || [],
       documents: user.documents || [],
       notes: user.notes,
-      students: user.students || []  // Add students array for parent accounts
+      students: user.students || [],  // Add students array for parent accounts
+      mustChangePassword: user.must_change_password === true
     } as any;
 
     currentUser = userData;
@@ -310,6 +311,16 @@ export const forgotPassword = async (identifier: string): Promise<{ success: boo
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.message || 'Could not send reset code.');
+  return data;
+};
+
+export const setPassword = async (newPassword: string): Promise<{ success: boolean; message: string }> => {
+  const res = await fetch('/api/set-password', {
+    method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ new_password: newPassword }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message || 'Could not set password.');
   return data;
 };
 
