@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:go_router/go_router.dart';
+
+import 'household_fees_screen.dart';
 
 import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
@@ -54,36 +57,230 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   List<NoticeModel> _notices = [];
   List<BookMaterialModel> _materials = [];
   List<GradeExamModel> _exams = [];
-  Map<String, dynamic>? _familySummary; // combined fees for a parent's children
+  Map<String, dynamic>? _household;     // members + teacher (GET /api/household)
+  Map<String, dynamic>? _householdFees; // this month's bill across the household
 
   @override
   void initState() {
     super.initState();
     _loadLocationIfNeeded();
     _loadHighlights();
-    _loadFamilySummary();
+    _loadHousehold();
   }
 
-  Future<void> _loadFamilySummary() async {
-    final state = context.read<AuthBloc>().state;
-    if (state is! AuthAuthenticated) return;
-    // Only relevant when this account has children (a parent).
-    if ((state.user.students ?? []).isEmpty) return;
+  /// Household home data: member cards + the Airtel-style bill card. Always
+  /// runs — every login is a household of at least one student.
+  Future<void> _loadHousehold() async {
     try {
-      final resp = await _apiClient.getFamilyFeeSummary();
-      if (mounted && resp.statusCode == 200 && resp.data is Map) {
-        setState(() => _familySummary = Map<String, dynamic>.from(resp.data));
-      }
+      final results = await Future.wait([
+        _apiClient.getHousehold(),
+        _apiClient.getHouseholdFees(),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        if (results[0].statusCode == 200 && results[0].data is Map) {
+          _household = Map<String, dynamic>.from(results[0].data as Map);
+        }
+        if (results[1].statusCode == 200 && results[1].data is Map) {
+          _householdFees = Map<String, dynamic>.from(results[1].data as Map);
+        }
+      });
     } catch (_) {}
   }
 
-  /// Parent's combined family fees: one total, tap to expand the per-student split.
-  Widget _familyFeesCard() {
-    final fs = _familySummary;
-    if (fs == null) return const SizedBox.shrink();
-    final students = (fs['students'] as List?) ?? [];
-    if (students.isEmpty) return const SizedBox.shrink();
-    final total = (fs['total_due'] as num?)?.toDouble() ?? 0;
+  /// One household member as a tappable card (student → their dashboard,
+  /// teacher → the teaching dashboard).
+  Widget _memberCard(Map<String, dynamic> m) {
+    final id = m['id'] is int ? m['id'] as int : int.tryParse('${m['id']}') ?? 0;
+    final name = '${m['name'] ?? ''}';
+    final role = '${m['role'] ?? ''}';
+    final isChild = m['kind'] == 'child';
+    final isTeacher = role == 'Teacher';
+    final courses =
+        ((m['courses'] as List?) ?? const []).map((e) => '$e').toList();
+    final expertise =
+        ((m['course_expertise'] as List?) ?? const []).map((e) => '$e').toList();
+    final subtitle = isTeacher
+        ? (expertise.isEmpty ? 'Teaching' : 'Teaching · ${expertise.join(', ')}')
+        : [
+            if (isChild) 'Child' else 'Student',
+            if (courses.isNotEmpty) courses.join(', '),
+          ].join(' · ');
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () {
+        if (isTeacher) {
+          context.go('/teacher');
+          return;
+        }
+        context.go('/student', extra: {
+          'studentId': id,
+          'student': UserModel(
+            id: id,
+            name: name,
+            email: '',
+            role: 'Student',
+            photoUrl: m['photo_url'] as String?,
+            courses: courses,
+          ),
+        });
+      },
+      child: Container(
+        width: 150,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+              child: Icon(
+                isTeacher
+                    ? Icons.school
+                    : (isChild ? Icons.child_care : Icons.person),
+                size: 18,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(name,
+                style: AppTextStyles.labelLarge,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
+            Text(subtitle,
+                style: AppTextStyles.caption
+                    .copyWith(color: AppColors.textSecondary),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Airtel-style bill card: "Your fees for <month> ₹X · Pay now", or
+  /// "Paid for <month> ✓" once everything is settled.
+  Widget _billCard(Map<String, dynamic>? fees) {
+    final period = '${fees?['period'] ?? 'this month'}';
+    final hasBill = fees?['has_bill'] == true;
+    final allPaid = fees?['all_paid'] == true;
+    final due = (fees?['total_due'] as num?)?.toDouble() ?? 0;
+    final paid = (fees?['total_paid'] as num?)?.toDouble() ?? 0;
+    final dueRaw = fees?['due_date'];
+    final dueDate = dueRaw is String && dueRaw.length >= 10
+        ? dueRaw.substring(0, 10)
+        : null;
+    final students = ((fees?['students'] as List?) ?? const []).cast<Map>();
+    // "Pay now" pays the open student's earliest pending invoice; the
+    // household drilldown below can pay any member's invoice.
+    final pending = widget.invoices
+        .where((i) => i.status.toLowerCase() != 'paid')
+        .toList();
+    final int? payId = pending.isEmpty ? null : pending.first.id;
+    final accent = allPaid ? AppColors.success : AppColors.primary;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(allPaid ? Icons.check_circle : Icons.receipt_long,
+                  color: accent, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  !hasBill
+                      ? 'No fees generated for $period yet'
+                      : allPaid
+                          ? 'Paid for $period'
+                          : 'Your fees for $period',
+                  style: AppTextStyles.labelLarge,
+                ),
+              ),
+            ],
+          ),
+          if (hasBill) ...[
+            const SizedBox(height: 6),
+            Text(
+              '₹${(allPaid ? paid : due).toStringAsFixed(0)}',
+              style: AppTextStyles.h2
+                  .copyWith(color: accent, fontWeight: FontWeight.w700),
+            ),
+            if (!allPaid && dueDate != null)
+              Text('Due by $dueDate',
+                  style: AppTextStyles.caption
+                      .copyWith(color: AppColors.textSecondary)),
+            if (students.length > 1) ...[
+              const SizedBox(height: 8),
+              for (final s in students)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text('${s['student_name'] ?? 'Student'}',
+                            style: AppTextStyles.bodyMedium),
+                      ),
+                      Text(
+                        allPaid
+                            ? '₹${((s['month_paid'] as num?)?.toDouble() ?? 0).toStringAsFixed(0)} paid'
+                            : '₹${((s['month_due'] as num?)?.toDouble() ?? 0).toStringAsFixed(0)} due',
+                        style: AppTextStyles.labelLarge,
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                if (!allPaid)
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed:
+                          payId == null ? null : () => widget.onOpenFees(payId),
+                      icon: const Icon(Icons.payment),
+                      label: const Text('Pay now'),
+                    ),
+                  ),
+                if (!allPaid) const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const HouseholdFeesScreen()),
+                    ),
+                    child: const Text('View all fees'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Household home: a card per member (every student under this phone + the
+  /// teacher role if any) and the Airtel-style bill card for this month.
+  Widget _householdSection() {
+    final members = ((_household?['members'] as List?) ?? const [])
+        .cast<Map>()
+        .map((m) => Map<String, dynamic>.from(m))
+        .toList();
+    final fees = _householdFees;
+    if (members.isEmpty && fees == null) return const SizedBox.shrink();
 
     return Card(
       margin: const EdgeInsets.only(bottom: 20),
@@ -91,53 +288,26 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: AppColors.primary.withValues(alpha: 0.2)),
       ),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          leading: CircleAvatar(
-            backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-            child: const Icon(Icons.family_restroom, color: AppColors.primary),
-          ),
-          title: Text('Family Fees — This Month',
-              style: AppTextStyles.labelLarge),
-          subtitle: Text(
-            '₹${total.toStringAsFixed(0)} due · ${students.length} ${students.length == 1 ? 'student' : 'students'} — tap for details',
-            style: AppTextStyles.caption
-                .copyWith(color: AppColors.textSecondary),
-          ),
-          trailing: Text('₹${total.toStringAsFixed(0)}',
-              style: AppTextStyles.h4.copyWith(color: AppColors.primary)),
-          childrenPadding:
-              const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (final s in students)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Row(
-                  children: [
-                    const Icon(Icons.person_outline,
-                        size: 16, color: AppColors.textSecondary),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text('${s['student_name'] ?? 'Student'}',
-                          style: AppTextStyles.bodyMedium),
-                    ),
-                    Text(
-                      '₹${((s['total'] as num?)?.toDouble() ?? 0).toStringAsFixed(0)}',
-                      style: AppTextStyles.labelLarge,
-                    ),
-                  ],
+            if (members.length > 1) ...[
+              Text('Your family', style: AppTextStyles.labelLarge),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 96,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: members.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  itemBuilder: (context, i) => _memberCard(members[i]),
                 ),
               ),
-            const Divider(),
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                'Open each child (tabs above) to pay their fee.',
-                style: AppTextStyles.caption
-                    .copyWith(color: AppColors.textSecondary),
-              ),
-            ),
+              const SizedBox(height: 14),
+            ],
+            _billCard(fees),
           ],
         ),
       ),
@@ -251,25 +421,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   int get _overdueFees =>
       widget.invoices.where((i) => i.status == 'overdue').length;
 
-  double get _totalPendingAmount => widget.invoices
-      .where((i) => i.status == 'pending' || i.status == 'overdue')
-      .fold(0.0, (sum, i) => sum + (i.amount ?? 0));
-
-  bool get _hasFeesDueThisMonth {
-    final now = DateTime.now();
-    return widget.invoices.any((i) {
-      if (i.status != 'pending') return false;
-      if (i.dueDate == null) return true;
-      try {
-        final dueDate = DateTime.parse(i.dueDate!);
-        return dueDate.month == now.month && dueDate.year == now.year;
-      } catch (_) {
-        return false;
-      }
-    });
-  }
-
-
   bool _isInCurrentMonth(String? dateStr) {
     if (dateStr == null) return false;
     try {
@@ -348,11 +499,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.05, end: 0),
                   const SizedBox(height: 20),
 
-                  // Family fees — combined total across all children (parents).
-                  _familyFeesCard(),
+                  // Household home: member cards + this month's bill (Airtel-style).
+                  _householdSection(),
 
                   // This month's fee — the first thing a student sees on login.
-                  if (_currentMonthInvoice != null) ...[
+                  // Hidden when the household bill card already shows this
+                  // month's fees, so the amount isn't presented twice.
+                  if (_currentMonthInvoice != null && _householdFees?['has_bill'] != true) ...[
                     Text("This Month's Fee", style: AppTextStyles.h4),
                     const SizedBox(height: 12),
                     _MonthlyFeeCard(

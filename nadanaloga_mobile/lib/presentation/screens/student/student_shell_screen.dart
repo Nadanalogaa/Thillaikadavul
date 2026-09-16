@@ -141,13 +141,34 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, authState) {
         final user = authState is AuthAuthenticated ? authState.user : null;
-        // Show the family switcher whenever this account has linked children —
-        // a parent, or a teacher who is also a parent.
+        // The household behind this login: every student sharing the phone
+        // (children + the adult if she learns) and the teacher role if any.
+        final profiles = user?.profiles ?? const <ProfileModel>[];
+        final householdStudents =
+            profiles.where((p) => p.role == 'Student').toList();
+        final hasTeacherRole =
+            profiles.any((p) => p.role == 'Teacher' && !p.isChild);
+        // Legacy parent_id children — still what the "Add student" action uses.
         final students = user?.students ?? [];
         final hasChildren = students.isNotEmpty;
+        // Show the member strip whenever there is more than one thing to open.
+        final showStrip = householdStudents.length > 1 || hasTeacherRole;
 
-        // Auto-select first child if logged in without a specific student
-        final currentStudent = widget.student ?? (students.isNotEmpty ? students[0] : null);
+        // Default to the first household student: a parent's own row is not a
+        // student, so falling back to user.id would open an empty dashboard.
+        final firstStudent =
+            householdStudents.isNotEmpty ? householdStudents.first : null;
+        final currentStudent = widget.student ??
+            (firstStudent != null
+                ? UserModel(
+                    id: firstStudent.id,
+                    name: firstStudent.name,
+                    email: '',
+                    role: 'Student',
+                    photoUrl: firstStudent.photoUrl,
+                    courses: firstStudent.courses,
+                  )
+                : (students.isNotEmpty ? students[0] : null));
         final currentStudentId = widget.studentId ?? currentStudent?.id ?? user?.id;
 
         return Scaffold(
@@ -191,8 +212,8 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
           ),
           body: Column(
             children: [
-              // Student tabs below app bar
-              if (hasChildren)
+              // Household member strip below app bar (students + Teaching)
+              if (showStrip)
                 Container(
                   margin: const EdgeInsets.fromLTRB(12, 10, 12, 0),
                   decoration: BoxDecoration(
@@ -208,14 +229,18 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
                       height: 56,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
-                        itemCount: students.length,
+                        itemCount: householdStudents.length + (hasTeacherRole ? 1 : 0),
                         itemBuilder: (context, index) {
-                          final student = students[index];
-                          final isSelected = student.id == currentStudentId;
-                          final sex = (student.sex ?? '').toLowerCase();
-                          final sexIcon = (sex.startsWith('m'))
-                              ? Icons.male
-                              : (sex.startsWith('f') ? Icons.female : Icons.person);
+                          // First chip is "Teaching" when this adult also teaches.
+                          final isTeachingChip = hasTeacherRole && index == 0;
+                          final ProfileModel? p = isTeachingChip
+                              ? null
+                              : householdStudents[index - (hasTeacherRole ? 1 : 0)];
+                          final isSelected = !isTeachingChip && p!.id == currentStudentId;
+                          final label = isTeachingChip ? 'Teaching' : p!.name;
+                          final icon = isTeachingChip
+                              ? Icons.school
+                              : (p!.isChild ? Icons.child_care : Icons.person);
 
                           return Padding(
                             padding: const EdgeInsets.only(right: 8),
@@ -224,22 +249,34 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
-                                    sexIcon,
+                                    icon,
                                     size: 16,
                                     color: isSelected
                                         ? AppColors.studentAccent
                                         : AppColors.textSecondary,
                                   ),
                                   const SizedBox(width: 6),
-                                  Text(student.name),
+                                  Text(label),
                                 ],
                               ),
                               selected: isSelected,
                               onSelected: (_) {
+                                if (isTeachingChip) {
+                                  context.go('/teacher');
+                                  return;
+                                }
                                 if (!isSelected) {
+                                  final sp = p!;
                                   context.go('/student', extra: {
-                                    'studentId': student.id,
-                                    'student': student,
+                                    'studentId': sp.id,
+                                    'student': UserModel(
+                                      id: sp.id,
+                                      name: sp.name,
+                                      email: '',
+                                      role: 'Student',
+                                      photoUrl: sp.photoUrl,
+                                      courses: sp.courses,
+                                    ),
                                   });
                                 }
                               },

@@ -120,6 +120,37 @@ export interface UserProfile {
   grade?: string | null;
 }
 
+/** A household member as returned by GET /api/household (a profile + enrichment). */
+export interface HouseholdMember extends UserProfile {
+  course_grades?: { course_name?: string; grade_name?: string; monthly_fee?: number; currency?: string; discount_percentage?: number; net_amount?: number }[];
+  batch_names?: string[];
+  course_expertise?: string[];
+}
+export interface Household {
+  members: HouseholdMember[];
+  teacher: HouseholdMember | null;
+  student_count: number;
+}
+export interface HouseholdFeeStudent {
+  student_id: number;
+  student_name: string;
+  month_generated: number;
+  month_paid: number;
+  month_due: number;
+  invoices: any[];
+}
+/** This month's household bill (GET /api/household/fees) — drives the Airtel-style bill card. */
+export interface HouseholdFees {
+  period: string;
+  total_generated: number;
+  total_paid: number;
+  total_due: number;
+  has_bill: boolean;
+  all_paid: boolean;
+  due_date: string | null;
+  students: HouseholdFeeStudent[];
+}
+
 export interface User {
   id: string;
   userId?: string | null;

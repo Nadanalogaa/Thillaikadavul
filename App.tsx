@@ -127,12 +127,14 @@ function App() {
     setLoginEmail('');
     if (user.role === UserRole.Admin) {
       navigate('/admin/dashboard');
-    } else if (user.role === UserRole.Parent) {
-      navigate('/parent/dashboard');
-    } else if (user.role === UserRole.Student) {
-      navigate('/dashboard/student');
     } else if (user.role === UserRole.Teacher) {
-      navigate('/dashboard/teacher');
+      // A teacher who is also a parent/student lands on the household home
+      // (her children + this month's bill); a pure teacher goes to teaching.
+      const hasStudents = (user.profiles ?? []).some(p => p.role === 'Student');
+      navigate(hasStudents ? '/dashboard/student' : '/dashboard/teacher');
+    } else {
+      // Students and parents: the household home (every member + the bill card).
+      navigate('/dashboard/student');
     }
   };
   

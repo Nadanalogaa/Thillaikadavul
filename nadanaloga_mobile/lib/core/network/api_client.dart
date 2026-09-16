@@ -196,6 +196,16 @@ class ApiClient {
     return _dio.get(ApiEndpoints.familyFeeSummary);
   }
 
+  /// Household home: every member under this phone (students + teacher role).
+  Future<Response> getHousehold() {
+    return _dio.get(ApiEndpoints.household);
+  }
+
+  /// This month's household bill + per-student invoices for drilldown.
+  Future<Response> getHouseholdFees() {
+    return _dio.get(ApiEndpoints.householdFees);
+  }
+
   /// Fetch a report as JSON ({rows, count, total?}).
   Future<Response> getReport(String type, {Map<String, dynamic>? query}) {
     return _dio.get(ApiEndpoints.report(type), queryParameters: query);

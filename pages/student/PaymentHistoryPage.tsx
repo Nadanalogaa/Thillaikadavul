@@ -330,6 +330,22 @@ const PaymentHistoryPage: React.FC = () => {
                                                         <DollarSign className="w-4 h-4" />
                                                         <span>{invoice.amount} {invoice.currency}</span>
                                                     </div>
+                                                    {invoice.status !== InvoiceStatus.Paid && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={async () => {
+                                                                // Razorpay web checkout; the server authorises by household,
+                                                                // so a parent can pay any child's invoice from here.
+                                                                const { payInvoiceOnline } = await import('../../api');
+                                                                const r = await payInvoiceOnline(invoice.id);
+                                                                if (r.ok) window.location.reload();
+                                                                else if (r.message && r.message !== 'Payment cancelled.') alert(r.message);
+                                                            }}
+                                                            className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold"
+                                                        >
+                                                            Pay now
+                                                        </button>
+                                                    )}
                                                     {invoice.paymentDetails && (
                                                         <div className={`flex items-center gap-2 ${
                                                             theme === 'dark' ? 'text-gray-400' : 'text-gray-600'

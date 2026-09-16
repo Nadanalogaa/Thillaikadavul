@@ -1,4 +1,4 @@
-import type { User, ContactFormData, Course, DashboardStats, Notification, Batch, FeeStructure, Invoice, PaymentDetails, StudentEnrollment, Event, GradeExam, BookMaterial, Notice, Location, DemoBooking, EventNotification, EventImage } from './types';
+import type { User, ContactFormData, Course, DashboardStats, Notification, Batch, FeeStructure, Invoice, PaymentDetails, StudentEnrollment, Event, GradeExam, BookMaterial, Notice, Location, DemoBooking, EventNotification, EventImage, Household, HouseholdFees } from './types';
 import { UserRole, ClassPreference, InvoiceStatus } from './types';
 import { supabase } from './src/lib/supabase.js';
 import { notificationService } from './services/notificationService';
@@ -2229,6 +2229,66 @@ export const getFamilyStudents = async (): Promise<User[]> => {
     console.error('Error in getFamilyStudents:', error);
     return [];
   }
+};
+
+// --- Household (one phone number = one household) ---
+export const getHousehold = async (): Promise<Household | null> => {
+  const res = await fetch('/api/household', { credentials: 'include' });
+  if (!res.ok) return null;
+  return res.json();
+};
+
+export const getHouseholdFees = async (): Promise<HouseholdFees | null> => {
+  const res = await fetch('/api/household/fees', { credentials: 'include' });
+  if (!res.ok) return null;
+  return res.json();
+};
+
+// --- Online payment (Razorpay web checkout) ---
+// The server creates the order (authorised by household membership, so a parent
+// can pay a child's invoice) and verifies the signature afterwards.
+const loadRazorpayScript = (): Promise<boolean> => new Promise(resolve => {
+  if ((window as any).Razorpay) return resolve(true);
+  const s = document.createElement('script');
+  s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+  s.onload = () => resolve(true);
+  s.onerror = () => resolve(false);
+  document.body.appendChild(s);
+});
+
+export const payInvoiceOnline = async (invoiceId: number | string): Promise<{ ok: boolean; message?: string }> => {
+  const orderRes = await fetch(`/api/invoices/${invoiceId}/razorpay-order`, {
+    method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: '{}',
+  });
+  const order = await orderRes.json().catch(() => ({}));
+  if (!orderRes.ok) return { ok: false, message: order.message || 'Could not start payment.' };
+  if (!(await loadRazorpayScript())) return { ok: false, message: 'Could not load the payment window.' };
+  return new Promise(resolve => {
+    const rz = new (window as any).Razorpay({
+      key: order.key_id,
+      order_id: order.order_id,
+      amount: order.amount,
+      currency: order.currency,
+      name: order.name,
+      description: order.description,
+      prefill: order.prefill,
+      handler: async (r: any) => {
+        const v = await fetch('/api/razorpay/verify-payment', {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            razorpay_order_id: r.razorpay_order_id,
+            razorpay_payment_id: r.razorpay_payment_id,
+            razorpay_signature: r.razorpay_signature,
+            invoice_id: order.invoice_id,
+          }),
+        });
+        const vd = await v.json().catch(() => ({}));
+        resolve(v.ok ? { ok: true } : { ok: false, message: vd.message || 'Payment could not be verified.' });
+      },
+      modal: { ondismiss: () => resolve({ ok: false, message: 'Payment cancelled.' }) },
+    });
+    rz.open();
+  });
 };
 
 export const getStudentInvoicesForFamily = async (studentId: string): Promise<Invoice[]> => {

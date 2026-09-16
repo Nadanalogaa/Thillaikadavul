@@ -21,8 +21,8 @@ import {
   TrendingUp,
   Sparkles
 } from 'lucide-react';
-import type { User, Event, Notice, CourseTimingSlot, StudentEnrollment } from '../../types';
-import { getFamilyStudents, getEvents, getNotices, getCourses, getStudentEnrollmentsForFamily } from '../../api';
+import type { User, Event, Notice, CourseTimingSlot, StudentEnrollment, Household, HouseholdFees } from '../../types';
+import { getFamilyStudents, getEvents, getNotices, getCourses, getStudentEnrollmentsForFamily, getHousehold, getHouseholdFees } from '../../api';
 import type { Course } from '../../types';
 import UnifiedNotificationBell from '../../components/UnifiedNotificationBell';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -75,6 +75,9 @@ const StudentDashboardHomePage: React.FC = () => {
     const [recentNotices, setRecentNotices] = useState<Notice[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
     const [enrollments, setEnrollments] = useState<Map<string, StudentEnrollment[]>>(new Map());
+    // Household home: every member under this phone number + this month's bill.
+    const [household, setHousehold] = useState<Household | null>(null);
+    const [fees, setFees] = useState<HouseholdFees | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [activeIdx, setActiveIdx] = useState(0);
 
@@ -82,13 +85,17 @@ const StudentDashboardHomePage: React.FC = () => {
         const fetchData = async () => {
             try {
                 setIsLoading(true);
-                const [familyData, eventsData, noticesData, coursesData] = await Promise.all([
+                const [familyData, eventsData, noticesData, coursesData, householdData, feesData] = await Promise.all([
                     getFamilyStudents(),
                     getEvents(5), // Limit to 5 recent events for dashboard
                     getNotices(5), // Limit to 5 recent notices for dashboard
                     getCourses(),
+                    getHousehold(),
+                    getHouseholdFees(),
                 ]);
                 setFamily(familyData);
+                setHousehold(householdData);
+                setFees(feesData);
                 setRecentEvents(eventsData.slice(0, 3));
                 setRecentNotices(noticesData.slice(0, 3));
                 setCourses(coursesData);
@@ -168,6 +175,76 @@ const StudentDashboardHomePage: React.FC = () => {
 
             {/* Main Content */}
             <div className="px-6 pb-6">
+
+                {/* Household: a card per member + this month's bill (Airtel-style) */}
+                {(household || fees) && (
+                  <section className="mb-4 sm:mb-6 space-y-4">
+                    {household && household.members.length > 1 && (
+                      <div className="flex gap-3 overflow-x-auto pb-1">
+                        {household.members.map(m => {
+                          const isTeacher = m.role === 'Teacher';
+                          const subtitle = isTeacher
+                            ? `Teaching${m.course_expertise?.length ? ' · ' + m.course_expertise.join(', ') : ''}`
+                            : `${m.kind === 'child' ? 'Child' : 'Student'}${m.courses?.length ? ' · ' + m.courses.join(', ') : ''}`;
+                          const card = (
+                            <div className={`min-w-[160px] p-3 rounded-xl border text-left ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                              <div className="w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center font-semibold mb-2">
+                                {(m.name || '?').charAt(0).toUpperCase()}
+                              </div>
+                              <p className={`font-semibold text-sm truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{m.name}</p>
+                              <p className={`text-xs truncate ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{subtitle}</p>
+                            </div>
+                          );
+                          if (isTeacher) return <Link key={m.id} to="/dashboard/teacher">{card}</Link>;
+                          const idx = family.findIndex(f => String(f.id) === String(m.id));
+                          return <button key={m.id} type="button" onClick={() => { if (idx >= 0) setActiveIdx(idx); }}>{card}</button>;
+                        })}
+                      </div>
+                    )}
+                    {fees && (() => {
+                      const title = !fees.has_bill
+                        ? `No fees generated for ${fees.period} yet`
+                        : fees.all_paid ? `Paid for ${fees.period} ✓` : `Your fees for ${fees.period}`;
+                      const amount = fees.all_paid ? fees.total_paid : fees.total_due;
+                      return (
+                        <div className={`p-4 rounded-2xl border ${fees.all_paid
+                          ? (theme === 'dark' ? 'bg-emerald-900/20 border-emerald-800' : 'bg-emerald-50 border-emerald-200')
+                          : (theme === 'dark' ? 'bg-indigo-900/20 border-indigo-800' : 'bg-indigo-50 border-indigo-200')}`}>
+                          <p className={`text-sm font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{title}</p>
+                          {fees.has_bill && (
+                            <>
+                              <p className={`text-3xl font-bold mt-1 ${fees.all_paid ? 'text-emerald-600 dark:text-emerald-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                                ₹{Math.round(amount).toLocaleString()}
+                              </p>
+                              {!fees.all_paid && fees.due_date && (
+                                <p className={`text-xs mt-0.5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                                  Due by {new Date(fees.due_date).toLocaleDateString()}
+                                </p>
+                              )}
+                              {fees.students.length > 1 && (
+                                <ul className="mt-3 space-y-1">
+                                  {fees.students.map(s => (
+                                    <li key={s.student_id} className={`flex justify-between text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                                      <span>{s.student_name}</span>
+                                      <span className="font-medium">
+                                        ₹{Math.round(fees.all_paid ? s.month_paid : s.month_due).toLocaleString()}{fees.all_paid ? ' paid' : ' due'}
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                              {!fees.all_paid && (
+                                <Link to="payment-history" className="inline-flex items-center mt-4 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold">
+                                  Pay now
+                                </Link>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </section>
+                )}
 
                 {/* Professional Stats Cards */}
                 <motion.section
