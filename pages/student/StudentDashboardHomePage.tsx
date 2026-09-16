@@ -319,10 +319,10 @@ const StudentDashboardHomePage: React.FC = () => {
                                 </div>
                                 <div>
                                     <h2 className={`text-lg sm:text-xl md:text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                                        Family Students ({family.length})
+                                        {family.length > 1 ? `Family Students (${family.length})` : 'My Learning Journey'}
                                     </h2>
                                     <p className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                                        Manage your children's learning journey
+                                        {family.length > 1 ? "Manage your family's learning journey" : 'Your courses, schedule and progress'}
                                     </p>
                                 </div>
                             </div>

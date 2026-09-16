@@ -2592,6 +2592,30 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
+    // Authenticated "family" list for the student/parent dashboards: the logged-in
+    // account plus any child profiles linked to it (parent_id = me). A standalone
+    // student always sees at least themselves. Replaces the old client-side approach
+    // that abused the admin-only GET /api/users and 403'd for students.
+    app.get('/api/family', ensureAuthenticated, async (req, res) => {
+        try {
+            const meId = req.session.user.id;
+            const meRow = (await pool.query(
+                'SELECT * FROM users WHERE id = $1 AND is_deleted = false', [meId]
+            )).rows[0];
+            const children = (await pool.query(
+                'SELECT * FROM users WHERE parent_id = $1 AND is_deleted = false ORDER BY COALESCE(display_name, name)',
+                [meId]
+            )).rows;
+            const family = [];
+            if (meRow) family.push(meRow);
+            for (const c of children) family.push(c);
+            res.json((family.length ? family : children).map(parseUserData));
+        } catch (error) {
+            console.error('Error fetching family:', error);
+            res.status(500).json({ message: 'Server error fetching family.' });
+        }
+    });
+
     // Get user by ID
     app.get('/api/users/:id', ensureAdmin, async (req, res) => {
         try {

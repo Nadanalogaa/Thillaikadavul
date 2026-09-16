@@ -1,5 +1,5 @@
 import type { User, ContactFormData, Course, DashboardStats, Notification, Batch, FeeStructure, Invoice, PaymentDetails, StudentEnrollment, Event, GradeExam, BookMaterial, Notice, Location, DemoBooking, EventNotification, EventImage } from './types';
-import { UserRole, ClassPreference } from './types';
+import { UserRole, ClassPreference, InvoiceStatus } from './types';
 import { supabase } from './src/lib/supabase.js';
 import { notificationService } from './services/notificationService';
 // Removed local email service import - using backend SMTP
@@ -2177,76 +2177,52 @@ export const getStudentEnrollments = async (): Promise<StudentEnrollment[]> => {
 // Family functions
 export const getFamilyStudents = async (): Promise<User[]> => {
   try {
-    if (typeof window !== 'undefined') {
-      const currentUserData = localStorage.getItem('currentUser');
-      if (currentUserData) {
-        const currentUser = JSON.parse(currentUserData);
-        
-        // Query database for family students
-        const response = await fetch('/api/users', {
-          method: 'GET',
-          credentials: 'include'
-        });
+    // Authenticated endpoint: returns the logged-in account + any linked children.
+    // Works for students, parents, and teachers alike (no admin privileges needed).
+    const response = await fetch('/api/family', {
+      method: 'GET',
+      credentials: 'include'
+    });
 
-        if (!response.ok) {
-          console.error('Error fetching family students:', response.statusText);
-          return [];
-        }
-
-        const data = await response.json();
-        
-        // Find students that belong to this family
-        const familyStudents = (data || []).filter((user: any) => {
-          // Skip temp emails from failed registrations
-          if (user.email?.startsWith('temp')) {
-            return false;
-          }
-          
-          // Check if this student belongs to current user's family
-          const studentEmailBase = user.email?.split('+')[0]?.split('@')[0]; 
-          const currentUserEmailBase = currentUser.email?.split('+')[0]?.split('@')[0]; 
-          
-          return studentEmailBase === currentUserEmailBase || user.email === currentUser.email;
-        });
-        
-        // Map database fields to User interface
-        return familyStudents.map((user: any) => {
-          console.log('Raw user data from database:', user);
-          const mappedUser = {
-            id: String(user.id),
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            classPreference: user.class_preference,
-            contactNumber: user.contact_number,
-            address: user.address,
-            country: user.country,
-            state: user.state,
-            city: user.city,
-            postalCode: user.postal_code,
-            fatherName: user.father_name,
-            dob: user.dob,
-            sex: user.sex,
-            schoolName: user.school_name,
-            standard: user.standard,
-            grade: user.grade,
-            photoUrl: user.photo_url,
-            courses: user.courses || [],
-            courseExpertise: user.course_expertise || [],
-            preferredTimings: user.preferred_timings || [], // correct field mapping
-            dateOfJoining: user.date_of_joining,
-            notes: user.notes,
-            educationalQualifications: user.educational_qualifications,
-            employmentType: user.employment_type,
-            schedules: user.schedules || [],
-            documents: user.documents || []
-          };
-          console.log('Mapped user data:', mappedUser);
-          return mappedUser;
-        });
-      }
+    if (!response.ok) {
+      console.error('Error fetching family students:', response.statusText);
+      return [];
     }
-    return [];
+
+    const data = await response.json();
+
+    // Map database fields (snake_case) to the User interface (camelCase).
+    return (data || [])
+      .filter((user: any) => !user.email?.startsWith('temp')) // skip failed-registration temps
+      .map((user: any) => ({
+        id: String(user.id),
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        classPreference: user.class_preference,
+        contactNumber: user.contact_number,
+        address: user.address,
+        country: user.country,
+        state: user.state,
+        city: user.city,
+        postalCode: user.postal_code,
+        fatherName: user.father_name,
+        dob: user.dob,
+        sex: user.sex,
+        schoolName: user.school_name,
+        standard: user.standard,
+        grade: user.grade,
+        photoUrl: user.photo_url,
+        courses: user.courses || [],
+        courseExpertise: user.course_expertise || [],
+        preferredTimings: user.preferred_timings || [],
+        dateOfJoining: user.date_of_joining,
+        notes: user.notes,
+        educationalQualifications: user.educational_qualifications,
+        employmentType: user.employment_type,
+        schedules: user.schedules || [],
+        documents: user.documents || []
+      }));
   } catch (error) {
     console.error('Error in getFamilyStudents:', error);
     return [];
@@ -2254,14 +2230,40 @@ export const getFamilyStudents = async (): Promise<User[]> => {
 };
 
 export const getStudentInvoicesForFamily = async (studentId: string): Promise<Invoice[]> => {
-  if (typeof window !== 'undefined') {
-    const invoices = localStorage.getItem('invoices');
-    if (invoices) {
-      const allInvoices = JSON.parse(invoices);
-      return allInvoices.filter((inv: Invoice) => inv.studentId === studentId);
+  try {
+    const res = await fetch(`/api/invoices?student_id=${encodeURIComponent(studentId)}`, {
+      credentials: 'include'
+    });
+    if (!res.ok) {
+      console.error('Error fetching student invoices:', res.statusText);
+      return [];
     }
+    const rows = await res.json();
+    // DB stores status lowercase ('paid'/'pending'/'overdue'); map to the enum's casing.
+    const normStatus = (s: any): InvoiceStatus => {
+      const v = String(s || '').toLowerCase();
+      if (v === 'paid') return InvoiceStatus.Paid;
+      if (v === 'overdue') return InvoiceStatus.Overdue;
+      return InvoiceStatus.Pending;
+    };
+    return (rows || []).map((inv: any) => ({
+      id: String(inv.id),
+      studentId: String(inv.student_id),
+      feeStructureId: inv.fee_structure_id ? String(inv.fee_structure_id) : '',
+      courseName: inv.course_name || '',
+      amount: Number(inv.amount || 0),
+      currency: inv.currency || 'INR',
+      issueDate: inv.issue_date || inv.created_at,
+      dueDate: inv.due_date || '',
+      billingPeriod: inv.billing_period || '',
+      status: normStatus(inv.status),
+      paymentDetails: inv.payment_details || undefined,
+      student: inv.student || undefined,
+    }));
+  } catch (error) {
+    console.error('Error in getStudentInvoicesForFamily:', error);
+    return [];
   }
-  return [];
 };
 
 export const getStudentEnrollmentsForFamily = async (studentId: string): Promise<StudentEnrollment[]> => {
