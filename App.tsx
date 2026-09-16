@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, Navigate, NavLink, useParams, Outlet, useLocation } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Header from './components/Header';
+import MobileAppBanner from './components/MobileAppBanner';
 import AnimatedFooter from './components/modern/AnimatedFooter';
 import HomePage from './pages/HomePage';
 import AboutPage from './pages/AboutPage';
@@ -218,6 +219,7 @@ function App() {
   return (
     <ThemeProvider>
       <div className="flex flex-col min-h-screen bg-brand-light/20 dark:bg-gray-900">
+        {!isAdminRoute && <MobileAppBanner />}
         {!isAdminRoute && (
           <Header
             currentUser={currentUser}

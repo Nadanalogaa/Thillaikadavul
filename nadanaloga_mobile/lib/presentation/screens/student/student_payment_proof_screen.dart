@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -23,7 +23,7 @@ class StudentPaymentProofScreen extends StatefulWidget {
 class _StudentPaymentProofScreenState extends State<StudentPaymentProofScreen> {
   final _transactionController = TextEditingController();
   DateTime? _paymentDate;
-  File? _proofFile;
+  XFile? _proofFile;
   InvoiceModel? _invoice;
   bool _loading = true;
   bool _submitting = false;
@@ -62,7 +62,7 @@ class _StudentPaymentProofScreenState extends State<StudentPaymentProofScreen> {
     );
     if (image != null) {
       setState(() {
-        _proofFile = File(image.path);
+        _proofFile = image;
       });
     }
   }
@@ -76,7 +76,8 @@ class _StudentPaymentProofScreenState extends State<StudentPaymentProofScreen> {
           _paymentDate?.toIso8601String().split('T').first ?? '';
       final response = await sl<ApiClient>().submitInvoicePaymentProof(
         invoiceId: _invoice!.id,
-        proofPath: _proofFile!.path,
+        proofBytes: await _proofFile!.readAsBytes(),
+        proofFilename: _proofFile!.name,
         transactionId: _transactionController.text.trim().isEmpty
             ? null
             : _transactionController.text.trim(),
@@ -121,7 +122,7 @@ class _StudentPaymentProofScreenState extends State<StudentPaymentProofScreen> {
         'Payment proof for Invoice #${_invoice!.id}\nAmount: ₹${(_invoice!.amount ?? 0).toStringAsFixed(0)}\nCourse: ${_invoice!.courseName ?? 'N/A'}\nDate: ${_paymentDate?.toIso8601String().split('T').first ?? 'N/A'}\nTxn ID: ${_transactionController.text.trim().isEmpty ? 'N/A' : _transactionController.text.trim()}';
 
     await Share.shareXFiles(
-      [XFile(_proofFile!.path)],
+      [_proofFile!],
       text: text,
     );
   }
@@ -167,7 +168,22 @@ class _StudentPaymentProofScreenState extends State<StudentPaymentProofScreen> {
                         const SizedBox(height: 12),
                         ClipRRect(
                           borderRadius: BorderRadius.circular(12),
-                          child: Image.file(_proofFile!, height: 220, fit: BoxFit.cover),
+                          child: FutureBuilder<Uint8List>(
+                            future: _proofFile!.readAsBytes(),
+                            builder: (context, snapshot) {
+                              if (!snapshot.hasData) {
+                                return const SizedBox(
+                                  height: 220,
+                                  child: Center(child: CircularProgressIndicator()),
+                                );
+                              }
+                              return Image.memory(
+                                snapshot.data!,
+                                height: 220,
+                                fit: BoxFit.cover,
+                              );
+                            },
+                          ),
                         ),
                       ],
                       const SizedBox(height: 16),

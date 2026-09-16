@@ -1,4 +1,5 @@
-import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -33,7 +34,8 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
   bool _uploading = false;
 
   // Icon state
-  File? _selectedIconFile;
+  Uint8List? _selectedIconBytes;
+  String? _selectedIconName;
   String? _existingIconUrl;
   String? _uploadedIconUrl;
 
@@ -76,11 +78,13 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
         type: FileType.custom,
         allowedExtensions: ['svg', 'png', 'jpg', 'jpeg'],
         allowMultiple: false,
+        withData: true,
       );
 
-      if (result != null && result.files.single.path != null) {
+      if (result != null && result.files.single.bytes != null) {
         setState(() {
-          _selectedIconFile = File(result.files.single.path!);
+          _selectedIconBytes = result.files.single.bytes;
+          _selectedIconName = result.files.single.name;
         });
       }
     } catch (e) {
@@ -96,12 +100,15 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
   }
 
   Future<String?> _uploadIcon() async {
-    if (_selectedIconFile == null) return _existingIconUrl;
+    if (_selectedIconBytes == null) return _existingIconUrl;
 
     setState(() => _uploading = true);
 
     try {
-      final response = await sl<ApiClient>().uploadIcon(_selectedIconFile!.path);
+      final response = await sl<ApiClient>().uploadIcon(
+        _selectedIconBytes!,
+        _selectedIconName ?? 'icon',
+      );
 
       if (response.statusCode == 200) {
         final data = response.data;
@@ -127,7 +134,8 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
 
   void _removeIcon() {
     setState(() {
-      _selectedIconFile = null;
+      _selectedIconBytes = null;
+      _selectedIconName = null;
       _existingIconUrl = null;
       _uploadedIconUrl = null;
     });
@@ -138,9 +146,9 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
 
     // Upload icon first if a new file was selected
     String? iconUrl = _existingIconUrl;
-    if (_selectedIconFile != null) {
+    if (_selectedIconBytes != null) {
       iconUrl = await _uploadIcon();
-      if (iconUrl == null && _selectedIconFile != null) {
+      if (iconUrl == null && _selectedIconBytes != null) {
         // Upload failed, don't proceed
         return;
       }
@@ -182,7 +190,7 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
   }
 
   bool get _hasIcon =>
-      _selectedIconFile != null ||
+      _selectedIconBytes != null ||
       (_existingIconUrl != null && _existingIconUrl!.isNotEmpty);
 
   @override
@@ -407,19 +415,19 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
     final courseName = _nameController.text.trim();
 
     // Show selected file
-    if (_selectedIconFile != null) {
-      final ext = _selectedIconFile!.path.toLowerCase();
-      if (ext.endsWith('.svg')) {
-        return SvgPicture.file(
-          _selectedIconFile!,
+    if (_selectedIconBytes != null) {
+      final isSvg = _selectedIconName?.toLowerCase().endsWith('.svg') ?? false;
+      if (isSvg) {
+        return SvgPicture.memory(
+          _selectedIconBytes!,
           width: 28,
           height: 28,
           colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
         );
       } else {
         return ClipOval(
-          child: Image.file(
-            _selectedIconFile!,
+          child: Image.memory(
+            _selectedIconBytes!,
             width: 28,
             height: 28,
             fit: BoxFit.cover,
@@ -601,11 +609,11 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
     final courseName = _nameController.text.trim();
 
     // Show selected file
-    if (_selectedIconFile != null) {
-      final ext = _selectedIconFile!.path.toLowerCase();
-      if (ext.endsWith('.svg')) {
-        return SvgPicture.file(
-          _selectedIconFile!,
+    if (_selectedIconBytes != null) {
+      final isSvg = _selectedIconName?.toLowerCase().endsWith('.svg') ?? false;
+      if (isSvg) {
+        return SvgPicture.memory(
+          _selectedIconBytes!,
           width: 28,
           height: 28,
           colorFilter: ColorFilter.mode(courseColor, BlendMode.srcIn),
@@ -613,8 +621,8 @@ class _CourseFormScreenState extends State<CourseFormScreen> {
       } else {
         return ClipRRect(
           borderRadius: BorderRadius.circular(6),
-          child: Image.file(
-            _selectedIconFile!,
+          child: Image.memory(
+            _selectedIconBytes!,
             width: 28,
             height: 28,
             fit: BoxFit.cover,

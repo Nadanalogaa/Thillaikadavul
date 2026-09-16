@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'dart:io';
 
 import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
@@ -206,7 +205,8 @@ class _ParentStudentDetailScreenState extends State<ParentStudentDetailScreen> w
 
       final response = await _apiClient.submitInvoicePaymentProof(
         invoiceId: invoice.id,
-        proofPath: image.path,
+        proofBytes: await image.readAsBytes(),
+        proofFilename: image.name,
         paymentMethod: 'UPI',
         paymentDate: DateTime.now().toIso8601String(),
       );

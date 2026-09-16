@@ -5770,6 +5770,22 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
+    // --- Serve the Flutter web app (mobile UI) at /app ---
+    // Same codebase as the Android app, compiled for the web so iOS (and any)
+    // browsers get the identical mobile UI. Served same-origin, so no CORS needed.
+    // Must be registered BEFORE the React catch-all below.
+    const appWebPath = path.join(__dirname, '..', 'app_web');
+    if (fs.existsSync(appWebPath)) {
+        app.use('/app', express.static(appWebPath));
+        // Flutter web uses client-side routing; send its index.html for /app/* deep links.
+        app.get('/app/*', (req, res) => {
+            res.sendFile(path.join(appWebPath, 'index.html'));
+        });
+        app.get('/app', (req, res) => {
+            res.sendFile(path.join(appWebPath, 'index.html'));
+        });
+    }
+
     // --- Serve Static Files (React Frontend) ---
     const distPath = path.join(__dirname, '..', 'dist');
     app.use(express.static(distPath));

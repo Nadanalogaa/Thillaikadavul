@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
@@ -35,7 +34,7 @@ class FcmService {
         return;
       }
 
-      final deviceType = Platform.isIOS ? 'ios' : 'android';
+      final deviceType = kIsWeb ? 'web' : (defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android');
 
       final response = await _apiClient.registerFcmToken(
         userId: userId,
@@ -64,7 +63,7 @@ class FcmService {
     _currentToken = newToken;
 
     if (_currentUserId != null) {
-      final deviceType = Platform.isIOS ? 'ios' : 'android';
+      final deviceType = kIsWeb ? 'web' : (defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android');
       try {
         await _apiClient.registerFcmToken(
           userId: _currentUserId!,

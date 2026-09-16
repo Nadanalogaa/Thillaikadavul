@@ -1,4 +1,5 @@
-import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -37,7 +38,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _selectedClassPreference = 'Hybrid';
 
   // Photo
-  File? _selectedPhoto;
+  XFile? _selectedPhoto;
   final ImagePicker _imagePicker = ImagePicker();
 
   // Course & Location data
@@ -109,7 +110,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   imageQuality: 80,
                 );
                 if (photo != null) {
-                  setState(() => _selectedPhoto = File(photo.path));
+                  setState(() => _selectedPhoto = photo);
                 }
               },
             ),
@@ -125,7 +126,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   imageQuality: 80,
                 );
                 if (photo != null) {
-                  setState(() => _selectedPhoto = File(photo.path));
+                  setState(() => _selectedPhoto = photo);
                 }
               },
             ),
@@ -414,16 +415,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       onTap: _pickPhoto,
                       child: Stack(
                         children: [
-                          CircleAvatar(
-                            radius: 50,
-                            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                            backgroundImage: _selectedPhoto != null
-                                ? FileImage(_selectedPhoto!)
-                                : null,
-                            child: _selectedPhoto == null
-                                ? const Icon(Icons.person, size: 50, color: AppColors.primary)
-                                : null,
-                          ),
+                          _selectedPhoto != null
+                              ? FutureBuilder<Uint8List>(
+                                  future: _selectedPhoto!.readAsBytes(),
+                                  builder: (context, snapshot) {
+                                    return CircleAvatar(
+                                      radius: 50,
+                                      backgroundColor:
+                                          AppColors.primary.withValues(alpha: 0.1),
+                                      backgroundImage: snapshot.hasData
+                                          ? MemoryImage(snapshot.data!)
+                                          : null,
+                                      child: snapshot.hasData
+                                          ? null
+                                          : const Icon(Icons.person,
+                                              size: 50, color: AppColors.primary),
+                                    );
+                                  },
+                                )
+                              : CircleAvatar(
+                                  radius: 50,
+                                  backgroundColor:
+                                      AppColors.primary.withValues(alpha: 0.1),
+                                  child: const Icon(Icons.person,
+                                      size: 50, color: AppColors.primary),
+                                ),
                           Positioned(
                             bottom: 0,
                             right: 0,

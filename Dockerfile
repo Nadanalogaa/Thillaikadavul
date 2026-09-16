@@ -57,6 +57,11 @@ COPY server/server.js ./server/
 # Copy built frontend
 COPY --from=frontend-builder /app/dist ./dist
 
+# Copy the pre-built Flutter web app (mobile UI), served by the backend at /app.
+# Built locally with `flutter build web --release --base-href /app/` and committed
+# to app_web/ (Flutter SDK is not present in this Docker build).
+COPY app_web ./app_web
+
 # Copy restoration scripts and backup
 COPY restore-from-container.cjs ./
 COPY restore-smart.cjs ./

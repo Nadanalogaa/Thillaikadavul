@@ -352,7 +352,8 @@ class _StudentFeesScreenState extends State<StudentFeesScreen>
 
       final response = await _apiClient.submitInvoicePaymentProof(
         invoiceId: invoice.id,
-        proofPath: image.path,
+        proofBytes: await image.readAsBytes(),
+        proofFilename: image.name,
         paymentMethod: 'UPI',
         paymentDate: DateTime.now().toIso8601String(),
       );

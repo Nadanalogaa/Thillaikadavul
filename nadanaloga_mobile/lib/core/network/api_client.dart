@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:cookie_jar/cookie_jar.dart';
@@ -243,11 +245,11 @@ class ApiClient {
   // --- File Upload API ---
 
   /// Upload an icon file (SVG, PNG, JPG)
-  Future<Response> uploadIcon(String filePath) async {
+  Future<Response> uploadIcon(Uint8List bytes, String filename) async {
     final formData = FormData.fromMap({
-      'icon': await MultipartFile.fromFile(
-        filePath,
-        filename: filePath.split('/').last,
+      'icon': MultipartFile.fromBytes(
+        bytes,
+        filename: filename,
       ),
     });
     return _dio.post(
@@ -485,16 +487,17 @@ class ApiClient {
 
   Future<Response> submitInvoicePaymentProof({
     required int invoiceId,
-    required String proofPath,
+    required Uint8List proofBytes,
+    required String proofFilename,
     String? transactionId,
     String? paymentDate,
     String? paymentMethod,
     double? amount,
   }) async {
     final formData = FormData.fromMap({
-      'proof': await MultipartFile.fromFile(
-        proofPath,
-        filename: proofPath.split('/').last,
+      'proof': MultipartFile.fromBytes(
+        proofBytes,
+        filename: proofFilename,
       ),
       if (transactionId != null && transactionId.isNotEmpty)
         'transaction_id': transactionId,
