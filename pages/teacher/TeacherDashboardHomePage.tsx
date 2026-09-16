@@ -164,78 +164,25 @@ const TeacherDashboardHomePage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 relative overflow-hidden">
-            {/* Animated Background Elements */}
-            <div className="absolute inset-0 pointer-events-none">
-                <motion.div
-                    className="absolute top-20 right-20 w-32 h-32 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full"
-                    animate={{
-                        y: [0, -30, 0],
-                        rotate: [0, 180, 360],
-                    }}
-                    transition={{
-                        duration: 15,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                />
-                <motion.div
-                    className="absolute top-1/3 left-10 w-24 h-24 bg-gradient-to-br from-blue-400/20 to-indigo-400/20 rounded-lg rotate-12"
-                    animate={{
-                        y: [0, 20, 0],
-                        rotate: [12, 25, 12],
-                    }}
-                    transition={{
-                        duration: 12,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                />
-                <motion.div
-                    className="absolute bottom-20 right-1/3 w-20 h-20 bg-gradient-to-br from-green-400/20 to-emerald-400/20 rounded-full"
-                    animate={{
-                        y: [0, -25, 0],
-                        scale: [1, 1.2, 1],
-                    }}
-                    transition={{
-                        duration: 10,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                />
-                
-                {/* Background Pattern Dots */}
-                <div className="absolute inset-0">
-                    <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-purple-300/40 dark:bg-purple-600/40 rounded-full"></div>
-                    <div className="absolute top-1/3 right-1/3 w-3 h-3 bg-pink-300/40 dark:bg-pink-600/40 rounded-full"></div>
-                    <div className="absolute bottom-1/4 left-1/2 w-2 h-2 bg-blue-300/40 dark:bg-blue-600/40 rounded-full"></div>
-                    <div className="absolute top-2/3 left-1/5 w-2 h-2 bg-indigo-300/40 dark:bg-indigo-600/40 rounded-full"></div>
-                </div>
-            </div>
-
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
             {/* Header Section */}
-            <div className="relative z-10 px-6 py-4">
+            <div className="px-6 py-5">
                 <div className="flex justify-between items-center">
-                    <motion.div
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.6 }}
-                        className="flex flex-col"
-                    >
-                        <h1 className={`text-lg sm:text-xl md:text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-1`}>
+                    <div className="flex flex-col">
+                        <h1 className={`text-xl sm:text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-1`}>
                             Welcome back, {user?.name?.split(' ')[0] || 'Teacher'}!
                         </h1>
-                        <p className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                        <p className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                             {dateString}
                         </p>
-                    </motion.div>
+                    </div>
                 </div>
             </div>
 
             {/* My Children — shown when this teacher is also a parent. One login
                 surfaces every family profile; opens the parent view to switch. */}
             {((user as any)?.students?.length ?? 0) > 0 && (
-                <div className="relative z-10 px-6 pb-2">
+                <div className="px-6 pb-2">
                     <Link
                         to="/parent/dashboard"
                         className="flex items-center justify-between rounded-xl border border-indigo-200 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/20 px-4 py-3 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors"
@@ -255,7 +202,7 @@ const TeacherDashboardHomePage: React.FC = () => {
             )}
 
             {/* Main Content */}
-            <div className="relative z-10 px-6 pb-6">
+            <div className="px-6 pb-6">
 
                 {/* Professional Stats Cards */}
                 <motion.section
@@ -365,17 +312,17 @@ const TeacherDashboardHomePage: React.FC = () => {
                     initial={{ opacity: 0, y: 50 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 1, delay: 0.3 }}
-                    className={`rounded-3xl shadow-2xl border backdrop-blur-sm overflow-hidden mb-8 ${
+                    className={`rounded-2xl border shadow-sm overflow-hidden mb-8 ${
                         theme === 'dark' 
-                            ? 'bg-gray-800/90 border-gray-700/50' 
-                            : 'bg-white/90 border-purple-200/50'
+                            ? 'bg-gray-800 border-gray-700' 
+                            : 'bg-white border-gray-200'
                     }`}
                 >
                     {/* Header */}
-                    <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-purple-200'}`}>
+                    <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
                         <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-4">
-                                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+                                <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center">
                                     <Award className="w-6 h-6 text-white" />
                                 </div>
                                 <div>
@@ -392,35 +339,6 @@ const TeacherDashboardHomePage: React.FC = () => {
 
                     {/* Course Content */}
                     <div className="p-3 sm:p-6">
-                        {/* Mobile Navigation Menu - Show only on mobile */}
-                        <div className="md:hidden mb-4">
-                            <div className="grid grid-cols-4 gap-2">
-                                <Link to="batches" className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
-                                    theme === 'dark' ? 'bg-gray-700/50 hover:bg-gray-600/50' : 'bg-white hover:bg-gray-50'
-                                }`}>
-                                    <Users className="w-5 h-5 text-purple-500 mb-1" />
-                                    <span className={`text-[10px] font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Batches</span>
-                                </Link>
-                                <Link to="events" className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
-                                    theme === 'dark' ? 'bg-gray-700/50 hover:bg-gray-600/50' : 'bg-white hover:bg-gray-50'
-                                }`}>
-                                    <Calendar className="w-5 h-5 text-blue-500 mb-1" />
-                                    <span className={`text-[10px] font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Events</span>
-                                </Link>
-                                <Link to="book-materials" className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
-                                    theme === 'dark' ? 'bg-gray-700/50 hover:bg-gray-600/50' : 'bg-white hover:bg-gray-50'
-                                }`}>
-                                    <BookOpen className="w-5 h-5 text-green-500 mb-1" />
-                                    <span className={`text-[10px] font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Materials</span>
-                                </Link>
-                                <Link to="notice" className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
-                                    theme === 'dark' ? 'bg-gray-700/50 hover:bg-gray-600/50' : 'bg-white hover:bg-gray-50'
-                                }`}>
-                                    <Bell className="w-5 h-5 text-orange-500 mb-1" />
-                                    <span className={`text-[10px] font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Notices</span>
-                                </Link>
-                            </div>
-                        </div>
                         {(() => {
                             const teacherCourses = user?.courseExpertise || [];
                             const teacherPreferredTimings = user?.availableTimeSlots || user?.preferredTimings || [];
@@ -578,7 +496,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                                     <motion.div
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
-                                        className={`col-span-full text-center py-12 rounded-2xl ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gradient-to-br from-purple-50 to-blue-50'} border-2 border-dashed ${theme === 'dark' ? 'border-gray-600' : 'border-purple-200'}`}
+                                        className={`col-span-full text-center py-12 rounded-2xl ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-100'} border-2 border-dashed ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'}`}
                                     >
                                         <Award className={`w-16 h-16 mx-auto mb-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
                                         <h4 className={`text-xl font-semibold mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -600,17 +518,17 @@ const TeacherDashboardHomePage: React.FC = () => {
                     initial={{ opacity: 0, y: 50 }}
                     animate={batchesInView ? { opacity: 1, y: 0 } : {}}
                     transition={{ duration: 1, delay: 0.2 }}
-                    className={`rounded-3xl shadow-2xl border backdrop-blur-sm overflow-hidden ${
+                    className={`rounded-2xl border shadow-sm overflow-hidden ${
                         theme === 'dark' 
-                            ? 'bg-gray-800/90 border-gray-700/50' 
-                            : 'bg-white/90 border-purple-200/50'
+                            ? 'bg-gray-800 border-gray-700' 
+                            : 'bg-white border-gray-200'
                     }`}
                 >
                     {/* Header */}
-                    <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-purple-200'}`}>
+                    <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
                         <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-4">
-                                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+                                <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center">
                                     <Users className="w-6 h-6 text-white" />
                                 </div>
                                 <div>
@@ -626,7 +544,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                                     <Link 
                                         to="batches" 
-                                        className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all duration-300"
+                                        className="inline-flex items-center space-x-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-all duration-300"
                                     >
                                         <Sparkles className="w-4 h-4" />
                                         <span>View All Batches</span>
@@ -642,7 +560,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={batchesInView ? { opacity: 1, y: 0 } : {}}
-                                className={`text-center py-16 rounded-2xl ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gradient-to-br from-purple-50 to-blue-50'} border-2 border-dashed ${theme === 'dark' ? 'border-gray-600' : 'border-purple-200'}`}
+                                className={`text-center py-16 rounded-2xl ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-100'} border-2 border-dashed ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'}`}
                             >
                                 <BookOpen className={`w-16 h-16 mx-auto mb-4 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
                                 <h3 className={`text-xl font-semibold mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -687,8 +605,8 @@ const TeacherDashboardHomePage: React.FC = () => {
                                                 </div>
                                                 <span className={`px-3 py-1 text-xs font-semibold rounded-full shadow-lg ${
                                                     batch.mode === 'Online' 
-                                                        ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white' 
-                                                        : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                                                        ? 'bg-blue-600 text-white' 
+                                                        : 'bg-purple-600 text-white'
                                                 }`}>
                                                     {batch.mode}
                                                 </span>
@@ -751,23 +669,23 @@ const TeacherDashboardHomePage: React.FC = () => {
                         initial={{ opacity: 0, x: -50 }}
                         animate={activityInView ? { opacity: 1, x: 0 } : {}}
                         transition={{ duration: 1, delay: 0.2 }}
-                        className={`rounded-3xl shadow-2xl border backdrop-blur-sm overflow-hidden ${
+                        className={`rounded-2xl border shadow-sm overflow-hidden ${
                             theme === 'dark' 
-                                ? 'bg-gray-800/90 border-gray-700/50' 
-                                : 'bg-white/90 border-purple-200/50'
+                                ? 'bg-gray-800 border-gray-700' 
+                                : 'bg-white border-gray-200'
                         }`}
                     >
-                        <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-purple-200'}`}>
+                        <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center space-x-3">
-                                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+                                    <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center">
                                         <Bell className="w-5 h-5 text-white" />
                                     </div>
                                     <h3 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                                         Recent Notices
                                     </h3>
                                 </div>
-                                <Link to="notice" className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:underline">
+                                <Link to="notice" className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline">
                                     View All
                                 </Link>
                             </div>
@@ -785,7 +703,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                                             className={`p-4 rounded-xl border backdrop-blur-sm hover:shadow-lg transition-all duration-300 ${
                                                 theme === 'dark' 
                                                     ? 'bg-gray-700/50 border-gray-600/30' 
-                                                    : 'bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200/50'
+                                                    : 'bg-gray-50 border-gray-200'
                                             }`}
                                         >
                                             <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-2`}>
@@ -818,13 +736,13 @@ const TeacherDashboardHomePage: React.FC = () => {
                         initial={{ opacity: 0, x: 50 }}
                         animate={activityInView ? { opacity: 1, x: 0 } : {}}
                         transition={{ duration: 1, delay: 0.4 }}
-                        className={`rounded-3xl shadow-2xl border backdrop-blur-sm overflow-hidden ${
+                        className={`rounded-2xl border shadow-sm overflow-hidden ${
                             theme === 'dark' 
-                                ? 'bg-gray-800/90 border-gray-700/50' 
-                                : 'bg-white/90 border-purple-200/50'
+                                ? 'bg-gray-800 border-gray-700' 
+                                : 'bg-white border-gray-200'
                         }`}
                     >
-                        <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-purple-200'}`}>
+                        <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center space-x-3">
                                     <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center">
@@ -834,7 +752,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                                         Upcoming Events
                                     </h3>
                                 </div>
-                                <Link to="events" className="text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:underline">
+                                <Link to="events" className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline">
                                     View All
                                 </Link>
                             </div>
@@ -852,7 +770,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                                             className={`p-4 rounded-xl border backdrop-blur-sm hover:shadow-lg transition-all duration-300 ${
                                                 theme === 'dark' 
                                                     ? 'bg-gray-700/50 border-gray-600/30' 
-                                                    : 'bg-gradient-to-r from-emerald-50 to-cyan-50 border-emerald-200/50'
+                                                    : 'bg-gray-50 border-gray-200'
                                             }`}
                                         >
                                             <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-2`}>
