@@ -36,20 +36,17 @@
   <link rel="manifest" href="manifest.json">
 
   <!--
-    Self-heal: this app no longer uses a service worker (built with
-    --pwa-strategy=none). Unregister any old service worker + clear its caches so
-    devices that loaded an earlier, broken build stop being served a stale blank
-    page. Harmless once nothing is registered.
+    Register a minimal, non-caching service worker (see sw.js). Flutter's own
+    worker is disabled (build uses --pwa-strategy=none); this one exists only to
+    make the app installable in Chrome/Edge/Android. It never caches, and on
+    activation it deletes any caches left by a previous (Flutter default) worker,
+    so it also self-heals the earlier stale-blank problem.
   -->
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations()
-        .then(function (regs) { regs.forEach(function (r) { r.unregister(); }); })
-        .catch(function () {});
-      if (window.caches && caches.keys) {
-        caches.keys().then(function (keys) { keys.forEach(function (k) { caches.delete(k); }); })
-          .catch(function () {});
-      }
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js').catch(function () {});
+      });
     }
     // Remove the loading overlay once Flutter has painted its first frame.
     window.addEventListener('flutter-first-frame', function () {
@@ -80,44 +77,72 @@
   <div id="app-loading"><div class="spinner"></div><div>Loading Nadanaloga…</div></div>
   <script src="flutter_bootstrap.js" async></script>
 
-  <!-- "Add to Home Screen" hint. iOS has no programmatic install prompt, so on
-       iOS Safari (when not already installed) we show a dismissible instruction
-       bar. It sits above the Flutter canvas via a high z-index. -->
+  <!-- "Add to Home Screen" / Install hint. Sits above the Flutter canvas via a
+       high z-index. Two modes:
+        - Chrome/Edge/Android/desktop: a real one-tap Install button, driven by the
+          browser's beforeinstallprompt event.
+        - iOS (no programmatic prompt): an instruction to use Share > Add to Home Screen. -->
   <div id="a2hs" style="display:none;position:fixed;left:12px;right:12px;bottom:12px;z-index:2147483647;
        background:#4f46e5;color:#fff;border-radius:14px;padding:12px 14px;
        box-shadow:0 6px 24px rgba(0,0,0,.25);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
        align-items:center;gap:10px;">
     <span style="font-size:20px;">📲</span>
-    <span id="a2hs-text" style="flex:1;font-size:13px;line-height:1.35;">
-      Install the app: tap <b>Share</b> then <b>“Add to Home Screen”</b>.
-    </span>
+    <span id="a2hs-text" style="flex:1;font-size:13px;line-height:1.35;"></span>
+    <button id="a2hs-install" style="display:none;background:#fff;color:#4f46e5;border:0;border-radius:9px;
+       font-size:13px;font-weight:600;padding:7px 12px;">Install</button>
     <button id="a2hs-close" aria-label="Dismiss"
       style="background:transparent;border:0;color:#e0e7ff;font-size:20px;line-height:1;padding:2px 4px;">×</button>
   </div>
   <script>
     (function () {
       var bar = document.getElementById('a2hs');
+      var text = document.getElementById('a2hs-text');
+      var installBtn = document.getElementById('a2hs-install');
       var closeBtn = document.getElementById('a2hs-close');
       var ua = navigator.userAgent || '';
       var isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
-      var standalone = window.navigator.standalone === true ||
-        (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+      var firstFrame = false;
+      var deferredPrompt = null;
       var dismissed = false;
       try { dismissed = localStorage.getItem('a2hs_dismissed') === '1'; } catch (e) {}
 
-      // Only worth showing on iOS Safari, when not already installed, and only
-      // once the app has rendered (so it doesn't sit over the loading spinner).
-      if (isIOS && !standalone && !dismissed) {
-        window.addEventListener('flutter-first-frame', function () {
+      function isStandalone() {
+        return window.navigator.standalone === true ||
+          (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+      }
+      function maybeShow() {
+        if (dismissed || !firstFrame || isStandalone()) return;
+        if (deferredPrompt) {
+          // Chrome/Edge/Android/desktop: real one-tap install.
+          text.innerHTML = 'Install the Nadanaloga app for a full-screen experience.';
+          installBtn.style.display = 'inline-block';
           bar.style.display = 'flex';
-        });
+        } else if (isIOS) {
+          // iOS: no programmatic prompt — instruct the Share > Add to Home Screen flow.
+          text.innerHTML = 'Install the app: tap <b>Share</b> then <b>“Add to Home Screen”</b>.';
+          installBtn.style.display = 'none';
+          bar.style.display = 'flex';
+        }
       }
-      if (closeBtn) {
-        closeBtn.addEventListener('click', function () {
-          bar.style.display = 'none';
-          try { localStorage.setItem('a2hs_dismissed', '1'); } catch (e) {}
-        });
+      function hide(remember) {
+        bar.style.display = 'none';
+        if (remember) { try { localStorage.setItem('a2hs_dismissed', '1'); } catch (e) {} }
       }
+
+      window.addEventListener('flutter-first-frame', function () { firstFrame = true; maybeShow(); });
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();      // stop Chrome's default mini-infobar
+        deferredPrompt = e;      // save it to trigger on our button
+        maybeShow();
+      });
+      window.addEventListener('appinstalled', function () { hide(true); });
+
+      installBtn.addEventListener('click', function () {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.finally(function () { deferredPrompt = null; hide(false); });
+      });
+      closeBtn.addEventListener('click', function () { hide(true); });
     })();
   </script>
 </body>

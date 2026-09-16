@@ -1,11 +1,11 @@
 {
-    "name": "nadanaloga_mobile",
-    "short_name": "nadanaloga_mobile",
+    "name": "Nadanaloga Fine Arts Academy",
+    "short_name": "Nadanaloga",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#f9fafb",
+    "theme_color": "#4f46e5",
+    "description": "Nadanaloga Fine Arts Academy — classes, batches, fees and updates.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
