@@ -7,6 +7,7 @@ import '../../../config/theme/app_text_styles.dart';
 import '../../bloc/auth/auth_bloc.dart';
 import '../../bloc/auth/auth_event.dart';
 import '../../bloc/auth/auth_state.dart';
+import '../student/teaching_summary_screen.dart';
 
 class TeacherDashboardScreen extends StatelessWidget {
   const TeacherDashboardScreen({super.key});
@@ -54,34 +55,9 @@ class TeacherDashboardScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
 
-                  // Placeholder content
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.construction,
-                            size: 48,
-                            color: AppColors.teacherAccent.withOpacity(0.5),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Teacher Dashboard',
-                            style: AppTextStyles.h3,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'My batches, students, and schedule will appear here.',
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                  // Teaching at a glance: batches, timings and student counts —
+                  // the same summary the household home shows for a teacher.
+                  if (user != null) TeachingSummaryBody(teacherId: user.id),
 
                   // My Children — shown when this teacher is also a parent.
                   // One login surfaces every family profile; tapping a child

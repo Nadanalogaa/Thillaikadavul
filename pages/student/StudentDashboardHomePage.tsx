@@ -21,8 +21,8 @@ import {
   TrendingUp,
   Sparkles
 } from 'lucide-react';
-import type { User, Event, Notice, CourseTimingSlot, StudentEnrollment, Household, HouseholdFees } from '../../types';
-import { getFamilyStudents, getEvents, getNotices, getCourses, getStudentEnrollmentsForFamily, getHousehold, getHouseholdFees } from '../../api';
+import type { User, Event, Notice, CourseTimingSlot, StudentEnrollment, Household, HouseholdFees, Batch } from '../../types';
+import { getFamilyStudents, getEvents, getNotices, getCourses, getStudentEnrollmentsForFamily, getHousehold, getHouseholdFees, getBatches } from '../../api';
 import type { Course } from '../../types';
 import UnifiedNotificationBell from '../../components/UnifiedNotificationBell';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -78,6 +78,9 @@ const StudentDashboardHomePage: React.FC = () => {
     // Household home: every member under this phone number + this month's bill.
     const [household, setHousehold] = useState<Household | null>(null);
     const [fees, setFees] = useState<HouseholdFees | null>(null);
+    const [allBatches, setAllBatches] = useState<Batch[]>([]);
+    // Which household member is open: a student (via activeIdx) or the teacher.
+    const [teacherSelected, setTeacherSelected] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [activeIdx, setActiveIdx] = useState(0);
 
@@ -85,17 +88,21 @@ const StudentDashboardHomePage: React.FC = () => {
         const fetchData = async () => {
             try {
                 setIsLoading(true);
-                const [familyData, eventsData, noticesData, coursesData, householdData, feesData] = await Promise.all([
+                const [familyData, eventsData, noticesData, coursesData, householdData, feesData, batchesData] = await Promise.all([
                     getFamilyStudents(),
                     getEvents(5), // Limit to 5 recent events for dashboard
                     getNotices(5), // Limit to 5 recent notices for dashboard
                     getCourses(),
                     getHousehold(),
                     getHouseholdFees(),
+                    getBatches(), // for the teacher member's teaching view
                 ]);
                 setFamily(familyData);
                 setHousehold(householdData);
                 setFees(feesData);
+                setAllBatches(batchesData || []);
+                // Open the teacher's view by default only when there's no student to show.
+                setTeacherSelected(familyData.length === 0 && !!householdData?.teacher);
                 setRecentEvents(eventsData.slice(0, 3));
                 setRecentNotices(noticesData.slice(0, 3));
                 setCourses(coursesData);
@@ -144,6 +151,18 @@ const StudentDashboardHomePage: React.FC = () => {
         );
     }
 
+    // Teaching view (when the household's teacher is selected): her batches,
+    // timings and student counts — the same batch data the teacher dashboard uses.
+    const teacherMember = household?.teacher || null;
+    const teachingBatches = teacherMember
+        ? allBatches.filter(b => {
+            const tid = typeof b.teacherId === 'string' ? b.teacherId : (b.teacherId as any)?.id;
+            return String(tid) === String(teacherMember.id);
+        })
+        : [];
+    const batchStudentIds = (b: Batch) => new Set((b.schedule || []).flatMap(s => s.studentIds || []));
+    const totalTeachingStudents = new Set(teachingBatches.flatMap(b => Array.from(batchStudentIds(b)))).size;
+
     const currentStudent = family[activeIdx];
     const studentEnrollments = enrollments.get(currentStudent?.id) || [];
     const studentName = currentStudent?.name || `Student ${activeIdx + 1}`;
@@ -183,21 +202,37 @@ const StudentDashboardHomePage: React.FC = () => {
                       <div className="flex gap-3 overflow-x-auto pb-1">
                         {household.members.map(m => {
                           const isTeacher = m.role === 'Teacher';
+                          const idx = family.findIndex(f => String(f.id) === String(m.id));
+                          // The cards ARE the selector: the open member is highlighted and
+                          // the section below switches to that member's view by role.
+                          const selected = isTeacher
+                            ? teacherSelected
+                            : (!teacherSelected && idx >= 0 && idx === activeIdx);
                           const subtitle = isTeacher
                             ? `Teaching${m.course_expertise?.length ? ' · ' + m.course_expertise.join(', ') : ''}`
                             : `${m.kind === 'child' ? 'Child' : 'Student'}${m.courses?.length ? ' · ' + m.courses.join(', ') : ''}`;
-                          const card = (
-                            <div className={`min-w-[160px] p-3 rounded-xl border text-left ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-                              <div className="w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center font-semibold mb-2">
+                          return (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => {
+                                if (isTeacher) { setTeacherSelected(true); return; }
+                                setTeacherSelected(false);
+                                if (idx >= 0) setActiveIdx(idx);
+                              }}
+                              className={`min-w-[160px] p-3 rounded-xl border text-left transition-colors ${
+                                selected
+                                  ? 'border-indigo-500 ring-2 ring-indigo-500/30 ' + (theme === 'dark' ? 'bg-indigo-900/20' : 'bg-indigo-50')
+                                  : (theme === 'dark' ? 'bg-gray-800 border-gray-700 hover:bg-gray-700/60' : 'bg-white border-gray-200 hover:bg-gray-50')
+                              }`}
+                            >
+                              <div className={`w-9 h-9 rounded-full flex items-center justify-center font-semibold mb-2 text-white ${isTeacher ? 'bg-emerald-600' : 'bg-indigo-600'}`}>
                                 {(m.name || '?').charAt(0).toUpperCase()}
                               </div>
                               <p className={`font-semibold text-sm truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{m.name}</p>
                               <p className={`text-xs truncate ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{subtitle}</p>
-                            </div>
+                            </button>
                           );
-                          if (isTeacher) return <Link key={m.id} to="/dashboard/teacher">{card}</Link>;
-                          const idx = family.findIndex(f => String(f.id) === String(m.id));
-                          return <button key={m.id} type="button" onClick={() => { if (idx >= 0) setActiveIdx(idx); }}>{card}</button>;
                         })}
                       </div>
                     )}
@@ -246,7 +281,8 @@ const StudentDashboardHomePage: React.FC = () => {
                   </section>
                 )}
 
-                {/* Professional Stats Cards */}
+                {/* Professional Stats Cards — student view only */}
+                {!teacherSelected && (
                 <motion.section
                     ref={statsRef}
                     className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 mb-4 sm:mb-6"
@@ -322,6 +358,7 @@ const StudentDashboardHomePage: React.FC = () => {
                         </motion.div>
                     ))}
                 </motion.section>
+                )}
 
                 {/* Student Tabs Section */}
                 <section
@@ -341,10 +378,14 @@ const StudentDashboardHomePage: React.FC = () => {
                                 </div>
                                 <div>
                                     <h2 className={`text-lg sm:text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                                        {family.length > 1 ? `Family Students (${family.length})` : 'My Learning Journey'}
+                                        {teacherSelected && teacherMember
+                                            ? `${teacherMember.name}'s Teaching`
+                                            : `${studentName}'s Learning Journey`}
                                     </h2>
                                     <p className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                                        {family.length > 1 ? "Manage your family's learning journey" : 'Your courses, schedule and progress'}
+                                        {teacherSelected && teacherMember
+                                            ? 'Batches, timings and students'
+                                            : 'Courses, schedule and progress'}
                                     </p>
                                 </div>
                             </div>
@@ -359,55 +400,63 @@ const StudentDashboardHomePage: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Student Navigation Tabs — only when there's more than one family member */}
-                    {family.length > 1 && (
-                    <div className={`px-3 sm:px-6 py-3 border-b ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
-                        <div className="flex space-x-1.5 sm:space-x-2 overflow-x-auto pb-1">
-                            {family.map((student, idx) => {
-                                const active = idx === activeIdx;
-                                const name = student.name || `Student ${idx + 1}`;
-                                return (
-                                    <button
-                                        key={student.id}
-                                        className={`flex items-center space-x-2 sm:space-x-3 px-3 sm:px-5 py-2 rounded-lg transition-colors whitespace-nowrap text-sm font-semibold min-w-fit ${
-                                            active
-                                                ? 'bg-indigo-600 text-white'
-                                                : theme === 'dark'
-                                                    ? 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
-                                                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-                                        }`}
-                                        onClick={() => setActiveIdx(idx)}
-                                    >
-                                        <div className="relative">
-                                            <img
-                                                src={student.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${active ? 'fff' : '7B61FF'}&color=${active ? '7B61FF' : 'fff'}`}
-                                                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover shadow-md"
-                                                alt={name}
-                                            />
-                                            {active && (
-                                                <div className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 w-3 h-3 sm:w-4 sm:h-4 bg-green-400 border-2 border-white rounded-full"></div>
-                                            )}
-                                        </div>
-                                        <span className="hidden sm:inline">{name}</span>
-                                        <span className="sm:hidden">{name.split(' ')[0]}</span>
-                                        {active && <Star className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-300" fill="currentColor" />}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-                    )}
 
                     {/* Student Content */}
                     <AnimatePresence mode="wait">
                         <motion.div
-                            key={activeIdx}
+                            key={teacherSelected ? 'teaching' : activeIdx}
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.2 }}
                             className="p-3 sm:p-6"
                         >
+                            {teacherSelected && teacherMember ? (
+                                /* Teaching view: the selected teacher's batches, timings and student counts. */
+                                <div>
+                                    <div className="flex flex-wrap items-center gap-2 mb-4">
+                                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${theme === 'dark' ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-700'}`}>
+                                            {teachingBatches.length} {teachingBatches.length === 1 ? 'batch' : 'batches'}
+                                        </span>
+                                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${theme === 'dark' ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-700'}`}>
+                                            {totalTeachingStudents} {totalTeachingStudents === 1 ? 'student' : 'students'}
+                                        </span>
+                                        <Link to="/dashboard/teacher" className="ml-auto text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline">
+                                            Open teaching dashboard →
+                                        </Link>
+                                    </div>
+                                    {teachingBatches.length === 0 ? (
+                                        <div className={`text-center py-10 rounded-2xl border-2 border-dashed ${theme === 'dark' ? 'border-gray-700 text-gray-400' : 'border-gray-200 text-gray-500'}`}>
+                                            No batches assigned yet.
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {teachingBatches.map(b => (
+                                                <div key={b.id} className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <div className="min-w-0">
+                                                            <p className={`font-semibold truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{b.name}</p>
+                                                            <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{b.courseName}{b.mode ? ` · ${b.mode}` : ''}</p>
+                                                        </div>
+                                                        <span className={`shrink-0 text-xs font-semibold px-2 py-1 rounded-full ${theme === 'dark' ? 'bg-indigo-900/40 text-indigo-300' : 'bg-indigo-50 text-indigo-700'}`}>
+                                                            {batchStudentIds(b).size} students
+                                                        </span>
+                                                    </div>
+                                                    <ul className="mt-3 space-y-1">
+                                                        {(b.schedule || []).map((s, i) => (
+                                                            <li key={i} className={`text-sm flex items-center gap-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                                                                <Clock className="w-4 h-4 text-indigo-500 shrink-0" />
+                                                                <span>{s.timing || `${(s as any).day || ''}${(s as any).timeSlot ? ': ' + (s as any).timeSlot : ''}`}</span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                            <>
                             {/* Student Header - Hidden on mobile */}
                             <div className="hidden md:flex items-center space-x-4 mb-6">
                                 <div className="relative">
@@ -635,6 +684,8 @@ const StudentDashboardHomePage: React.FC = () => {
                                     </Link>
                                 ))}
                             </div>
+                            </>
+                            )}
                         </motion.div>
                     </AnimatePresence>
                 </section>

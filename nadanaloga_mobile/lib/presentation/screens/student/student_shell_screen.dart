@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import 'teaching_summary_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -146,8 +148,11 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
         final profiles = user?.profiles ?? const <ProfileModel>[];
         final householdStudents =
             profiles.where((p) => p.role == 'Student').toList();
-        final hasTeacherRole =
-            profiles.any((p) => p.role == 'Teacher' && !p.isChild);
+        final teacherMatches =
+            profiles.where((p) => p.role == 'Teacher' && !p.isChild).toList();
+        final ProfileModel? teacherProfile =
+            teacherMatches.isEmpty ? null : teacherMatches.first;
+        final hasTeacherRole = teacherProfile != null;
         // Legacy parent_id children — still what the "Add student" action uses.
         final students = user?.students ?? [];
         final hasChildren = students.isNotEmpty;
@@ -262,7 +267,14 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
                               selected: isSelected,
                               onSelected: (_) {
                                 if (isTeachingChip) {
-                                  context.go('/teacher');
+                                  // Push (not go) so Back returns to the family view.
+                                  // This chip only exists when hasTeacherRole, i.e.
+                                  // teacherProfile is non-null (the analyzer agrees).
+                                  final t = teacherProfile;
+                                  Navigator.of(context).push(MaterialPageRoute(
+                                    builder: (_) => TeachingSummaryScreen(
+                                        teacherId: t.id, teacherName: t.name),
+                                  ));
                                   return;
                                 }
                                 if (!isSelected) {

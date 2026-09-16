@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 
 import 'household_fees_screen.dart';
+import 'teaching_summary_screen.dart';
 
 import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
@@ -110,7 +111,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       borderRadius: BorderRadius.circular(12),
       onTap: () {
         if (isTeacher) {
-          context.go('/teacher');
+          // Push (not go) so Back returns to the family view.
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) =>
+                TeachingSummaryScreen(teacherId: id, teacherName: name),
+          ));
           return;
         }
         context.go('/student', extra: {
