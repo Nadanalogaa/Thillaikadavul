@@ -80,6 +80,8 @@ class ApiEndpoints {
   static String invoiceById(int id) => '$apiPrefix/invoices/$id';
   static String invoicePaymentProof(int id) => '$apiPrefix/invoices/$id/payment-proof';
   static const String familyFeeSummary = '$apiPrefix/parent/fee-summary';
+  // Household students (teacher role excluded) — the "Students Profile" list.
+  static const String family = '$apiPrefix/family';
   // Household (one phone number = one household): members + this month's bill.
   static const String household = '$apiPrefix/household';
   static const String householdFees = '$apiPrefix/household/fees';

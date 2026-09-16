@@ -205,7 +205,7 @@ const StudentDashboardHomePage: React.FC = () => {
                 {(household || fees) && (
                   <section className="mb-4 sm:mb-6 space-y-4">
                     {household && household.members.length > 1 && (
-                      <div className="flex gap-3 overflow-x-auto pb-1">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                         {household.members.map(m => {
                           const isTeacher = m.role === 'Teacher';
                           const idx = family.findIndex(f => String(f.id) === String(m.id));
@@ -226,7 +226,7 @@ const StudentDashboardHomePage: React.FC = () => {
                                 setTeacherSelected(false);
                                 if (idx >= 0) setActiveIdx(idx);
                               }}
-                              className={`min-w-[160px] p-3 rounded-xl border text-left transition-colors ${
+                              className={`w-full p-3 rounded-xl border text-left transition-colors ${
                                 selected
                                   ? 'border-indigo-500 ring-2 ring-indigo-500/30 ' + (theme === 'dark' ? 'bg-indigo-900/20' : 'bg-indigo-50')
                                   : (theme === 'dark' ? 'bg-gray-800 border-gray-700 hover:bg-gray-700/60' : 'bg-white border-gray-200 hover:bg-gray-50')

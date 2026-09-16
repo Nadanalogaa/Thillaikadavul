@@ -22,9 +22,10 @@ class StudentBatchesScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        // No automaticallyImplyLeading:false — this screen is now PUSHED from the
+        // More menu and needs its back button.
         title: const Text('My Batches'),
         backgroundColor: AppColors.studentAccent,
-        automaticallyImplyLeading: false,
       ),
       body: RefreshIndicator(
         onRefresh: () async => onRefresh(),

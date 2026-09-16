@@ -22,8 +22,8 @@ import {
     Palette,
     Calculator
 } from 'lucide-react';
-import type { User, Event, Notice, Batch } from '../../types';
-import { getEvents, getNotices, getBatches, getUsersByIds } from '../../api';
+import type { User, Event, Notice, Batch, HouseholdFees } from '../../types';
+import { getEvents, getNotices, getBatches, getUsersByIds, getHouseholdFees } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
 import TeacherLoader from '../../components/TeacherLoader';
 
@@ -72,6 +72,8 @@ const TeacherDashboardHomePage: React.FC = () => {
     const [recentEvents, setRecentEvents] = useState<Event[]>([]);
     const [recentNotices, setRecentNotices] = useState<Notice[]>([]);
     const [teacherBatches, setTeacherBatches] = useState<Batch[]>([]);
+    // Household fees (this teacher's children), for the Airtel-style bill card.
+    const [fees, setFees] = useState<HouseholdFees | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -87,11 +89,13 @@ const TeacherDashboardHomePage: React.FC = () => {
                 
                 console.log('Loading dashboard data for teacher:', user.name);
                 
-                const [eventsData, noticesData, batchesData] = await Promise.all([
+                const [eventsData, noticesData, batchesData, feesData] = await Promise.all([
                     getEvents(5), // Limit to 5 recent events for dashboard
                     getNotices(5), // Limit to 5 recent notices for dashboard
                     getBatches(),
+                    getHouseholdFees(), // this teacher's household bill (her children)
                 ]);
+                setFees(feesData);
 
                 // Calculate stats using the current user data
                 const filteredTeacherBatches = batchesData.filter(b => {
@@ -203,6 +207,50 @@ const TeacherDashboardHomePage: React.FC = () => {
 
             {/* Main Content */}
             <div className="px-6 pb-6">
+
+                {/* Household fees — the teacher's children (Airtel-style bill card) */}
+                {fees && (() => {
+                    const title = !fees.has_bill
+                        ? `No fees generated for ${fees.period} yet`
+                        : fees.all_paid ? `Paid for ${fees.period} ✓` : `Your family's fees for ${fees.period}`;
+                    const amount = fees.all_paid ? fees.total_paid : fees.total_due;
+                    return (
+                        <div className={`mb-4 sm:mb-6 p-4 rounded-2xl border ${fees.all_paid
+                            ? (theme === 'dark' ? 'bg-emerald-900/20 border-emerald-800' : 'bg-emerald-50 border-emerald-200')
+                            : (theme === 'dark' ? 'bg-indigo-900/20 border-indigo-800' : 'bg-indigo-50 border-indigo-200')}`}>
+                            <p className={`text-sm font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{title}</p>
+                            {fees.has_bill && (
+                                <>
+                                    <p className={`text-3xl font-bold mt-1 ${fees.all_paid ? 'text-emerald-600 dark:text-emerald-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                                        ₹{Math.round(amount).toLocaleString()}
+                                    </p>
+                                    {!fees.all_paid && fees.due_date && (
+                                        <p className={`text-xs mt-0.5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                                            Due by {new Date(fees.due_date).toLocaleDateString()}
+                                        </p>
+                                    )}
+                                    {fees.students.length > 1 && (
+                                        <ul className="mt-3 space-y-1">
+                                            {fees.students.map(s => (
+                                                <li key={s.student_id} className={`flex justify-between text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                                                    <span>{s.student_name}</span>
+                                                    <span className="font-medium">
+                                                        ₹{Math.round(fees.all_paid ? s.month_paid : s.month_due).toLocaleString()}{fees.all_paid ? ' paid' : ' due'}
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                    {!fees.all_paid && (
+                                        <Link to="fees" className="inline-flex items-center mt-4 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold">
+                                            Pay now
+                                        </Link>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    );
+                })()}
 
                 {/* Professional Stats Cards */}
                 <motion.section

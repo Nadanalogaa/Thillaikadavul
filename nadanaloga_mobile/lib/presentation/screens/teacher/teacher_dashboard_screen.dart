@@ -8,6 +8,7 @@ import '../../bloc/auth/auth_bloc.dart';
 import '../../bloc/auth/auth_event.dart';
 import '../../bloc/auth/auth_state.dart';
 import '../student/teaching_summary_screen.dart';
+import '../student/household_fees_screen.dart';
 
 class TeacherDashboardScreen extends StatelessWidget {
   const TeacherDashboardScreen({super.key});
@@ -58,6 +59,36 @@ class TeacherDashboardScreen extends StatelessWidget {
                   // Teaching at a glance: batches, timings and student counts —
                   // the same summary the household home shows for a teacher.
                   if (user != null) TeachingSummaryBody(teacherId: user.id),
+
+                  // Fees — a teacher is often also a parent, so she needs the
+                  // household bill (her children) here too, same as the web
+                  // teacher menu. Teachers don't pay their own fees.
+                  const SizedBox(height: 8),
+                  Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      side: BorderSide(
+                          color: AppColors.teacherAccent.withValues(alpha: 0.15)),
+                    ),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor:
+                            AppColors.teacherAccent.withValues(alpha: 0.12),
+                        child: const Icon(Icons.payments_outlined,
+                            color: AppColors.teacherAccent),
+                      ),
+                      title: Text('Fees', style: AppTextStyles.labelLarge),
+                      subtitle: Text('Your family\'s fees and payments',
+                          style: AppTextStyles.caption
+                              .copyWith(color: AppColors.textSecondary)),
+                      trailing: const Icon(Icons.chevron_right,
+                          color: AppColors.textSecondary),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) => const HouseholdFeesScreen()),
+                      ),
+                    ),
+                  ),
 
                   // My Children — shown when this teacher is also a parent.
                   // One login surfaces every family profile; tapping a child

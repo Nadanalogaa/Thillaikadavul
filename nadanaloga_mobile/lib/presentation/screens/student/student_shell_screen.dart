@@ -18,6 +18,12 @@ import '../../bloc/auth/auth_state.dart';
 import 'student_dashboard_screen.dart';
 import 'student_profile_screen.dart';
 import 'student_batches_screen.dart';
+import 'student_courses_screen.dart';
+import 'students_profile_screen.dart';
+import 'events_list_screen.dart';
+import 'notices_list_screen.dart';
+import 'book_materials_list_screen.dart';
+import 'grade_exams_list_screen.dart';
 import 'student_change_password_screen.dart';
 import 'student_fees_screen.dart';
 
@@ -336,13 +342,14 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
                       onOpenFees: (invoiceId) {
                         setState(() {
                           _pendingFeeInvoiceId = invoiceId;
-                          _currentIndex = 3;
+                          _currentIndex = 2; // Fees tab
                         });
                       },
                     ),
-                    const StudentProfileScreen(),
-                    StudentBatchesScreen(
+                    StudentCoursesScreen(
+                      registered: currentStudent?.courses ?? const [],
                       batches: _batches,
+                      courses: _courses,
                       isLoading: _isLoading,
                       onRefresh: _loadStudentData,
                     ),
@@ -352,12 +359,19 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
                       onRefresh: _loadStudentData,
                       initialInvoiceToPay: _pendingFeeInvoiceId,
                     ),
-                    _StudentMoreMenuScreen(user: user),
+                    _StudentMoreMenuScreen(
+                      user: user,
+                      studentId: currentStudentId,
+                      batches: _batches,
+                      isLoading: _isLoading,
+                      onRefresh: _loadStudentData,
+                    ),
                   ],
                 ),
               ),
             ],
           ),
+          // Four simple tabs; every other web menu lives under "More".
           bottomNavigationBar: NavigationBar(
             selectedIndex: _currentIndex,
             onDestinationSelected: (index) {
@@ -370,14 +384,9 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
                 label: 'Dashboard',
               ),
               NavigationDestination(
-                icon: Icon(Icons.person_outlined),
-                selectedIcon: Icon(Icons.person),
-                label: 'Profile',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.group_work_outlined),
-                selectedIcon: Icon(Icons.group_work),
-                label: 'Batches',
+                icon: Icon(Icons.menu_book_outlined),
+                selectedIcon: Icon(Icons.menu_book),
+                label: 'Courses',
               ),
               NavigationDestination(
                 icon: Icon(Icons.payments_outlined),
@@ -399,14 +408,88 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
 
 class _StudentMoreMenuScreen extends StatelessWidget {
   final dynamic user;
+  final int? studentId;
+  final List<BatchModel> batches;
+  final bool isLoading;
+  final VoidCallback onRefresh;
 
-  const _StudentMoreMenuScreen({this.user});
+  const _StudentMoreMenuScreen({
+    this.user,
+    this.studentId,
+    this.batches = const [],
+    this.isLoading = false,
+    required this.onRefresh,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // Only real, working destinations. Courses/Events/Notices/Materials/Exams
-    // are shown inline on the dashboard, so they don't belong here as well.
+    // Every web menu that isn't a bottom tab, in the same order as the web
+    // sidebar, so both surfaces offer the same things in the same place.
     final menuItems = <_MenuItem>[
+      _MenuItem(
+        icon: Icons.people_outline,
+        title: 'Students Profile',
+        subtitle: 'Everyone in your family',
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const StudentsProfileScreen()),
+        ),
+      ),
+      _MenuItem(
+        icon: Icons.quiz_outlined,
+        title: 'Grade Exams',
+        subtitle: 'Exams and syllabus',
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+              builder: (_) => GradeExamsListScreen(studentId: studentId)),
+        ),
+      ),
+      _MenuItem(
+        icon: Icons.auto_stories_outlined,
+        title: 'Book Materials',
+        subtitle: 'Study materials',
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+              builder: (_) => BookMaterialsListScreen(studentId: studentId)),
+        ),
+      ),
+      _MenuItem(
+        icon: Icons.event_outlined,
+        title: 'Events',
+        subtitle: 'Upcoming events',
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const EventsListScreen()),
+        ),
+      ),
+      _MenuItem(
+        icon: Icons.campaign_outlined,
+        title: 'Notice',
+        subtitle: 'Announcements',
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const NoticesListScreen()),
+        ),
+      ),
+      _MenuItem(
+        icon: Icons.group_work_outlined,
+        title: 'Batches',
+        subtitle: 'Your batches and schedule',
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => StudentBatchesScreen(
+              batches: batches,
+              isLoading: isLoading,
+              onRefresh: onRefresh,
+            ),
+          ),
+        ),
+      ),
+      _MenuItem(
+        icon: Icons.person_outline,
+        title: 'Profile',
+        subtitle: 'Your account details',
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const StudentProfileScreen()),
+        ),
+      ),
       _MenuItem(
         icon: Icons.notifications_outlined,
         title: 'Notifications',

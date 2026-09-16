@@ -58,9 +58,10 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
 
         return Scaffold(
           appBar: AppBar(
+            // No automaticallyImplyLeading:false — this screen is now PUSHED from
+            // the More menu and needs its back button.
             title: const Text('Profile'),
             backgroundColor: AppColors.studentAccent,
-            automaticallyImplyLeading: false,
           ),
           body: user == null
               ? const Center(child: CircularProgressIndicator())

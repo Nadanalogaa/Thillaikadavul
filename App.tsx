@@ -343,6 +343,8 @@ function App() {
               <Route path="events" element={<TeacherEventsPage />} />
               <Route path="notice" element={<TeacherNoticesPage />} />
               <Route path="payment-history" element={<TeacherPaymentHistoryPage />} />
+              {/* Household fees (the teacher's children) — same drilldown + pay as students. */}
+              <Route path="fees" element={<PaymentHistoryPage />} />
             </Route>
 
           </Routes>

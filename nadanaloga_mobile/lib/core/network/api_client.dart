@@ -196,6 +196,11 @@ class ApiClient {
     return _dio.get(ApiEndpoints.familyFeeSummary);
   }
 
+  /// Household STUDENTS (teacher role excluded) — the "Students Profile" list.
+  Future<Response> getFamily() {
+    return _dio.get(ApiEndpoints.family);
+  }
+
   /// Household home: every member under this phone (students + teacher role).
   Future<Response> getHousehold() {
     return _dio.get(ApiEndpoints.household);
