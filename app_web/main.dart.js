@@ -119479,7 +119479,7 @@ if(s instanceof A.fH&&q)return A.bJ4(s.a.e)
 return null},
 $S:766}
 A.Db.prototype={
-and(){var s="application/json",r=A.bJ8("https://www.nadanaloga.com",B.oE,A.ag(["Content-Type",s,"Accept",s],t.N,t.z),B.oE,B.oE,new A.aok()),q=new A.a3v(A.b([B.Ou],t.i6))
+and(){var s="application/json",r=A.bJ8("",B.oE,A.ag(["Content-Type",s,"Accept",s],t.N,t.z),B.oE,B.oE,new A.aok()),q=new A.a3v(A.b([B.Ou],t.i6))
 q.E(q,B.a6K)
 q=new A.au5($,q,$,new A.ayV(51200),!1)
 q.aaZ$=r
@@ -127582,7 +127582,7 @@ case 2:return A.n(o.at(-1),r)}})
 return A.p($async$In,r)},
 atT(a){if(a==null||a.length===0)return""
 if(B.c.bt(a,"http"))return a
-return"https://www.nadanaloga.com"+a},
+return a},
 B(a){var s,r=this,q=null,p=A.cu(A.b([A.cF(q,q,q,B.YJ,q,q,r.gaAR(),q,q,q,q)],t.p),q,q,!0,!0,q,q,1,q,q,q,!1,q,!1,q,q,q,q,!0,q,q,q,q,q,B.anS,q,q,q,1,q,!0)
 if(r.d)s=B.ad
 else{s=r.e.length

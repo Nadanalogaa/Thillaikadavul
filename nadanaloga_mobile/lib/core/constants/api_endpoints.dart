@@ -1,8 +1,15 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 class ApiEndpoints {
   ApiEndpoints._();
 
-  // Base URL - change for production
-  static const String baseUrl = 'https://www.nadanaloga.com';
+  // Base URL.
+  // - Native (Android/iOS): absolute production URL.
+  // - Web: empty so requests are SAME-ORIGIN relative to whatever host served
+  //   the page (nadanaloga.com or www.nadanaloga.com). This avoids CORS and
+  //   ensures the session cookie is sent — a hardcoded host would be cross-origin
+  //   when the page is opened on the other host and every call would fail with a
+  //   "connection error". kIsWeb is a compile-time constant, so this stays const.
+  static const String baseUrl = kIsWeb ? '' : 'https://www.nadanaloga.com';
   static const String apiPrefix = '/api';
 
   // Auth
