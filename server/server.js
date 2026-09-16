@@ -375,6 +375,17 @@ async function startServer() {
                 console.error('[DB] ✗ Failed to create password_reset_otps table:', error.message);
             }
 
+            // First-login flag: everyone on the shared default password is asked to
+            // set their own on first login. Adding the column defaults existing rows
+            // to TRUE; admins are cleared (they set their own passwords).
+            try {
+                await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT true`);
+                await client.query(`UPDATE users SET must_change_password = false WHERE (LOWER(role) = 'admin' OR is_super_admin = true) AND must_change_password IS DISTINCT FROM false`);
+                console.log('[DB] ✓ Ensured users.must_change_password column exists');
+            } catch (error) {
+                console.error('[DB] ✗ Failed to add must_change_password column:', error.message);
+            }
+
             // Invoice course/grade/batch ids for clean course/batch/grade filtering.
             try {
                 await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS course_id INTEGER`);
@@ -2852,12 +2863,32 @@ Please review and approve this registration in the admin panel.`;
             }
 
             const hashedPassword = await bcrypt.hash(new_password, 10);
-            await pool.query('UPDATE users SET password = $1, updated_at = NOW() WHERE id = $2', [hashedPassword, id]);
+            await pool.query('UPDATE users SET password = $1, must_change_password = false, updated_at = NOW() WHERE id = $2', [hashedPassword, id]);
 
             res.json({ message: 'Password changed successfully.' });
         } catch (error) {
             console.error('Error changing password:', error);
             res.status(500).json({ message: 'Server error changing password.' });
+        }
+    });
+
+    // First-login: the signed-in user sets a new password (no current password
+    // needed — they just authenticated). Clears the must_change_password flag.
+    app.post('/api/set-password', ensureAuthenticated, async (req, res) => {
+        try {
+            const { new_password } = req.body;
+            const userId = req.session.user && req.session.user.id;
+            if (!userId) return res.status(401).json({ message: 'Not signed in.' });
+            if (!new_password || String(new_password).length < 6) {
+                return res.status(400).json({ message: 'Password must be at least 6 characters.' });
+            }
+            const hashed = await bcrypt.hash(new_password, 10);
+            await pool.query('UPDATE users SET password = $1, must_change_password = false, updated_at = NOW() WHERE id = $2', [hashed, userId]);
+            if (req.session.user) req.session.user.must_change_password = false;
+            res.json({ success: true, message: 'Password set. You are all set!' });
+        } catch (error) {
+            console.error('Error setting password:', error);
+            res.status(500).json({ message: 'Server error setting password.' });
         }
     });
 
