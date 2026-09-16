@@ -12,6 +12,7 @@ import ContactPage from './pages/ContactPage';
 import CoursesPage from './pages/CoursesPage';
 import Modal from './components/Modal';
 import LoginForm from './components/LoginForm';
+import ForgotPasswordModal from './components/ForgotPasswordModal';
 import RegisterPage from './pages/RegisterPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminLoginPage from './pages/AdminLoginPage';
@@ -96,6 +97,7 @@ const TeacherContentPlaceholder = ({ title }: { title: string }) => (
 
 function App() {
   const [isLoginModalOpen, setLoginModalOpen] = useState(false);
+  const [isForgotOpen, setForgotOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loginEmail, setLoginEmail] = useState('');
@@ -139,7 +141,7 @@ function App() {
   };
 
   const handleForgotPassword = () => {
-    alert('Password reset functionality is not yet implemented. Please contact support.');
+    setForgotOpen(true);
   };
 
   const handleLogout = async () => {
@@ -344,12 +346,14 @@ function App() {
         {!isAdminRoute && <WhatsAppButton />}
 
         <Modal isOpen={isLoginModalOpen} onClose={closeLoginModal}>
-          <LoginForm 
-            onSuccess={handleLoginSuccess} 
-            initialEmail={loginEmail} 
+          <LoginForm
+            onSuccess={handleLoginSuccess}
+            initialEmail={loginEmail}
             onForgotPassword={handleForgotPassword}
           />
         </Modal>
+
+        <ForgotPasswordModal isOpen={isForgotOpen} onClose={() => setForgotOpen(false)} initialIdentifier={loginEmail} />
       </div>
     </ThemeProvider>
   );

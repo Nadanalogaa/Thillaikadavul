@@ -115,6 +115,7 @@ export const loginUser = async (email: string, password: string): Promise<User> 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: normalizedEmail,
+        identifier: email.trim(), // phone / NDA-id preserved (not lowercased)
         password: password
       })
     });
@@ -122,7 +123,7 @@ export const loginUser = async (email: string, password: string): Promise<User> 
     if (!response.ok) {
       const errorData = await response.json();
       console.error('Login error:', errorData);
-      throw new Error(errorData.message || 'Invalid email or password.');
+      throw new Error(errorData.message || 'Invalid phone/email or password.');
     }
 
     const user = await response.json();
@@ -300,6 +301,26 @@ export const logout = async (): Promise<void> => {
     localStorage.removeItem('currentUser');
   }
   console.log('User logged out');
+};
+
+export const forgotPassword = async (identifier: string): Promise<{ success: boolean; message: string; emailHint?: string | null }> => {
+  const res = await fetch('/api/forgot-password', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message || 'Could not send reset code.');
+  return data;
+};
+
+export const resetPassword = async (identifier: string, otp: string, password: string): Promise<{ success: boolean; message: string }> => {
+  const res = await fetch('/api/reset-password', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier, otp, password }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message || 'Could not reset password.');
+  return data;
 };
 
 export const getCourses = async (): Promise<Course[]> => {

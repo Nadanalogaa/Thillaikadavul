@@ -30,7 +30,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, initialEmail, onForgot
     setError(null);
 
     if (!email || !password) {
-      setError('Please enter both email and password.');
+      setError('Please enter your phone number (or email) and password.');
       setIsLoading(false);
       return;
     }
@@ -62,13 +62,14 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, initialEmail, onForgot
           <label htmlFor="login-email" className={`block text-sm font-medium ${
             theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
           }`}>
-            Email Address
+            Phone number, Email, or ID
           </label>
           <input
-            type="email"
+            type="text"
             id="login-email"
-            name="email"
-            autoComplete="email"
+            name="identifier"
+            autoComplete="username"
+            placeholder="Phone number / Email / NDA-ID"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
