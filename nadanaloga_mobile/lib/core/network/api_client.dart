@@ -71,6 +71,19 @@ class ApiClient {
     return _dio.post(ApiEndpoints.register, data: userData);
   }
 
+  Future<Response> forgotPassword(String identifier) {
+    return _dio.post('/api/forgot-password', data: {'identifier': identifier});
+  }
+
+  Future<Response> resetPassword({
+    required String identifier,
+    required String otp,
+    required String password,
+  }) {
+    return _dio.post('/api/reset-password',
+        data: {'identifier': identifier, 'otp': otp, 'password': password});
+  }
+
   Future<Response> logout() {
     return _dio.post(ApiEndpoints.logout);
   }
