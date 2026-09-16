@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:cookie_jar/cookie_jar.dart';
@@ -35,16 +36,24 @@ class ApiClient {
   Future<void> init() async {
     if (_initialized) return;
 
-    // Setup persistent cookie jar for session management
-    final dir = await getApplicationDocumentsDirectory();
-    _cookieJar = PersistCookieJar(
-      storage: FileStorage('${dir.path}/.cookies/'),
-    );
-
-    _dio.interceptors.addAll([
-      CookieManager(_cookieJar),
-      LoggingInterceptor(),
-    ]);
+    if (kIsWeb) {
+      // On web the browser manages same-origin session cookies automatically,
+      // and path_provider (file storage) isn't available. Use an in-memory jar
+      // and skip the manual cookie interceptor — browsers forbid setting the
+      // Cookie header from JS, so it's redundant and would otherwise crash init.
+      _cookieJar = CookieJar();
+      _dio.interceptors.add(LoggingInterceptor());
+    } else {
+      // Native: persist the session cookie across app restarts.
+      final dir = await getApplicationDocumentsDirectory();
+      _cookieJar = PersistCookieJar(
+        storage: FileStorage('${dir.path}/.cookies/'),
+      );
+      _dio.interceptors.addAll([
+        CookieManager(_cookieJar),
+        LoggingInterceptor(),
+      ]);
+    }
 
     _initialized = true;
   }

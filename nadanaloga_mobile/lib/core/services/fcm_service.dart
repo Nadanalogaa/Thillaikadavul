@@ -6,7 +6,10 @@ import '../network/api_client.dart';
 /// Service to handle FCM push notifications
 class FcmService {
   final ApiClient _apiClient;
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  // Lazy getter, not a field: on web Firebase isn't initialized, and touching
+  // FirebaseMessaging.instance at construction would throw. Accessing it only
+  // inside the try/catch methods keeps the service safe to build on web.
+  FirebaseMessaging get _messaging => FirebaseMessaging.instance;
 
   String? _currentToken;
   int? _currentUserId;
