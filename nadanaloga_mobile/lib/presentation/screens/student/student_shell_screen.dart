@@ -56,12 +56,18 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
     final authState = context.read<AuthBloc>().state;
     if (authState is! AuthAuthenticated) return;
 
-    // Use provided studentId (when viewing a specific child) or fall back to the
-    // first linked child, then to the logged-in user's own id. This covers a pure
-    // student, a parent, and a teacher-who-is-also-a-parent — anyone with children.
+    // Which student's data to load. MUST match the UI default in build():
+    // the explicit studentId (a tapped member) -> the first HOUSEHOLD student
+    // (every student sharing this phone) -> a legacy parent_id child -> own id.
+    // Loading a different id than build() shows one student's name over
+    // another student's (empty) batches and invoices.
     final students = authState.user.students ?? [];
+    final householdStudents =
+        authState.user.profiles.where((p) => p.role == 'Student').toList();
     final userId = widget.studentId ??
-                   (students.isNotEmpty ? students[0].id : authState.user.id);
+        (householdStudents.isNotEmpty
+            ? householdStudents.first.id
+            : (students.isNotEmpty ? students[0].id : authState.user.id));
     setState(() {
       _isLoading = true;
       _error = null;

@@ -483,6 +483,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         final user = state is AuthAuthenticated ? state.user : null;
         // Use student data if provided (parent viewing), otherwise use authenticated user (student viewing own)
         final displayUser = widget.student ?? user;
+        // Courses the student REGISTERED for (the same list the web shows), so a
+        // student not yet placed in a batch still sees their courses as "pending"
+        // instead of nothing.
+        final registered = displayUser?.courses ?? const <String>[];
 
         return Scaffold(
           body: RefreshIndicator(
@@ -550,6 +554,28 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                             ),
                             textAlign: TextAlign.center,
                           ),
+                          // The courses registered for, each awaiting allocation —
+                          // mirrors the web's per-course "Pending" status.
+                          if (registered.isNotEmpty) ...[
+                            const SizedBox(height: 14),
+                            for (final name in registered)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.menu_book_outlined,
+                                        size: 18, color: AppColors.info),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                        child: Text(name,
+                                            style: AppTextStyles.labelLarge)),
+                                    Text('Pending allocation',
+                                        style: AppTextStyles.caption
+                                            .copyWith(color: AppColors.info)),
+                                  ],
+                                ),
+                              ),
+                          ],
                         ],
                       ),
                     ),
@@ -606,7 +632,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                             width: 240,
                             child: StatCard(
                               title: 'Courses',
-                              value: '${_enrolledCourses.length}',
+                              // Registered courses ∪ batch-allocated courses (what the web counts).
+                              value: '${{...registered, ..._enrolledCourses.map((c) => c.name)}.length}',
                               icon: Icons.menu_book,
                               color: AppColors.secondary,
                               animationIndex: 1,

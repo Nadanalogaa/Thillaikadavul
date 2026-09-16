@@ -138,7 +138,13 @@ const StudentDashboardHomePage: React.FC = () => {
     
     const today = new Date();
     const dateString = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    const guardianName = user.fatherName || user.name;
+    // Greet the household's adult when there is one (the teacher, or the adult
+    // learner); otherwise the student. Never father_name — that is an attribute
+    // on the child's record, not who is holding the phone.
+    const adult = household?.teacher
+        || household?.members.find(m => m.kind === 'self' && m.role !== 'Student')
+        || household?.members.find(m => m.kind === 'self');
+    const guardianName = adult?.name || user.name;
 
     if (isLoading) {
         return (
