@@ -531,7 +531,7 @@ const StudentListPage: React.FC = () => {
                                 <label htmlFor="batch-filter" className="text-sm font-medium text-gray-700">Batch</label>
                                 <select id="batch-filter" value={batchFilter} onChange={e => setBatchFilter(e.target.value)} className="w-full form-select mt-1">
                                     <option value="">All Batches</option>
-                                    {batches.sort((a, b) => a.name.localeCompare(b.name)).map(b => <option key={b.id} value={b.id}>{b.name} ({b.courseName})</option>)}
+                                    {[...batches].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(b => <option key={b.id} value={b.id}>{b.name} ({b.courseName})</option>)}
                                 </select>
                             </div>
                         </div>

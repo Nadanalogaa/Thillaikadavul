@@ -234,7 +234,6 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onSa
                                             </div>
                                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                                 {(() => {
-                                                    console.log('Rendering courses in modal:', courses.length, courses.map(c => c.name));
                                                     return courses.map(course => {
                                                     const courseName = course.name;
                                                     const isSelected = (formData.courses || []).includes(courseName);
