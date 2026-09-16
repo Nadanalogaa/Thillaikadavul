@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'teaching_summary_screen.dart';
+import '../auth/set_password_sheet.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -56,6 +57,21 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
   void initState() {
     super.initState();
     _loadStudentData();
+    _promptSetPasswordIfNeeded();
+  }
+
+  /// Ask a user still on the academy's default password to set their own —
+  /// here, on the dashboard they have already landed on, NOT on the login
+  /// screen (a sheet opened there is destroyed by go_router's redirect, which
+  /// previously logged the user straight back out).
+  void _promptSetPasswordIfNeeded() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final state = context.read<AuthBloc>().state;
+      if (state is! AuthAuthenticated) return;
+      if (!state.user.mustChangePassword) return;
+      await showSetPasswordSheet(context);
+    });
   }
 
   Future<void> _loadStudentData() async {

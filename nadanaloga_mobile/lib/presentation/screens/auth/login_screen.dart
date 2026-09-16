@@ -80,25 +80,13 @@ class _LoginScreenState extends State<LoginScreen>
     context.go(AppRouter.dashboardForRole(role));
   }
 
-  Future<void> _handleAuthenticated(AuthAuthenticated state) async {
-    if (state.user.mustChangePassword) {
-      // Force a password change before entering the app. The sheet cannot be
-      // dismissed until a new password is set (or the user backs out).
-      final done = await showModalBottomSheet<bool>(
-        context: context,
-        isScrollControlled: true,
-        isDismissible: false,
-        enableDrag: false,
-        backgroundColor: Colors.transparent,
-        builder: (_) => const _SetPasswordSheet(),
-      );
-      if (!mounted) return;
-      if (done != true) {
-        // User backed out without setting a password — log them out.
-        context.read<AuthBloc>().add(AuthLogoutRequested());
-        return;
-      }
-    }
+  void _handleAuthenticated(AuthAuthenticated state) {
+    // Go straight in. The "set your password" prompt is raised by the DASHBOARD
+    // once the user has landed — never here: go_router redirects away from
+    // /login as soon as auth state flips, which destroyed a sheet opened on this
+    // screen. That read as "cancelled" and logged the user back out, so anyone
+    // with must_change_password (the migration set it on every non-admin) could
+    // never get past the login screen.
     if (!mounted) return;
     _goHome(state.user.role);
   }
@@ -276,143 +264,6 @@ class _LoginScreenState extends State<LoginScreen>
                 ),
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Forced first-login password change. Returns `true` via Navigator.pop when
-/// the password is set successfully; `false`/null if the user backs out.
-class _SetPasswordSheet extends StatefulWidget {
-  const _SetPasswordSheet();
-
-  @override
-  State<_SetPasswordSheet> createState() => _SetPasswordSheetState();
-}
-
-class _SetPasswordSheetState extends State<_SetPasswordSheet> {
-  final _passwordController = TextEditingController();
-  final _confirmController = TextEditingController();
-  bool _loading = false;
-  bool _obscure = true;
-  String? _error;
-
-  @override
-  void dispose() {
-    _passwordController.dispose();
-    _confirmController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    setState(() => _error = null);
-    if (_passwordController.text.length < 6) {
-      setState(() => _error = 'Password must be at least 6 characters.');
-      return;
-    }
-    if (_passwordController.text != _confirmController.text) {
-      setState(() => _error = 'Passwords do not match.');
-      return;
-    }
-    setState(() => _loading = true);
-    try {
-      final r = await sl<ApiClient>().setPassword(_passwordController.text);
-      if (r.statusCode == 200) {
-        if (mounted) Navigator.pop(context, true);
-      } else {
-        setState(() => _error = r.data?['message'] ?? 'Could not set password.');
-      }
-    } catch (e) {
-      setState(() => _error = 'Could not set password. Please try again.');
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 20,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Set your password', style: AppTextStyles.h3),
-              const SizedBox(height: 8),
-              Text(
-                'You\'re signed in with the default password. For your security, please set your own password before continuing.',
-                style:
-                    AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _passwordController,
-                obscureText: _obscure,
-                decoration: InputDecoration(
-                  labelText: 'New password',
-                  hintText: 'At least 6 characters',
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    icon: Icon(_obscure
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined),
-                    onPressed: () => setState(() => _obscure = !_obscure),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _confirmController,
-                obscureText: _obscure,
-                decoration: const InputDecoration(
-                  labelText: 'Confirm new password',
-                  prefixIcon: Icon(Icons.lock_outline),
-                ),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 8),
-                Text(_error!,
-                    style:
-                        AppTextStyles.caption.copyWith(color: AppColors.error)),
-              ],
-              const SizedBox(height: 16),
-              SizedBox(
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _loading ? null : _submit,
-                  child: _loading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white)),
-                        )
-                      : const Text('Save & continue'),
-                ),
-              ),
-              TextButton(
-                onPressed:
-                    _loading ? null : () => Navigator.pop(context, false),
-                child: const Text('Cancel & log out'),
-              ),
-            ],
           ),
         ),
       ),

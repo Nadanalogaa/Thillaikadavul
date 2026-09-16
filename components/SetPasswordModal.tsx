@@ -62,6 +62,12 @@ const SetPasswordModal: React.FC<SetPasswordModalProps> = ({ isOpen, onDone }) =
             className="w-full py-3 rounded-xl text-white font-medium bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50">
             {loading ? 'Saving…' : 'Save & continue'}
           </button>
+          {/* "Later" so a failure here can never lock someone out of the app —
+              they are prompted again on the next login. Matches the mobile sheet. */}
+          <button type="button" disabled={loading} onClick={onDone}
+            className={`w-full py-2 text-sm font-medium ${dark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'} disabled:opacity-50`}>
+            Later
+          </button>
         </form>
       </div>
     </div>
