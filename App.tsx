@@ -15,9 +15,6 @@ import Modal from './components/Modal';
 import LoginForm from './components/LoginForm';
 import ForgotPasswordModal from './components/ForgotPasswordModal';
 import SetPasswordModal from './components/SetPasswordModal';
-import ProfilePickerModal from './components/ProfilePickerModal';
-import { switchProfile } from './api';
-import type { UserProfile } from './types';
 import RegisterPage from './pages/RegisterPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminLoginPage from './pages/AdminLoginPage';
@@ -139,25 +136,6 @@ function App() {
     }
   };
   
-  // "Continue as…": switch the session to the chosen profile, remember the
-  // choice on the user object (so the picker doesn't reappear on reload), and
-  // route by that profile's role — same destinations as a fresh login.
-  const handleProfilePicked = async (profile: UserProfile) => {
-    const switched = await switchProfile(profile.id);
-    const updated = { ...(switched as any), activeProfileChosen: true } as User;
-    setCurrentUser(updated);
-    try { localStorage.setItem('currentUser', JSON.stringify(updated)); } catch { /* ignore */ }
-    if (updated.role === UserRole.Admin) {
-      navigate('/admin/dashboard');
-    } else if (updated.role === UserRole.Parent) {
-      navigate('/parent/dashboard');
-    } else if (updated.role === UserRole.Student) {
-      navigate('/dashboard/student');
-    } else if (updated.role === UserRole.Teacher) {
-      navigate('/dashboard/teacher');
-    }
-  };
-
   const openLoginModal = (email: string = '') => {
     setLoginEmail(email);
     setLoginModalOpen(true);
@@ -380,16 +358,6 @@ function App() {
 
         <ForgotPasswordModal isOpen={isForgotOpen} onClose={() => setForgotOpen(false)} initialIdentifier={loginEmail} />
 
-        <ProfilePickerModal
-          isOpen={
-            !!currentUser &&
-            !currentUser.mustChangePassword &&
-            ((currentUser.profiles?.length ?? 0) > 1) &&
-            !currentUser.activeProfileChosen
-          }
-          profiles={currentUser?.profiles ?? []}
-          onPick={handleProfilePicked}
-        />
         <SetPasswordModal
           isOpen={!!currentUser?.mustChangePassword}
           onDone={() => {

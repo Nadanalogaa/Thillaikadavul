@@ -90,12 +90,6 @@ class ApiClient {
     return _dio.post('/api/set-password', data: {'new_password': newPassword});
   }
 
-  /// Switch the active profile within this login (teacher <-> student <-> child).
-  /// The server only allows profiles this login unlocked and rebinds the session.
-  Future<Response> switchProfile(int profileId) {
-    return _dio.post('/api/switch-profile', data: {'profile_id': profileId});
-  }
-
   Future<Response> resetPassword({
     required String identifier,
     required String otp,

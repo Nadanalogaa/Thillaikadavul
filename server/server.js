@@ -1610,6 +1610,26 @@ async function startServer() {
         return profiles;
     }
 
+    // The household behind the current session: every profile sharing the phone
+    // number (the adult's own roles + all children). Computed on demand from the
+    // session user — not from ids stored at login — so restored/older sessions
+    // work too. Used by the household endpoints and by pay/proof authorization.
+    async function householdFor(req) {
+        const me = req.session.user;
+        const profiles = me ? await buildProfilesForUser(me) : [];
+        const students = profiles.filter(p => p.role === 'Student');
+        const teacher = profiles.find(p => p.role === 'Teacher' && p.kind === 'self') || null;
+        const nameById = {};
+        for (const p of profiles) nameById[p.id] = p.name;
+        return {
+            profiles,
+            memberIds: profiles.map(p => p.id),
+            studentIds: students.map(p => p.id),
+            nameById,
+            teacher,
+        };
+    }
+
     app.post('/api/login', async (req, res) => {
         try {
             const { email, password, identifier } = req.body;
@@ -2651,24 +2671,20 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    // Authenticated "family" list for the student/parent dashboards: the logged-in
-    // account plus any child profiles linked to it (parent_id = me). A standalone
-    // student always sees at least themselves. Replaces the old client-side approach
-    // that abused the admin-only GET /api/users and 403'd for students.
+    // Authenticated "family" list for the student/parent dashboards: every STUDENT
+    // in the household (all accounts sharing the phone number + their children).
+    // A teacher role is deliberately excluded here — these pages treat every row
+    // as a student; teaching lives on its own card/dashboard. A lone student
+    // always sees at least themselves.
     app.get('/api/family', ensureAuthenticated, async (req, res) => {
         try {
-            const meId = req.session.user.id;
-            const meRow = (await pool.query(
-                'SELECT * FROM users WHERE id = $1 AND is_deleted = false', [meId]
-            )).rows[0];
-            const children = (await pool.query(
-                'SELECT * FROM users WHERE parent_id = $1 AND is_deleted = false ORDER BY COALESCE(display_name, name)',
-                [meId]
+            const { studentIds } = await householdFor(req);
+            const ids = studentIds.length ? studentIds : [req.session.user.id];
+            const rows = (await pool.query(
+                'SELECT * FROM users WHERE id = ANY($1) AND is_deleted = false ORDER BY parent_id NULLS FIRST, COALESCE(display_name, name)',
+                [ids]
             )).rows;
-            const family = [];
-            if (meRow) family.push(meRow);
-            for (const c of children) family.push(c);
-            res.json((family.length ? family : children).map(parseUserData));
+            res.json(rows.map(parseUserData));
         } catch (error) {
             console.error('Error fetching family:', error);
             res.status(500).json({ message: 'Server error fetching family.' });
@@ -2998,6 +3014,127 @@ Please review and approve this registration in the admin panel.`;
         } catch (error) {
             console.error('Switch profile error:', error);
             res.status(500).json({ message: 'Server error switching profile.' });
+        }
+    });
+
+    // --- Household (one phone number = one household) ---
+    // Everything the home overview needs in one call: each member as a card —
+    // students enriched with courses/batches/grades, plus the teacher role if any.
+    app.get('/api/household', ensureAuthenticated, async (req, res) => {
+        try {
+            const { profiles, studentIds, teacher } = await householdFor(req);
+            const gradeMap = new Map();
+            const batchMap = new Map();
+            if (studentIds.length > 0) {
+                // Per-student grade summary (course, grade, fee, discount) — same shape
+                // the admin student list uses.
+                const gradeRows = await pool.query(
+                    `SELECT scg.student_id, c.name AS course_name, g.name AS grade_name,
+                            g.monthly_fee, g.currency,
+                            (SELECT sd.discount_percentage FROM student_discounts sd
+                             WHERE sd.student_id = scg.student_id AND sd.course_id = scg.course_id AND sd.is_active = TRUE
+                             ORDER BY CASE WHEN sd.discount_type = 'batch' THEN 1 ELSE 2 END, sd.discount_percentage DESC
+                             LIMIT 1) AS discount_percentage
+                     FROM student_course_grades scg
+                     LEFT JOIN courses c ON scg.course_id = c.id
+                     LEFT JOIN grades g ON scg.grade_id = g.id
+                     WHERE scg.student_id = ANY($1)`, [studentIds]);
+                for (const r of gradeRows.rows) {
+                    if (!gradeMap.has(r.student_id)) gradeMap.set(r.student_id, []);
+                    const fee = Number(r.monthly_fee || 0);
+                    const pct = r.discount_percentage != null ? Number(r.discount_percentage) : 0;
+                    gradeMap.get(r.student_id).push({
+                        course_name: r.course_name,
+                        grade_name: r.grade_name,
+                        monthly_fee: fee,
+                        currency: r.currency,
+                        discount_percentage: pct,
+                        net_amount: pct > 0 ? fee - (fee * pct) / 100 : fee,
+                    });
+                }
+                const batchRows = await pool.query('SELECT batch_name, student_ids FROM batches');
+                for (const b of batchRows.rows) {
+                    for (const sid of (Array.isArray(b.student_ids) ? b.student_ids : [])) {
+                        if (!batchMap.has(sid)) batchMap.set(sid, []);
+                        batchMap.get(sid).push(b.batch_name);
+                    }
+                }
+            }
+            let teacherDetail = null;
+            if (teacher) {
+                const t = (await pool.query(
+                    'SELECT course_expertise FROM users WHERE id = $1', [teacher.id]
+                )).rows[0];
+                teacherDetail = { ...teacher, course_expertise: safeJsonArray(t ? t.course_expertise : null) };
+            }
+            const members = profiles.map(p => ({
+                ...p,
+                course_grades: gradeMap.get(p.id) || [],
+                batch_names: batchMap.get(p.id) || [],
+            }));
+            res.json({ members, teacher: teacherDetail, student_count: studentIds.length });
+        } catch (error) {
+            console.error('Error building household:', error);
+            res.status(500).json({ message: 'Server error building household.' });
+        }
+    });
+
+    // Household fees for the home "bill card" (Airtel-style) + drilldown:
+    // this month's generated / paid / due across every student, a per-student
+    // breakdown, and each student's invoices (all statuses) for drilldown.
+    // `period` uses the same MONTH_NAMES format generateMonthlyInvoices writes.
+    app.get('/api/household/fees', ensureAuthenticated, async (req, res) => {
+        try {
+            const { studentIds, nameById } = await householdFor(req);
+            const now = new Date();
+            const period = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
+            if (studentIds.length === 0) {
+                return res.json({ period, total_generated: 0, total_paid: 0, total_due: 0,
+                    has_bill: false, all_paid: false, due_date: null, students: [] });
+            }
+            const invRes = await pool.query(
+                `SELECT id, student_id, course_name, amount, currency, status, billing_period,
+                        issue_date, due_date, payment_details
+                 FROM invoices WHERE student_id = ANY($1)
+                 ORDER BY issue_date DESC NULLS LAST, id DESC`, [studentIds]);
+            const byStudent = new Map();
+            for (const sid of studentIds) {
+                byStudent.set(sid, {
+                    student_id: sid, student_name: nameById[sid] || 'Student',
+                    month_generated: 0, month_paid: 0, month_due: 0, invoices: [],
+                });
+            }
+            let totalGenerated = 0, totalPaid = 0, totalDue = 0, earliestDue = null;
+            for (const inv of invRes.rows) {
+                const s = byStudent.get(inv.student_id);
+                if (!s) continue;
+                const amt = Number(inv.amount || 0);
+                const status = String(inv.status || '').toLowerCase();
+                s.invoices.push({ ...inv, amount: amt, status });
+                if (inv.billing_period === period) {
+                    s.month_generated += amt; totalGenerated += amt;
+                    if (status === 'paid') { s.month_paid += amt; totalPaid += amt; }
+                    else {
+                        s.month_due += amt; totalDue += amt;
+                        if (inv.due_date && (!earliestDue || new Date(inv.due_date) < new Date(earliestDue))) {
+                            earliestDue = inv.due_date;
+                        }
+                    }
+                }
+            }
+            res.json({
+                period,
+                total_generated: totalGenerated,
+                total_paid: totalPaid,
+                total_due: totalDue,
+                has_bill: totalGenerated > 0,
+                all_paid: totalGenerated > 0 && totalDue === 0,
+                due_date: earliestDue,
+                students: Array.from(byStudent.values()),
+            });
+        } catch (error) {
+            console.error('Error building household fees:', error);
+            res.status(500).json({ message: 'Server error building household fees.' });
         }
     });
 
@@ -5021,7 +5158,10 @@ Please review and approve this registration in the admin panel.`;
 
             const user = req.session.user;
             const isAdminUser = (user?.role && user.role.toLowerCase() === 'admin') || user?.is_super_admin === true;
-            if (!isAdminUser && invoice.student_id !== user?.id) {
+            // Anyone in the household may pay for any of its students (a parent
+            // paying a child's invoice), not only the invoice's own account.
+            const { studentIds: householdStudentIds } = await householdFor(req);
+            if (!isAdminUser && !householdStudentIds.map(Number).includes(Number(invoice.student_id))) {
                 return res.status(403).json({ message: 'Forbidden.' });
             }
             if (invoice.status === 'paid') return res.status(400).json({ message: 'Invoice already paid.' });
@@ -5111,19 +5251,8 @@ Please review and approve this registration in the admin panel.`;
     // total unpaid across all their students, plus a per-student split.
     app.get('/api/parent/fee-summary', ensureAuthenticated, async (req, res) => {
         try {
-            const user = req.session.user;
-            const childrenRes = await pool.query(
-                'SELECT id, name, display_name FROM users WHERE parent_id = $1 AND is_deleted = false',
-                [user.id]
-            );
-            const nameById = {};
-            childrenRes.rows.forEach((r) => { nameById[r.id] = r.display_name || r.name; });
-            const studentIds = childrenRes.rows.map((r) => r.id);
-            // A primary Student account is itself a student.
-            if (String(user.role || '').toLowerCase() === 'student') {
-                studentIds.push(user.id);
-                nameById[user.id] = nameById[user.id] || user.name;
-            }
+            // Every student in the household (all accounts sharing the phone + children).
+            const { studentIds, nameById } = await householdFor(req);
             if (studentIds.length === 0) {
                 return res.json({ students: [], total_due: 0, count: 0 });
             }
@@ -5469,8 +5598,10 @@ Please review and approve this registration in the admin panel.`;
 
             const user = req.session.user;
             const isAdminUser = (user?.role && user.role.toLowerCase() === 'admin') || user?.is_super_admin === true;
-            if (!isAdminUser && invoice.student_id !== user?.id) {
-                return res.status(403).json({ message: 'Forbidden: You can only submit proof for your own invoice.' });
+            // Anyone in the household may submit proof for any of its students.
+            const { studentIds: householdStudentIds } = await householdFor(req);
+            if (!isAdminUser && !householdStudentIds.map(Number).includes(Number(invoice.student_id))) {
+                return res.status(403).json({ message: 'Forbidden: You can only submit proof for a student in your household.' });
             }
 
             const { transaction_id, payment_date, amount, payment_method } = req.body;

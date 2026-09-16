@@ -20,16 +20,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthLoginRequested>(_onLogin);
     on<AuthRegisterRequested>(_onRegister);
     on<AuthLogoutRequested>(_onLogout);
-    on<AuthProfileSwitched>(_onProfileSwitched);
-  }
-
-  Future<void> _onProfileSwitched(
-    AuthProfileSwitched event,
-    Emitter<AuthState> emit,
-  ) async {
-    // The session was already rebound by /api/switch-profile; re-enter as
-    // that profile so the app routes to its dashboard.
-    emit(AuthAuthenticated(event.user));
   }
 
   Future<void> _onCheckSession(
