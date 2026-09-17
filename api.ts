@@ -4021,6 +4021,24 @@ export const getEventResponseStats = async (eventId: string): Promise<{
 // DEMO BOOKINGS API FUNCTIONS
 // ===================================
 
+// Maps a demo_bookings row (server column names) to the DemoBooking shape.
+const mapDemoBooking = (row: any): DemoBooking => ({
+  id: String(row.id),
+  name: row.student_name || '',
+  parentName: row.parent_name || undefined,
+  email: row.email || '',
+  phoneNumber: row.phone || '',
+  country: row.country || '',
+  courseName: row.course || '',
+  status: row.status || 'pending',
+  message: row.notes || undefined,
+  preferredDate: row.preferred_date || undefined,
+  preferredTime: row.preferred_time || undefined,
+  location: row.location || undefined,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
 export const createDemoBooking = async (bookingData: {
   name: string;
   email: string;
@@ -4030,199 +4048,89 @@ export const createDemoBooking = async (bookingData: {
   courseId?: string;
   message?: string;
 }): Promise<DemoBooking> => {
-  try {
-    const response = await fetch('/api/demo-bookings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
-        student_name: bookingData.name,
-        parent_name: null,
-        email: bookingData.email.toLowerCase().trim(),
-        phone: bookingData.phoneNumber,
-        course: bookingData.courseName,
-        preferred_date: null,
-        preferred_time: null,
-        location: null,
-        notes: bookingData.message || null
-      })
-    });
+  const response = await fetch('/api/demo-bookings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({
+      student_name: bookingData.name,
+      parent_name: null,
+      email: bookingData.email.toLowerCase().trim(),
+      phone: bookingData.phoneNumber,
+      country: bookingData.country || null,
+      course: bookingData.courseName,
+      preferred_date: null,
+      preferred_time: null,
+      location: null,
+      notes: bookingData.message || null
+    })
+  });
 
-    if (!response.ok) {
-      throw new Error('Failed to submit demo booking. Please try again.');
-    }
-
-    const data = await response.json();
-    const demoBooking: DemoBooking = {
-      id: String(data.id),
-      name: data.name,
-      email: data.email,
-      phoneNumber: data.phone_number,
-      country: data.country,
-      courseName: data.course_name,
-      courseId: data.course_id,
-      status: data.status,
-      message: data.message,
-      adminNotes: data.admin_notes,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
-      contactedAt: data.contacted_at,
-      demoScheduledAt: data.demo_scheduled_at,
-      preferredContactMethod: data.preferred_contact_method,
-      source: data.source
-    };
-
-    // Emails (confirmation to parent + notification to admin) and in-app admin
-    // notifications are sent SERVER-SIDE by POST /api/demo-bookings. The old
-    // client-side notificationService.notifyDemoBooking only logged a fake
-    // "CUSTOMER DEMO BOOKING EMAIL" to the console and never sent anything.
-
-    return demoBooking;
-  } catch (error) {
-    console.error('Error in createDemoBooking:', error);
-    throw error;
+  if (!response.ok) {
+    throw new Error('Failed to submit demo booking. Please try again.');
   }
+
+  // Emails (confirmation to parent + notification to admin) and in-app admin
+  // notifications are sent SERVER-SIDE by POST /api/demo-bookings.
+  return mapDemoBooking(await response.json());
 };
 
 export const getDemoBookings = async (): Promise<DemoBooking[]> => {
-  try {
-    const response = await fetch('/api/demo-bookings', {
-      method: 'GET',
-      credentials: 'include'
-    });
+  const response = await fetch('/api/demo-bookings', {
+    method: 'GET',
+    credentials: 'include'
+  });
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch demo bookings');
-    }
-
-    const data = await response.json();
-    return (data || []).map(booking => ({
-      id: String(booking.id),
-      name: booking.name,
-      email: booking.email,
-      phoneNumber: booking.phone_number,
-      country: booking.country,
-      courseName: booking.course_name,
-      courseId: booking.course_id,
-      status: booking.status,
-      message: booking.message,
-      adminNotes: booking.admin_notes,
-      createdAt: booking.created_at,
-      updatedAt: booking.updated_at,
-      contactedAt: booking.contacted_at,
-      demoScheduledAt: booking.demo_scheduled_at,
-      preferredContactMethod: booking.preferred_contact_method,
-      source: booking.source
-    }));
-  } catch (error) {
-    console.error('Error in getDemoBookings:', error);
-    throw error;
+  if (!response.ok) {
+    throw new Error('Failed to fetch demo bookings');
   }
+
+  const data = await response.json();
+  return (data || []).map(mapDemoBooking);
 };
 
 export const updateDemoBookingStatus = async (
   bookingId: string,
-  status: DemoBooking['status'],
-  adminNotes?: string,
-  demoScheduledAt?: string
+  status: DemoBooking['status']
 ): Promise<DemoBooking> => {
-  try {
-    const updateData: any = { status };
+  // Status only: the server keeps every field not sent (notes = the enquirer's message).
+  const response = await fetch(`/api/demo-bookings/${bookingId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ status })
+  });
 
-    if (adminNotes) {
-      updateData.admin_notes = adminNotes;
-    }
-
-    if (status === 'confirmed' && !demoScheduledAt) {
-      updateData.contacted_at = new Date().toISOString();
-    }
-
-    if (demoScheduledAt) {
-      updateData.demo_scheduled_at = demoScheduledAt;
-    }
-
-    const response = await fetch(`/api/demo-bookings/${bookingId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(updateData)
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to update demo booking');
-    }
-
-    const data = await response.json();
-    return {
-      id: String(data.id),
-      name: data.name,
-      email: data.email,
-      phoneNumber: data.phone_number,
-      country: data.country,
-      courseName: data.course_name,
-      courseId: data.course_id,
-      status: data.status,
-      message: data.message,
-      adminNotes: data.admin_notes,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
-      contactedAt: data.contacted_at,
-      demoScheduledAt: data.demo_scheduled_at,
-      preferredContactMethod: data.preferred_contact_method,
-      source: data.source
-    };
-  } catch (error) {
-    console.error('Error in updateDemoBookingStatus:', error);
-    throw error;
+  if (!response.ok) {
+    throw new Error('Failed to update demo booking');
   }
+
+  return mapDemoBooking(await response.json());
 };
 
 export const deleteDemoBooking = async (bookingId: string): Promise<void> => {
-  try {
-    const response = await fetch(`/api/demo-bookings/${bookingId}`, {
-      method: 'DELETE',
-      credentials: 'include'
-    });
+  const response = await fetch(`/api/demo-bookings/${bookingId}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
 
-    if (!response.ok) {
-      throw new Error('Failed to delete demo booking');
-    }
-  } catch (error) {
-    console.error('Error in deleteDemoBooking:', error);
-    throw error;
+  if (!response.ok) {
+    throw new Error('Failed to delete demo booking');
   }
 };
 
 export const getDemoBookingStats = async () => {
+  const empty = { total: 0, pending: 0, confirmed: 0, completed: 0, cancelled: 0, thisMonth: 0 };
   try {
     const response = await fetch('/api/demo-bookings/stats', {
       method: 'GET',
       credentials: 'include'
     });
-
-    if (!response.ok) {
-      return {
-        total: 0,
-        pending: 0,
-        confirmed: 0,
-        completed: 0,
-        cancelled: 0,
-        thisMonth: 0
-      };
-    }
-
-    const stats = await response.json();
-    return stats;
+    if (!response.ok) return empty;
+    return { ...empty, ...(await response.json()) };
   } catch (error) {
     console.error('Error in getDemoBookingStats:', error);
-    return {
-      total: 0,
-      pending: 0,
-      confirmed: 0,
-      completed: 0,
-      cancelled: 0,
-      thisMonth: 0
-    };
+    return empty;
   }
 };
 

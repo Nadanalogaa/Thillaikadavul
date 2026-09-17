@@ -42,20 +42,19 @@ export interface Notification {
 export interface DemoBooking {
     id: string;
     name: string;
+    parentName?: string;
     email: string;
     phoneNumber: string;
     country: string;
     courseName: string;
-    courseId?: string;
     status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
     message?: string;
-    adminNotes?: string;
+    preferredDate?: string;
+    preferredTime?: string;
+    location?: string;
+    /** When the enquiry was submitted on the website. */
     createdAt: string;
     updatedAt: string;
-    contactedAt?: string;
-    demoScheduledAt?: string;
-    preferredContactMethod?: 'email' | 'phone' | 'whatsapp';
-    source?: string;
 }
 
 export enum UserRole {

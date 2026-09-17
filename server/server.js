@@ -262,6 +262,11 @@ async function startServer() {
         if (await addColumn('fee_structures', 'grade', 'VARCHAR(100)')) successCount++; else failCount++;
         if (await addColumn('demo_bookings', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
         if (await addColumn('demo_bookings', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
+        // The admin status update writes these; they were missing on prod, so Confirm/Complete/Cancel 500'd.
+        if (await addColumn('demo_bookings', 'scheduled_date', 'VARCHAR(50)')) successCount++; else failCount++;
+        if (await addColumn('demo_bookings', 'scheduled_time', 'VARCHAR(50)')) successCount++; else failCount++;
+        if (await addColumn('demo_bookings', 'assigned_teacher', 'VARCHAR(255)')) successCount++; else failCount++;
+        if (await addColumn('demo_bookings', 'country', 'VARCHAR(100)')) successCount++; else failCount++;
         if (await addColumn('book_materials', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
         if (await addColumn('book_materials', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
         if (await addColumn('notices', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
@@ -4932,7 +4937,8 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // --- Demo Booking API Endpoints ---
-    app.get('/api/demo-bookings', async (req, res) => {
+    // Admin only: these rows hold enquirers' names, phones and emails.
+    app.get('/api/demo-bookings', ensureAdmin, async (req, res) => {
         try {
             const result = await pool.query('SELECT * FROM demo_bookings ORDER BY created_at DESC');
             res.json(result.rows);
@@ -4942,10 +4948,17 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.get('/api/demo-bookings/stats', async (req, res) => {
+    app.get('/api/demo-bookings/stats', ensureAdmin, async (req, res) => {
         try {
-            const result = await pool.query('SELECT status, created_at FROM demo_bookings');
-            res.json(result.rows);
+            const result = await pool.query(`
+                SELECT COUNT(*)::int AS total,
+                       COUNT(*) FILTER (WHERE status = 'pending')::int AS pending,
+                       COUNT(*) FILTER (WHERE status = 'confirmed')::int AS confirmed,
+                       COUNT(*) FILTER (WHERE status = 'completed')::int AS completed,
+                       COUNT(*) FILTER (WHERE status = 'cancelled')::int AS cancelled,
+                       COUNT(*) FILTER (WHERE created_at >= date_trunc('month', NOW()))::int AS "thisMonth"
+                FROM demo_bookings`);
+            res.json(result.rows[0]);
         } catch (error) {
             console.error('Error fetching demo booking stats:', error);
             res.status(500).json({ message: 'Server error fetching stats.' });
@@ -4954,11 +4967,11 @@ Please review and approve this registration in the admin panel.`;
 
     app.post('/api/demo-bookings', async (req, res) => {
         try {
-            const { student_name, parent_name, email, phone, course, preferred_date, preferred_time, location, notes } = req.body;
+            const { student_name, parent_name, email, phone, course, preferred_date, preferred_time, location, notes, country } = req.body;
             const result = await pool.query(
-                `INSERT INTO demo_bookings (student_name, parent_name, email, phone, course, preferred_date, preferred_time, location, notes, status)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending') RETURNING *`,
-                [student_name, parent_name, email, phone, course, preferred_date, preferred_time, location, notes]
+                `INSERT INTO demo_bookings (student_name, parent_name, email, phone, course, preferred_date, preferred_time, location, notes, country, status)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending') RETURNING *`,
+                [student_name, parent_name, email, phone, course, preferred_date, preferred_time, location, notes, country || null]
             );
             res.status(201).json(result.rows[0]);
 
@@ -5011,11 +5024,18 @@ Please review and approve this registration in the admin panel.`;
         try {
             const { id } = req.params;
             const { status, scheduled_date, scheduled_time, assigned_teacher, notes } = req.body;
+            // Partial update: a field left out of the body keeps its value. Before,
+            // a status-only update (e.g. "Confirm") nulled the enquirer's notes.
             const result = await pool.query(
                 `UPDATE demo_bookings SET
-                    status = $1, scheduled_date = $2, scheduled_time = $3, assigned_teacher = $4, notes = $5, updated_at = NOW()
+                    status = COALESCE($1, status),
+                    scheduled_date = COALESCE($2, scheduled_date),
+                    scheduled_time = COALESCE($3, scheduled_time),
+                    assigned_teacher = COALESCE($4, assigned_teacher),
+                    notes = COALESCE($5, notes),
+                    updated_at = NOW()
                  WHERE id = $6 RETURNING *`,
-                [status, scheduled_date, scheduled_time, assigned_teacher, notes, id]
+                [status ?? null, scheduled_date ?? null, scheduled_time ?? null, assigned_teacher ?? null, notes ?? null, id]
             );
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: 'Demo booking not found' });

@@ -9,6 +9,7 @@ class DemoBookingModel {
   final String? preferredTime;
   final String? location;
   final String? notes;
+  final String? country;
   final String? status;
   final String? scheduledDate;
   final String? scheduledTime;
@@ -27,6 +28,7 @@ class DemoBookingModel {
     this.preferredTime,
     this.location,
     this.notes,
+    this.country,
     this.status,
     this.scheduledDate,
     this.scheduledTime,
@@ -47,6 +49,7 @@ class DemoBookingModel {
       preferredTime: json['preferred_time'] as String?,
       location: json['location'] as String?,
       notes: json['notes'] as String?,
+      country: json['country'] as String?,
       status: json['status'] as String?,
       scheduledDate: json['scheduled_date'] as String?,
       scheduledTime: json['scheduled_time'] as String?,
@@ -54,6 +57,13 @@ class DemoBookingModel {
       createdAt: json['created_at'] as String?,
       updatedAt: json['updated_at'] as String?,
     );
+  }
+
+  /// When the enquiry was submitted, in the device's local time.
+  DateTime? get bookedAt {
+    final raw = createdAt;
+    if (raw == null || raw.isEmpty) return null;
+    return DateTime.tryParse(raw)?.toLocal();
   }
 
   Map<String, dynamic> toJson() {

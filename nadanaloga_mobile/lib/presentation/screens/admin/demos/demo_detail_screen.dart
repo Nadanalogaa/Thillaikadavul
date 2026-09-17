@@ -11,6 +11,7 @@ import '../../../bloc/demo_booking/demo_booking_bloc.dart';
 import '../../../bloc/demo_booking/demo_booking_event.dart';
 import '../../../bloc/demo_booking/demo_booking_state.dart';
 import '../../../widgets/confirm_dialog.dart';
+import 'demo_share.dart';
 
 class DemoDetailScreen extends StatefulWidget {
   final int bookingId;
@@ -145,7 +146,17 @@ class _DemoDetailScreenState extends State<DemoDetailScreen> {
         }
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('Demo Booking Details')),
+        appBar: AppBar(
+          title: const Text('Demo Booking Details'),
+          actions: [
+            if (_booking != null)
+              IconButton(
+                tooltip: 'Share',
+                icon: const Icon(Icons.share),
+                onPressed: () => showDemoShareSheet(context, [_booking!]),
+              ),
+          ],
+        ),
         body: _loading
             ? const Center(child: CircularProgressIndicator())
             : _booking == null
@@ -193,10 +204,14 @@ class _DemoDetailScreenState extends State<DemoDetailScreen> {
                               Icons.email_outlined, 'Email', _booking!.email),
                           _buildInfoRow(
                               Icons.phone_outlined, 'Phone', _booking!.phone),
+                          _buildInfoRow(Icons.public, 'Country',
+                              _booking!.country),
                         ]),
 
                         // Booking Details card
                         _buildCard('Booking Details', [
+                          _buildInfoRow(Icons.event_available, 'Booked On',
+                              formatBookedOn(_booking!.bookedAt)),
                           _buildInfoRow(Icons.school_outlined, 'Course',
                               _booking!.course),
                           _buildInfoRow(Icons.calendar_today_outlined,
