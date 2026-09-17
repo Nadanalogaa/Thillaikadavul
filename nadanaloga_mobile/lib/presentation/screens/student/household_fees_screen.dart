@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
+
+import '../../../core/payments/web_razorpay.dart';
 
 import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
@@ -101,8 +104,23 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
       // when enabled, UPI-only with Google Pay / PhonePe.
       final checkout = d['checkout'];
       if (checkout is Map) options.addAll(Map<String, dynamic>.from(checkout));
+      if (kIsWeb) {
+        // iPhone web app: the plugin has no web support, so use Razorpay's own
+        // web checkout and feed its result into the same handlers.
+        await openWebRazorpay(
+          options,
+          onSuccess: (paymentId, orderId, signature) => _onSuccess(
+              PaymentSuccessResponse(paymentId, orderId, signature, null)),
+          onFailure: (message) {
+            _payingInvoiceId = null;
+            if (message != 'Payment cancelled.') _snack(message);
+          },
+        );
+        return;
+      }
       _razorpay.open(options);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[Pay] could not start payment: $e');
       _snack('Could not start payment.');
     }
   }

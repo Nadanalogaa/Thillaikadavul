@@ -83,11 +83,9 @@ class _ParentStudentDetailScreenState extends State<ParentStudentDetailScreen> w
     }
   }
 
-  bool _isPaymentDue(InvoiceModel invoice) {
-    if (invoice.status != 'pending') return false;
-    final now = DateTime.now();
-    return now.day >= 1 && now.day <= 5;
-  }
+  // Any unpaid bill can be paid on any day (no payment window).
+  bool _isPaymentDue(InvoiceModel invoice) =>
+      invoice.status == 'pending' || invoice.status == 'overdue';
 
   void _showPaymentOptions(InvoiceModel invoice) {
     showModalBottomSheet(

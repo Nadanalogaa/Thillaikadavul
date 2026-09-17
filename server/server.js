@@ -6182,11 +6182,21 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // --- Invoice API Endpoints ---
-    app.get('/api/invoices', async (req, res) => {
+    // Login required. Admins see every bill; anyone else only their own household's.
+    // This endpoint used to have NO auth at all: anyone could list every bill with
+    // the student's name, email and phone number.
+    app.get('/api/invoices', ensureAuthenticated, async (req, res) => {
         try {
             const { course_id, batch_id, grade_id, status, billing_period, student_id, search } = req.query;
             const params = [];
             const where = [];
+            const me = req.session.user;
+            const isAdminUser = String(me.role || '').toLowerCase() === 'admin' || me.is_super_admin === true;
+            if (!isAdminUser) {
+                const { studentIds } = await householdFor(req);
+                params.push(studentIds.map(Number));
+                where.push(`i.student_id = ANY($${params.length})`);
+            }
             if (course_id) { params.push(course_id); where.push(`i.course_id = $${params.length}`); }
             if (batch_id) { params.push(batch_id); where.push(`i.batch_id = $${params.length}`); }
             if (grade_id) { params.push(grade_id); where.push(`i.grade_id = $${params.length}`); }

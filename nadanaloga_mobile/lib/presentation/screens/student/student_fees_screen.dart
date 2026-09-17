@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
@@ -7,6 +8,7 @@ import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
 import '../../../data/models/invoice_model.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/payments/web_razorpay.dart';
 import '../../../core/utils/fee_format.dart';
 import '../../../di/injection_container.dart';
 import '../../widgets/empty_state_widget.dart';
@@ -120,6 +122,23 @@ class _StudentFeesScreenState extends State<StudentFeesScreen>
       // when enabled, UPI-only with Google Pay / PhonePe.
       final checkout = data['checkout'];
       if (checkout is Map) options.addAll(Map<String, dynamic>.from(checkout));
+      if (kIsWeb) {
+        // iPhone web app: the plugin has no web support, so use Razorpay's own
+        // web checkout and feed its result into the same handlers.
+        await openWebRazorpay(
+          options,
+          onSuccess: (paymentId, orderId, signature) => _onPaymentSuccess(
+              PaymentSuccessResponse(paymentId, orderId, signature, null)),
+          onFailure: (message) {
+            _payingInvoice = null;
+            if (!mounted || message == 'Payment cancelled.') return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(message), backgroundColor: AppColors.error),
+            );
+          },
+        );
+        return;
+      }
       _razorpay.open(options);
     } catch (e) {
       if (!mounted) return;
@@ -176,11 +195,10 @@ class _StudentFeesScreenState extends State<StudentFeesScreen>
     // No-op: external wallet selected; confirmation still flows via webhook.
   }
 
-  bool _isPaymentDue(InvoiceModel invoice) {
-    if (invoice.status != 'pending') return false;
-    final now = DateTime.now();
-    return now.day >= 1 && now.day <= 7;
-  }
+  // Any unpaid bill can be paid on any day (academy rule: due by the 10th,
+  // no late fee). There used to be a 1st–7th payment window here.
+  bool _isPaymentDue(InvoiceModel invoice) =>
+      invoice.status == 'pending' || invoice.status == 'overdue';
 
   bool _isUnderProcessing(InvoiceModel invoice) {
     return invoice.status != 'paid' &&
@@ -243,7 +261,7 @@ class _StudentFeesScreenState extends State<StudentFeesScreen>
             const SizedBox(height: 24),
             // Primary: online payment (UPI/Card) — auto-confirmed, no receipt needed.
             _buildPaymentButton(
-              'Pay Now (UPI / Card)',
+              'Pay online now',
               Icons.lock,
               AppColors.primary,
               () {
@@ -460,6 +478,10 @@ class _StudentFeesScreenState extends State<StudentFeesScreen>
                           emptyTitle: 'No Overdue Fees',
                           emptySubtitle: 'Great! You have no overdue payments.',
                           emptyIcon: Icons.thumb_up_outlined,
+                          showPayAction: true,
+                          onPayNow: (invoice) => _showPaymentOptions(invoice),
+                          isPayEnabled: (invoice) =>
+                              _isPaymentDue(invoice) && !_isUnderProcessing(invoice),
                         ),
                         _InvoiceList(
                           invoices: _paidInvoices,
@@ -874,16 +896,6 @@ class _InvoiceCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (!(isPayEnabled?.call(invoice) ?? true))
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(
-                      'Payments open from 1st to 7th',
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
               ],
             ],
           ),

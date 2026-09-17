@@ -167,6 +167,17 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     );
   }
 
+  /// Family fees (all bills, Pay on each). Refresh the bill card and the
+  /// student's data on return, since a payment may have been made.
+  Future<void> _openHouseholdFees() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const HouseholdFeesScreen()),
+    );
+    if (!mounted) return;
+    _loadHousehold();
+    widget.onRefresh();
+  }
+
   /// Airtel-style bill card: "Your fees for <month> ₹X · Pay now", or
   /// "Paid for <month> ✓" once everything is settled.
   Widget _billCard(Map<String, dynamic>? fees) {
@@ -180,12 +191,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         ? dueRaw.substring(0, 10)
         : null;
     final students = ((fees?['students'] as List?) ?? const []).cast<Map>();
-    // "Pay now" pays the open student's earliest pending invoice; the
-    // household drilldown below can pay any member's invoice.
-    final pending = widget.invoices
-        .where((i) => i.status.toLowerCase() != 'paid')
-        .toList();
-    final int? payId = pending.isEmpty ? null : pending.first.id;
     final accent = allPaid ? AppColors.success : AppColors.primary;
 
     return Container(
@@ -252,9 +257,12 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               children: [
                 if (!allPaid)
                   Expanded(
+                    // The card shows the WHOLE family's dues, so Pay now opens the
+                    // family's bills. It used to look for an unpaid bill of only the
+                    // currently selected student and stayed disabled when that
+                    // student had none — even with money due for another child.
                     child: FilledButton.icon(
-                      onPressed:
-                          payId == null ? null : () => widget.onOpenFees(payId),
+                      onPressed: due > 0 ? _openHouseholdFees : null,
                       icon: const Icon(Icons.payment),
                       label: const Text('Pay now'),
                     ),
@@ -262,10 +270,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 if (!allPaid) const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) => const HouseholdFeesScreen()),
-                    ),
+                    onPressed: _openHouseholdFees,
                     child: const Text('View all fees'),
                   ),
                 ),
@@ -793,7 +798,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Fees are due on the 1st of every month. Please pay between the 1st and 7th to avoid late fees.',
+                            'Fees are billed on the 1st of every month and are due by the 10th.',
                             style: AppTextStyles.caption.copyWith(
                               color: AppColors.textSecondary,
                             ),

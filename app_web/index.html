@@ -45,7 +45,7 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('sw.js?v=96faf9e31e').catch(function () {});
+        navigator.serviceWorker.register('sw.js?v=3a841215db').catch(function () {});
       });
     }
     // Remove the loading overlay once Flutter has painted its first frame.
@@ -75,7 +75,7 @@
   <!-- Shown until Flutter renders; Flutter draws over it. Confirms the page is
        loading rather than truly blank. -->
   <div id="app-loading"><div class="spinner"></div><div>Loading Nadanaloga…</div></div>
-  <script src="flutter_bootstrap.js?v=96faf9e31e" async></script>
+  <script src="flutter_bootstrap.js?v=3a841215db" async></script>
 
   <!-- "Add to Home Screen" / Install hint. Sits above the Flutter canvas via a
        high z-index. Two modes:
@@ -123,6 +123,9 @@
           installBtn.style.display = 'none';
           bar.style.display = 'flex';
         }
+        // The bar sits over the bottom tabs and the app's messages (e.g. a
+        // payment error), so it only stays up briefly; it returns next visit.
+        if (bar.style.display === 'flex') setTimeout(function () { hide(false); }, 12000);
       }
       function hide(remember) {
         bar.style.display = 'none';
