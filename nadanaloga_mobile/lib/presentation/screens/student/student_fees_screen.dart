@@ -102,7 +102,7 @@ class _StudentFeesScreenState extends State<StudentFeesScreen>
       final data = response.data as Map<String, dynamic>;
       _payingInvoice = invoice;
       final prefill = (data['prefill'] as Map?) ?? {};
-      _razorpay.open({
+      final options = <String, dynamic>{
         'key': data['key_id'],
         'order_id': data['order_id'],
         'amount': data['amount'],
@@ -115,7 +115,12 @@ class _StudentFeesScreenState extends State<StudentFeesScreen>
           'name': prefill['name'] ?? '',
         },
         'theme': {'color': '#3F51B5'},
-      });
+      };
+      // Server-controlled options: notes (so the webhook finds the bill) and,
+      // when enabled, UPI-only with Google Pay / PhonePe.
+      final checkout = data['checkout'];
+      if (checkout is Map) options.addAll(Map<String, dynamic>.from(checkout));
+      _razorpay.open(options);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

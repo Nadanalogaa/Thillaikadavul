@@ -5574,6 +5574,11 @@ Please review and approve this registration in the admin panel.`;
     const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '';
     const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || '';
     const razorpayConfigured = () => RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET;
+    // RAZORPAY_UPI_ONLY=true: checkout shows ONLY UPI, with Google Pay and PhonePe
+    // as the apps. Off by default: switch it on only after UPI is enabled on the
+    // Razorpay account, or checkout would have no way to pay at all.
+    const RAZORPAY_UPI_ONLY = String(process.env.RAZORPAY_UPI_ONLY || '').toLowerCase() === 'true';
+    const RAZORPAY_API_BASE = process.env.RAZORPAY_API_BASE || 'https://api.razorpay.com';
 
     // Mark an invoice paid from a verified Razorpay payment + notify (idempotent).
     // ======================= Fee ledger core =======================
@@ -5890,7 +5895,7 @@ Please review and approve this registration in the admin panel.`;
 
             const amountPaise = Math.round(Number(invoice.amount) * 100);
             const auth = Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString('base64');
-            const rpRes = await fetch('https://api.razorpay.com/v1/orders', {
+            const rpRes = await fetch(`${RAZORPAY_API_BASE}/v1/orders`, {
                 method: 'POST',
                 headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -5913,7 +5918,29 @@ Please review and approve this registration in the admin panel.`;
                 invoice_id: Number(id),
                 name: 'Nadanaloga Academy',
                 description: invoice.course_name || 'Fee payment',
-                prefill: { name: user?.name || '', email: user?.email || '', contact: user?.contact_number || '' }
+                prefill: { name: user?.name || '', email: user?.email || '', contact: user?.contact_number || '' },
+                // Merged into Razorpay's checkout options by the web and mobile apps,
+                // so payment rules change here without shipping a new app.
+                // notes: carried onto the PAYMENT too, so the webhook can always find
+                // the bill (order notes alone aren't on every payment event).
+                checkout: {
+                    notes: { invoice_id: String(id), student_id: String(invoice.student_id || '') },
+                    ...(RAZORPAY_UPI_ONLY ? {
+                        method: { upi: true, card: false, netbanking: false, wallet: false, emi: false, paylater: false },
+                        config: {
+                            display: {
+                                blocks: {
+                                    upi: {
+                                        name: 'Pay using Google Pay or PhonePe',
+                                        instruments: [{ method: 'upi', flows: ['intent', 'qr', 'collect'], apps: ['google_pay', 'phonepe'] }],
+                                    },
+                                },
+                                sequence: ['block.upi'],
+                                preferences: { show_default_blocks: false },
+                            },
+                        },
+                    } : {}),
+                },
             });
         } catch (error) {
             console.error('Error creating Razorpay order:', error);
@@ -6201,7 +6228,14 @@ Please review and approve this registration in the admin panel.`;
 
     app.post('/api/invoices', ensureAdmin, async (req, res) => {
         try {
-            const { student_id, fee_structure_id, course_name, amount, currency, issue_date, due_date, billing_period, status, payment_details } = req.body;
+            // status / payment_details are deliberately NOT accepted: a new bill is
+            // always unpaid, and it can only become paid through the payment ledger
+            // (recordPayments). Accepting status='paid' here let a bill be created
+            // already paid with no payment record, receipt or collector.
+            const { student_id, fee_structure_id, course_name, amount, currency, issue_date, due_date, billing_period } = req.body;
+            if (!student_id || !(Number(amount) > 0)) {
+                return res.status(400).json({ message: 'A student and an amount greater than zero are required.' });
+            }
 
             // Calculate discount if applicable
             let original_amount = amount;
@@ -6241,7 +6275,7 @@ Please review and approve this registration in the admin panel.`;
             const result = await pool.query(
                 `INSERT INTO invoices (student_id, fee_structure_id, course_name, amount, currency, issue_date, due_date, billing_period, status, payment_details, original_amount, discount_percentage, discount_amount)
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
-                [student_id, fee_structure_id, course_name, final_amount, currency, issue_date, due_date, billing_period, status || 'pending', payment_details, original_amount, discount_percentage, discount_amount]
+                [student_id, fee_structure_id || null, course_name, final_amount, currency || 'INR', issue_date || null, due_date || null, billing_period, 'pending', null, original_amount, discount_percentage, discount_amount]
             );
             res.status(201).json(result.rows[0]);
 

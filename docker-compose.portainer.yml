@@ -41,6 +41,8 @@ services:
       RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID}
       RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET}
       RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET}
+      # true = checkout shows only UPI (Google Pay / PhonePe). Enable UPI on the Razorpay account first.
+      RAZORPAY_UPI_ONLY: ${RAZORPAY_UPI_ONLY:-false}
 
       # WhatsApp admin alerts (Meta Cloud API)
       WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN}

@@ -45,6 +45,7 @@ import BlogPage from './pages/BlogPage';
 import CareersPage from './pages/CareersPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsOfServicePage from './pages/TermsOfServicePage';
+import RefundPolicyPage from './pages/RefundPolicyPage';
 
 // Course Pages
 import BharatanatyamPage from './pages/courses/BharatanatyamPage';
@@ -305,6 +306,7 @@ function App() {
             <Route path="/careers" element={<CareersPage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
             <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+            <Route path="/refund-policy" element={<RefundPolicyPage />} />
 
             <Route 
               path="/dashboard/student" 

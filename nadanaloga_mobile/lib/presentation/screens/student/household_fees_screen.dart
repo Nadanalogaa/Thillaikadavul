@@ -84,7 +84,7 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
       final d = Map<String, dynamic>.from(r.data as Map);
       _payingInvoiceId = invoiceId;
       final prefill = (d['prefill'] as Map?) ?? {};
-      _razorpay.open({
+      final options = <String, dynamic>{
         'key': d['key_id'],
         'order_id': d['order_id'],
         'amount': d['amount'],
@@ -96,7 +96,12 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
           'email': prefill['email'] ?? '',
           'contact': prefill['contact'] ?? '',
         },
-      });
+      };
+      // Server-controlled options: notes (so the webhook finds the bill) and,
+      // when enabled, UPI-only with Google Pay / PhonePe.
+      final checkout = d['checkout'];
+      if (checkout is Map) options.addAll(Map<String, dynamic>.from(checkout));
+      _razorpay.open(options);
     } catch (_) {
       _snack('Could not start payment.');
     }

@@ -1568,6 +1568,28 @@ export const getFamilyDue = async (studentId: number | string): Promise<FamilyDu
 };
 
 // Cash is always full payment: only invoice ids are sent, never an amount.
+// Add a one-off bill for a student (e.g. an exam or costume fee, or a ₹1 test
+// payment). Always created unpaid — it can only be paid through the ledger.
+export const createBill = async (bill: {
+  studentId: number | string; description: string; amount: number; billingPeriod: string; dueDate?: string;
+}): Promise<any> => {
+  const res = await fetch('/api/invoices', {
+    method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      student_id: Number(bill.studentId),
+      course_name: bill.description,
+      amount: bill.amount,
+      currency: 'INR',
+      billing_period: bill.billingPeriod,
+      issue_date: new Date().toISOString().slice(0, 10),
+      due_date: bill.dueDate || null,
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data && data.message) || 'Could not add the bill.');
+  return data;
+};
+
 export const collectCash = async (invoiceIds: (number | string)[]): Promise<CollectCashResult> => {
   const res = await fetch('/api/fees/collect-cash', {
     method: 'POST', credentials: 'include',
@@ -2318,6 +2340,9 @@ export const payInvoiceOnline = async (invoiceId: number | string): Promise<{ ok
       name: order.name,
       description: order.description,
       prefill: order.prefill,
+      // Server-controlled options: notes (so the webhook finds the bill) and,
+      // when enabled, UPI-only with Google Pay / PhonePe.
+      ...(order.checkout || {}),
       handler: async (r: any) => {
         const v = await fetch('/api/razorpay/verify-payment', {
           method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },

@@ -291,6 +291,11 @@ const AnimatedFooter: React.FC = () => {
                   Terms of Service
                 </motion.span>
               </Link>
+              <Link to="/refund-policy">
+                <motion.span whileHover={{ scale: 1.05 }} className="hover:text-white transition-colors cursor-pointer">
+                  Refund Policy
+                </motion.span>
+              </Link>
             </div>
           </div>
         </motion.div>
