@@ -475,6 +475,94 @@ async function startServer() {
                 console.error('[DB] ✗ Failed to create invoice_payments table:', error.message);
             }
 
+            // --- Fee ledger (Phase 1) ---
+            // invoice_payments is THE ledger: every rupee (cash at the office,
+            // Razorpay, approved proof) is one row here, and an invoice is paid only
+            // through it. Receipts, the collecting admin and reversals live here so
+            // app, reports and the cash drawer always agree.
+            try {
+                const ledgerCols = [
+                    ['receipt_number', 'VARCHAR(40)'],
+                    ['collected_by', 'INTEGER'],
+                    ['collected_by_name', 'TEXT'],
+                    ['paid_at', 'TIMESTAMPTZ'],
+                    ['reversed_at', 'TIMESTAMPTZ'],
+                    ['reversed_by', 'INTEGER'],
+                    ['reversed_by_name', 'TEXT'],
+                    ['reversal_reason', 'TEXT'],
+                ];
+                for (const [col, type] of ledgerCols) {
+                    await client.query(`ALTER TABLE invoice_payments ADD COLUMN IF NOT EXISTS ${col} ${type}`);
+                }
+                await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS prorated_from DATE`);
+                await client.query(`CREATE SEQUENCE IF NOT EXISTS payment_receipt_seq START 1`);
+                console.log('[DB] ✓ Fee ledger columns + receipt sequence ready');
+            } catch (error) {
+                console.error('[DB] ✗ Fee ledger columns failed:', error.message);
+            }
+            // Database-level duplicate locks. Each in its own try: if old duplicate
+            // rows already exist the index can't be built — log it rather than stop
+            // startup (the generator's own check still prevents new duplicates).
+            try {
+                await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS uniq_invoice_student_course_period
+                    ON invoices (student_id, course_id, billing_period) WHERE course_id IS NOT NULL`);
+                console.log('[DB] ✓ Duplicate-bill lock (student + course + month)');
+            } catch (error) {
+                console.error('[DB] ✗ Duplicate-bill lock NOT created (existing duplicate bills?):', error.message);
+            }
+            try {
+                await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS uniq_payment_razorpay_txn
+                    ON invoice_payments (transaction_id)
+                    WHERE payment_method = 'Razorpay' AND transaction_id IS NOT NULL AND status = 'approved'`);
+                console.log('[DB] ✓ Razorpay double-record lock');
+            } catch (error) {
+                console.error('[DB] ✗ Razorpay double-record lock NOT created:', error.message);
+            }
+            // Backfill: invoices marked paid before the ledger existed (the old
+            // "Mark paid" flipped status only) get one ledger row each, so cash
+            // collected in the past finally appears in collection reports.
+            // Idempotent: only for paid invoices with no live ledger row.
+            try {
+                const orphans = await client.query(`
+                    SELECT i.id, i.student_id, i.amount, i.payment_details, i.updated_at
+                    FROM invoices i
+                    WHERE LOWER(i.status) = 'paid'
+                      AND NOT EXISTS (SELECT 1 FROM invoice_payments p
+                                      WHERE p.invoice_id = i.id AND p.status = 'approved')`);
+                let filled = 0;
+                for (const o of orphans.rows) {
+                    try {
+                        const pd = (o.payment_details && typeof o.payment_details === 'object') ? o.payment_details : {};
+                        const method = String(pd.payment_method || 'Offline').slice(0, 50);
+                        const dateStr = /^\d{4}-\d{2}-\d{2}/.test(String(pd.payment_date || ''))
+                            ? String(pd.payment_date).slice(0, 10) : null;
+                        await client.query(
+                            `INSERT INTO invoice_payments (invoice_id, student_id, amount, payment_method, transaction_id,
+                                payment_date, status, approved_at, paid_at, notes, receipt_number)
+                             VALUES ($1, $2, $3, $4, $5, COALESCE($6::date, $7::date, CURRENT_DATE), 'approved',
+                                COALESCE($7, NOW()), COALESCE($7, NOW()),
+                                'Recorded automatically: marked paid before the payment ledger existed',
+                                'NDA-R-' || lpad(nextval('payment_receipt_seq')::text, 6, '0'))`,
+                            [o.id, o.student_id, o.amount, method, pd.transaction_id || null, dateStr, o.updated_at]
+                        );
+                        filled++;
+                    } catch (e) {
+                        console.error(`[DB] Ledger backfill skipped invoice #${o.id}:`, e.message);
+                    }
+                }
+                // Earlier approved payments (Razorpay / approved proofs) get receipts too.
+                const numbered = await client.query(`
+                    UPDATE invoice_payments
+                    SET receipt_number = 'NDA-R-' || lpad(nextval('payment_receipt_seq')::text, 6, '0'),
+                        paid_at = COALESCE(paid_at, approved_at, submitted_at)
+                    WHERE status = 'approved' AND receipt_number IS NULL`);
+                if (filled || numbered.rowCount) {
+                    console.log(`[DB] ✓ Ledger backfill: ${filled} paid invoice(s) recorded, ${numbered.rowCount} receipt number(s) assigned`);
+                }
+            } catch (error) {
+                console.error('[DB] ✗ Ledger backfill failed:', error.message);
+            }
+
             // Create notifications table if not exists
             try {
                 await client.query(`
@@ -1242,11 +1330,13 @@ async function startServer() {
     // grade + batch fee. Idempotent: one invoice per student+course+month.
     const generateMonthlyInvoices = async () => {
         const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const billingPeriod = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
-        const issueDate = toDateStr(new Date(now.getFullYear(), now.getMonth(), 1));
-        const dueDate = toDateStr(new Date(now.getFullYear(), now.getMonth(), 10));
+        const monthFirst = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthTenth = new Date(now.getFullYear(), now.getMonth(), 10);
+        const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 
-        // Grade-based fees (preferred): a student's grade in each course.
+        // Grade-based fees: a student's grade in each course.
         const gradeMapRes = await pool.query(`
             SELECT scg.student_id, scg.course_id, scg.grade_id, c.name AS course_name,
                    g.name AS grade_name, g.monthly_fee
@@ -1258,13 +1348,6 @@ async function startServer() {
         const gradeFeesByStudent = {};
         gradeMapRes.rows.forEach((r) => { (gradeFeesByStudent[r.student_id] = gradeFeesByStudent[r.student_id] || []).push(r); });
 
-        // Legacy fee_structures — fallback for students not yet on grades.
-        const coursesRes = await pool.query('SELECT id, name FROM courses');
-        const courseIdByName = {};
-        coursesRes.rows.forEach((c) => { if (c.name) courseIdByName[String(c.name).trim().toLowerCase()] = c.id; });
-        const feeRes = await pool.query('SELECT * FROM fee_structures');
-        const feesByCourse = {};
-        feeRes.rows.forEach((f) => { (feesByCourse[f.course_id] = feesByCourse[f.course_id] || []).push(f); });
         const batchRes = await pool.query('SELECT id, course_id, student_ids FROM batches');
         // Resolve which batch a student belongs to for a given course (for invoice filtering).
         const resolveBatchId = (studentId, courseId) => {
@@ -1275,20 +1358,28 @@ async function startServer() {
         };
 
         const students = await pool.query(
-            "SELECT id, name, grade, courses FROM users WHERE LOWER(role) = 'student' AND is_deleted = false AND (status IS NULL OR status = 'active')"
+            `SELECT id, name, date_of_joining FROM users
+             WHERE LOWER(TRIM(role)) = 'student' AND is_deleted = false AND (status IS NULL OR LOWER(status) = 'active')`
         );
 
-        let created = 0, skipped = 0;
+        let created = 0, skipped = 0, prorated = 0, notYetJoined = 0;
+        const newLines = []; // for one "fees ready" message per family
 
-        // Create one idempotent, discount-aware invoice line for a student's course.
-        const createLine = async (student, courseName, courseId, monthly, feeStructureId, gradeId, batchId) => {
+        // Create one idempotent, discount-aware, pro-rata-aware bill line.
+        const createLine = async (student, courseName, courseId, monthly, gradeId, batchId, terms) => {
             if (!monthly || monthly <= 0) return;
+            // Duplicate check by COURSE (not the "Course - Grade" label: a grade change
+            // mid-month renamed the label and produced a second bill). Legacy rows with
+            // no course_id still match by label. The unique index backs this up.
             const exists = await pool.query(
-                'SELECT id FROM invoices WHERE student_id = $1 AND course_name = $2 AND billing_period = $3 LIMIT 1',
-                [student.id, courseName, billingPeriod]
+                `SELECT id FROM invoices WHERE student_id = $1 AND billing_period = $2
+                   AND ((course_id IS NOT NULL AND course_id = $3) OR (course_id IS NULL AND course_name = $4))
+                 LIMIT 1`,
+                [student.id, billingPeriod, courseId || null, courseName]
             );
             if (exists.rows.length > 0) { skipped++; return; }
-            let discountPct = null, discountAmt = null, finalAmount = monthly;
+            const base = Math.round(monthly * terms.factor);
+            let discountPct = null, discountAmt = null, finalAmount = base;
             if (courseId) {
                 const dRes = await pool.query(
                     `SELECT discount_percentage FROM student_discounts
@@ -1298,40 +1389,86 @@ async function startServer() {
                 );
                 if (dRes.rows.length > 0) {
                     discountPct = parseFloat(dRes.rows[0].discount_percentage);
-                    discountAmt = (monthly * discountPct) / 100;
-                    finalAmount = monthly - discountAmt;
+                    discountAmt = Math.round((base * discountPct) / 100);
+                    finalAmount = base - discountAmt;
                 }
             }
-            const inv = await pool.query(
-                `INSERT INTO invoices (student_id, fee_structure_id, course_name, amount, currency, issue_date, due_date, billing_period, status, original_amount, discount_percentage, discount_amount, course_id, grade_id, batch_id)
-                 VALUES ($1, $2, $3, $4, 'INR', $5, $6, $7, 'pending', $8, $9, $10, $11, $12, $13) RETURNING id`,
-                [student.id, feeStructureId || null, courseName, finalAmount, issueDate, dueDate, billingPeriod, monthly, discountPct, discountAmt, courseId || null, gradeId || null, batchId || null]
-            );
-            created++;
             try {
-                createNotificationForUser(student.id, `${MONTH_NAMES[now.getMonth()]} Fee Ready`,
-                    `Your ${courseName} fee of INR ${finalAmount} for ${billingPeriod} is ready. Please pay by ${dueDate}.`, 'Info');
-            } catch (_) {}
-            console.log(`[MonthlyInvoices] Invoice #${inv.rows[0].id} for ${student.name} (${courseName}) ${billingPeriod}`);
+                const inv = await pool.query(
+                    `INSERT INTO invoices (student_id, fee_structure_id, course_name, amount, currency, issue_date, due_date,
+                        billing_period, status, original_amount, discount_percentage, discount_amount, course_id, grade_id,
+                        batch_id, prorated_from)
+                     VALUES ($1, NULL, $2, $3, 'INR', $4, $5, $6, 'pending', $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+                    [student.id, courseName, finalAmount, terms.issueDate, terms.dueDate, billingPeriod, base,
+                        discountPct, discountAmt, courseId || null, gradeId || null, batchId || null, terms.proratedFrom]
+                );
+                created++;
+                if (terms.proratedFrom) prorated++;
+                newLines.push({ studentId: student.id, studentName: student.name, courseName, amount: finalAmount, dueDate: terms.dueDate });
+                console.log(`[MonthlyInvoices] Invoice #${inv.rows[0].id} for ${student.name} (${courseName}) ${billingPeriod}${terms.proratedFrom ? ` pro-rata from ${terms.proratedFrom}` : ''}`);
+            } catch (e) {
+                if (e.code === '23505') { skipped++; return; } // another run created it first
+                throw e;
+            }
         };
 
-        // Fees are grade-based only. A student with no grade assigned gets no
-        // invoice (they show as "not assigned" until an admin sets their grade).
+        // Fees are grade-based only. A student with no grade assigned gets no bill
+        // (Fees Management lists them as "Fee not set up").
         let noGrade = 0;
         for (const s of students.rows) {
+            const joined = s.date_of_joining ? parseLocalDate(s.date_of_joining) : null;
+            if (joined && joined > today) { notYetJoined++; continue; } // not started yet
+            // Pro-rata for a student who joins partway through THIS month: bill the
+            // remaining days, from the joining date; due the later of the 10th or a week
+            // after joining. Everyone else: full month, issued the 1st, due the 10th.
+            const joinedThisMonth = joined && joined.getFullYear() === now.getFullYear()
+                && joined.getMonth() === now.getMonth() && joined.getDate() > 1;
+            let terms;
+            if (joinedThisMonth) {
+                const weekAfter = new Date(joined.getFullYear(), joined.getMonth(), joined.getDate() + 7);
+                terms = {
+                    factor: (daysInMonth - joined.getDate() + 1) / daysInMonth,
+                    issueDate: toDateStr(joined),
+                    dueDate: toDateStr(weekAfter > monthTenth ? weekAfter : monthTenth),
+                    proratedFrom: toDateStr(joined),
+                };
+            } else {
+                terms = { factor: 1, issueDate: toDateStr(monthFirst), dueDate: toDateStr(monthTenth), proratedFrom: null };
+            }
             const gradeFees = gradeFeesByStudent[s.id];
             if (gradeFees && gradeFees.length > 0) {
                 for (const gf of gradeFees) {
                     const label = `${gf.course_name || 'Course'} - ${gf.grade_name || 'Grade'}`;
-                    await createLine(s, label, gf.course_id, Number(gf.monthly_fee), null,
-                        gf.grade_id, resolveBatchId(s.id, gf.course_id));
+                    await createLine(s, label, gf.course_id, Number(gf.monthly_fee), gf.grade_id,
+                        resolveBatchId(s.id, gf.course_id), terms);
                 }
             } else {
                 noGrade++;
             }
         }
-        console.log(`[MonthlyInvoices] ${billingPeriod}: created ${created}, skipped ${skipped} (existed), ${noGrade} student(s) had no grade.`);
-        return { billingPeriod, created, skipped, noGrade };
+
+        // One "fees ready" message per family (not one per bill), to the parent.
+        (async () => {
+            try {
+                const byContact = new Map();
+                for (const line of newLines) {
+                    const c = await resolveFeeContact(line.studentId);
+                    if (!c) continue;
+                    if (!byContact.has(c.userId)) byContact.set(c.userId, { contact: c, lines: [] });
+                    byContact.get(c.userId).lines.push(line);
+                }
+                for (const { contact, lines } of byContact.values()) {
+                    const total = lines.reduce((s, l) => s + Number(l.amount || 0), 0);
+                    const who = [...new Set(lines.map(l => l.studentName))].join(', ');
+                    const due = lines.map(l => l.dueDate).sort()[0];
+                    createNotificationForUser(contact.userId, `${billingPeriod} fees ready`,
+                        `${inr(total)} for ${who}. Please pay by ${due}.`, 'Info');
+                }
+            } catch (e) { console.error('[MonthlyInvoices] fee-ready notify failed:', e.message); }
+        })();
+
+        console.log(`[MonthlyInvoices] ${billingPeriod}: created ${created} (${prorated} pro-rata), skipped ${skipped} (existed), ${noGrade} with no grade, ${notYetJoined} not yet joined.`);
+        return { billingPeriod, created, prorated, skipped, noGrade, notYetJoined };
     };
 
     // Manual trigger so an admin can generate this month's invoices on demand.
@@ -3166,10 +3303,16 @@ Please review and approve this registration in the admin panel.`;
                     has_bill: false, all_paid: false, due_date: null, students: [] });
             }
             const invRes = await pool.query(
-                `SELECT id, student_id, course_name, amount, currency, status, billing_period,
-                        issue_date, due_date, payment_details
-                 FROM invoices WHERE student_id = ANY($1)
-                 ORDER BY issue_date DESC NULLS LAST, id DESC`, [studentIds]);
+                `SELECT i.id, i.student_id, i.course_name, i.amount, i.currency, i.status, i.billing_period,
+                        i.issue_date, i.due_date, i.payment_details, i.prorated_from,
+                        p.receipt_number, p.payment_method, p.paid_at, p.collected_by_name
+                 FROM invoices i
+                 LEFT JOIN LATERAL (
+                     SELECT receipt_number, payment_method, paid_at, collected_by_name FROM invoice_payments
+                     WHERE invoice_id = i.id AND status = 'approved' ORDER BY id DESC LIMIT 1
+                 ) p ON true
+                 WHERE i.student_id = ANY($1)
+                 ORDER BY i.issue_date DESC NULLS LAST, i.id DESC`, [studentIds]);
             const byStudent = new Map();
             for (const sid of studentIds) {
                 byStudent.set(sid, {
@@ -3208,6 +3351,264 @@ Please review and approve this registration in the admin panel.`;
         } catch (error) {
             console.error('Error building household fees:', error);
             res.status(500).json({ message: 'Server error building household fees.' });
+        }
+    });
+
+    // ===================== Fees Management (admin) =====================
+    // Starts from STUDENTS, not bills: every active student appears, with this
+    // month's status — so nobody is invisible just because they have no bill.
+    const billDateStr = (v) => (v ? toDateStr(parseLocalDate(v)) : null);
+
+    app.get('/api/fees/roster', ensureAdmin, async (req, res) => {
+        try {
+            const now = new Date();
+            const period = String(req.query.period || `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`);
+            const todayStr = toDateStr(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
+            const courseId = req.query.course_id ? Number(req.query.course_id) : null;
+            const batchId = req.query.batch_id ? Number(req.query.batch_id) : null;
+            const statusFilter = String(req.query.status || '').toLowerCase();
+            const q = String(req.query.search || '').trim().toLowerCase();
+            const qDigits = q.replace(/\D/g, '');
+
+            const invRows = (await pool.query(`
+                SELECT i.id, i.student_id, i.course_id, i.batch_id, i.course_name, i.amount, i.original_amount,
+                       i.discount_percentage, i.status, i.due_date, i.issue_date, i.prorated_from,
+                       p.receipt_number, p.payment_method, p.paid_at, p.collected_by_name
+                FROM invoices i
+                LEFT JOIN LATERAL (
+                    SELECT receipt_number, payment_method, paid_at, collected_by_name FROM invoice_payments
+                    WHERE invoice_id = i.id AND status = 'approved' ORDER BY id DESC LIMIT 1
+                ) p ON true
+                WHERE i.billing_period = $1
+                ORDER BY i.id`, [period])).rows;
+            const invByStudent = new Map();
+            for (const r of invRows) {
+                if (!invByStudent.has(r.student_id)) invByStudent.set(r.student_id, []);
+                invByStudent.get(r.student_id).push(r);
+            }
+
+            // Every active student, plus anyone billed this period even if since
+            // deactivated — so the rows always add up to the period's totals.
+            const students = (await pool.query(`
+                SELECT u.id, u.name, u.display_name, u.user_id, u.contact_number, u.status, u.is_deleted,
+                       u.parent_id, p.name AS parent_name
+                FROM users u LEFT JOIN users p ON p.id = u.parent_id
+                WHERE (LOWER(TRIM(u.role)) = 'student' AND u.is_deleted = false
+                       AND (u.status IS NULL OR LOWER(u.status) = 'active'))
+                   OR u.id = ANY($1)
+                ORDER BY COALESCE(u.display_name, u.name)`, [[...invByStudent.keys()]])).rows;
+
+            const gradesByStudent = new Map();
+            for (const g of (await pool.query(`
+                SELECT scg.student_id, scg.course_id, c.name AS course_name, g.name AS grade_name, g.monthly_fee
+                FROM student_course_grades scg
+                JOIN grades g ON g.id = scg.grade_id AND g.is_active = true
+                LEFT JOIN courses c ON c.id = scg.course_id`)).rows) {
+                if (!gradesByStudent.has(g.student_id)) gradesByStudent.set(g.student_id, []);
+                gradesByStudent.get(g.student_id).push(g);
+            }
+            const batchesByStudent = new Map();
+            for (const b of (await pool.query('SELECT id, batch_name, course_id, student_ids FROM batches')).rows) {
+                for (const sid of (Array.isArray(b.student_ids) ? b.student_ids : [])) {
+                    if (!batchesByStudent.has(sid)) batchesByStudent.set(sid, []);
+                    batchesByStudent.get(sid).push({ id: b.id, name: b.batch_name, course_id: b.course_id });
+                }
+            }
+
+            const rows = [];
+            for (const s of students) {
+                const inv = invByStudent.get(s.id) || [];
+                const grades = gradesByStudent.get(s.id) || [];
+                const batches = batchesByStudent.get(s.id) || [];
+                if (courseId && !inv.some(i => i.course_id === courseId) && !grades.some(g => g.course_id === courseId)) continue;
+                if (batchId && !inv.some(i => i.batch_id === batchId) && !batches.some(b => b.id === batchId)) continue;
+                if (q) {
+                    const hay = `${s.display_name || s.name} ${s.user_id || ''} ${s.parent_name || ''}`.toLowerCase();
+                    const phone = String(s.contact_number || '').replace(/\D/g, '');
+                    if (!hay.includes(q) && !(qDigits.length >= 4 && phone.includes(qDigits))) continue;
+                }
+                const isPaid = (i) => String(i.status).toLowerCase() === 'paid';
+                const isOverdue = (i) => !isPaid(i) && i.due_date && billDateStr(i.due_date) < todayStr;
+                const billed = inv.reduce((t, i) => t + Number(i.amount || 0), 0);
+                const paid = inv.filter(isPaid).reduce((t, i) => t + Number(i.amount || 0), 0);
+                let status;
+                if (inv.length === 0) status = grades.length ? 'no_bill' : 'not_set_up';
+                else if (inv.every(isPaid)) status = 'paid';
+                else if (inv.some(isOverdue)) status = 'overdue';
+                else if (inv.some(isPaid)) status = 'partly_paid';
+                else status = 'pending';
+                const unpaidDue = inv.filter(i => !isPaid(i)).map(i => billDateStr(i.due_date)).filter(Boolean).sort();
+                rows.push({
+                    student_id: s.id,
+                    name: s.display_name || s.name,
+                    user_id: s.user_id,
+                    phone: s.contact_number,
+                    parent_name: s.parent_name,
+                    inactive: s.is_deleted || (s.status && String(s.status).toLowerCase() !== 'active'),
+                    grades: grades.map(g => ({ course_id: g.course_id, course_name: g.course_name, grade_name: g.grade_name, monthly_fee: Number(g.monthly_fee || 0) })),
+                    batch_names: batches.map(b => b.name),
+                    status,
+                    billed, paid, due: billed - paid,
+                    due_date: unpaidDue[0] || null,
+                    bills: inv.map(i => ({
+                        id: i.id,
+                        course_name: i.course_name,
+                        amount: Number(i.amount || 0),
+                        original_amount: i.original_amount != null ? Number(i.original_amount) : null,
+                        discount_percentage: i.discount_percentage != null ? Number(i.discount_percentage) : null,
+                        status: isPaid(i) ? 'paid' : (isOverdue(i) ? 'overdue' : 'pending'),
+                        due_date: billDateStr(i.due_date),
+                        prorated_from: billDateStr(i.prorated_from),
+                        receipt_number: i.receipt_number || null,
+                        payment_method: i.payment_method || null,
+                        paid_at: i.paid_at || null,
+                        collected_by_name: i.collected_by_name || null,
+                    })),
+                });
+            }
+            const count = (st) => rows.filter(r => r.status === st).length;
+            const summary = {
+                students: rows.length,
+                billed: rows.reduce((t, r) => t + r.billed, 0),
+                collected: rows.reduce((t, r) => t + r.paid, 0),
+                outstanding: rows.reduce((t, r) => t + r.due, 0),
+                counts: {
+                    paid: count('paid'), pending: count('pending'), overdue: count('overdue'),
+                    partly_paid: count('partly_paid'), no_bill: count('no_bill'), not_set_up: count('not_set_up'),
+                },
+            };
+            res.json({ period, today: todayStr, summary, rows: statusFilter ? rows.filter(r => r.status === statusFilter) : rows });
+        } catch (error) {
+            console.error('Error building fees roster:', error);
+            res.status(500).json({ message: 'Server error loading fees.' });
+        }
+    });
+
+    // Everything a family still owes (any month) — what "Collect cash" shows, so
+    // one handover can settle several children / months at once.
+    app.get('/api/fees/family-due', ensureAdmin, async (req, res) => {
+        try {
+            const studentId = Number(req.query.student_id);
+            if (!Number.isInteger(studentId)) return res.status(400).json({ message: 'student_id is required.' });
+            const s = (await pool.query('SELECT * FROM users WHERE id = $1', [studentId])).rows[0];
+            if (!s) return res.status(404).json({ message: 'Student not found.' });
+            let base = s;
+            if (s.parent_id) {
+                const p = (await pool.query('SELECT * FROM users WHERE id = $1 AND is_deleted = false', [s.parent_id])).rows[0];
+                if (p) base = p;
+            }
+            const profiles = await buildProfilesForUser(base);
+            const ids = [...new Set([studentId, ...profiles.filter(p => p.role === 'Student').map(p => p.id)])];
+            const names = await studentNames(ids);
+            const todayStr = toDateStr(new Date());
+            const bills = (await pool.query(
+                `SELECT id, student_id, course_name, billing_period, amount, due_date, issue_date, prorated_from
+                 FROM invoices WHERE student_id = ANY($1) AND LOWER(status) <> 'paid'
+                 ORDER BY issue_date NULLS LAST, student_id, id`, [ids]
+            )).rows.map(b => ({
+                id: b.id,
+                student_id: b.student_id,
+                student_name: names.get(b.student_id) || 'Student',
+                course_name: b.course_name,
+                billing_period: b.billing_period,
+                amount: Number(b.amount || 0),
+                due_date: billDateStr(b.due_date),
+                prorated_from: billDateStr(b.prorated_from),
+                overdue: !!(b.due_date && billDateStr(b.due_date) < todayStr),
+            }));
+            const contact = await resolveFeeContact(studentId);
+            res.json({
+                student_id: studentId,
+                bills,
+                total: bills.reduce((t, b) => t + b.amount, 0),
+                notify: contact ? { name: contact.emailName || contact.name, email: contact.email } : null,
+            });
+        } catch (error) {
+            console.error('Error loading family dues:', error);
+            res.status(500).json({ message: 'Server error loading dues.' });
+        }
+    });
+
+    // Cash at the office. FULL payment only: the client sends which bills, never
+    // an amount — each bill is settled for exactly its amount.
+    app.post('/api/fees/collect-cash', ensureAdmin, async (req, res) => {
+        try {
+            const receipt = await recordPayments({
+                invoiceIds: Array.isArray(req.body.invoice_ids) ? req.body.invoice_ids : [],
+                method: 'Cash',
+                collectedBy: { id: req.session.user.id, name: req.session.user.name },
+            });
+            res.json({
+                receipt_number: receipt.receiptNumber,
+                total: receipt.total,
+                paid_at: receipt.paidAt,
+                collected_by_name: receipt.collectedByName,
+                lines: receipt.lines.map(l => ({
+                    invoice_id: l.invoiceId, student_name: l.studentName, course_name: l.courseName,
+                    billing_period: l.billingPeriod, amount: l.amount,
+                })),
+            });
+        } catch (error) {
+            sendLedgerError(res, error, 'Could not record the cash payment.');
+        }
+    });
+
+    // A receipt — admins see any; a family sees receipts for its own students.
+    app.get('/api/fees/receipts/:receipt', ensureAuthenticated, async (req, res) => {
+        try {
+            const rows = (await pool.query(
+                `SELECT ip.*, i.course_name, i.billing_period, u.name AS student_name, u.display_name
+                 FROM invoice_payments ip
+                 JOIN invoices i ON i.id = ip.invoice_id
+                 LEFT JOIN users u ON u.id = ip.student_id
+                 WHERE ip.receipt_number = $1 ORDER BY ip.id`, [req.params.receipt]
+            )).rows;
+            if (rows.length === 0) return res.status(404).json({ message: 'Receipt not found.' });
+            const me = req.session.user;
+            const isAdmin = String(me.role || '').toLowerCase() === 'admin' || me.is_super_admin === true;
+            if (!isAdmin) {
+                const { studentIds } = await householdFor(req);
+                const mine = new Set(studentIds.map(Number));
+                if (!rows.every(r => mine.has(Number(r.student_id)))) {
+                    return res.status(403).json({ message: 'Forbidden.' });
+                }
+            }
+            const first = rows[0];
+            res.json({
+                receipt_number: first.receipt_number,
+                status: rows.some(r => r.status === 'approved') ? 'paid' : first.status,
+                method: first.payment_method,
+                method_label: methodLabel(first.payment_method, first.collected_by_name),
+                transaction_id: first.transaction_id,
+                paid_at: first.paid_at || first.approved_at,
+                collected_by_name: first.collected_by_name,
+                reversed_at: first.reversed_at,
+                reversed_by_name: first.reversed_by_name,
+                reversal_reason: first.reversal_reason,
+                lines: rows.map(r => ({
+                    invoice_id: r.invoice_id, student_name: r.display_name || r.student_name || 'Student',
+                    course_name: r.course_name, billing_period: r.billing_period, amount: Number(r.amount || 0),
+                })),
+                total: rows.reduce((t, r) => t + Number(r.amount || 0), 0),
+            });
+        } catch (error) {
+            console.error('Error loading receipt:', error);
+            res.status(500).json({ message: 'Server error loading receipt.' });
+        }
+    });
+
+    // Reverse a receipt (admin, reason required). Bills return to pending and the
+    // family is told; nothing is deleted.
+    app.post('/api/fees/receipts/:receipt/reverse', ensureAdmin, async (req, res) => {
+        try {
+            const r = await reverseReceipt({
+                receiptNumber: req.params.receipt,
+                reason: req.body.reason,
+                reversedBy: { id: req.session.user.id, name: req.session.user.name },
+            });
+            res.json({ receipt_number: r.receiptNumber, total: r.total, reason: r.reason, reversed_at: r.reversedAt });
+        } catch (error) {
+            sendLedgerError(res, error, 'Could not reverse the receipt.');
         }
     });
 
@@ -5175,47 +5576,295 @@ Please review and approve this registration in the admin panel.`;
     const razorpayConfigured = () => RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET;
 
     // Mark an invoice paid from a verified Razorpay payment + notify (idempotent).
+    // ======================= Fee ledger core =======================
+    // invoice_payments is the single ledger. recordPayments() is the ONLY way a
+    // bill becomes paid (cash at the office, Razorpay, approved proof) and
+    // reverseReceipt() the only way to undo one — so the app, the reports and
+    // the cash drawer can never disagree.
+    const isRealEmail = (e) => !!e && String(e).includes('@') && !String(e).toLowerCase().endsWith('@child.nadanaloga.local');
+    const inr = (n) => `₹${Math.round(Number(n || 0)).toLocaleString('en-IN')}`;
+    const istDateTime = (d) => new Date(d || Date.now()).toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+    const methodLabel = (method, collectedByName) => {
+        const m = String(method || '').toLowerCase();
+        if (m === 'cash') return `Cash (collected at the office${collectedByName ? ` by ${collectedByName}` : ''})`;
+        if (m === 'razorpay') return 'Online (UPI via Razorpay)';
+        return method || 'Payment';
+    };
+    const ledgerError = (status, message, extra = {}) => Object.assign(new Error(message), { status, ...extra });
+    const sendLedgerError = (res, e, fallback) => {
+        if (e && e.status) return res.status(e.status).json({ message: e.message });
+        console.error(`[Ledger] ${fallback}`, e);
+        return res.status(500).json({ message: fallback });
+    };
+
+    // Who hears about a student's fees: the linked parent, else the adult on the
+    // same phone number, else the student. In-app/push go to the first of those;
+    // email goes to the first with a REAL address — never a child placeholder
+    // (…@child.nadanaloga.local), which silently lost every receipt before.
+    const resolveFeeContact = async (studentId) => {
+        const s = (await pool.query(
+            'SELECT id, name, email, parent_id, contact_number FROM users WHERE id = $1', [studentId]
+        )).rows[0];
+        if (!s) return null;
+        const candidates = [];
+        if (s.parent_id) {
+            const p = (await pool.query(
+                'SELECT id, name, email FROM users WHERE id = $1 AND is_deleted = false', [s.parent_id]
+            )).rows[0];
+            if (p) candidates.push(p);
+        }
+        const digits = String(s.contact_number || '').replace(/\D/g, '');
+        if (digits.length >= 7) {
+            const adult = (await pool.query(
+                `SELECT id, name, email FROM users
+                 WHERE ${phoneMatchSql('$1')} AND is_deleted = false AND parent_id IS NULL AND id <> $2
+                   AND COALESCE(email, '') NOT ILIKE '%@child.nadanaloga.local'
+                 ORDER BY CASE WHEN LOWER(TRIM(role)) IN ('parent', 'teacher', 'admin') THEN 0 ELSE 1 END, id
+                 LIMIT 1`, [digits, s.id]
+            )).rows[0];
+            if (adult) candidates.push(adult);
+        }
+        candidates.push(s);
+        const target = candidates[0];
+        const mailTo = candidates.find(c => isRealEmail(c.email));
+        return {
+            userId: target.id,
+            name: target.name,
+            email: mailTo ? mailTo.email : null,
+            emailName: mailTo ? mailTo.name : target.name,
+        };
+    };
+
+    // One message per family per receipt: email + in-app notification + push.
+    const sendReceiptNotifications = async (kind, receipt) => {
+        const byContact = new Map();
+        for (const line of receipt.lines) {
+            const c = await resolveFeeContact(line.studentId);
+            if (!c) continue;
+            if (!byContact.has(c.userId)) byContact.set(c.userId, { contact: c, lines: [] });
+            byContact.get(c.userId).lines.push(line);
+        }
+        for (const { contact, lines } of byContact.values()) {
+            const total = lines.reduce((s, l) => s + Number(l.amount || 0), 0);
+            const who = [...new Set(lines.map(l => l.studentName))].join(', ');
+            const detail = lines
+                .map(l => `  • ${l.studentName} – ${l.courseName || 'Fees'} · ${l.billingPeriod || ''} · ${inr(l.amount)}`)
+                .join('\n');
+            let title, message, subject, body;
+            if (kind === 'reversed') {
+                title = 'Payment reversed';
+                message = `Receipt ${receipt.receiptNumber} (${inr(total)}) for ${who} was reversed: ${receipt.reason}. This amount is due again.`;
+                subject = `Receipt ${receipt.receiptNumber} reversed`;
+                body = `Dear ${contact.emailName},\n\n`
+                    + `Receipt ${receipt.receiptNumber} has been reversed by the academy.\n\n`
+                    + `Reason   : ${receipt.reason}\nDate     : ${istDateTime(receipt.reversedAt)}\n\n`
+                    + `Bills that are due again:\n${detail}\n\nAmount due: ${inr(total)}\n\n`
+                    + `If you have any questions, please contact the office.\n\nRegards,\nNadanaloga Fine Arts Academy`;
+            } else {
+                title = 'Payment received ✅';
+                message = `${inr(total)} received for ${who}. Receipt ${receipt.receiptNumber}.`;
+                subject = `Payment received – Receipt ${receipt.receiptNumber}`;
+                body = `Dear ${contact.emailName},\n\n`
+                    + `We have received your fee payment. Thank you!\n\n`
+                    + `Receipt number : ${receipt.receiptNumber}\n`
+                    + `Date & time    : ${istDateTime(receipt.paidAt)}\n`
+                    + `Paid by        : ${methodLabel(receipt.method, receipt.collectedByName)}\n\n`
+                    + `Details:\n${detail}\n\nTotal paid: ${inr(total)}\n\n`
+                    + `You can see this payment anytime in the Nadanaloga app under Fees.\n\n`
+                    + `Regards,\nNadanaloga Fine Arts Academy`;
+            }
+            createNotificationForUser(contact.userId, title, message, kind === 'reversed' ? 'Warning' : 'Success');
+            if (contact.email) sendEmailBackground(contact.email, contact.emailName, subject, body);
+        }
+    };
+
+    const studentNames = async (ids) => {
+        const rows = (await pool.query(
+            'SELECT id, name, display_name FROM users WHERE id = ANY($1)', [[...new Set(ids)]]
+        )).rows;
+        return new Map(rows.map(r => [r.id, r.display_name || r.name]));
+    };
+
+    // THE only way a bill becomes paid. One ledger row per bill, all sharing one
+    // receipt number (one handover = one receipt). Row-locked in a transaction, so
+    // a bill can never be paid twice (cash + online racing, or a double tap).
+    // existingPaymentId: approve an uploaded proof in place instead of inserting.
+    const recordPayments = async ({
+        invoiceIds, method, transactionId = null, collectedBy = null, notes = null,
+        existingPaymentId = null, notify = true,
+    }) => {
+        const ids = [...new Set((invoiceIds || []).map(Number).filter(Number.isInteger))];
+        if (ids.length === 0) throw ledgerError(400, 'No bills selected.');
+        if (existingPaymentId && ids.length !== 1) throw ledgerError(400, 'A proof covers exactly one bill.');
+        const client = await pool.connect();
+        const lines = [];
+        let receiptNumber;
+        try {
+            await client.query('BEGIN');
+            const inv = await client.query('SELECT * FROM invoices WHERE id = ANY($1) ORDER BY id FOR UPDATE', [ids]);
+            if (inv.rows.length !== ids.length) throw ledgerError(404, 'One or more bills were not found.');
+            const already = inv.rows.find(r => String(r.status).toLowerCase() === 'paid');
+            if (already) {
+                const p = (await client.query(
+                    `SELECT receipt_number, payment_method, collected_by_name, paid_at FROM invoice_payments
+                     WHERE invoice_id = $1 AND status = 'approved' ORDER BY id DESC LIMIT 1`, [already.id]
+                )).rows[0];
+                throw ledgerError(409,
+                    `Already paid${p ? ` — ${methodLabel(p.payment_method, p.collected_by_name)}, receipt ${p.receipt_number}, ${istDateTime(p.paid_at)}` : ''}.`,
+                    { alreadyPaid: true });
+            }
+            receiptNumber = (await client.query(
+                `SELECT 'NDA-R-' || lpad(nextval('payment_receipt_seq')::text, 6, '0') AS r`
+            )).rows[0].r;
+            for (const r of inv.rows) {
+                if (existingPaymentId) {
+                    const upd = await client.query(
+                        `UPDATE invoice_payments
+                         SET status = 'approved', approved_at = NOW(), paid_at = NOW(), receipt_number = $1,
+                             collected_by = $2, collected_by_name = $3, notes = COALESCE($4, notes), updated_at = NOW()
+                         WHERE id = $5 AND invoice_id = $6 AND status = 'submitted' RETURNING id`,
+                        [receiptNumber, collectedBy?.id || null, collectedBy?.name || null, notes, existingPaymentId, r.id]
+                    );
+                    if (upd.rows.length === 0) throw ledgerError(409, 'This payment proof was already processed.');
+                } else {
+                    await client.query(
+                        `INSERT INTO invoice_payments (invoice_id, student_id, amount, payment_method, transaction_id,
+                            payment_date, status, approved_at, paid_at, receipt_number, collected_by, collected_by_name, notes)
+                         VALUES ($1, $2, $3, $4, $5, (NOW() AT TIME ZONE 'Asia/Kolkata')::date, 'approved', NOW(), NOW(),
+                            $6, $7, $8, $9)`,
+                        [r.id, r.student_id, r.amount, method, transactionId, receiptNumber,
+                            collectedBy?.id || null, collectedBy?.name || null, notes]
+                    );
+                }
+                await client.query(
+                    `UPDATE invoices SET status = 'paid', payment_details = $1, updated_at = NOW() WHERE id = $2`,
+                    [{
+                        payment_method: method, transaction_id: transactionId, receipt_number: receiptNumber,
+                        collected_by: collectedBy?.name || null, payment_status: 'approved',
+                        payment_date: new Date().toISOString().slice(0, 10),
+                    }, r.id]
+                );
+                lines.push({
+                    invoiceId: r.id, studentId: r.student_id, courseName: r.course_name,
+                    billingPeriod: r.billing_period, amount: Number(r.amount),
+                });
+            }
+            await client.query('COMMIT');
+        } catch (e) {
+            await client.query('ROLLBACK').catch(() => {});
+            throw e;
+        } finally {
+            client.release();
+        }
+        const names = await studentNames(lines.map(l => l.studentId));
+        lines.forEach(l => { l.studentName = names.get(l.studentId) || 'Student'; });
+        const receipt = {
+            receiptNumber, method, transactionId, paidAt: new Date(),
+            collectedByName: collectedBy?.name || null, lines,
+            total: lines.reduce((s, l) => s + l.amount, 0),
+        };
+        if (notify) sendReceiptNotifications('paid', receipt).catch(e => console.error('[Ledger] notify failed:', e.message));
+        console.log(`[Ledger] ${receiptNumber}: ${method} ${inr(receipt.total)} for bill(s) ${ids.join(', ')}${collectedBy ? ` by ${collectedBy.name}` : ''}`);
+        return receipt;
+    };
+
+    // Undo a whole receipt (admin only, reason required). Never deletes: the rows
+    // are marked reversed with who/when/why, the bills go back to pending, and the
+    // family is told. Reversed rows drop out of every 'approved' total.
+    const reverseReceipt = async ({ receiptNumber, reason, reversedBy }) => {
+        const why = String(reason || '').trim();
+        if (!why) throw ledgerError(400, 'A reason is required to reverse a receipt.');
+        const client = await pool.connect();
+        let live;
+        try {
+            await client.query('BEGIN');
+            const rows = (await client.query(
+                'SELECT * FROM invoice_payments WHERE receipt_number = $1 ORDER BY id FOR UPDATE', [receiptNumber]
+            )).rows;
+            if (rows.length === 0) throw ledgerError(404, 'Receipt not found.');
+            live = rows.filter(r => r.status === 'approved');
+            if (live.length === 0) throw ledgerError(409, 'This receipt has already been reversed.');
+            await client.query(
+                `UPDATE invoice_payments SET status = 'reversed', reversed_at = NOW(), reversed_by = $1,
+                    reversed_by_name = $2, reversal_reason = $3, updated_at = NOW()
+                 WHERE receipt_number = $4 AND status = 'approved'`,
+                [reversedBy?.id || null, reversedBy?.name || null, why, receiptNumber]
+            );
+            await client.query(
+                `UPDATE invoices SET status = 'pending', payment_details = NULL, updated_at = NOW() WHERE id = ANY($1)`,
+                [live.map(r => r.invoice_id)]
+            );
+            await client.query('COMMIT');
+        } catch (e) {
+            await client.query('ROLLBACK').catch(() => {});
+            throw e;
+        } finally {
+            client.release();
+        }
+        const inv = (await pool.query(
+            'SELECT id, student_id, course_name, billing_period, amount FROM invoices WHERE id = ANY($1)',
+            [live.map(r => r.invoice_id)]
+        )).rows;
+        const names = await studentNames(inv.map(i => i.student_id));
+        const receipt = {
+            receiptNumber, reason: why, reversedAt: new Date(), reversedByName: reversedBy?.name || null,
+            lines: inv.map(i => ({
+                invoiceId: i.id, studentId: i.student_id, studentName: names.get(i.student_id) || 'Student',
+                courseName: i.course_name, billingPeriod: i.billing_period, amount: Number(i.amount),
+            })),
+        };
+        receipt.total = receipt.lines.reduce((s, l) => s + l.amount, 0);
+        sendReceiptNotifications('reversed', receipt).catch(e => console.error('[Ledger] reversal notify failed:', e.message));
+        console.log(`[Ledger] ${receiptNumber} REVERSED by ${reversedBy?.name || '?'}: ${why}`);
+        return receipt;
+    };
+
+    // Razorpay confirmation (both the checkout callback and the webhook call this;
+    // whichever arrives second is a no-op).
     const markInvoicePaidFromRazorpay = async (invoiceId, paymentId, amountPaise) => {
-        const invRes = await pool.query('SELECT * FROM invoices WHERE id = $1', [invoiceId]);
-        if (invRes.rows.length === 0) return;
-        const invoice = invRes.rows[0];
-        if (invoice.status === 'paid') return; // already done
-
-        // Skip if we already recorded this exact payment.
-        const dup = await pool.query('SELECT id FROM invoice_payments WHERE transaction_id = $1 LIMIT 1', [paymentId]);
+        const dup = await pool.query(
+            `SELECT id FROM invoice_payments WHERE transaction_id = $1 AND payment_method = 'Razorpay'
+               AND status IN ('approved', 'needs_refund') LIMIT 1`, [paymentId]
+        );
         if (dup.rows.length > 0) return;
-
-        await pool.query(
-            `INSERT INTO invoice_payments (invoice_id, student_id, amount, payment_method, transaction_id, payment_date, proof_url, status, approved_at)
-             VALUES ($1, $2, $3, 'Razorpay', $4, CURRENT_DATE, NULL, 'approved', NOW())`,
-            [invoiceId, invoice.student_id, (amountPaise != null ? amountPaise / 100 : invoice.amount), paymentId]
-        );
-        await pool.query(
-            `UPDATE invoices SET status = 'paid', payment_details = $1, updated_at = NOW() WHERE id = $2`,
-            [{ payment_method: 'Razorpay', transaction_id: paymentId, payment_date: new Date().toISOString().split('T')[0], payment_status: 'approved' }, invoiceId]
-        );
-
-        // Notify student + admins (fire-and-forget)
+        const invoice = (await pool.query('SELECT * FROM invoices WHERE id = $1', [invoiceId])).rows[0];
+        if (!invoice) return;
+        let receipt;
+        try {
+            receipt = await recordPayments({ invoiceIds: [invoiceId], method: 'Razorpay', transactionId: paymentId });
+        } catch (e) {
+            if (e && e.alreadyPaid) {
+                // Money arrived online for a bill that was already paid (e.g. cash at
+                // the office moments earlier). Keep a NON-counting record and ask the
+                // admin to refund — never silently count it twice.
+                await pool.query(
+                    `INSERT INTO invoice_payments (invoice_id, student_id, amount, payment_method, transaction_id,
+                        payment_date, status, notes)
+                     VALUES ($1, $2, $3, 'Razorpay', $4, (NOW() AT TIME ZONE 'Asia/Kolkata')::date, 'needs_refund', $5)`,
+                    [invoiceId, invoice.student_id, amountPaise != null ? amountPaise / 100 : invoice.amount, paymentId,
+                        'Bill was already paid — refund this online payment from the Razorpay dashboard']
+                ).catch(err => console.error('[Razorpay] needs_refund record failed:', err.message));
+                sendEmailBackground(ADMIN_NOTIFY_EMAIL, 'Admin', `Refund needed – bill #${invoiceId} paid twice`,
+                    `An online payment (${paymentId}) arrived for bill #${invoiceId} (${invoice.course_name || 'fees'}, ${invoice.billing_period || ''}), `
+                    + `which was already paid.\n\nPlease refund this payment from the Razorpay dashboard.`);
+                return;
+            }
+            if (e && e.code === '23505') return; // raced with the other confirmation — already recorded
+            throw e;
+        }
+        // Admin alerts (the family's receipt is sent by recordPayments).
         (async () => {
             try {
-                const amountStr = `${invoice.currency || 'INR'} ${invoice.amount}`;
-                let studentName = 'A student';
-                if (invoice.student_id) {
-                    const sr = await pool.query('SELECT name FROM users WHERE id = $1', [invoice.student_id]);
-                    studentName = sr.rows[0]?.name || studentName;
-                    createNotificationForUser(invoice.student_id, 'Payment Received ✅',
-                        `Your payment of ${amountStr} for ${invoice.course_name || 'fees'} was received. Thank you!`, 'Success');
-                }
-                const adminMsg = `${studentName} paid ${amountStr} for ${invoice.course_name || 'fees'} (Invoice #${invoiceId}). Txn: ${paymentId}`;
-                const admins = await getActiveAdmins();
-                for (const admin of admins) {
+                const who = receipt.lines.map(l => l.studentName).join(', ');
+                const adminMsg = `${who} paid ${inr(receipt.total)} online (${invoice.course_name || 'fees'}). Receipt ${receipt.receiptNumber}.`;
+                for (const admin of await getActiveAdmins()) {
                     createNotificationForUser(admin.id, 'Fee Payment Received', adminMsg, 'Success');
                 }
-                // WhatsApp alert to admin (no-op until Meta Cloud API is configured)
-                notifyAdminWhatsApp(studentName, amountStr, paymentId, invoiceId);
-            } catch (e) { console.error('[Razorpay] notify error:', e.message); }
+                notifyAdminWhatsApp(who, inr(receipt.total), paymentId, invoiceId);
+            } catch (e) { console.error('[Razorpay] admin notify error:', e.message); }
         })();
-        console.log(`[Razorpay] Invoice #${invoiceId} auto-marked paid (payment ${paymentId})`);
     };
 
     // Create a Razorpay order for an invoice; the app opens checkout with it.
@@ -5622,36 +6271,39 @@ Please review and approve this registration in the admin panel.`;
         try {
             const { id } = req.params;
             const { status, payment_details } = req.body;
-            const result = await pool.query(
-                `UPDATE invoices SET status = $1, payment_details = $2, updated_at = NOW() WHERE id = $3 RETURNING *`,
-                [status, payment_details, id]
-            );
-            if (result.rows.length === 0) {
-                return res.status(404).json({ message: 'Invoice not found' });
-            }
-            res.json(result.rows[0]);
+            const current = (await pool.query('SELECT * FROM invoices WHERE id = $1', [id])).rows[0];
+            if (!current) return res.status(404).json({ message: 'Invoice not found' });
+            const want = String(status || '').toLowerCase();
+            const isPaid = String(current.status || '').toLowerCase() === 'paid';
 
-            // Send payment confirmation email if status is paid (fire-and-forget)
-            const invoice = result.rows[0];
-            if (status === 'paid' && invoice.student_id) {
-                (async () => {
-                    try {
-                        const students = await getUsersByIds([invoice.student_id]);
-                        if (students.length > 0) {
-                            const student = students[0];
-                            const pd = typeof payment_details === 'string' ? JSON.parse(payment_details) : (payment_details || {});
-                            const msg = `Payment Receipt ✅\n\n💳 Invoice #${id}\n💰 Amount: ${invoice.currency || 'INR'} ${invoice.amount}\n📚 Course: ${invoice.course_name || 'Not specified'}\n📅 Payment Date: ${pd.payment_date || new Date().toLocaleDateString()}\n💳 Method: ${pd.payment_method || 'N/A'}\n📊 Status: Paid\n\nThank you for your payment!\n\nBest regards,\nNadanaloga Academy Team`;
-                            sendEmailBackground(student.email, student.name, `Payment Confirmed - Invoice #${id}`, msg);
-                            createNotificationForUser(student.id, 'Payment Confirmed', `Your payment of ${invoice.currency || 'INR'} ${invoice.amount} has been confirmed.`, 'Success');
-                        }
-                    } catch (e) {
-                        console.error('[Invoice] Error sending payment email:', e.message);
-                    }
-                })();
+            if (want === 'paid') {
+                // Old "Mark paid" buttons (and older app builds) land here. Route them
+                // through the ledger so they get a receipt, a collector and a family
+                // notification — status is never flipped by hand any more.
+                if (isPaid) return res.json(current); // idempotent for repeat taps
+                let pd = payment_details || {};
+                if (typeof pd === 'string') { try { pd = JSON.parse(pd); } catch (_) { pd = {}; } }
+                const raw = String(pd.payment_method || '').trim();
+                const method = !raw || /^(offline|cash)$/i.test(raw) ? 'Cash' : raw;
+                const receipt = await recordPayments({
+                    invoiceIds: [Number(id)], method, transactionId: pd.transaction_id || null,
+                    collectedBy: { id: req.session.user.id, name: req.session.user.name },
+                });
+                const updated = (await pool.query('SELECT * FROM invoices WHERE id = $1', [id])).rows[0];
+                return res.json({ ...updated, receipt_number: receipt.receiptNumber });
             }
+            if (isPaid) {
+                return res.status(409).json({
+                    message: 'This bill is paid. To undo a payment, reverse its receipt — that keeps an audit trail and tells the family.',
+                });
+            }
+            const result = await pool.query(
+                `UPDATE invoices SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+                [want || current.status, id]
+            );
+            res.json(result.rows[0]);
         } catch (error) {
-            console.error('Error updating invoice:', error);
-            res.status(500).json({ message: 'Server error updating invoice.' });
+            sendLedgerError(res, error, 'Server error updating invoice.');
         }
     });
 
@@ -5780,72 +6432,40 @@ Please review and approve this registration in the admin panel.`;
             if (!status || !['approved', 'rejected', 'submitted'].includes(status)) {
                 return res.status(400).json({ message: 'Invalid status. Must be approved, rejected, or submitted.' });
             }
+            const payment = (await pool.query('SELECT * FROM invoice_payments WHERE id = $1', [id])).rows[0];
+            if (!payment) return res.status(404).json({ message: 'Invoice payment not found' });
 
-            // Stamp approved_at in JS to avoid reusing $1 in two type contexts
-            // (varchar assignment + text comparison), which Postgres rejects.
-            const approvedAt = status === 'approved' ? new Date() : null;
+            if (status === 'approved') {
+                // Approving a proof goes through the ledger like every other payment:
+                // receipt number, approving admin, bill marked paid, family notified,
+                // and it refuses if the bill was already paid some other way.
+                const receipt = await recordPayments({
+                    invoiceIds: [payment.invoice_id], method: payment.payment_method || 'UPI',
+                    transactionId: payment.transaction_id || null,
+                    collectedBy: { id: req.session.user.id, name: req.session.user.name },
+                    notes: notes || null, existingPaymentId: payment.id,
+                });
+                const updated = (await pool.query('SELECT * FROM invoice_payments WHERE id = $1', [id])).rows[0];
+                return res.json({ ...updated, receipt_number: receipt.receiptNumber });
+            }
+            if (payment.status === 'approved') {
+                return res.status(409).json({
+                    message: 'This payment is already approved. To undo it, reverse its receipt instead.',
+                });
+            }
             const result = await pool.query(
-                `UPDATE invoice_payments SET status = $1, notes = $2, approved_at = COALESCE($3, approved_at), updated_at = NOW()
-                 WHERE id = $4 RETURNING *`,
-                [status, notes || null, approvedAt, id]
+                `UPDATE invoice_payments SET status = $1, notes = $2, updated_at = NOW() WHERE id = $3 RETURNING *`,
+                [status, notes || null, id]
             );
-            if (result.rows.length === 0) {
-                return res.status(404).json({ message: 'Invoice payment not found' });
-            }
-            const payment = result.rows[0];
+            res.json(result.rows[0]);
 
-            res.json(payment);
-
-            // On approval, mark invoice as paid + notify student (fire-and-forget)
-            if (status === 'approved' && payment.invoice_id && payment.student_id) {
-                (async () => {
-                    try {
-                        const paymentDetails = {
-                            payment_method: payment.payment_method || 'UPI',
-                            transaction_id: payment.transaction_id,
-                            payment_date: payment.payment_date || new Date().toISOString().split('T')[0],
-                            payment_status: 'approved'
-                        };
-
-                        const invoiceUpdate = await pool.query(
-                            `UPDATE invoices SET status = 'paid', payment_details = $1, updated_at = NOW()
-                             WHERE id = $2 RETURNING *`,
-                            [paymentDetails, payment.invoice_id]
-                        );
-                        const invoice = invoiceUpdate.rows[0];
-
-                        const students = await getUsersByIds([payment.student_id]);
-                        if (students.length > 0) {
-                            const student = students[0];
-                            const msg = `Payment Receipt ✅\n\n💳 Invoice #${payment.invoice_id}\n💰 Amount: ${invoice.currency || 'INR'} ${invoice.amount}\n📚 Course: ${invoice.course_name || 'Not specified'}\n📅 Payment Date: ${paymentDetails.payment_date}\n💳 Method: ${paymentDetails.payment_method}\n📊 Status: Paid\n\nThank you for your payment!\n\nBest regards,\nNadanaloga Academy Team`;
-                            sendEmailBackground(student.email, student.name, `Payment Confirmed - Invoice #${payment.invoice_id}`, msg);
-                            createNotificationForUser(
-                                student.id,
-                                'Payment Confirmed',
-                                `Your payment of ${invoice.currency || 'INR'} ${invoice.amount} has been confirmed.`,
-                                'Success'
-                            );
-                        }
-                        console.log(`[InvoicePayment] Approved and notified student ${payment.student_id} for invoice #${payment.invoice_id}`);
-                    } catch (e) {
-                        console.error('[InvoicePayment] Error on approval flow:', e.message);
-                    }
-                })();
-            }
-
-            // On rejection, notify student (fire-and-forget)
             if (status === 'rejected' && payment.student_id) {
                 (async () => {
                     try {
-                        const students = await getUsersByIds([payment.student_id]);
-                        if (students.length > 0) {
-                            const student = students[0];
-                            createNotificationForUser(
-                                student.id,
-                                'Payment Rejected',
-                                'Your payment proof was rejected. Please contact the admin or re-submit.',
-                                'Warning'
-                            );
+                        const c = await resolveFeeContact(payment.student_id);
+                        if (c) {
+                            createNotificationForUser(c.userId, 'Payment proof not accepted',
+                                'Your payment proof could not be verified. Please contact the office or pay again.', 'Warning');
                         }
                     } catch (e) {
                         console.error('[InvoicePayment] Error notifying rejection:', e.message);
@@ -5853,8 +6473,7 @@ Please review and approve this registration in the admin panel.`;
                 })();
             }
         } catch (error) {
-            console.error('Error updating invoice payment:', error);
-            res.status(500).json({ message: 'Server error updating invoice payment.' });
+            sendLedgerError(res, error, 'Server error updating payment.');
         }
     });
 
