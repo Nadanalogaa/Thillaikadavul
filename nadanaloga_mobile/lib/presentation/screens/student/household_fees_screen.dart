@@ -211,12 +211,12 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
           if (hasBill) ...[
             const SizedBox(height: 4),
             Text(
-              '₹${(allPaid ? paid : due).toStringAsFixed(0)}',
+              FeeFormat.rupees(allPaid ? paid : due),
               style: AppTextStyles.h3
                   .copyWith(color: accent, fontWeight: FontWeight.w700),
             ),
             if (!allPaid && paid > 0)
-              Text('₹${paid.toStringAsFixed(0)} already paid this month',
+              Text('${FeeFormat.rupees(paid)} already paid this month',
                   style: AppTextStyles.caption
                       .copyWith(color: AppColors.textSecondary)),
           ],
@@ -272,7 +272,7 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
           title: Text(name, style: AppTextStyles.labelLarge),
           subtitle: Text(
             monthDue > 0
-                ? '₹${monthDue.toStringAsFixed(0)} due this month'
+                ? '${FeeFormat.rupees(monthDue)} due this month'
                 : 'Nothing due this month',
             style:
                 AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
@@ -325,7 +325,7 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('₹${amount.toStringAsFixed(0)}',
+                  Text(FeeFormat.rupees(amount),
                       style: AppTextStyles.labelLarge),
                   Text(status[0].toUpperCase() + status.substring(1),
                       style:

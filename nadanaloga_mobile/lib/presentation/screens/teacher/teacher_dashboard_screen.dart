@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../config/theme/app_colors.dart';
-import '../../../config/theme/app_text_styles.dart';
 import '../../bloc/auth/auth_bloc.dart';
-import '../../bloc/auth/auth_event.dart';
 import '../../bloc/auth/auth_state.dart';
-import '../student/teaching_summary_screen.dart';
-import '../student/household_fees_screen.dart';
 import '../auth/set_password_sheet.dart';
+import '../home/home_dashboard.dart';
 
+/// Teacher home: the same dashboard as a household, led by teaching — the
+/// week's classes, batches and students — plus her family's fees and
+/// children when she is also a parent.
 class TeacherDashboardScreen extends StatefulWidget {
   const TeacherDashboardScreen({super.key});
 
@@ -36,121 +35,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, state) {
-        final user = state is AuthAuthenticated ? state.user : null;
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('My Dashboard'),
-            backgroundColor: AppColors.teacherAccent,
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.notifications_outlined),
-                onPressed: () => context.push('/teacher/notifications'),
-              ),
-              IconButton(
-                icon: const Icon(Icons.logout),
-                onPressed: () {
-                  context.read<AuthBloc>().add(AuthLogoutRequested());
-                },
-              ),
-            ],
-          ),
-          body: RefreshIndicator(
-            onRefresh: () async {},
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Welcome, ${user?.name ?? 'Teacher'}',
-                    style: AppTextStyles.h2,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Teacher',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Teaching at a glance: batches, timings and student counts —
-                  // the same summary the household home shows for a teacher.
-                  if (user != null) TeachingSummaryBody(teacherId: user.id),
-
-                  // Fees — a teacher is often also a parent, so she needs the
-                  // household bill (her children) here too, same as the web
-                  // teacher menu. Teachers don't pay their own fees.
-                  const SizedBox(height: 8),
-                  Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      side: BorderSide(
-                          color: AppColors.teacherAccent.withValues(alpha: 0.15)),
-                    ),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor:
-                            AppColors.teacherAccent.withValues(alpha: 0.12),
-                        child: const Icon(Icons.payments_outlined,
-                            color: AppColors.teacherAccent),
-                      ),
-                      title: Text('Fees', style: AppTextStyles.labelLarge),
-                      subtitle: Text('Your family\'s fees and payments',
-                          style: AppTextStyles.caption
-                              .copyWith(color: AppColors.textSecondary)),
-                      trailing: const Icon(Icons.chevron_right,
-                          color: AppColors.textSecondary),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const HouseholdFeesScreen()),
-                      ),
-                    ),
-                  ),
-
-                  // My Children — shown when this teacher is also a parent.
-                  // One login surfaces every family profile; tapping a child
-                  // opens their student dashboard.
-                  if ((user?.students ?? []).isNotEmpty) ...[
-                    const SizedBox(height: 28),
-                    Text('My Children', style: AppTextStyles.h3),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Switch to a child\'s dashboard',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    ...user!.students!.map(
-                      (child) => Card(
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor:
-                                AppColors.studentAccent.withOpacity(0.15),
-                            child: Icon(Icons.school,
-                                color: AppColors.studentAccent),
-                          ),
-                          title: Text(child.name),
-                          subtitle: const Text('Tap to view dashboard'),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () => context.push('/student', extra: {
-                            'studentId': child.id,
-                            'student': child,
-                          }),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        );
-      },
+    return const HomeDashboard(
+      accent: AppColors.teacherAccent,
+      notificationsRoute: '/teacher/notifications',
+      showLogout: true,
     );
   }
 }

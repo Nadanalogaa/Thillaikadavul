@@ -4,16 +4,34 @@ import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
 import '../../../data/models/batch_model.dart';
 import '../../../data/models/course_model.dart';
+import '../home/class_schedule.dart';
 
 /// Courses — the same view the web "Courses" menu shows: every course the
 /// student registered for, with its allocated batch (timings) or
 /// "Pending allocation" until the admin places them in a batch.
+/// One student's courses, for the family-wide Courses tab.
+class CourseSection {
+  final String name;
+  final List<String> registered;
+  final List<BatchModel> batches;
+
+  const CourseSection({
+    required this.name,
+    required this.registered,
+    required this.batches,
+  });
+}
+
 class StudentCoursesScreen extends StatelessWidget {
   final List<String> registered;
   final List<BatchModel> batches;
   final List<CourseModel> courses;
   final bool isLoading;
   final VoidCallback onRefresh;
+
+  /// Every student in the household. With more than one, the tab lists each
+  /// student's courses under their name; otherwise [registered] / [batches].
+  final List<CourseSection> sections;
 
   const StudentCoursesScreen({
     super.key,
@@ -22,6 +40,7 @@ class StudentCoursesScreen extends StatelessWidget {
     required this.courses,
     required this.isLoading,
     required this.onRefresh,
+    this.sections = const [],
   });
 
   int? _courseIdFor(String name) {
@@ -40,31 +59,67 @@ class StudentCoursesScreen extends StatelessWidget {
   }
 
   List<String> _timings(BatchModel b) {
-    if (b.timeSlots.isNotEmpty) {
-      return b.timeSlots.map((s) {
-        final range = [s.startTime, s.endTime]
-            .where((t) => t != null && t.isNotEmpty)
-            .join('–');
-        return range.isEmpty ? s.day : '${s.day} $range';
-      }).toList();
-    }
-    final fromSchedule = b.schedule
-        .map((s) => s.timing)
-        .whereType<String>()
-        .where((t) => t.isNotEmpty)
-        .toList();
-    if (fromSchedule.isNotEmpty) return fromSchedule;
-    if (b.days.isNotEmpty) {
-      final range = [b.startTime, b.endTime]
-          .where((t) => t != null && t.isNotEmpty)
-          .join('–');
-      return ['${b.days.join(', ')}${range.isEmpty ? '' : ' $range'}'];
-    }
-    return const ['Timings not set'];
+    final lines = ClassSchedule.timingLines(b);
+    return lines.isEmpty ? const ['Timings not set'] : lines;
+  }
+
+  /// Course cards for one student: registered courses (allocated or pending),
+  /// then batches for courses they did not register for.
+  List<Widget> _cardsFor(List<String> registered, List<BatchModel> batches) {
+    final registeredIds = registered.map(_courseIdFor).whereType<int>().toSet();
+    final extraBatches =
+        batches.where((b) => !registeredIds.contains(b.courseId)).toList();
+    return [
+      if (registered.isEmpty && batches.isEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Text('No courses selected yet.',
+              style: AppTextStyles.bodyMedium
+                  .copyWith(color: AppColors.textSecondary)),
+        ),
+      for (final name in registered)
+        _courseCard(
+          name,
+          batches.where((b) => b.courseId == _courseIdFor(name)).toList(),
+        ),
+      if (extraBatches.isNotEmpty) ...[
+        const SizedBox(height: 6),
+        Text('Also enrolled', style: AppTextStyles.labelLarge),
+        const SizedBox(height: 8),
+        for (final b in extraBatches) _courseCard(_courseNameFor(b.courseId), [b]),
+      ],
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
+    if (sections.length > 1) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Courses'),
+          backgroundColor: AppColors.studentAccent,
+          automaticallyImplyLeading: false,
+        ),
+        body: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : RefreshIndicator(
+                onRefresh: () async => onRefresh(),
+                child: ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    for (final section in sections) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(4, 8, 0, 10),
+                        child: Text(section.name, style: AppTextStyles.h4),
+                      ),
+                      ..._cardsFor(section.registered, section.batches),
+                    ],
+                  ],
+                ),
+              ),
+      );
+    }
+
     final registeredIds = registered.map(_courseIdFor).whereType<int>().toSet();
     final extraBatches =
         batches.where((b) => !registeredIds.contains(b.courseId)).toList();
@@ -72,7 +127,7 @@ class StudentCoursesScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Courses'),
-        backgroundColor: AppColors.primary,
+        backgroundColor: AppColors.studentAccent,
         automaticallyImplyLeading: false,
       ),
       body: isLoading
