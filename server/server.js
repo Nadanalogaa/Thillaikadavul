@@ -6172,9 +6172,14 @@ Please review and approve this registration in the admin panel.`;
                 SELECT i.*, u.id as student_id, u.name as student_name, u.email as student_email,
                     u.contact_number as student_phone,
                     (SELECT ip.status FROM invoice_payments ip
-                     WHERE ip.invoice_id = i.id ORDER BY ip.submitted_at DESC LIMIT 1) as payment_status
+                     WHERE ip.invoice_id = i.id ORDER BY ip.submitted_at DESC LIMIT 1) as payment_status,
+                    lp.receipt_number, lp.payment_method AS paid_method, lp.paid_at, lp.collected_by_name
                 FROM invoices i
                 LEFT JOIN users u ON i.student_id = u.id
+                LEFT JOIN LATERAL (
+                    SELECT receipt_number, payment_method, paid_at, collected_by_name FROM invoice_payments
+                    WHERE invoice_id = i.id AND status = 'approved' ORDER BY id DESC LIMIT 1
+                ) lp ON true
                 ${whereSql}
                 ORDER BY i.created_at DESC
             `, params);
