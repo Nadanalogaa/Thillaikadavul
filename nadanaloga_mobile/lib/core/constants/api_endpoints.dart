@@ -96,6 +96,15 @@ class ApiEndpoints {
   static String studentGradeByCourse(int studentId, int courseId) =>
       '$apiPrefix/students/$studentId/grades/$courseId';
   static const String invoicePayments = '$apiPrefix/invoice-payments';
+
+  // Fees (roster, cash collection, receipts)
+  static const String feesRoster = '$apiPrefix/fees/roster';
+  static const String familyDue = '$apiPrefix/fees/family-due';
+  static const String collectCash = '$apiPrefix/fees/collect-cash';
+  static String receipt(String no) =>
+      '$apiPrefix/fees/receipts/${Uri.encodeComponent(no)}';
+  static String reverseReceipt(String no) =>
+      '$apiPrefix/fees/receipts/${Uri.encodeComponent(no)}/reverse';
   static String invoicePaymentById(int id) => '$apiPrefix/invoice-payments/$id';
 
   // Demo Bookings

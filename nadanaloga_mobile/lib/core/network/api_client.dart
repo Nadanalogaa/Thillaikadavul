@@ -552,6 +552,47 @@ class ApiClient {
     return _dio.put(ApiEndpoints.invoicePaymentById(id), data: data);
   }
 
+  // --- Fees: roster, cash collection, receipts ---
+
+  /// Every student with this month's fee status. Omit [period] for the
+  /// current month; [status] filters rows only (summary counts are unfiltered).
+  Future<Response> getFeesRoster({
+    String? period,
+    String? status,
+    int? courseId,
+    int? batchId,
+    String? search,
+  }) {
+    final q = <String, dynamic>{};
+    if (period != null && period.isNotEmpty) q['period'] = period;
+    if (status != null && status.isNotEmpty) q['status'] = status;
+    if (courseId != null) q['course_id'] = courseId;
+    if (batchId != null) q['batch_id'] = batchId;
+    if (search != null && search.trim().isNotEmpty) q['search'] = search.trim();
+    return _dio.get(ApiEndpoints.feesRoster, queryParameters: q);
+  }
+
+  /// All unpaid bills for the student's whole family (siblings, earlier months).
+  Future<Response> getFamilyDue(int studentId) {
+    return _dio.get(ApiEndpoints.familyDue,
+        queryParameters: {'student_id': studentId});
+  }
+
+  /// Settle the given bills in cash, in full. Never sends an amount.
+  Future<Response> collectCash(List<int> invoiceIds) {
+    return _dio.post(ApiEndpoints.collectCash,
+        data: {'invoice_ids': invoiceIds});
+  }
+
+  Future<Response> getReceipt(String receiptNumber) {
+    return _dio.get(ApiEndpoints.receipt(receiptNumber));
+  }
+
+  Future<Response> reverseReceipt(String receiptNumber, String reason) {
+    return _dio.post(ApiEndpoints.reverseReceipt(receiptNumber),
+        data: {'reason': reason});
+  }
+
   // --- Demo Bookings API ---
 
   Future<Response> getDemoBookings() {

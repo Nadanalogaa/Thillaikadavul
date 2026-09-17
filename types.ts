@@ -333,6 +333,11 @@ export interface Invoice {
     billingPeriod: string;
     status: InvoiceStatus;
     paymentDetails?: PaymentDetails;
+    // Receipt info for paid bills (from GET /api/invoices)
+    receiptNumber?: string | null;
+    paidMethod?: string | null;
+    paidAt?: string | null;
+    collectedByName?: string | null;
     // populated fields for display
     student?: Pick<User, 'id' | 'name' | 'email'>;
 }
@@ -425,4 +430,127 @@ export interface Notice {
   courseName?: string; // For compatibility with UI components
   issuedAt: string; // ISO string
   recipientIds?: string[];
+}
+
+// --- Fees: roster, cash collection, receipts ---
+
+export type FeeRosterStatus = 'paid' | 'pending' | 'overdue' | 'partly_paid' | 'no_bill' | 'not_set_up';
+
+export interface FeeRosterGrade {
+  course_id: number;
+  course_name: string;
+  grade_name: string;
+  monthly_fee: number;
+}
+
+export interface FeeRosterBill {
+  id: number;
+  course_name: string;
+  amount: number;
+  original_amount: number | null;
+  discount_percentage: number | null;
+  status: 'paid' | 'pending' | 'overdue';
+  due_date: string | null;
+  prorated_from: string | null;
+  receipt_number: string | null;
+  payment_method: string | null;
+  paid_at: string | null;
+  collected_by_name: string | null;
+}
+
+export interface FeeRosterRow {
+  student_id: number;
+  name: string;
+  user_id: string | null;
+  phone: string | null;
+  parent_name: string | null;
+  inactive: boolean;
+  grades: FeeRosterGrade[];
+  batch_names: string[];
+  status: FeeRosterStatus;
+  billed: number;
+  paid: number;
+  due: number;
+  due_date: string | null;
+  bills: FeeRosterBill[];
+}
+
+export interface FeeRosterSummary {
+  students: number;
+  billed: number;
+  collected: number;
+  outstanding: number;
+  counts: Record<FeeRosterStatus, number>;
+}
+
+export interface FeeRoster {
+  period: string;
+  today: string;
+  summary: FeeRosterSummary;
+  rows: FeeRosterRow[];
+}
+
+export interface FeeRosterParams {
+  period?: string;
+  status?: FeeRosterStatus | '';
+  course_id?: string;
+  batch_id?: string;
+  search?: string;
+}
+
+export interface FamilyDueBill {
+  id: number;
+  student_id: number;
+  student_name: string;
+  course_name: string;
+  billing_period: string;
+  amount: number;
+  due_date: string | null;
+  prorated_from: string | null;
+  overdue: boolean;
+}
+
+export interface FamilyDue {
+  student_id: number;
+  total: number;
+  bills: FamilyDueBill[];
+  notify: { name: string; email: string | null } | null;
+}
+
+export interface FeeReceiptLine {
+  invoice_id: number;
+  student_name: string;
+  course_name: string;
+  billing_period: string;
+  amount: number;
+}
+
+export interface CollectCashResult {
+  receipt_number: string;
+  total: number;
+  paid_at: string;
+  collected_by_name: string | null;
+  lines: FeeReceiptLine[];
+}
+
+export interface FeeReceipt {
+  receipt_number: string;
+  status: 'paid' | 'reversed';
+  method: string | null;
+  method_label: string | null;
+  transaction_id: string | null;
+  paid_at: string | null;
+  collected_by_name: string | null;
+  reversed_at: string | null;
+  reversed_by_name: string | null;
+  reversal_reason: string | null;
+  lines: FeeReceiptLine[];
+  total: number;
+}
+
+export interface ReverseReceiptResult {
+  receipt_number: string;
+  total: number;
+  reason: string;
+  reversed_at: string;
 }

@@ -6,6 +6,14 @@ import { InvoiceStatus } from '../../types';
 import { getFamilyStudents, getStudentInvoicesForFamily, getCurrentUser } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
 import DashboardHeader from '../../components/DashboardHeader';
+import ReceiptModal from '../../components/admin/fees/ReceiptModal';
+
+const paidMethodLabel = (method?: string | null): string => {
+    const m = String(method || '').toLowerCase();
+    if (m === 'razorpay') return 'Online';
+    if (m === 'cash') return 'Cash';
+    return method || 'Paid';
+};
 
 const getStatusBadgeClass = (status: InvoiceStatus, theme: string) => {
     switch (status) {
@@ -44,6 +52,7 @@ const PaymentHistoryPage: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState<'all' | 'paid' | 'pending' | 'overdue'>('all');
+    const [receiptNo, setReceiptNo] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchInvoices = async () => {
@@ -346,6 +355,25 @@ const PaymentHistoryPage: React.FC = () => {
                                                             Pay now
                                                         </button>
                                                     )}
+                                                    {invoice.status === InvoiceStatus.Paid && invoice.receiptNumber && (
+                                                        <div className={`sm:col-span-2 lg:col-span-4 flex flex-wrap items-center gap-3 ${
+                                                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                                        }`}>
+                                                            <FileText className="w-4 h-4" />
+                                                            <span>Receipt {invoice.receiptNumber} · {paidMethodLabel(invoice.paidMethod)}</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setReceiptNo(invoice.receiptNumber || null)}
+                                                                className={`px-3 py-1.5 rounded-lg border text-xs font-semibold ${
+                                                                    theme === 'dark'
+                                                                        ? 'border-gray-600 text-gray-200 hover:bg-gray-700'
+                                                                        : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                                                                }`}
+                                                            >
+                                                                View receipt
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                     {invoice.paymentDetails && (
                                                         <div className={`flex items-center gap-2 ${
                                                             theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
@@ -389,6 +417,7 @@ const PaymentHistoryPage: React.FC = () => {
                     </motion.div>
                 )}
             </div>
+            <ReceiptModal receiptNumber={receiptNo} onClose={() => setReceiptNo(null)} canReverse={false} />
         </DashboardHeader>
     );
 };

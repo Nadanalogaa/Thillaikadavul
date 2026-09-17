@@ -22,6 +22,10 @@ class InvoiceModel {
   final int? gradeId;
   final int? batchId;
   final String? paymentStatus; // latest proof status: submitted / approved / rejected
+  final String? receiptNumber; // e.g. NDA-R-000123 once paid
+  final String? paidMethod; // Cash / Razorpay / …
+  final String? paidAt; // ISO timestamp (UTC)
+  final String? collectedByName; // staff who collected cash
 
   const InvoiceModel({
     required this.id,
@@ -47,6 +51,10 @@ class InvoiceModel {
     this.gradeId,
     this.batchId,
     this.paymentStatus,
+    this.receiptNumber,
+    this.paidMethod,
+    this.paidAt,
+    this.collectedByName,
   });
 
   factory InvoiceModel.fromJson(Map<String, dynamic> json) {
@@ -76,6 +84,10 @@ class InvoiceModel {
       gradeId: json['grade_id'] as int?,
       batchId: json['batch_id'] as int?,
       paymentStatus: json['payment_status'] as String?,
+      receiptNumber: _parseString(json['receipt_number']),
+      paidMethod: _parseString(json['paid_method']),
+      paidAt: _parseString(json['paid_at']),
+      collectedByName: _parseString(json['collected_by_name']),
     );
   }
 
@@ -95,6 +107,12 @@ class InvoiceModel {
       'discount_percentage': discountPercentage,
       'discount_amount': discountAmount,
     };
+  }
+
+  static String? _parseString(dynamic value) {
+    if (value == null) return null;
+    final s = value.toString().trim();
+    return s.isEmpty ? null : s;
   }
 
   static double? _parseDouble(dynamic value) {

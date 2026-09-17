@@ -5,14 +5,14 @@ import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import AdminLayout from '../../components/admin/AdminLayout';
 import TabButton from '../../components/admin/TabButton';
 import { useTheme } from '../../contexts/ThemeContext';
-import InvoicesPanel from '../../components/admin/InvoicesPanel';
+import FeesRosterPanel from '../../components/admin/fees/FeesRosterPanel';
 import { Link } from 'react-router-dom';
 
-type ActiveTab = 'invoices' | 'grades';
+type ActiveTab = 'fees' | 'grades';
 
 const FeeManagementPage: React.FC = () => {
     const { theme } = useTheme();
-    const [activeTab, setActiveTab] = useState<ActiveTab>('invoices');
+    const [activeTab, setActiveTab] = useState<ActiveTab>('fees');
     const [courses, setCourses] = useState<Course[]>([]);
     const [grades, setGrades] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -51,7 +51,7 @@ const FeeManagementPage: React.FC = () => {
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <AdminPageHeader
                     title="Fee Management"
-                    subtitle="Invoices, grade-based fees and discounts — one place."
+                    subtitle="Monthly bills, cash collection, receipts and grade-based fees."
                 />
                 <div className="mt-1 flex gap-2">
                     <Link to="/admin/grades" className="border border-brand-primary text-brand-primary text-sm font-semibold px-3 py-2 rounded-md hover:bg-brand-primary/10">Manage Grades →</Link>
@@ -63,12 +63,12 @@ const FeeManagementPage: React.FC = () => {
 
             <div className={`border-b mb-6 mt-4 ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
                 <nav className="-mb-px flex space-x-6" aria-label="Tabs">
-                    <TabButton isActive={activeTab === 'invoices'} onClick={() => setActiveTab('invoices')}>Invoices</TabButton>
+                    <TabButton isActive={activeTab === 'fees'} onClick={() => setActiveTab('fees')}>Fees</TabButton>
                     <TabButton isActive={activeTab === 'grades'} onClick={() => setActiveTab('grades')}>Grades &amp; Fees</TabButton>
                 </nav>
             </div>
 
-            {activeTab === 'invoices' && <InvoicesPanel />}
+            {activeTab === 'fees' && <FeesRosterPanel />}
 
             {activeTab === 'grades' && (
                 loading ? (

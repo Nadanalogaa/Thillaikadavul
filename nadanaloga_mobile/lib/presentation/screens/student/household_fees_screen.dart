@@ -4,7 +4,9 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/utils/fee_format.dart';
 import '../../../di/injection_container.dart';
+import '../../widgets/receipt_sheet.dart';
 
 /// Household fees drilldown: this month's total → per student → each invoice,
 /// with "Pay" on any pending invoice of any student in the household. The
@@ -249,8 +251,8 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
             monthDue > 0
                 ? '₹${monthDue.toStringAsFixed(0)} due this month'
                 : 'Nothing due this month',
-            style: AppTextStyles.caption
-                .copyWith(color: AppColors.textSecondary),
+            style:
+                AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
           ),
           childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           children: [
@@ -266,48 +268,85 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
   }
 
   Widget _invoiceRow(Map<String, dynamic> inv) {
-    final id = inv['id'] is int ? inv['id'] as int : int.tryParse('${inv['id']}') ?? 0;
+    final id =
+        inv['id'] is int ? inv['id'] as int : int.tryParse('${inv['id']}') ?? 0;
     final amount = (inv['amount'] as num?)?.toDouble() ?? 0;
     final status = '${inv['status'] ?? 'pending'}'.toLowerCase();
     final isPaid = status == 'paid';
     final statusColor = isPaid
         ? AppColors.success
         : (status == 'overdue' ? AppColors.error : AppColors.warning);
+    final receiptNo = '${inv['receipt_number'] ?? ''}'.trim();
+    final method = FeeFormat.method(
+        inv['payment_method'] == null ? null : '${inv['payment_method']}');
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('${inv['course_name'] ?? 'Fee'}',
-                    style: AppTextStyles.bodyMedium),
-                Text('${inv['billing_period'] ?? ''}',
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.textSecondary)),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          Row(
             children: [
-              Text('₹${amount.toStringAsFixed(0)}',
-                  style: AppTextStyles.labelLarge),
-              Text(status[0].toUpperCase() + status.substring(1),
-                  style: AppTextStyles.caption.copyWith(color: statusColor)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${inv['course_name'] ?? 'Fee'}',
+                        style: AppTextStyles.bodyMedium),
+                    Text('${inv['billing_period'] ?? ''}',
+                        style: AppTextStyles.caption
+                            .copyWith(color: AppColors.textSecondary)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('₹${amount.toStringAsFixed(0)}',
+                      style: AppTextStyles.labelLarge),
+                  Text(status[0].toUpperCase() + status.substring(1),
+                      style:
+                          AppTextStyles.caption.copyWith(color: statusColor)),
+                ],
+              ),
+              if (!isPaid) ...[
+                const SizedBox(width: 10),
+                FilledButton(
+                  onPressed: id == 0 ? null : () => _pay(id),
+                  style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 14)),
+                  child: const Text('Pay'),
+                ),
+              ],
             ],
           ),
-          if (!isPaid) ...[
-            const SizedBox(width: 10),
-            FilledButton(
-              onPressed: id == 0 ? null : () => _pay(id),
-              style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 14)),
-              child: const Text('Pay'),
+          if (isPaid && receiptNo.isNotEmpty)
+            InkWell(
+              onTap: () => showReceiptSheet(context, receiptNo),
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    const Icon(Icons.receipt_long,
+                        size: 14, color: AppColors.success),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        method.isEmpty
+                            ? 'Receipt $receiptNo'
+                            : 'Receipt $receiptNo · $method',
+                        style: AppTextStyles.caption.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right,
+                        size: 16, color: AppColors.primary),
+                  ],
+                ),
+              ),
             ),
-          ],
         ],
       ),
     );

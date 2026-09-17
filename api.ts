@@ -1,4 +1,4 @@
-import type { User, ContactFormData, Course, DashboardStats, Notification, Batch, FeeStructure, Invoice, PaymentDetails, StudentEnrollment, Event, GradeExam, BookMaterial, Notice, Location, DemoBooking, EventNotification, EventImage, Household, HouseholdFees } from './types';
+import type { User, ContactFormData, Course, DashboardStats, Notification, Batch, FeeStructure, Invoice, PaymentDetails, StudentEnrollment, Event, GradeExam, BookMaterial, Notice, Location, DemoBooking, EventNotification, EventImage, Household, HouseholdFees, FeeRoster, FeeRosterParams, FamilyDue, CollectCashResult, FeeReceipt, ReverseReceiptResult } from './types';
 import { UserRole, ClassPreference, InvoiceStatus } from './types';
 import { supabase } from './src/lib/supabase.js';
 import { notificationService } from './services/notificationService';
@@ -1545,6 +1545,52 @@ export const sendInvoiceReminders = async (invoiceIds: (string | number)[]): Pro
   return await res.json();
 };
 
+// --- Fees: roster, cash collection, receipts ---
+const feesJson = async <T>(res: Response, fallback: string): Promise<T> => {
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data && data.message) || fallback);
+  return data as T;
+};
+
+export const getFeesRoster = async (params: FeeRosterParams = {}): Promise<FeeRoster> => {
+  const qs = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && String(v).trim() !== '') qs.set(k, String(v).trim());
+  });
+  const q = qs.toString();
+  const res = await fetch(`/api/fees/roster${q ? '?' + q : ''}`, { credentials: 'include' });
+  return feesJson<FeeRoster>(res, 'Could not load the fees list.');
+};
+
+export const getFamilyDue = async (studentId: number | string): Promise<FamilyDue> => {
+  const res = await fetch(`/api/fees/family-due?student_id=${encodeURIComponent(String(studentId))}`, { credentials: 'include' });
+  return feesJson<FamilyDue>(res, 'Could not load the family\'s unpaid bills.');
+};
+
+// Cash is always full payment: only invoice ids are sent, never an amount.
+export const collectCash = async (invoiceIds: (number | string)[]): Promise<CollectCashResult> => {
+  const res = await fetch('/api/fees/collect-cash', {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ invoice_ids: invoiceIds.map(Number) }),
+  });
+  return feesJson<CollectCashResult>(res, 'Could not record the cash payment.');
+};
+
+export const getReceipt = async (receiptNumber: string): Promise<FeeReceipt> => {
+  const res = await fetch(`/api/fees/receipts/${encodeURIComponent(receiptNumber)}`, { credentials: 'include' });
+  return feesJson<FeeReceipt>(res, 'Could not load the receipt.');
+};
+
+export const reverseReceipt = async (receiptNumber: string, reason: string): Promise<ReverseReceiptResult> => {
+  const res = await fetch(`/api/fees/receipts/${encodeURIComponent(receiptNumber)}/reverse`, {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+  return feesJson<ReverseReceiptResult>(res, 'Could not reverse the receipt.');
+};
+
 // --- Reports ---
 export const getReport = async (type: string, params: Record<string, string> = {}): Promise<any> => {
   const qs = new URLSearchParams(params).toString();
@@ -2320,6 +2366,10 @@ export const getStudentInvoicesForFamily = async (studentId: string): Promise<In
       billingPeriod: inv.billing_period || '',
       status: normStatus(inv.status),
       paymentDetails: inv.payment_details || undefined,
+      receiptNumber: inv.receipt_number ?? null,
+      paidMethod: inv.paid_method ?? null,
+      paidAt: inv.paid_at ?? null,
+      collectedByName: inv.collected_by_name ?? null,
       student: inv.student || undefined,
     }));
   } catch (error) {

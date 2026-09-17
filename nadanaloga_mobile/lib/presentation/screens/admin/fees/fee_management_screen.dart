@@ -15,7 +15,7 @@ import '../../../bloc/fee/fee_event.dart';
 import '../../../bloc/fee/fee_state.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/empty_state_widget.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'fees_roster_tab.dart';
 
 class FeeManagementScreen extends StatefulWidget {
   const FeeManagementScreen({super.key});
@@ -32,128 +32,17 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
   List<GradeModel> _grades = [];
   bool _loadingCourses = true;
   Set<int?> _expandedCourses = {};
-  // Invoice filters + selection
-  String _invStatus = '';
-  String _invSearch = '';
-  String _invCourse = '';
-  final Set<int> _selectedInv = {};
+  final _rosterKey = GlobalKey<FeesRosterTabState>();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    // Rebuild on tab change so the floating buttons match the visible tab.
     _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
-        _loadTab(_tabController.index);
-      }
-    });
-    // Invoices is the default first tab.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) context.read<FeeBloc>().add(LoadInvoices());
+      if (!_tabController.indexIsChanging && mounted) setState(() {});
     });
     _loadCoursesAndBatches();
-  }
-
-  void _loadTab(int index) {
-    // Tab 0 = Invoices, Tab 1 = Grades & Fees (grades loaded into state).
-    if (index == 0) {
-      context.read<FeeBloc>().add(LoadInvoices());
-    }
-    setState(() {});
-  }
-
-  Future<void> _dial(String number) async {
-    final uri = Uri(scheme: 'tel', path: number.replaceAll(RegExp(r'[^0-9+]'), ''));
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
-  }
-
-  String _waDigits(String? phone) {
-    var d = (phone ?? '').replaceAll(RegExp(r'\D'), '');
-    if (d.length == 10) d = '91$d';
-    return d;
-  }
-
-  Future<void> _openWhatsApp(String phone, String message) async {
-    final d = _waDigits(phone);
-    if (d.isEmpty) return;
-    final uri = Uri.parse('https://wa.me/$d?text=${Uri.encodeComponent(message)}');
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
-
-  Future<void> _remindOne(dynamic inv) async {
-    final msg =
-        'Dear Parent, a gentle reminder from Nadanaloga Academy: ${inv.studentName ?? 'your child'}\'s '
-        'fee of INR ${inv.amount?.toStringAsFixed(0) ?? ''} for ${inv.billingPeriod ?? 'this month'} is pending. '
-        'Kindly pay at your earliest. Thank you.';
-    // Fire the server-side reminder (in-app notification) then open WhatsApp.
-    try {
-      await sl<ApiClient>().sendInvoiceReminders([inv.id]);
-    } catch (_) {}
-    if ((inv.studentPhone ?? '').isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No phone number on file for this student.')));
-      }
-      return;
-    }
-    await _openWhatsApp(inv.studentPhone, msg);
-  }
-
-  Future<void> _remindSelected() async {
-    final ids = _selectedInv.toList();
-    if (ids.isEmpty) return;
-    try {
-      final r = await sl<ApiClient>().sendInvoiceReminders(ids);
-      if (!mounted) return;
-      final reminders = (r.data is Map ? r.data['reminders'] : []) as List? ?? [];
-      // Open WhatsApp for each (up to a few) that has a number.
-      final withPhone = reminders.where((x) => x['wa_link'] != null).toList();
-      for (final x in withPhone.take(5)) {
-        await launchUrl(Uri.parse(x['wa_link']),
-            mode: LaunchMode.externalApplication);
-      }
-      setState(() => _selectedInv.clear());
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-            'Reminders sent to ${reminders.length} student(s). WhatsApp opened for ${withPhone.take(5).length}.'),
-        backgroundColor: AppColors.success,
-      ));
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error));
-      }
-    }
-  }
-
-  Future<void> _generateInvoices() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Generate monthly invoices?'),
-        content: const Text(
-            'Creates this month\'s invoices for all students who have a grade assigned. Existing ones are skipped.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Generate')),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-    try {
-      final r = await sl<ApiClient>().generateMonthlyInvoices();
-      if (!mounted) return;
-      final msg = r.data is Map ? (r.data['message'] ?? 'Done') : 'Done';
-      final created = r.data is Map ? (r.data['created'] ?? 0) : 0;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$msg (created $created)'), backgroundColor: AppColors.success));
-      context.read<FeeBloc>().add(LoadInvoices());
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error));
-      }
-    }
   }
 
   Future<void> _clearOldInvoices() async {
@@ -162,7 +51,7 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
       builder: (c) => AlertDialog(
         title: const Text('Clear old (₹) invoices?'),
         content: const Text(
-            'Deletes the old unpaid invoices that were NOT made from grades (the legacy ₹ ones). Paid invoices and grade-based invoices are kept. Then use "Generate monthly invoices" to recreate them from grades.'),
+            'Deletes the old unpaid invoices that were NOT made from grades (the legacy ₹ ones). Paid invoices and grade-based invoices are kept. Then use "Generate this month\'s bills" to recreate them from grades.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
           FilledButton(
@@ -180,7 +69,7 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
       final msg = r.data is Map ? (r.data['message'] ?? 'Cleared') : 'Cleared';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('$msg — now tap Generate.'), backgroundColor: AppColors.success));
-      context.read<FeeBloc>().add(LoadInvoices());
+      _rosterKey.currentState?.reload();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -271,6 +160,7 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
 
   @override
   Widget build(BuildContext context) {
+    final onFeesTab = _tabController.index == 0;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Fee Management'),
@@ -281,9 +171,13 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
             onPressed: () => context.push('/admin/fees/payments'),
           ),
           PopupMenuButton<String>(
-            tooltip: 'Invoice actions',
+            tooltip: 'Fee actions',
             onSelected: (v) {
-              if (v == 'generate') _generateInvoices();
+              if (v == 'generate') {
+                _tabController.animateTo(0);
+                _rosterKey.currentState?.generateBills();
+              }
+              if (v == 'discounts') context.push('/admin/fees/discounts');
               if (v == 'clear') _clearOldInvoices();
             },
             itemBuilder: (_) => const [
@@ -291,7 +185,15 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
                 value: 'generate',
                 child: ListTile(
                   leading: Icon(Icons.autorenew),
-                  title: Text('Generate monthly invoices'),
+                  title: Text('Generate this month\'s bills'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem(
+                value: 'discounts',
+                child: ListTile(
+                  leading: Icon(Icons.local_offer),
+                  title: Text('Discounts'),
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
@@ -313,12 +215,12 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
           indicatorColor: Colors.white,
           labelStyle: const TextStyle(fontWeight: FontWeight.w600),
           tabs: const [
-            Tab(text: 'Invoices'),
+            Tab(text: 'Fees'),
             Tab(text: 'Grades & Fees'),
           ],
         ),
       ),
-      body: BlocConsumer<FeeBloc, FeeState>(
+      body: BlocListener<FeeBloc, FeeState>(
         listener: (context, state) {
           if (state is FeeOperationSuccess) {
             ScaffoldMessenger.of(context)
@@ -331,44 +233,39 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
             );
           }
         },
-        builder: (context, state) {
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _buildInvoicesTab(state),
-              _buildGradesFeesTab(),
-            ],
-          );
-        },
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            FeesRosterTab(key: _rosterKey),
+            _buildGradesFeesTab(),
+          ],
+        ),
       ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: FloatingActionButton.extended(
-              onPressed: () => context.push('/admin/fees/discounts'),
-              icon: const Icon(Icons.local_offer),
-              label: const Text('Discounts'),
-              backgroundColor: AppColors.warning,
-              heroTag: 'discounts',
+      // The Fees tab keeps its bottom edge free for the reminder bar; its
+      // actions live on each card and in the app-bar menu.
+      floatingActionButton: onFeesTab
+          ? null
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: FloatingActionButton.extended(
+                    onPressed: () => context.push('/admin/fees/discounts'),
+                    icon: const Icon(Icons.local_offer),
+                    label: const Text('Discounts'),
+                    backgroundColor: AppColors.warning,
+                    heroTag: 'discounts',
+                  ),
+                ),
+                FloatingActionButton.extended(
+                  onPressed: () => context.push('/admin/grades'),
+                  icon: const Icon(Icons.grade),
+                  label: const Text('Grades'),
+                  heroTag: 'add',
+                ),
+              ],
             ),
-          ),
-          // Main FAB — invoices tab generates monthly invoices; grades tab manages grades.
-          FloatingActionButton.extended(
-            onPressed: () {
-              if (_tabController.index == 0) {
-                _generateInvoices();
-              } else {
-                context.push('/admin/grades');
-              }
-            },
-            icon: Icon(_tabController.index == 0 ? Icons.autorenew : Icons.grade),
-            label: Text(_tabController.index == 0 ? 'Generate' : 'Grades'),
-            heroTag: 'add',
-          ),
-        ],
-      ),
     );
   }
 
@@ -513,274 +410,6 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
     );
   }
 
-  Widget _buildInvoicesTab(FeeState state) {
-    if (state is FeeLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (state is InvoicesLoaded) {
-      if (state.invoices.isEmpty) {
-        return EmptyStateWidget(
-          icon: Icons.receipt_outlined,
-          title: 'No invoices',
-          subtitle: 'Create your first invoice.',
-          actionLabel: 'Create Invoice',
-          onAction: () => context.push('/admin/fees/invoices/add'),
-        );
-      }
-      // Distinct course labels for the filter dropdown.
-      final courseOptions = state.invoices
-          .map((i) => i.courseName)
-          .where((c) => c != null && c.isNotEmpty)
-          .cast<String>()
-          .toSet()
-          .toList()
-        ..sort();
-      final q = _invSearch.trim().toLowerCase();
-      final filtered = state.invoices.where((inv) {
-        if (_invStatus.isNotEmpty && inv.status.toLowerCase() != _invStatus) {
-          return false;
-        }
-        if (_invCourse.isNotEmpty && inv.courseName != _invCourse) return false;
-        if (q.isNotEmpty) {
-          final name = (inv.studentName ?? '').toLowerCase();
-          if (!name.contains(q)) return false;
-        }
-        return true;
-      }).toList();
-      final total = filtered.fold<double>(0, (s, i) => s + (i.amount ?? 0));
-
-      return Column(
-        children: [
-          _buildInvoiceFilterBar(courseOptions),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: AppColors.primary.withValues(alpha: 0.05),
-            child: Text(
-              '${filtered.length} invoice(s) · Total ₹${total.toStringAsFixed(0)}',
-              style: AppTextStyles.caption.copyWith(
-                  color: AppColors.primary, fontWeight: FontWeight.w600),
-            ),
-          ),
-          if (_selectedInv.isNotEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: AppColors.success.withValues(alpha: 0.12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text('${_selectedInv.length} selected',
-                        style: AppTextStyles.bodyMedium),
-                  ),
-                  TextButton(
-                    onPressed: () => setState(() => _selectedInv.clear()),
-                    child: const Text('Clear'),
-                  ),
-                  FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.success),
-                    onPressed: _remindSelected,
-                    icon: const Icon(Icons.chat, size: 18),
-                    label: const Text('Remind via WhatsApp'),
-                  ),
-                ],
-              ),
-            ),
-          Expanded(
-            child: filtered.isEmpty
-                ? const EmptyStateWidget(
-                    icon: Icons.search_off,
-                    title: 'No matching invoices',
-                    subtitle: 'Try a different filter.')
-                : RefreshIndicator(
-        onRefresh: () async => context.read<FeeBloc>().add(LoadInvoices()),
-        child: ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: filtered.length,
-          itemBuilder: (context, index) {
-            final inv = filtered[index];
-            return Card(
-              margin: const EdgeInsets.only(bottom: 10),
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor:
-                      _statusColor(inv.status).withValues(alpha: 0.15),
-                  child: Icon(
-                    inv.isPaid ? Icons.check : Icons.receipt,
-                    color: _statusColor(inv.status),
-                    size: 20,
-                  ),
-                ),
-                title: Text(
-                  inv.studentName ?? 'Student #${inv.studentId}',
-                  style: AppTextStyles.labelLarge,
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (inv.courseName != null)
-                      Text(inv.courseName!, style: AppTextStyles.caption),
-                    Row(
-                      children: [
-                        Text(
-                          '\u20B9${inv.amount?.toStringAsFixed(0) ?? '0'}',
-                          style: AppTextStyles.bodyMedium
-                              .copyWith(fontWeight: FontWeight.w600),
-                        ),
-                        if (inv.hasDiscount) ...[
-                          const SizedBox(width: 6),
-                          Text(
-                            '\u20B9${inv.originalAmount?.toStringAsFixed(0) ?? ''}',
-                            style: AppTextStyles.caption.copyWith(
-                              color: AppColors.textSecondary,
-                              decoration: TextDecoration.lineThrough,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text('-${inv.discountPercentage?.toStringAsFixed(0)}%',
-                              style: AppTextStyles.caption
-                                  .copyWith(color: AppColors.success)),
-                        ],
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color:
-                                _statusColor(inv.status).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            inv.status.toUpperCase(),
-                            style: AppTextStyles.caption.copyWith(
-                              color: _statusColor(inv.status),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        if (inv.studentPhone != null &&
-                            inv.studentPhone!.isNotEmpty)
-                          InkWell(
-                            onTap: () => _dial(inv.studentPhone!),
-                            child: Row(children: [
-                              const Icon(Icons.phone,
-                                  size: 12, color: AppColors.primary),
-                              const SizedBox(width: 3),
-                              Text(inv.studentPhone!,
-                                  style: AppTextStyles.caption
-                                      .copyWith(color: AppColors.primary)),
-                            ]),
-                          ),
-                        if (inv.dueDate != null) ...[
-                          const SizedBox(width: 10),
-                          Text('Due: ${inv.dueDate!.split('T').first}',
-                              style: AppTextStyles.caption),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-                trailing: inv.isPending
-                    ? Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.chat, color: AppColors.success),
-                            tooltip: 'WhatsApp reminder',
-                            onPressed: () => _remindOne(inv),
-                          ),
-                          Checkbox(
-                            value: _selectedInv.contains(inv.id),
-                            onChanged: (v) => setState(() {
-                              if (v == true) {
-                                _selectedInv.add(inv.id);
-                              } else {
-                                _selectedInv.remove(inv.id);
-                              }
-                            }),
-                          ),
-                        ],
-                      )
-                    : null,
-              ),
-            );
-          },
-        ),
-                  ),
-          ),
-        ],
-      );
-    }
-    return const SizedBox.shrink();
-  }
-
-  Widget _buildInvoiceFilterBar(List<String> courseOptions) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-          child: TextField(
-            decoration: InputDecoration(
-              hintText: 'Search student...',
-              prefixIcon: const Icon(Icons.search),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              contentPadding: const EdgeInsets.symmetric(vertical: 0),
-            ),
-            onChanged: (v) => setState(() => _invSearch = v),
-          ),
-        ),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Row(
-            children: [
-              for (final s in const ['', 'pending', 'paid', 'overdue']) ...[
-                ChoiceChip(
-                  label: Text(s.isEmpty ? 'All' : s[0].toUpperCase() + s.substring(1)),
-                  selected: _invStatus == s,
-                  onSelected: (_) => setState(() => _invStatus = s),
-                ),
-                const SizedBox(width: 8),
-              ],
-              if (courseOptions.isNotEmpty) ...[
-                Container(width: 1, height: 24, color: AppColors.divider),
-                const SizedBox(width: 12),
-                DropdownButton<String>(
-                  value: _invCourse.isEmpty ? null : _invCourse,
-                  hint: const Text('All courses'),
-                  underline: const SizedBox.shrink(),
-                  items: [
-                    const DropdownMenuItem(value: '', child: Text('All courses')),
-                    ...courseOptions.map((c) =>
-                        DropdownMenuItem(value: c, child: Text(c))),
-                  ],
-                  onChanged: (v) => setState(() => _invCourse = v ?? ''),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Color _statusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'paid':
-        return AppColors.success;
-      case 'overdue':
-        return AppColors.error;
-      case 'pending':
-      default:
-        return AppColors.warning;
-    }
-  }
 }
 
 class _CourseSection extends StatelessWidget {

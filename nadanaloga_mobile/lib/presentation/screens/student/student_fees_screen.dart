@@ -7,8 +7,10 @@ import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
 import '../../../data/models/invoice_model.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/utils/fee_format.dart';
 import '../../../di/injection_container.dart';
 import '../../widgets/empty_state_widget.dart';
+import '../../widgets/receipt_sheet.dart';
 
 class StudentFeesScreen extends StatefulWidget {
   final List<InvoiceModel> invoices;
@@ -815,6 +817,11 @@ class _InvoiceCard extends StatelessWidget {
                   ),
                 ),
               ],
+              // Receipt link (paid invoices settled through the payment ledger).
+              if (invoice.status == 'paid' && invoice.receiptNumber != null) ...[
+                const SizedBox(height: 8),
+                _ReceiptLink(invoice: invoice),
+              ],
               // Awaiting admin verification after the student submitted proof.
               if (invoice.status != 'paid' && invoice.isAwaitingVerification) ...[
                 const SizedBox(height: 12),
@@ -900,6 +907,46 @@ class _InvoiceCard extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => _InvoiceDetailsSheet(invoice: invoice),
+    );
+  }
+}
+
+/// "Receipt NDA-R-000123 · Cash" — opens the receipt (read-only for families).
+class _ReceiptLink extends StatelessWidget {
+  final InvoiceModel invoice;
+
+  const _ReceiptLink({required this.invoice});
+
+  @override
+  Widget build(BuildContext context) {
+    final receiptNo = invoice.receiptNumber!;
+    final method = FeeFormat.method(invoice.paidMethod ?? invoice.paymentMethod);
+    return Material(
+      color: AppColors.primary.withValues(alpha: 0.06),
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: () => showReceiptSheet(context, receiptNo),
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(
+            children: [
+              const Icon(Icons.receipt_long, size: 16, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  method.isEmpty ? 'Receipt $receiptNo' : 'Receipt $receiptNo · $method',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const Icon(Icons.chevron_right, size: 18, color: AppColors.primary),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1129,6 +1176,7 @@ class _InvoiceDetailsSheet extends StatelessWidget {
                     title: 'Payment Date',
                     value: _formatDateLong(invoice.paymentDate!),
                   ),
+                if (invoice.receiptNumber != null) _ReceiptLink(invoice: invoice),
               ],
 
               // Fee reminder for pending
