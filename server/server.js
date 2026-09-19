@@ -195,6 +195,91 @@ async function startServer() {
         let successCount = 0;
         let failCount = 0;
 
+        // Recreate core tables if they are missing (2026-09-19: batches, fee_structures,
+        // demo_bookings and invoices were dropped on prod while Postgres was reachable
+        // from the internet). Definitions follow correct-schema.cjs, the prod lineage;
+        // later columns are added by the addColumn/ALTER steps below. Creates EMPTY
+        // tables only — the data itself has to come from a backup.
+        try {
+            const idType = await client.query(`
+                SELECT data_type FROM information_schema.columns
+                WHERE table_schema = current_schema() AND table_name = 'users' AND column_name = 'id'`);
+            const userIdType = idType.rows[0]?.data_type === 'uuid' ? 'UUID' : 'INTEGER';
+            const coreTables = {
+                batches: `
+                    CREATE TABLE IF NOT EXISTS batches (
+                        id SERIAL PRIMARY KEY,
+                        batch_name VARCHAR(255) NOT NULL,
+                        course_id INTEGER,
+                        teacher_id ${userIdType},
+                        schedule TEXT,
+                        start_date DATE,
+                        end_date DATE,
+                        max_students INTEGER,
+                        student_ids ${userIdType}[],
+                        mode VARCHAR(50) DEFAULT 'Hybrid',
+                        days TEXT[] DEFAULT ARRAY[]::TEXT[],
+                        start_time TIME,
+                        end_time TIME,
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ DEFAULT NOW()
+                    )`,
+                fee_structures: `
+                    CREATE TABLE IF NOT EXISTS fee_structures (
+                        id SERIAL PRIMARY KEY,
+                        course_id INTEGER,
+                        mode VARCHAR(50),
+                        monthly_fee DECIMAL(10,2),
+                        quarterly_fee DECIMAL(10,2),
+                        half_yearly_fee DECIMAL(10,2),
+                        annual_fee DECIMAL(10,2),
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ DEFAULT NOW()
+                    )`,
+                demo_bookings: `
+                    CREATE TABLE IF NOT EXISTS demo_bookings (
+                        id SERIAL PRIMARY KEY,
+                        student_name VARCHAR(255),
+                        parent_name VARCHAR(255),
+                        email VARCHAR(255),
+                        phone VARCHAR(50),
+                        course VARCHAR(255),
+                        preferred_date VARCHAR(50),
+                        preferred_time VARCHAR(50),
+                        location VARCHAR(255),
+                        notes TEXT,
+                        status VARCHAR(50) DEFAULT 'pending',
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ DEFAULT NOW()
+                    )`,
+                invoices: `
+                    CREATE TABLE IF NOT EXISTS invoices (
+                        id SERIAL PRIMARY KEY,
+                        student_id ${userIdType},
+                        fee_structure_id INTEGER,
+                        course_name VARCHAR(255),
+                        amount DECIMAL(10,2) NOT NULL,
+                        currency VARCHAR(10) DEFAULT 'INR',
+                        issue_date DATE,
+                        due_date DATE,
+                        billing_period VARCHAR(100),
+                        status VARCHAR(50) DEFAULT 'pending',
+                        payment_details JSONB,
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ DEFAULT NOW()
+                    )`,
+            };
+            for (const [table, ddl] of Object.entries(coreTables)) {
+                const exists = await client.query('SELECT to_regclass($1) AS t', [table]);
+                if (!exists.rows[0].t) {
+                    await client.query(ddl);
+                    console.warn(`[DB] ⚠ Table ${table} was MISSING — recreated empty. Restore its data from a backup.`);
+                }
+            }
+        } catch (error) {
+            console.error('[DB] ✗ Failed to recreate missing core tables:', error.message);
+        }
+
         // Fix users table
         if (await addColumn('users', 'is_deleted', 'BOOLEAN DEFAULT false')) successCount++; else failCount++;
         if (await addColumn('users', 'class_preference', "VARCHAR(20) DEFAULT 'Hybrid'")) successCount++; else failCount++;
