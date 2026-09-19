@@ -17,13 +17,20 @@ DB=${DB:-nadanaloga}
 U=${DBUSER:-nadanaloga_user}
 TABLES="batches fee_structures demo_bookings invoices invoice_payments"
 
+# A damaged catalog index can make one statement loop forever. Cap every
+# statement: a stuck one errors out and its transaction rolls back.
+export PGOPTIONS='-c statement_timeout=60s'
+
 q() { psql -v ON_ERROR_STOP=1 -tA -U "$U" -d "$DB" -c "$1"; }
 stop() { echo ""; echo "STOP: $1"; echo "Nothing was changed. Send a screenshot of this to Claude."; exit 1; }
 
 echo "== Recovery step 1 =="
 
-others=$(q "SELECT count(*) FROM pg_stat_activity WHERE datname='$DB' AND pid <> pg_backend_pid() AND backend_type='client backend'") || stop "cannot connect to the database"
-[ "$others" = "0" ] || stop "$others other connection(s) open — stop nadanaloga-main-app first"
+# Stuck sessions from earlier app starts (and stray consoles) are closed first.
+q "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$DB' AND pid <> pg_backend_pid() AND backend_type='client backend'" >/dev/null || stop "cannot connect to the database"
+sleep 3
+others=$(q "SELECT count(*) FROM pg_stat_activity WHERE datname='$DB' AND pid <> pg_backend_pid() AND backend_type='client backend'")
+[ "$others" = "0" ] || stop "$others connection(s) came back — nadanaloga-main-app is running, stop it first"
 
 existing=$(q "SELECT count(*) FROM pg_class WHERE relkind='r' AND relnamespace='public'::regnamespace AND relname IN ('batches','fee_structures','demo_bookings','invoices','invoice_payments')")
 [ "$existing" = "0" ] || stop "$existing of these tables already exist (already recovered?)"
@@ -43,7 +50,7 @@ for t in $TABLES; do
 done
 echo "Old tables found:$PAIRS"
 
-psql -v ON_ERROR_STOP=1 -U "$U" -d "$DB" <<EOF || stop "creating the tables failed (rolled back)"
+psql -v ON_ERROR_STOP=1 -U "$U" -d "$DB" <<EOF || stop "creating the tables failed or timed out (rolled back)"
 BEGIN;
 UPDATE pg_type SET typname = typname || '_lost'
  WHERE typrelid IN ($OIDS)

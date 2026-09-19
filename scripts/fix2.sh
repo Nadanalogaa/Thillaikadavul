@@ -10,6 +10,7 @@ DB=${DB:-nadanaloga}
 U=${DBUSER:-nadanaloga_user}
 TABLES="batches fee_structures demo_bookings invoices invoice_payments"
 
+export PGOPTIONS='-c statement_timeout=60s'
 q() { psql -tA -U "$U" -d "$DB" -c "$1"; }
 
 echo "== Recovery step 2 =="

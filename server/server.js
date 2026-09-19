@@ -156,6 +156,11 @@ async function startServer() {
 
         try {
             console.log('[DB] Running auto schema migration...');
+            // A damaged catalog index can make a single DDL statement loop forever
+            // (2026-09-19: CREATE TABLE grades never returned, so the app never
+            // started). Cap each migration statement so a bad one fails and startup
+            // continues.
+            await client.query("SET statement_timeout = '20s'");
 
             // Check current schema and show actual users table columns
             const schemaCheck = await client.query('SELECT current_schema()');
@@ -774,6 +779,7 @@ async function startServer() {
             console.error('[DB] Migration error:', error);
             throw error;
         } finally {
+            await client.query('RESET statement_timeout').catch(() => {});
             client.release();
         }
     };
