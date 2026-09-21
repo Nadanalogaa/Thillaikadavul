@@ -825,7 +825,7 @@ async function startServer() {
     // --- Email Template ---
     const createEmailTemplate = (name, subject, message) => {
         const year = new Date().getFullYear();
-        const logoUrl = 'https://nadanaloga.com/static/media/nadanaloga.7f9472b3c071a833076a.png';
+        const logoUrl = 'https://www.nadanaloga.com/email-logo.png';
         const brandColorDark = '#333333';
         const backgroundColor = '#f4f5f7';
         const contentBackgroundColor = '#ffffff';
@@ -838,9 +838,6 @@ async function startServer() {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;700&display=swap" rel="stylesheet">
         <style>
             body { margin: 0; padding: 0; word-spacing: normal; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
             table, td, div, h1, p { font-family: 'Poppins', Arial, sans-serif; }
@@ -901,6 +898,15 @@ async function startServer() {
     </html>
         `;
     };
+
+    const htmlToPlainText = (html) => html
+        .replace(/<(head|style|script)[\s\S]*?<\/\1>/gi, '')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/(p|div|h[1-6]|tr|li)>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/g, ' ').replace(/&copy;/g, '(c)').replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+        .split('\n').map(line => line.trim()).filter(Boolean).join('\n');
 
     // --- Nodemailer Transport ---
     let mailTransporter;
@@ -963,6 +969,19 @@ async function startServer() {
             smtpConfigInfo.verified = true;
             console.log('[Email] SMTP connection verified successfully.');
             console.log('-----------------------------\\n');
+        }
+        // Every email gets a plain-text part and a Reply-To the academy reads. HTML-only
+        // mail from a noreply address is a strong spam signal (Gmail put demo-booking
+        // confirmations in Spam).
+        if (mailTransporter) {
+            const replyTo = process.env.REPLY_TO_EMAIL || 'nadanaloga2026@gmail.com';
+            mailTransporter.use('compile', (mail, callback) => {
+                if (!mail.data.replyTo) mail.data.replyTo = replyTo;
+                if (!mail.data.text && typeof mail.data.html === 'string') {
+                    mail.data.text = htmlToPlainText(mail.data.html);
+                }
+                callback();
+            });
         }
     } catch (error) {
         smtpConfigInfo.verified = false;
