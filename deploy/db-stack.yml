@@ -1,0 +1,38 @@
+# Dedicated database for the live site (Portainer stack "nadanaloga-db").
+#
+# Created 2026-09-21 after the incident of 2026-09-19: the old live database
+# (nadanaloga-main-postgres) kept its files on the volume nadanaloga-sub-postgres-data,
+# which the dev stack's database (nadanaloga-sub-postgres) also used. Two Postgres
+# servers on one data directory corrupted it. This database has its OWN volume,
+# and no other container may ever mount nadanaloga-live-pgdata.
+#
+# Deploy: Portainer -> Stacks -> Add stack -> name "nadanaloga-db" -> Web editor ->
+# paste this file -> Environment variable POSTGRES_PASSWORD (same value as in the
+# nadanaloga-main stack) -> Deploy. No port is published: only containers on
+# nadanaloga-main-network can reach it.
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: nadanaloga-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nadanaloga
+      POSTGRES_USER: nadanaloga_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - live_pgdata:/var/lib/postgresql/data
+    networks:
+      - nadanaloga-main-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nadanaloga_user -d nadanaloga"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  live_pgdata:
+    name: nadanaloga-live-pgdata
+
+networks:
+  nadanaloga-main-network:
+    external: true

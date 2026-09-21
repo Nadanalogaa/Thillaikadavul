@@ -16,8 +16,10 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      # Connect to existing postgres container
-      DATABASE_URL: postgresql://nadanaloga_user:${POSTGRES_PASSWORD}@nadanaloga-main-postgres:5432/nadanaloga
+      # Database container. DB_HOST (stack env) selects it: nadanaloga-db is the
+      # dedicated database created 2026-09-21; nadanaloga-main-postgres is the old one
+      # whose files were shared with the dev stack (see deploy/db-stack.yml).
+      DATABASE_URL: postgresql://nadanaloga_user:${POSTGRES_PASSWORD}@${DB_HOST:-nadanaloga-main-postgres}:5432/nadanaloga
       SESSION_SECRET: ${SESSION_SECRET}
 
       # Supabase Configuration
