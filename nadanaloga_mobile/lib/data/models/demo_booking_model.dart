@@ -16,6 +16,9 @@ class DemoBookingModel {
   final String? assignedTeacher;
   final String? createdAt;
   final String? updatedAt;
+  /// When an admin opened the one-tap WhatsApp acknowledgement / confirmation.
+  final String? ackWhatsappAt;
+  final String? confirmWhatsappAt;
 
   const DemoBookingModel({
     required this.id,
@@ -35,6 +38,8 @@ class DemoBookingModel {
     this.assignedTeacher,
     this.createdAt,
     this.updatedAt,
+    this.ackWhatsappAt,
+    this.confirmWhatsappAt,
   });
 
   factory DemoBookingModel.fromJson(Map<String, dynamic> json) {
@@ -56,6 +61,8 @@ class DemoBookingModel {
       assignedTeacher: json['assigned_teacher'] as String?,
       createdAt: json['created_at'] as String?,
       updatedAt: json['updated_at'] as String?,
+      ackWhatsappAt: json['ack_whatsapp_at'] as String?,
+      confirmWhatsappAt: json['confirm_whatsapp_at'] as String?,
     );
   }
 

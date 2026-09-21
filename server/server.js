@@ -357,6 +357,9 @@ async function startServer() {
         if (await addColumn('demo_bookings', 'scheduled_time', 'VARCHAR(50)')) successCount++; else failCount++;
         if (await addColumn('demo_bookings', 'assigned_teacher', 'VARCHAR(255)')) successCount++; else failCount++;
         if (await addColumn('demo_bookings', 'country', 'VARCHAR(100)')) successCount++; else failCount++;
+        // When an admin sent the one-tap WhatsApp acknowledgement / confirmation.
+        if (await addColumn('demo_bookings', 'ack_whatsapp_at', 'TIMESTAMPTZ')) successCount++; else failCount++;
+        if (await addColumn('demo_bookings', 'confirm_whatsapp_at', 'TIMESTAMPTZ')) successCount++; else failCount++;
         if (await addColumn('book_materials', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
         if (await addColumn('book_materials', 'updated_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
         if (await addColumn('notices', 'created_at', 'TIMESTAMP DEFAULT NOW()')) successCount++; else failCount++;
@@ -5192,6 +5195,25 @@ Please review and approve this registration in the admin panel.`;
         } catch (error) {
             console.error('Error updating demo booking:', error);
             res.status(500).json({ message: 'Server error updating demo booking.' });
+        }
+    });
+
+    // Records that an admin opened the prepared WhatsApp message for this booking
+    // (the app opens wa.me on the admin's device; the server never sends it).
+    app.post('/api/demo-bookings/:id/whatsapp-sent', ensureAdmin, async (req, res) => {
+        const column = req.body?.kind === 'confirm' ? 'confirm_whatsapp_at' : 'ack_whatsapp_at';
+        try {
+            const result = await pool.query(
+                `UPDATE demo_bookings SET ${column} = NOW() WHERE id = $1 RETURNING *`,
+                [req.params.id]
+            );
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Demo booking not found' });
+            }
+            res.json(result.rows[0]);
+        } catch (error) {
+            console.error('Error recording WhatsApp send:', error);
+            res.status(500).json({ message: 'Server error recording WhatsApp send.' });
         }
     });
 

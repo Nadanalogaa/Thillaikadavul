@@ -14,7 +14,8 @@ import {
   CheckSquare
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
-import { getDemoBookings, updateDemoBookingStatus, deleteDemoBooking, getDemoBookingStats } from '../../api';
+import { getDemoBookings, updateDemoBookingStatus, deleteDemoBooking, getDemoBookingStats, markDemoWhatsAppSent } from '../../api';
+import { whatsAppNumber, ackMessage, confirmMessage, openWhatsApp, formatDemoDate, formatDemoTime } from '../../utils/demoWhatsApp';
 import type { DemoBooking } from '../../types';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import AdminLayout from '../../components/admin/AdminLayout';
@@ -75,6 +76,8 @@ const DemoBookingsManagementPage: React.FC = () => {
   // Modal state for managing bookings
   const [selectedBooking, setSelectedBooking] = useState<DemoBooking | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('');
 
   // Share: ids ticked in the table, and the list waiting in the share dialog
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -115,7 +118,11 @@ const DemoBookingsManagementPage: React.FC = () => {
 
   const handleStatusUpdate = async (bookingId: string, newStatus: DemoBooking['status']) => {
     try {
-      const updatedBooking = await updateDemoBookingStatus(bookingId, newStatus);
+      const updatedBooking = await updateDemoBookingStatus(
+        bookingId,
+        newStatus,
+        newStatus === 'confirmed' ? { date: scheduleDate, time: scheduleTime } : undefined
+      );
       setBookings(prev => prev.map(b => b.id === bookingId ? updatedBooking : b));
       fetchStats();
       setIsModalOpen(false);
@@ -144,8 +151,30 @@ const DemoBookingsManagementPage: React.FC = () => {
 
   const openManageModal = (booking: DemoBooking) => {
     setSelectedBooking(booking);
+    setScheduleDate(/^\d{4}-\d{2}-\d{2}/.test(booking.scheduledDate || '') ? booking.scheduledDate!.slice(0, 10) : '');
+    setScheduleTime(/^\d{1,2}:\d{2}/.test(booking.scheduledTime || '') ? booking.scheduledTime!.slice(0, 5) : '');
     setIsModalOpen(true);
   };
+
+  // Opens the admin's WhatsApp with the message typed in, then records it.
+  // window.open must run inside the click, before any await (popup blockers).
+  const sendWhatsApp = async (booking: DemoBooking, kind: 'ack' | 'confirm') => {
+    const number = whatsAppNumber(booking.phoneNumber);
+    if (!number) {
+      alert('This booking has no usable phone number.');
+      return;
+    }
+    openWhatsApp(number, kind === 'confirm' ? confirmMessage(booking) : ackMessage(booking));
+    try {
+      const updated = await markDemoWhatsAppSent(booking.id, kind);
+      setBookings(prev => prev.map(b => b.id === booking.id ? updated : b));
+      setSelectedBooking(prev => (prev && prev.id === booking.id ? updated : prev));
+    } catch (err) {
+      console.error('Could not record WhatsApp send:', err);
+    }
+  };
+
+  const sentLabel = (iso?: string) => iso ? `${formatBookedDate(iso)}, ${formatBookedTime(iso)}` : '';
 
   // Selection follows the visible (filtered) rows
   const selectedVisible = filteredBookings.filter(b => selectedIds.has(b.id));
@@ -432,6 +461,12 @@ const DemoBookingsManagementPage: React.FC = () => {
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(booking.status)}`}>
                             {capitalize(booking.status)}
                           </span>
+                          {booking.ackWhatsappAt && (
+                            <div className="text-xs text-green-600 dark:text-green-400 mt-1">✓ WhatsApp sent {sentLabel(booking.ackWhatsappAt)}</div>
+                          )}
+                          {booking.confirmWhatsappAt && (
+                            <div className="text-xs text-green-600 dark:text-green-400">✓ Confirmation sent {sentLabel(booking.confirmWhatsappAt)}</div>
+                          )}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
                           <div className={`text-sm font-medium ${strong}`}>
@@ -450,8 +485,17 @@ const DemoBookingsManagementPage: React.FC = () => {
                               Manage
                             </button>
                             <button
+                              onClick={() => sendWhatsApp(booking, booking.status === 'confirmed' ? 'confirm' : 'ack')}
+                              disabled={!whatsAppNumber(booking.phoneNumber)}
+                              title={booking.status === 'confirmed' ? 'Send the confirmation on WhatsApp' : 'Send the acknowledgement on WhatsApp'}
+                              className="inline-flex items-center gap-1 bg-[#25D366] hover:bg-[#1ebe5b] disabled:opacity-40 disabled:cursor-not-allowed text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                              {booking.status === 'confirmed' ? 'WhatsApp confirm' : 'WhatsApp'}
+                            </button>
+                            <button
                               onClick={() => openShare([booking])}
-                              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                              className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
                             >
                               Share
                             </button>
@@ -567,6 +611,8 @@ const DemoBookingsManagementPage: React.FC = () => {
                       ['Country', selectedBooking.country],
                       ['Preferred', [selectedBooking.preferredDate, selectedBooking.preferredTime].filter(Boolean).join(' ')],
                       ['Booked on', `${formatBookedDate(selectedBooking.createdAt)}, ${formatBookedTime(selectedBooking.createdAt)}`],
+                      ['Demo on', [formatDemoDate(selectedBooking.scheduledDate), formatDemoTime(selectedBooking.scheduledTime)].filter(Boolean).join(', ')],
+                      ['WhatsApp', [selectedBooking.ackWhatsappAt && `acknowledged ${sentLabel(selectedBooking.ackWhatsappAt)}`, selectedBooking.confirmWhatsappAt && `confirmation ${sentLabel(selectedBooking.confirmWhatsappAt)}`].filter(Boolean).join('; ')],
                       ['Status', capitalize(selectedBooking.status)],
                     ] as [string, string | undefined][]).filter(([, v]) => v).map(([label, value]) => (
                       <React.Fragment key={label}>
@@ -581,6 +627,47 @@ const DemoBookingsManagementPage: React.FC = () => {
                       theme === 'dark' ? 'bg-gray-900 text-gray-300' : 'bg-gray-50 text-gray-700'
                     }`}>
                       {selectedBooking.message}
+                    </div>
+                  )}
+
+                  <div>
+                    <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Demo date &amp; time <span className={`font-normal ${muted}`}>(saved when you Confirm)</span>
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="date"
+                        value={scheduleDate}
+                        onChange={(e) => setScheduleDate(e.target.value)}
+                        className={`flex-1 px-3 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                      />
+                      <input
+                        type="time"
+                        value={scheduleTime}
+                        onChange={(e) => setScheduleTime(e.target.value)}
+                        className={`w-32 px-3 py-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                      />
+                    </div>
+                  </div>
+
+                  {whatsAppNumber(selectedBooking.phoneNumber) && (
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => sendWhatsApp(selectedBooking, 'ack')}
+                        className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#1ebe5b] text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        WhatsApp: received
+                      </button>
+                      {selectedBooking.status === 'confirmed' && (
+                        <button
+                          onClick={() => sendWhatsApp(selectedBooking, 'confirm')}
+                          className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#1ebe5b] text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                          WhatsApp: confirmed
+                        </button>
+                      )}
                     </div>
                   )}
 

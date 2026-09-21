@@ -10,6 +10,7 @@ import '../../../bloc/demo_booking/demo_booking_event.dart';
 import '../../../bloc/demo_booking/demo_booking_state.dart';
 import '../../../widgets/empty_state_widget.dart';
 import 'demo_share.dart';
+import 'demo_whatsapp.dart';
 
 class DemoListScreen extends StatefulWidget {
   const DemoListScreen({super.key});
@@ -253,8 +254,36 @@ class _DemoListScreenState extends State<DemoListScreen> {
                       ),
                     ),
                   ),
+                  if (booking.ackWhatsappAt != null ||
+                      booking.confirmWhatsappAt != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        booking.confirmWhatsappAt != null
+                            ? '✓ WhatsApp confirmation sent'
+                            : '✓ WhatsApp sent',
+                        style: AppTextStyles.caption
+                            .copyWith(color: const Color(0xFF1E9E4F)),
+                      ),
+                    ),
                 ],
               ),
+              trailing: _selecting || whatsAppNumber(booking.phone) == null
+                  ? null
+                  : IconButton(
+                      tooltip: booking.status == 'confirmed'
+                          ? 'Send confirmation on WhatsApp'
+                          : 'Send acknowledgement on WhatsApp',
+                      icon: const Icon(Icons.chat, color: whatsAppGreen),
+                      onPressed: () async {
+                        final bloc = context.read<DemoBookingBloc>();
+                        final sent = await sendDemoWhatsApp(
+                            context,
+                            booking,
+                            booking.status == 'confirmed' ? 'confirm' : 'ack');
+                        if (sent && mounted) bloc.add(LoadDemoBookings());
+                      },
+                    ),
               onTap: () => _selecting
                   ? _toggle(booking.id)
                   : _openDetail(booking),

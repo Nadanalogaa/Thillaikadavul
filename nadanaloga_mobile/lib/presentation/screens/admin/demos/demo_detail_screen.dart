@@ -12,6 +12,7 @@ import '../../../bloc/demo_booking/demo_booking_event.dart';
 import '../../../bloc/demo_booking/demo_booking_state.dart';
 import '../../../widgets/confirm_dialog.dart';
 import 'demo_share.dart';
+import 'demo_whatsapp.dart';
 
 class DemoDetailScreen extends StatefulWidget {
   final int bookingId;
@@ -61,10 +62,42 @@ class _DemoDetailScreenState extends State<DemoDetailScreen> {
     }
   }
 
-  void _confirm() {
+  /// Confirm, optionally with the demo date and time (both pickers can be
+  /// dismissed — the booking is then confirmed without a slot).
+  Future<void> _confirm() async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      helpText: 'Demo date (optional)',
+      initialDate: now,
+      firstDate: now.subtract(const Duration(days: 1)),
+      lastDate: now.add(const Duration(days: 365)),
+    );
+    TimeOfDay? time;
+    if (date != null && mounted) {
+      time = await showTimePicker(
+        context: context,
+        helpText: 'Demo time (optional)',
+        initialTime: const TimeOfDay(hour: 17, minute: 0),
+      );
+    }
+    if (!mounted) return;
+    String two(int n) => n.toString().padLeft(2, '0');
     context.read<DemoBookingBloc>().add(
-          UpdateDemoBooking(id: widget.bookingId, data: {'status': 'confirmed'}),
+          UpdateDemoBooking(id: widget.bookingId, data: {
+            'status': 'confirmed',
+            if (date != null)
+              'scheduled_date': '${date.year}-${two(date.month)}-${two(date.day)}',
+            if (time != null)
+              'scheduled_time': '${two(time.hour)}:${two(time.minute)}',
+          }),
         );
+  }
+
+  Future<void> _whatsApp(String kind) async {
+    if (_booking == null) return;
+    final sent = await sendDemoWhatsApp(context, _booking!, kind);
+    if (sent && mounted) _loadData();
   }
 
   void _complete() {
@@ -226,13 +259,46 @@ class _DemoDetailScreenState extends State<DemoDetailScreen> {
                         if (_booking!.status == 'confirmed') ...[
                           _buildCard('Scheduled Details', [
                             _buildInfoRow(Icons.event_outlined,
-                                'Scheduled Date', _booking!.scheduledDate),
+                                'Scheduled Date', formatDemoDate(_booking!.scheduledDate)),
                             _buildInfoRow(Icons.schedule_outlined,
-                                'Scheduled Time', _booking!.scheduledTime),
+                                'Scheduled Time', formatDemoTime(_booking!.scheduledTime)),
                             _buildInfoRow(Icons.person_outline,
                                 'Assigned Teacher', _booking!.assignedTeacher),
                           ]),
                         ],
+
+                        // WhatsApp card: opens the admin's WhatsApp with the message typed in
+                        if (whatsAppNumber(_booking!.phone) != null)
+                          _buildCard('WhatsApp', [
+                            if (_booking!.ackWhatsappAt != null)
+                              _buildInfoRow(Icons.check_circle_outline,
+                                  'Acknowledgement sent', sentLabel(_booking!.ackWhatsappAt)),
+                            if (_booking!.confirmWhatsappAt != null)
+                              _buildInfoRow(Icons.check_circle_outline,
+                                  'Confirmation sent', sentLabel(_booking!.confirmWhatsappAt)),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                FilledButton.icon(
+                                  onPressed: () => _whatsApp('ack'),
+                                  style: FilledButton.styleFrom(
+                                      backgroundColor: whatsAppGreen),
+                                  icon: const Icon(Icons.chat, size: 18),
+                                  label: const Text('Received'),
+                                ),
+                                if (_booking!.status == 'confirmed')
+                                  FilledButton.icon(
+                                    onPressed: () => _whatsApp('confirm'),
+                                    style: FilledButton.styleFrom(
+                                        backgroundColor: whatsAppGreen),
+                                    icon: const Icon(Icons.event_available, size: 18),
+                                    label: const Text('Confirmed'),
+                                  ),
+                              ],
+                            ),
+                          ]),
 
                         // Notes card
                         if (_booking!.notes != null &&

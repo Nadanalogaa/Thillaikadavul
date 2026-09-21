@@ -611,6 +611,12 @@ class ApiClient {
     return _dio.delete(ApiEndpoints.demoBookingById(id));
   }
 
+  /// Records that the admin opened the WhatsApp message ('ack' or 'confirm').
+  Future<Response> markDemoWhatsAppSent(int id, String kind) {
+    return _dio.post(ApiEndpoints.demoBookingWhatsAppSent(id),
+        data: {'kind': kind});
+  }
+
   // --- Book Materials API ---
 
   Future<Response> getBookMaterials() {

@@ -52,6 +52,12 @@ export interface DemoBooking {
     preferredDate?: string;
     preferredTime?: string;
     location?: string;
+    /** Demo slot the admin set when confirming (YYYY-MM-DD / HH:MM). */
+    scheduledDate?: string;
+    scheduledTime?: string;
+    /** When the one-tap WhatsApp acknowledgement / confirmation was opened. */
+    ackWhatsappAt?: string;
+    confirmWhatsappAt?: string;
     /** When the enquiry was submitted on the website. */
     createdAt: string;
     updatedAt: string;

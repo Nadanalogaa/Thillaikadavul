@@ -110,6 +110,8 @@ class ApiEndpoints {
   // Demo Bookings
   static const String demoBookings = '$apiPrefix/demo-bookings';
   static String demoBookingById(int id) => '$apiPrefix/demo-bookings/$id';
+  static String demoBookingWhatsAppSent(int id) =>
+      '$apiPrefix/demo-bookings/$id/whatsapp-sent';
 
   // Book Materials
   static const String bookMaterials = '$apiPrefix/book-materials';

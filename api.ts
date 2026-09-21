@@ -4035,6 +4035,10 @@ const mapDemoBooking = (row: any): DemoBooking => ({
   preferredDate: row.preferred_date || undefined,
   preferredTime: row.preferred_time || undefined,
   location: row.location || undefined,
+  scheduledDate: row.scheduled_date || undefined,
+  scheduledTime: row.scheduled_time || undefined,
+  ackWhatsappAt: row.ack_whatsapp_at || undefined,
+  confirmWhatsappAt: row.confirm_whatsapp_at || undefined,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -4091,20 +4095,41 @@ export const getDemoBookings = async (): Promise<DemoBooking[]> => {
 
 export const updateDemoBookingStatus = async (
   bookingId: string,
-  status: DemoBooking['status']
+  status: DemoBooking['status'],
+  schedule?: { date?: string; time?: string }
 ): Promise<DemoBooking> => {
-  // Status only: the server keeps every field not sent (notes = the enquirer's message).
+  // The server keeps every field not sent (notes = the enquirer's message).
+  const body: Record<string, string> = { status };
+  if (schedule?.date) body.scheduled_date = schedule.date;
+  if (schedule?.time) body.scheduled_time = schedule.time;
   const response = await fetch(`/api/demo-bookings/${bookingId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ status })
+    body: JSON.stringify(body)
   });
 
   if (!response.ok) {
     throw new Error('Failed to update demo booking');
   }
 
+  return mapDemoBooking(await response.json());
+};
+
+/** Records that the admin opened the WhatsApp acknowledgement / confirmation. */
+export const markDemoWhatsAppSent = async (
+  bookingId: string,
+  kind: 'ack' | 'confirm'
+): Promise<DemoBooking> => {
+  const response = await fetch(`/api/demo-bookings/${bookingId}/whatsapp-sent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ kind })
+  });
+  if (!response.ok) {
+    throw new Error('Failed to record the WhatsApp message');
+  }
   return mapDemoBooking(await response.json());
 };
 
