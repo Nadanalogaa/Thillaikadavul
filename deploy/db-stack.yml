@@ -29,9 +29,32 @@ services:
       timeout: 10s
       retries: 5
 
+  # Nightly backup (scripts/db-backup.sh): pg_dump over the network at 02:00 IST,
+  # last 30 copies kept on the backups volume, each copy emailed through Brevo.
+  # It never mounts the database's own volume.
+  backup:
+    image: postgres:15-alpine
+    container_name: nadanaloga-db-backup
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      DB_HOST: nadanaloga-db
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      BACKUP_EMAIL_TO: ${BACKUP_EMAIL_TO:-nadanaloga2026@gmail.com}
+    command: ["sh", "-c", "wget -qO /tmp/db-backup.sh https://raw.githubusercontent.com/Nadanalogaa/Thillaikadavul/main/scripts/db-backup.sh && exec sh /tmp/db-backup.sh"]
+    volumes:
+      - db_backups:/backups
+    networks:
+      - nadanaloga-main-network
+
 volumes:
   live_pgdata:
     name: nadanaloga-live-pgdata
+  db_backups:
+    name: nadanaloga-db-backups
 
 networks:
   nadanaloga-main-network:
