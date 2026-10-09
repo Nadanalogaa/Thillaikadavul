@@ -5544,16 +5544,19 @@ Please review and approve this registration in the admin panel.`;
                 [studentId, from, to]
             )).rows;
             const held = rows.filter(r => r.session_status !== 'cancelled' && r.status);
-            const present = held.filter(r => r.status === 'present' || r.status === 'late').length;
+            const present = held.filter(r => r.status === 'present').length;
+            const late = held.filter(r => r.status === 'late').length;
+            // Late still counts as having attended, but is shown separately.
+            const attended = present + late;
             res.json({
                 from, to,
                 summary: {
                     classes: held.length,
                     present,
                     absent: held.filter(r => r.status === 'absent').length,
-                    late: held.filter(r => r.status === 'late').length,
+                    late,
                     cancelled: rows.filter(r => r.session_status === 'cancelled').length,
-                    percentage: held.length ? Math.round((present / held.length) * 100) : null,
+                    percentage: held.length ? Math.round((attended / held.length) * 100) : null,
                 },
                 records: rows,
             });
@@ -5596,15 +5599,17 @@ Please review and approve this registration in the admin panel.`;
                 })),
                 students: students.map(st => {
                     const mine = marks.filter(m => String(m.student_id) === String(st.id));
-                    const present = mine.filter(m => m.status === 'present' || m.status === 'late').length;
+                    const present = mine.filter(m => m.status === 'present').length;
+                    const late = mine.filter(m => m.status === 'late').length;
                     const counted = mine.filter(m => held.some(h => h.id === m.session_id)).length;
                     return {
                         id: String(st.id), name: st.name,
                         present,
                         absent: mine.filter(m => m.status === 'absent').length,
-                        late: mine.filter(m => m.status === 'late').length,
+                        late,
+                        // Late counts as attended for the percentage.
+                        percentage: counted ? Math.round(((present + late) / counted) * 100) : null,
                         classes: counted,
-                        percentage: counted ? Math.round((present / counted) * 100) : null,
                         marks: mine.map(m => ({ session_id: m.session_id, status: m.status })),
                     };
                 }),

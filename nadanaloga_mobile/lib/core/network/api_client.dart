@@ -599,6 +599,43 @@ class ApiClient {
         options: Options(validateStatus: (_) => true));
   }
 
+  // --- Attendance API ---
+
+  /// The signed-in teacher's classes on a date, and whether they are marked.
+  Future<Response> getMyClasses(String date) {
+    return _dio.get(ApiEndpoints.attendanceMyClasses,
+        queryParameters: {'date': date},
+        options: Options(validateStatus: (_) => true));
+  }
+
+  /// Students of one batch with whatever was marked for that date.
+  Future<Response> getAttendanceRoster(int batchId, String date) {
+    return _dio.get(ApiEndpoints.attendanceRoster,
+        queryParameters: {'batch_id': batchId, 'date': date},
+        options: Options(validateStatus: (_) => true));
+  }
+
+  /// entries: [{student_id, status, remark?}]
+  Future<Response> markAttendance(
+      int batchId, String date, List<Map<String, dynamic>> entries) {
+    return _dio.post(ApiEndpoints.attendanceMark,
+        data: {'batch_id': batchId, 'date': date, 'entries': entries},
+        options: Options(validateStatus: (_) => true));
+  }
+
+  /// The academy calls the class off; families are told a make-up is owed.
+  Future<Response> cancelClass(int batchId, String date, String reason) {
+    return _dio.post(ApiEndpoints.attendanceCancel,
+        data: {'batch_id': batchId, 'date': date, 'reason': reason},
+        options: Options(validateStatus: (_) => true));
+  }
+
+  /// A student's own attendance history and summary.
+  Future<Response> getStudentAttendance(int studentId) {
+    return _dio.get(ApiEndpoints.attendanceForStudent(studentId),
+        options: Options(validateStatus: (_) => true));
+  }
+
   // --- Demo Bookings API ---
 
   Future<Response> getDemoBookings() {

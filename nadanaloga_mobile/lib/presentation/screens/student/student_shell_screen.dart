@@ -24,6 +24,7 @@ import 'notices_list_screen.dart';
 import 'book_materials_list_screen.dart';
 import 'grade_exams_list_screen.dart';
 import 'student_change_password_screen.dart';
+import '../attendance/student_attendance_screen.dart';
 
 /// Home for a household login (students, parents, and a teacher who also has
 /// children or learns). Four tabs; the whole family is shown together, so
@@ -173,6 +174,7 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
               _StudentMoreMenuScreen(
                 user: user,
                 studentId: primaryStudentId,
+                students: householdStudents,
                 batches: _batchesOf(primaryStudentId),
                 isLoading: _isLoading,
                 onRefresh: _loadData,
@@ -215,6 +217,8 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
 class _StudentMoreMenuScreen extends StatelessWidget {
   final dynamic user;
   final int? studentId;
+  /// Every student behind this login, so Attendance can ask which child.
+  final List<ProfileModel> students;
   final List<BatchModel> batches;
   final bool isLoading;
   final VoidCallback onRefresh;
@@ -222,10 +226,54 @@ class _StudentMoreMenuScreen extends StatelessWidget {
   const _StudentMoreMenuScreen({
     this.user,
     this.studentId,
+    this.students = const [],
     this.batches = const [],
     this.isLoading = false,
     required this.onRefresh,
   });
+
+  /// One student opens straight away; a family with several is asked which child.
+  Future<void> _openAttendance(BuildContext context) async {
+    void open(int id, String name) => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => StudentAttendanceScreen(studentId: id, studentName: name),
+          ),
+        );
+
+    if (students.length <= 1) {
+      final only = students.isNotEmpty ? students.first : null;
+      open(only?.id ?? studentId!, only?.name ?? (user?.name ?? 'Attendance'));
+      return;
+    }
+    final chosen = await showModalBottomSheet<ProfileModel>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Whose attendance?',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              ),
+            ),
+            for (final p in students)
+              ListTile(
+                leading: CircleAvatar(child: Text(p.name.isNotEmpty ? p.name[0] : '?')),
+                title: Text(p.name),
+                subtitle: p.courses.isEmpty ? null : Text(p.courses.join(', ')),
+                onTap: () => Navigator.pop(sheetContext, p),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (chosen != null && context.mounted) open(chosen.id, chosen.name);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -258,6 +306,15 @@ class _StudentMoreMenuScreen extends StatelessWidget {
               builder: (_) => BookMaterialsListScreen(studentId: studentId)),
         ),
       ),
+      if (studentId != null)
+        _MenuItem(
+          icon: Icons.fact_check_outlined,
+          title: 'Attendance',
+          subtitle: students.length > 1
+              ? 'Classes attended and missed, per child'
+              : 'Classes attended and missed',
+          onTap: () => _openAttendance(context),
+        ),
       _MenuItem(
         icon: Icons.event_outlined,
         title: 'Events',

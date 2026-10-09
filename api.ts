@@ -1831,6 +1831,98 @@ export const addBatch = async (batchData: Partial<Batch>): Promise<Batch> => {
   }
 };
 
+// ===================================
+// ATTENDANCE
+// ===================================
+
+const attendanceFetch = async (path: string, init?: RequestInit) => {
+  const response = await fetch(`/api/attendance${path}`, { credentials: 'include', ...init });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.message || 'Attendance request failed');
+  }
+  return response.json();
+};
+
+export interface AttendanceClass {
+  batch_id: number;
+  batch_name: string;
+  course_name?: string;
+  teacher_name?: string;
+  mode?: string;
+  start_time?: string;
+  end_time?: string;
+  student_count: number;
+  date: string;
+  status: 'not_marked' | 'held' | 'cancelled' | 'makeup';
+  cancel_reason?: string | null;
+}
+
+export interface AttendanceRoster {
+  batch: { id: number; batch_name: string; course_name?: string; mode?: string; start_time?: string; end_time?: string };
+  date: string;
+  session_status: string;
+  cancel_reason?: string | null;
+  students: { id: string; name: string; status: string; remark?: string | null }[];
+}
+
+/** Classes on a date: the admin's own by default, every batch with all=true. */
+export const getAttendanceClasses = (date: string, all = true): Promise<AttendanceClass[]> =>
+  attendanceFetch(`/my-classes?date=${date}&all=${all}`);
+
+export const getAttendanceRoster = (batchId: string, date: string): Promise<AttendanceRoster> =>
+  attendanceFetch(`/roster?batch_id=${batchId}&date=${date}`);
+
+export const markAttendance = (
+  batchId: string,
+  date: string,
+  entries: { student_id: string; status: string; remark?: string }[]
+) => attendanceFetch('/mark', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ batch_id: batchId, date, entries }),
+});
+
+export const cancelClass = (batchId: string, date: string, reason: string) =>
+  attendanceFetch('/cancel', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ batch_id: batchId, date, reason }),
+  });
+
+export interface OwedMakeup {
+  id: number;
+  batch_id: number;
+  batch_name: string;
+  course_name?: string;
+  teacher_name?: string;
+  session_date: string;
+  cancel_reason?: string | null;
+  student_count: number;
+}
+
+export const getOwedMakeups = (): Promise<OwedMakeup[]> => attendanceFetch('/owed-makeups');
+
+export const scheduleMakeup = (cancelledSessionId: number, date: string, startTime?: string, endTime?: string) =>
+  attendanceFetch('/makeup', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cancelled_session_id: cancelledSessionId, date, start_time: startTime, end_time: endTime }),
+  });
+
+export interface AttendanceReport {
+  month: string;
+  sessions: { id: number; date: string; status: string; cancel_reason?: string | null }[];
+  students: {
+    id: string; name: string; present: number; absent: number; late: number;
+    classes: number; percentage: number | null;
+    marks: { session_id: number; status: string }[];
+  }[];
+}
+
+export const getAttendanceReport = (batchId: string, month: string): Promise<AttendanceReport> =>
+  attendanceFetch(`/report?batch_id=${batchId}&month=${month}`);
+
 /** Puts a batch under a teacher (pass null to leave it unassigned). */
 export const setBatchTeacher = async (batchId: string, teacherId: string | null): Promise<void> => {
   const response = await fetch(`/api/batches/${batchId}/teacher`, {

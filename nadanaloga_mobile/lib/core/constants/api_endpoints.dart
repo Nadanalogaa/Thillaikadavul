@@ -107,8 +107,17 @@ class ApiEndpoints {
       '$apiPrefix/fees/receipts/${Uri.encodeComponent(no)}/reverse';
   static String invoicePaymentById(int id) => '$apiPrefix/invoice-payments/$id';
 
-  // Demo Bookings
   static const String deleteMyAccount = '$apiPrefix/account/delete';
+
+  // Attendance
+  static const String attendanceMyClasses = '$apiPrefix/attendance/my-classes';
+  static const String attendanceRoster = '$apiPrefix/attendance/roster';
+  static const String attendanceMark = '$apiPrefix/attendance/mark';
+  static const String attendanceCancel = '$apiPrefix/attendance/cancel';
+  static String attendanceForStudent(int studentId) =>
+      '$apiPrefix/attendance/student/$studentId';
+
+  // Demo Bookings
   static const String demoBookings = '$apiPrefix/demo-bookings';
   static String demoBookingById(int id) => '$apiPrefix/demo-bookings/$id';
   static String demoBookingWhatsAppSent(int id) =>

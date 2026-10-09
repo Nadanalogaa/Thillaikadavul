@@ -21,6 +21,7 @@ import 'class_schedule.dart';
 import 'home_data.dart';
 import 'home_widgets.dart';
 import 'member_detail_screen.dart';
+import '../attendance/attendance_today_screen.dart';
 
 /// The home dashboard for everyone who is not an admin: a household (one phone
 /// number) of students, and/or a teacher. Everything is shown at once, top to
@@ -184,6 +185,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
         const HomeSectionTitle('My courses'),
         _memberTile(d.students.first, d),
       ] else if (d.teacher != null) ...[
+        if (_viewerTeaches(d)) _markAttendanceCard(),
         HomeSectionTitle('My batches',
             action: d.teachingBatches.isEmpty ? null : 'See all',
             onAction: () => _push(TeachingSummaryScreen(
@@ -502,6 +504,25 @@ class _HomeDashboardState extends State<HomeDashboard> {
     'Batches': 'Batch',
     'Students': 'Student',
   };
+
+  /// Teachers mark their own class from here, in class, on their phone.
+  Widget _markAttendanceCard() => Padding(
+        padding: const EdgeInsets.only(top: 4, bottom: 4),
+        child: Card(
+          margin: EdgeInsets.zero,
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: widget.accent.withValues(alpha: 0.15),
+              child: Icon(Icons.fact_check_outlined, color: widget.accent),
+            ),
+            title: Text('Mark attendance', style: AppTextStyles.labelLarge),
+            subtitle: Text("Today's classes and who turned up",
+                style: AppTextStyles.caption),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _push(const AttendanceTodayScreen()),
+          ),
+        ),
+      );
 
   Widget _glance(HomeData d) {
     final tiles = _viewerTeaches(d) || d.students.isEmpty
