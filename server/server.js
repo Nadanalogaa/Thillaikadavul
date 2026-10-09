@@ -2078,6 +2078,79 @@ async function startServer() {
         else res.status(401).json(null);
     });
 
+    // --- Account deletion (required by Google Play for apps with sign-up) ---
+    // The signed-in user deletes their own account and their children's profiles.
+    // Rows are marked deleted (they leave the app immediately and can no longer
+    // log in) and an admin purges them from Trash; fee records are kept only as
+    // long as the privacy policy says. Admins cannot delete themselves this way.
+    app.post('/api/account/delete', ensureAuthenticated, async (req, res) => {
+        const userId = req.session.user.id;
+        const role = String(req.session.user.role || '').toLowerCase();
+        if (role === 'admin') {
+            return res.status(403).json({ message: 'Admin accounts cannot be deleted from the app. Ask another admin.' });
+        }
+        try {
+            const result = await pool.query(
+                `UPDATE users SET is_deleted = true, updated_at = NOW()
+                 WHERE (id = $1 OR parent_id = $1) AND is_deleted = false
+                 RETURNING id, name, email`,
+                [userId]
+            );
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'Account not found.' });
+            }
+            const me = result.rows.find(r => String(r.id) === String(userId)) || result.rows[0];
+            res.json({
+                success: true,
+                deleted: result.rows.length,
+                message: 'Your account has been deleted. Personal details are removed within 30 days.',
+            });
+
+            try {
+                if (me.email && !String(me.email).endsWith('@child.nadanaloga.local')) {
+                    sendEmailBackground(me.email, me.name || 'there', 'Your Nadanaloga account has been deleted',
+                        `Your Nadanaloga account${result.rows.length > 1 ? ` and ${result.rows.length - 1} linked student profile(s)` : ''} has been deleted at your request.\n\n` +
+                        `You can no longer sign in. Personal details are removed from our systems within 30 days; ` +
+                        `payment records are kept only as long as the law requires.\n\n` +
+                        `If this was not you, reply to this email immediately.`);
+                }
+                sendEmailBackground(ADMIN_NOTIFY_EMAIL, 'Admin', 'Account deleted by user - Nadanaloga',
+                    `${me.name || 'A user'} (${me.email || 'no email'}) deleted their account from the app.\n` +
+                    `Profiles affected: ${result.rows.length}. They are in Admin → Trash if this needs undoing.`);
+            } catch (mailErr) {
+                console.error('[Account delete] email error:', mailErr.message);
+            }
+            console.log(`[Account delete] user ${userId} deleted ${result.rows.length} profile(s)`);
+            req.session.destroy(() => {});
+        } catch (error) {
+            console.error('Error deleting account:', error);
+            res.status(500).json({ message: 'Server error deleting the account.' });
+        }
+    });
+
+    // Deletion request from the website (people who no longer have the app).
+    app.post('/api/account/delete-request', async (req, res) => {
+        const { name, identifier, reason } = req.body || {};
+        if (!identifier) {
+            return res.status(400).json({ message: 'Please give the email or phone number of the account.' });
+        }
+        res.json({ success: true, message: 'Request received. We will confirm by email within 7 days.' });
+        try {
+            sendEmailBackground(ADMIN_NOTIFY_EMAIL, 'Admin', 'Account deletion request - Nadanaloga',
+                `A deletion request was submitted on the website.\n\n` +
+                `Name: ${name || 'not given'}\nAccount: ${identifier}\nReason: ${reason || 'not given'}\n\n` +
+                `Delete the account in Admin → Students/Teachers within 7 days (Google Play policy).`);
+            if (String(identifier).includes('@')) {
+                sendEmailBackground(identifier, name || 'there', 'We received your deletion request - Nadanaloga',
+                    `We have received your request to delete your Nadanaloga account.\n\n` +
+                    `Our team will remove the account within 7 days and confirm by email. ` +
+                    `Payment records are kept only as long as the law requires.`);
+            }
+        } catch (mailErr) {
+            console.error('[Account delete request] email error:', mailErr.message);
+        }
+    });
+
     app.post('/api/logout', (req, res) => {
         if (!req.session) {
             res.clearCookie('connect.sid');

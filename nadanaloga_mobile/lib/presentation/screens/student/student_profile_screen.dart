@@ -8,6 +8,7 @@ import '../../../core/network/api_client.dart';
 import '../../../data/models/location_model.dart';
 import '../../../di/injection_container.dart';
 import '../../bloc/auth/auth_bloc.dart';
+import '../../bloc/auth/auth_event.dart';
 import '../../bloc/auth/auth_state.dart';
 
 class StudentProfileScreen extends StatefulWidget {
@@ -20,6 +21,7 @@ class StudentProfileScreen extends StatefulWidget {
 class _StudentProfileScreenState extends State<StudentProfileScreen> {
   LocationModel? _location;
   bool _isLoadingLocation = false;
+  bool _deleting = false;
 
   @override
   void initState() {
@@ -180,12 +182,107 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                             ),
                         ],
                       ).animate(delay: 450.ms).fadeIn().slideX(begin: 0.05, end: 0),
+                      const SizedBox(height: 24),
+
+                      // Account deletion — Google Play requires this for any app
+                      // where people can create an account.
+                      _SectionTitle(title: 'Account')
+                          .animate(delay: 500.ms)
+                          .fadeIn(),
+                      const SizedBox(height: 12),
+                      _InfoCard(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Deleting your account signs you out for good and removes your details, '
+                                  'and your children\'s profiles, within 30 days. Payment receipts are kept '
+                                  'as long as the law requires.',
+                                  style: AppTextStyles.caption,
+                                ),
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: _deleting ? null : _confirmDelete,
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppColors.error,
+                                      side: const BorderSide(color: AppColors.error),
+                                    ),
+                                    icon: _deleting
+                                        ? const SizedBox(
+                                            width: 16, height: 16,
+                                            child: CircularProgressIndicator(strokeWidth: 2))
+                                        : const Icon(Icons.delete_forever_outlined, size: 18),
+                                    label: Text(_deleting ? 'Deleting…' : 'Delete my account'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ).animate(delay: 550.ms).fadeIn(),
+                      const SizedBox(height: 8),
                     ],
                   ),
                 ),
         );
       },
     );
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete your account?'),
+        content: const Text(
+          'This cannot be undone. You will be signed out, and your details and '
+          'your children\'s profiles are removed within 30 days.\n\n'
+          'Payment receipts are kept as long as the law requires.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Keep my account'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _deleting = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final authBloc = context.read<AuthBloc>();
+    try {
+      final response = await sl<ApiClient>().deleteMyAccount();
+      final code = response.statusCode ?? 0;
+      if (code >= 200 && code < 300) {
+        messenger.showSnackBar(const SnackBar(
+          content: Text('Your account has been deleted.'),
+        ));
+        authBloc.add(AuthLogoutRequested());
+        return;
+      }
+      final message = response.data is Map
+          ? (response.data['message'] as String?) ?? 'Could not delete the account.'
+          : 'Could not delete the account.';
+      messenger.showSnackBar(SnackBar(content: Text(message), backgroundColor: AppColors.error));
+    } catch (_) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Could not delete the account. Please check your connection.'),
+        backgroundColor: AppColors.error,
+      ));
+    }
+    if (mounted) setState(() => _deleting = false);
   }
 
   String _formatDate(String dateStr) {

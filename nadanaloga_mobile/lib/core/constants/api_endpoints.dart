@@ -108,6 +108,7 @@ class ApiEndpoints {
   static String invoicePaymentById(int id) => '$apiPrefix/invoice-payments/$id';
 
   // Demo Bookings
+  static const String deleteMyAccount = '$apiPrefix/account/delete';
   static const String demoBookings = '$apiPrefix/demo-bookings';
   static String demoBookingById(int id) => '$apiPrefix/demo-bookings/$id';
   static String demoBookingWhatsAppSent(int id) =>

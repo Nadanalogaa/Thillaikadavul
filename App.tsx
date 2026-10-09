@@ -46,6 +46,7 @@ import CareersPage from './pages/CareersPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsOfServicePage from './pages/TermsOfServicePage';
 import RefundPolicyPage from './pages/RefundPolicyPage';
+import DeleteAccountPage from './pages/DeleteAccountPage';
 
 // Course Pages
 import BharatanatyamPage from './pages/courses/BharatanatyamPage';
@@ -307,6 +308,8 @@ function App() {
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
             <Route path="/terms-of-service" element={<TermsOfServicePage />} />
             <Route path="/refund-policy" element={<RefundPolicyPage />} />
+            {/* Google Play requires a public page for account deletion requests. */}
+            <Route path="/delete-account" element={<DeleteAccountPage />} />
 
             <Route 
               path="/dashboard/student" 
