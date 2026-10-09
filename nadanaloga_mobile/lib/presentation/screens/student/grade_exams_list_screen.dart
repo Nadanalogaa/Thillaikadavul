@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/utils/date_display.dart';
 import '../../../data/models/grade_exam_model.dart';
 import '../../../di/injection_container.dart';
 
@@ -80,9 +81,7 @@ class _GradeExamsListScreenState extends State<GradeExamsListScreen> {
                           final e = _items[i];
                           final when = [
                             e.course,
-                            [e.examDate, e.examTime]
-                                .where((s) => s != null && s.isNotEmpty)
-                                .join(' '),
+                            formatDisplayDateTime(e.examDate, e.examTime),
                             e.location,
                           ].where((s) => s != null && s.isNotEmpty).join(' · ');
                           return Card(
