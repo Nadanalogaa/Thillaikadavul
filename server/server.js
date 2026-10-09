@@ -3949,6 +3949,17 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
+    app.get('/api/batches/:id', ensureAdmin, async (req, res) => {
+        try {
+            const result = await pool.query('SELECT * FROM batches WHERE id = $1', [req.params.id]);
+            if (result.rows.length === 0) return res.status(404).json({ message: 'Batch not found' });
+            res.json(parseBatchData(result.rows[0]));
+        } catch (error) {
+            console.error('Error fetching batch:', error);
+            res.status(500).json({ message: 'Server error fetching batch.' });
+        }
+    });
+
     app.post('/api/batches', ensureAdmin, async (req, res) => {
         try {
             const batchData = req.body;
@@ -4416,6 +4427,17 @@ Please review and approve this registration in the admin panel.`;
         } catch (error) {
             console.error('Error creating course:', error);
             res.status(500).json({ message: 'Server error creating course.' });
+        }
+    });
+
+    app.get('/api/courses/:id', async (req, res) => {
+        try {
+            const result = await pool.query('SELECT * FROM courses WHERE id = $1', [req.params.id]);
+            if (result.rows.length === 0) return res.status(404).json({ message: 'Course not found' });
+            res.json(result.rows[0]);
+        } catch (error) {
+            console.error('Error fetching course:', error);
+            res.status(500).json({ message: 'Server error fetching course.' });
         }
     });
 
@@ -5560,6 +5582,38 @@ Please review and approve this registration in the admin panel.`;
         } catch (error) {
             console.error('Error fetching event responses:', error);
             res.status(500).json({ message: 'Server error fetching event responses.' });
+        }
+    });
+
+    // Counts per response plus who answered what (events page summary).
+    app.get('/api/event-responses/:eventId/stats', async (req, res) => {
+        try {
+            const { eventId } = req.params;
+            const result = await pool.query(
+                `SELECT r.response, u.id, u.name, u.email
+                 FROM event_responses r
+                 LEFT JOIN users u ON u.id = r.user_id
+                 WHERE r.event_id = $1`,
+                [eventId]
+            );
+            const bucket = (name) => result.rows
+                .filter(r => String(r.response || '').toLowerCase() === name)
+                .map(r => ({ id: String(r.id), name: r.name || '', email: r.email || '' }));
+            const accepted = bucket('accepted');
+            const declined = bucket('declined');
+            const maybe = bucket('maybe');
+            res.json({
+                accepted: accepted.length,
+                declined: declined.length,
+                maybe: maybe.length,
+                total: result.rows.length,
+                acceptedUsers: accepted,
+                declinedUsers: declined,
+                maybeUsers: maybe,
+            });
+        } catch (error) {
+            console.error('Error fetching event response stats:', error);
+            res.status(500).json({ message: 'Server error fetching event response stats.' });
         }
     });
 
@@ -6922,6 +6976,13 @@ Please review and approve this registration in the admin panel.`;
     // --- Serve Static Files (React Frontend) ---
     const distPath = path.join(__dirname, '..', 'dist');
     app.use(express.static(distPath));
+
+    // An unknown /api/... path must answer JSON. Before this, it fell through to the
+    // React page below, so the browser got HTML where it expected data and failed with
+    // "Unexpected token '<'" (2026-10-09: GET /api/batches/:id did not exist).
+    app.use('/api', (req, res) => {
+        res.status(404).json({ message: `Unknown API endpoint: ${req.method} /api${req.path}` });
+    });
 
     // Catch-all handler: send back React's index.html file for any non-API routes
     app.get('*', (req, res) => {

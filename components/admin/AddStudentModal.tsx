@@ -1,13 +1,14 @@
-
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { User, Course } from '../../types';
 import { UserRole, Sex, Grade, ClassPreference, UserStatus } from '../../types';
 import { GRADES } from '../../constants';
 import { getCourses, getGrades } from '../../api';
-import Modal from '../Modal';
+import { useTheme } from '../../contexts/ThemeContext';
 import CourseTimingManager from './CourseTimingManager';
-import { UploadIcon, XCircleIcon } from '../icons';
-import ModalHeader from '../ModalHeader';
+import {
+    FormModalShell, Section, Field, FieldGrid, PhotoPicker,
+    inputClass, selectClass, textareaClass,
+} from './FormModalShell';
 
 interface AddStudentModalProps {
     isOpen: boolean;
@@ -15,24 +16,27 @@ interface AddStudentModalProps {
     onSave: (user: Partial<User>) => void;
 }
 
+const EMPTY_STUDENT: Partial<User> = {
+    role: UserRole.Student,
+    sex: Sex.Male,
+    grade: Grade.Grade1,
+    courses: [],
+    classPreference: ClassPreference.Online,
+    schedules: [],
+    status: UserStatus.Active,
+    name: '',
+    email: '',
+    photoUrl: '',
+};
+
 const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onSave }) => {
-    const [formData, setFormData] = useState<Partial<User>>({
-        role: UserRole.Student,
-        sex: Sex.Male,
-        grade: Grade.Grade1,
-        courses: [],
-        classPreference: ClassPreference.Online,
-        schedules: [],
-        status: UserStatus.Active,
-        name: '',
-        email: '',
-        photoUrl: '',
-    });
+    const { theme } = useTheme();
+    const dark = theme === 'dark';
+    const [formData, setFormData] = useState<Partial<User>>(EMPTY_STUDENT);
     const [courses, setCourses] = useState<Course[]>([]);
     const [grades, setGrades] = useState<any[]>([]);
     const [courseGrades, setCourseGrades] = useState<Record<string, string>>({}); // courseId -> gradeId
     const [isLoading, setIsLoading] = useState(false);
-    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (isOpen) {
@@ -57,44 +61,23 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onSa
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleCourseChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { value, checked } = e.target;
-        const courseValue = value;
+    const toggleCourse = (courseName: string) => {
         setFormData(prev => {
-            const currentCourses = Array.isArray(prev.courses) ? prev.courses : [];
-            const updatedCourses = checked
-                ? [...currentCourses, courseValue]
-                : currentCourses.filter(c => c !== courseValue);
-    
+            const current = Array.isArray(prev.courses) ? prev.courses : [];
+            const updatedCourses = current.includes(courseName)
+                ? current.filter(c => c !== courseName)
+                : [...current, courseName];
             const currentSchedules = Array.isArray(prev.schedules) ? prev.schedules : [];
-            const updatedSchedules = currentSchedules.filter(s =>
-                updatedCourses.includes(s.course)
-            );
-    
-            return { ...prev, courses: updatedCourses, schedules: updatedSchedules };
+            return {
+                ...prev,
+                courses: updatedCourses,
+                schedules: currentSchedules.filter(s => updatedCourses.includes(s.course)),
+            };
         });
     };
 
     const handleScheduleChange = (schedules: NonNullable<User['schedules']>) => {
         setFormData(prev => ({ ...prev, schedules }));
-    };
-
-    const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setFormData(prev => ({ ...prev, photoUrl: reader.result as string }));
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
-    const handleRemovePhoto = () => {
-        setFormData(prev => ({ ...prev, photoUrl: '' }));
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -120,279 +103,175 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onSa
             .map(([courseId, gradeId]) => ({ course_id: courseId, grade_id: gradeId }));
         await onSave({ ...formData, ...(course_grades.length ? { course_grades } : {}) } as any);
         setCourseGrades({});
-        // Reset form after saving
-        setFormData({
-            role: UserRole.Student,
-            sex: Sex.Male,
-            grade: Grade.Grade1,
-            courses: [],
-            classPreference: ClassPreference.Online,
-            schedules: [],
-            status: UserStatus.Active,
-            name: '',
-            email: '',
-            photoUrl: '',
-        });
+        setFormData(EMPTY_STUDENT);
         setIsLoading(false);
     };
 
+    const selectedCourses = formData.courses || [];
+
     return (
-        <Modal isOpen={isOpen} onClose={onClose} size="full">
-            <div className="flex flex-col h-full">
-                <ModalHeader 
-                    title="Add New Student"
-                    subtitle="Fill in the details to enroll a new student."
-                />
-                
-                <form onSubmit={handleSubmit} className="flex-grow flex flex-col">
-                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-grow">
-                        {/* Left Column */}
-                        <div className="lg:col-span-1">
-                            <div className="bg-white p-6 rounded-lg shadow-sm h-full">
-                                <h3 className="font-semibold text-lg mb-4 text-gray-800">Profile Photo</h3>
-                                <div className="flex flex-col items-center">
-                                    <div className="relative group w-48 h-48 bg-brand-light/30 rounded-lg flex items-center justify-center overflow-hidden">
-                                        <img 
-                                            src={formData.photoUrl || `https://ui-avatars.com/api/?name=${formData.name || '?'}&background=e8eaf6&color=1a237e&size=128&font-size=0.5`}
-                                            alt="Profile Preview" 
-                                            className="w-full h-full object-cover"
-                                        />
-                                        {formData.photoUrl && (
-                                            <button 
-                                                type="button"
-                                                onClick={handleRemovePhoto} 
-                                                className="absolute top-2 right-2 bg-white/70 text-gray-700 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
-                                                aria-label="Remove photo"
-                                            >
-                                                <XCircleIcon />
-                                            </button>
-                                        )}
-                                    </div>
-                                    <input 
-                                        type="file" 
-                                        ref={fileInputRef} 
-                                        onChange={handlePhotoChange} 
-                                        className="hidden" 
-                                        accept="image/png, image/jpeg"
-                                    />
-                                    <button 
-                                        type="button" 
-                                        onClick={() => fileInputRef.current?.click()} 
-                                        className="mt-4 w-full flex items-center justify-center bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-semibold px-4 py-2 rounded-md shadow-sm transition-colors"
-                                    >
-                                        <UploadIcon />
-                                        Upload Photo
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                         {/* Right Column */}
-                        <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-sm">
-                            <div className="space-y-8">
-                                <fieldset>
-                                    <legend className="font-semibold text-lg mb-4 text-gray-800">Personal &amp; Account Details</legend>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
-                                         <div className="sm:col-span-2">
-                                            <label htmlFor="name-add" className="block text-sm font-medium text-gray-700">Full Name</label>
-                                            <input type="text" id="name-add" name="name" value={formData.name || ''} onChange={handleChange} required className="mt-1 block w-full form-input" />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="email-add" className="block text-sm font-medium text-gray-700">Email Address</label>
-                                            <input type="email" id="email-add" name="email" value={formData.email || ''} onChange={handleChange} required className="mt-1 block w-full form-input" />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="password-add" className="block text-sm font-medium text-gray-700">Password (Optional)</label>
-                                            <input type="password" id="password-add" name="password" value={formData.password || ''} onChange={handleChange} className="mt-1 block w-full form-input" placeholder="Defaults to 'password123'" />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="dob-add" className="block text-sm font-medium text-gray-700">Date of Birth</label>
-                                            <input type="date" id="dob-add" name="dob" value={formData.dob || ''} onChange={handleChange} required className="mt-1 block w-full form-input" />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="sex-add" className="block text-sm font-medium text-gray-700">Sex</label>
-                                            <select id="sex-add" name="sex" value={formData.sex} onChange={handleChange} required className="mt-1 block w-full form-select">
-                                                {Object.values(Sex).map(s => <option key={s} value={s}>{s}</option>)}
-                                            </select>
-                                        </div>
-                                        <div className="sm:col-span-2">
-                                            <label htmlFor="contactNumber-add" className="block text-sm font-medium text-gray-700">Contact Number</label>
-                                            <input type="tel" id="contactNumber-add" name="contactNumber" value={formData.contactNumber || ''} onChange={handleChange} required className="mt-1 block w-full form-input" />
-                                        </div>
-                                        <div className="sm:col-span-2">
-                                            <label htmlFor="address-add" className="block text-sm font-medium text-gray-700">Address</label>
-                                            <textarea id="address-add" name="address" rows={3} value={formData.address || ''} onChange={handleChange} className="mt-1 block w-full form-textarea"></textarea>
-                                        </div>
-                                    </div>
-                                </fieldset>
-                                 <fieldset>
-                                    <legend className="font-semibold text-lg mb-4 text-gray-800">Academic Details</legend>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
-                                         <div className="sm:col-span-2">
-                                            <div>
-                                                <h4 className="text-lg font-semibold text-gray-900 mb-1">Select your Course</h4>
-                                                <p className="text-sm text-gray-600 mb-6">You can select multiple courses</p>
-                                            </div>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                                {(() => {
-                                                    return courses.map(course => {
-                                                    const courseName = course.name;
-                                                    const isSelected = (formData.courses || []).includes(courseName);
-                                                    return (
-                                                        <div
-                                                            key={course.id}
-                                                            className={`relative overflow-hidden rounded-xl border transition-all duration-300 cursor-pointer transform hover:scale-105 ${
-                                                                isSelected ? 'border-blue-300 bg-blue-50 shadow-lg' : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md'
-                                                            }`}
-                                                            onClick={() => {
-                                                                const event = {
-                                                                    target: {
-                                                                        value: courseName,
-                                                                        checked: !isSelected
-                                                                    }
-                                                                } as React.ChangeEvent<HTMLInputElement>;
-                                                                handleCourseChange(event);
-                                                            }}
-                                                        >
-                                                            {/* Course Image */}
-                                                            <div className="aspect-w-16 aspect-h-12 bg-gradient-to-br from-orange-100 via-yellow-50 to-pink-100">
-                                                                {course.image ? (
-                                                                    <img 
-                                                                        src={course.image} 
-                                                                        alt={courseName}
-                                                                        className="w-full h-32 object-contain p-4"
-                                                                    />
-                                                                ) : (
-                                                                    <div className="flex items-center justify-center h-32 p-4">
-                                                                        <div className="text-center text-gray-500">
-                                                                            <svg className="w-12 h-12 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-                                                                            </svg>
-                                                                            <p className="text-xs font-medium">{courseName}</p>
-                                                                            <p className="text-xs text-gray-400">No image uploaded</p>
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                            
-                                                            {/* Course Content */}
-                                                            <div className="p-4">
-                                                                <div className="flex items-center justify-between mb-2">
-                                                                    <h3 className="text-sm font-bold text-gray-900 truncate">{courseName}</h3>
-                                                                    {isSelected && (
-                                                                        <div className="flex-shrink-0 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                                                                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                                                                            </svg>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                                
-                                                                <div className="flex items-center justify-between text-xs text-gray-600">
-                                                                    <span>Time Slots: 0/2</span>
-                                                                    <span className="text-blue-600 font-medium">
-                                                                        {isSelected ? 'Selected' : 'Select'}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                            
-                                                            {/* Gradient Overlay for selected state */}
-                                                            {isSelected && (
-                                                                <div className="absolute inset-0 bg-gradient-to-t from-blue-500/10 to-transparent pointer-events-none"></div>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                });
-                                                })()}
-                                            </div>
-                                        </div>
-                                        {(formData.courses || []).length > 0 && (
-                                            <div className="sm:col-span-2">
-                                                <h4 className="text-sm font-semibold text-gray-900 mb-1">Grade per course (optional)</h4>
-                                                <p className="text-xs text-gray-500 mb-3">Sets the monthly fee. You can also assign this later from the student's profile.</p>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                    {courses.filter(c => (formData.courses || []).includes(c.name)).map(course => {
-                                                        const options = grades.filter((g: any) => String(g.course_id) === String(course.id));
-                                                        return (
-                                                            <div key={course.id}>
-                                                                <label className="block text-xs font-medium text-gray-700 mb-1">{course.name}</label>
-                                                                <select
-                                                                    value={courseGrades[course.id] || ''}
-                                                                    onChange={e => setCourseGrades(prev => ({ ...prev, [course.id]: e.target.value }))}
-                                                                    className="block w-full form-select"
-                                                                >
-                                                                    <option value="">{options.length ? '— Not assigned —' : 'No grades for this course'}</option>
-                                                                    {options.map((g: any) => (
-                                                                        <option key={g.id} value={g.id}>{g.name} (₹{Number(g.monthly_fee).toFixed(0)})</option>
-                                                                    ))}
-                                                                </select>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        )}
-                                        <div>
-                                            <label htmlFor="grade-add" className="block text-sm font-medium text-gray-700">Grade (legacy)</label>
-                                            <select id="grade-add" name="grade" value={formData.grade} onChange={handleChange} className="mt-1 block w-full form-select">
-                                                {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label htmlFor="doj-add" className="block text-sm font-medium text-gray-700">Date of Joining</label>
-                                            <input type="date" id="doj-add" name="dateOfJoining" value={formData.dateOfJoining || ''} onChange={handleChange} required className="mt-1 block w-full form-input" />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="classpref-add" className="block text-sm font-medium text-gray-700">Class Preference</label>
-                                            <select id="classpref-add" name="classPreference" value={formData.classPreference} onChange={handleChange} className="mt-1 block w-full form-select">
-                                                {Object.values(ClassPreference).filter(p => p !== ClassPreference.Hybrid).map(p => <option key={p} value={p}>{p}</option>)}
-                                            </select>
-                                        </div>
-                                         <div>
-                                            <label htmlFor="status-add" className="block text-sm font-medium text-gray-700">Status</label>
-                                            <select id="status-add" name="status" value={formData.status} onChange={handleChange} className="mt-1 block w-full form-select">
-                                                {Object.values(UserStatus).map(s => <option key={s} value={s}>{s}</option>)}
-                                            </select>
-                                        </div>
-                                        <div className="sm:col-span-2">
-                                            <label htmlFor="fatherName-add" className="block text-sm font-medium text-gray-700">Parent/Guardian's Name</label>
-                                            <input type="text" id="fatherName-add" name="fatherName" value={formData.fatherName || ''} onChange={handleChange} className="mt-1 block w-full form-input" />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="standard-add" className="block text-sm font-medium text-gray-700">Standard</label>
-                                            <input type="text" id="standard-add" name="standard" value={formData.standard || ''} onChange={handleChange} className="mt-1 block w-full form-input" />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="schoolName-add" className="block text-sm font-medium text-gray-700">School Name</label>
-                                            <input type="text" id="schoolName-add" name="schoolName" value={formData.schoolName || ''} onChange={handleChange} className="mt-1 block w-full form-input" />
-                                        </div>
-                                        <div className="sm:col-span-2">
-                                            <label className="block text-sm font-medium text-gray-700">Batch Timings</label>
-                                            <CourseTimingManager 
-                                                selectedCourses={formData.courses || []}
-                                                schedules={formData.schedules || []}
-                                                onChange={handleScheduleChange} 
-                                            />
-                                        </div>
-                                        <div className="sm:col-span-2">
-                                            <label htmlFor="notes-add" className="block text-sm font-medium text-gray-700">Notes (Optional)</label>
-                                            <textarea id="notes-add" name="notes" rows={3} value={formData.notes || ''} onChange={handleChange} className="mt-1 block w-full form-textarea"></textarea>
-                                        </div>
-                                    </div>
-                                </fieldset>
-                            </div>
-                        </div>
+        <FormModalShell
+            isOpen={isOpen}
+            onClose={onClose}
+            onSubmit={handleSubmit}
+            title="Add New Student"
+            subtitle="Fill in the details to enrol a new student."
+            submitLabel="Add Student"
+            isSubmitting={isLoading}
+        >
+            <Section
+                title="Student"
+                aside={
+                    <PhotoPicker
+                        photoUrl={formData.photoUrl}
+                        name={formData.name}
+                        onChange={(photoUrl) => setFormData(prev => ({ ...prev, photoUrl }))}
+                    />
+                }
+            >
+                <FieldGrid>
+                    <Field label="Full name" span={3} htmlFor="name-add">
+                        <input type="text" id="name-add" name="name" value={formData.name || ''} onChange={handleChange} required className={inputClass} />
+                    </Field>
+                    <Field label="Email address" span={3} htmlFor="email-add">
+                        <input type="email" id="email-add" name="email" value={formData.email || ''} onChange={handleChange} required className={inputClass} />
+                    </Field>
+                    <Field label="Contact number" span={2} htmlFor="contactNumber-add">
+                        <input type="tel" id="contactNumber-add" name="contactNumber" value={formData.contactNumber || ''} onChange={handleChange} required className={inputClass} placeholder="10 digits" />
+                    </Field>
+                    <Field label="Date of birth" span={2} htmlFor="dob-add">
+                        <input type="date" id="dob-add" name="dob" value={formData.dob || ''} onChange={handleChange} required className={inputClass} />
+                    </Field>
+                    <Field label="Sex" span={2} htmlFor="sex-add">
+                        <select id="sex-add" name="sex" value={formData.sex} onChange={handleChange} required className={selectClass}>
+                            {Object.values(Sex).map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="Password" hint="Leave empty for the default 'password123'." span={2} htmlFor="password-add">
+                        <input type="password" id="password-add" name="password" value={formData.password || ''} onChange={handleChange} className={inputClass} placeholder="Optional" />
+                    </Field>
+                    <Field label="Parent / guardian's name" span={2} htmlFor="fatherName-add">
+                        <input type="text" id="fatherName-add" name="fatherName" value={formData.fatherName || ''} onChange={handleChange} className={inputClass} />
+                    </Field>
+                    <Field label="Status" span={2} htmlFor="status-add">
+                        <select id="status-add" name="status" value={formData.status} onChange={handleChange} className={selectClass}>
+                            {Object.values(UserStatus).map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="Address" span={6} htmlFor="address-add">
+                        <textarea id="address-add" name="address" rows={2} value={formData.address || ''} onChange={handleChange} className={textareaClass} />
+                    </Field>
+                </FieldGrid>
+            </Section>
+
+            <Section title="Courses" description="Tap to select. A student can take more than one.">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                    {courses.map(course => {
+                        const isSelected = selectedCourses.includes(course.name);
+                        return (
+                            <button
+                                type="button"
+                                key={course.id}
+                                onClick={() => toggleCourse(course.name)}
+                                aria-pressed={isSelected}
+                                className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors ${
+                                    isSelected
+                                        ? 'border-brand-primary bg-brand-light/60 dark:border-indigo-400 dark:bg-indigo-500/15'
+                                        : dark
+                                            ? 'border-gray-600 bg-gray-700/40 hover:border-gray-500'
+                                            : 'border-gray-200 bg-white hover:border-gray-300'
+                                }`}
+                            >
+                                {course.image ? (
+                                    <img src={course.image} alt="" className="h-8 w-8 flex-shrink-0 rounded-md object-cover" />
+                                ) : (
+                                    <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-brand-light text-xs font-bold text-brand-primary">
+                                        {course.name.charAt(0)}
+                                    </span>
+                                )}
+                                <span className={`flex-1 truncate text-sm font-medium ${dark ? 'text-gray-100' : 'text-gray-800'}`}>
+                                    {course.name}
+                                </span>
+                                {isSelected && (
+                                    <svg className="h-4 w-4 flex-shrink-0 text-brand-primary dark:text-indigo-300" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                )}
+                            </button>
+                        );
+                    })}
+                    {courses.length === 0 && (
+                        <p className={`col-span-full text-sm ${dark ? 'text-gray-400' : 'text-gray-500'}`}>No courses yet.</p>
+                    )}
+                </div>
+
+                {selectedCourses.length > 0 && (
+                    <div className="mt-4">
+                        <p className={`mb-2 text-xs font-medium ${dark ? 'text-gray-300' : 'text-gray-600'}`}>
+                            Grade per course <span className="font-normal">(optional — sets the monthly fee, can be set later)</span>
+                        </p>
+                        <FieldGrid>
+                            {courses.filter(c => selectedCourses.includes(c.name)).map(course => {
+                                const options = grades.filter((g: any) => String(g.course_id) === String(course.id));
+                                return (
+                                    <Field key={course.id} label={course.name} span={3}>
+                                        <select
+                                            value={courseGrades[course.id] || ''}
+                                            onChange={e => setCourseGrades(prev => ({ ...prev, [course.id]: e.target.value }))}
+                                            className={selectClass}
+                                        >
+                                            <option value="">{options.length ? '— Not assigned —' : 'No grades for this course'}</option>
+                                            {options.map((g: any) => (
+                                                <option key={g.id} value={g.id}>{g.name} (₹{Number(g.monthly_fee).toFixed(0)})</option>
+                                            ))}
+                                        </select>
+                                    </Field>
+                                );
+                            })}
+                        </FieldGrid>
                     </div>
-                     <div className="flex justify-end pt-6 mt-6 border-t border-gray-200">
-                        <button type="button" onClick={onClose} className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary">
-                            Cancel
-                        </button>
-                        <button type="submit" disabled={isLoading} className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:bg-indigo-300 disabled:cursor-not-allowed">
-                            {isLoading ? 'Saving...' : 'Add Student'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </Modal>
+                )}
+            </Section>
+
+            <Section title="Academic details">
+                <FieldGrid>
+                    <Field label="Date of joining" span={2} htmlFor="doj-add">
+                        <input type="date" id="doj-add" name="dateOfJoining" value={formData.dateOfJoining || ''} onChange={handleChange} required className={inputClass} />
+                    </Field>
+                    <Field label="Class preference" span={2} htmlFor="classpref-add">
+                        <select id="classpref-add" name="classPreference" value={formData.classPreference} onChange={handleChange} className={selectClass}>
+                            {Object.values(ClassPreference).filter(p => p !== ClassPreference.Hybrid).map(p => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="Grade (legacy)" span={2} htmlFor="grade-add">
+                        <select id="grade-add" name="grade" value={formData.grade} onChange={handleChange} className={selectClass}>
+                            {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="Standard" span={3} htmlFor="standard-add">
+                        <input type="text" id="standard-add" name="standard" value={formData.standard || ''} onChange={handleChange} className={inputClass} />
+                    </Field>
+                    <Field label="School name" span={3} htmlFor="schoolName-add">
+                        <input type="text" id="schoolName-add" name="schoolName" value={formData.schoolName || ''} onChange={handleChange} className={inputClass} />
+                    </Field>
+                    <Field label="Notes" span={6} htmlFor="notes-add">
+                        <textarea id="notes-add" name="notes" rows={2} value={formData.notes || ''} onChange={handleChange} className={textareaClass} />
+                    </Field>
+                </FieldGrid>
+            </Section>
+
+            <Section title="Batch timings" description="Choose the weekly slots for each selected course.">
+                {selectedCourses.length === 0 ? (
+                    <p className={`text-sm ${dark ? 'text-gray-400' : 'text-gray-500'}`}>Select a course first.</p>
+                ) : (
+                    <CourseTimingManager
+                        selectedCourses={selectedCourses}
+                        schedules={formData.schedules || []}
+                        onChange={handleScheduleChange}
+                    />
+                )}
+            </Section>
+        </FormModalShell>
     );
 };
 

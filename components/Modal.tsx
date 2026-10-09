@@ -38,7 +38,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, size = 'md' })
           theme === 'dark' ? 'bg-gray-800' : 'bg-white'
         } ${isFull ? 'w-full h-full' : `${
           theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'
-        } rounded-lg ${SIZES[size]}`} shadow-2xl relative animate-modal-fade-in-up w-full flex flex-col`}
+        } rounded-lg max-h-[90vh] ${SIZES[size]}`} shadow-2xl relative animate-modal-fade-in-up w-full flex flex-col`}
         onClick={(e) => e.stopPropagation()}
       >
         {!isFull && (
@@ -56,7 +56,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, size = 'md' })
             </svg>
           </button>
         )}
-        <div className={isFull ? 'flex-grow' : 'p-6 flex-grow overflow-y-auto'}>
+        {/* max-h above + overflow here is what makes long forms scroll: without a
+            height limit the dialog grew past the screen and nothing could scroll. */}
+        <div className={isFull ? 'flex-grow min-h-0' : 'p-6 flex-grow overflow-y-auto'}>
             {children}
         </div>
       </div>
