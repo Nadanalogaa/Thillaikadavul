@@ -550,6 +550,50 @@ async function startServer() {
             }
 
             // Create invoice_payments table if not exists
+            // --- Attendance (teachers mark in class; parents see it in the app) ---
+            try {
+                await client.query(`
+                    CREATE TABLE IF NOT EXISTS class_sessions (
+                        id SERIAL PRIMARY KEY,
+                        batch_id INTEGER NOT NULL,
+                        session_date DATE NOT NULL,
+                        start_time TIME,
+                        end_time TIME,
+                        -- held: class ran. cancelled: the academy called it off and owes a
+                        -- make-up. makeup: an extra class given back for a cancelled one.
+                        status VARCHAR(20) NOT NULL DEFAULT 'held',
+                        cancel_reason TEXT,
+                        makeup_for INTEGER,
+                        compensated_by INTEGER,
+                        teacher_id INTEGER,
+                        marked_by INTEGER,
+                        marked_at TIMESTAMPTZ,
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ DEFAULT NOW()
+                    )
+                `);
+                await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS uniq_session_batch_date
+                    ON class_sessions (batch_id, session_date)`);
+                await client.query(`
+                    CREATE TABLE IF NOT EXISTS attendance (
+                        id SERIAL PRIMARY KEY,
+                        session_id INTEGER NOT NULL REFERENCES class_sessions(id) ON DELETE CASCADE,
+                        student_id INTEGER NOT NULL,
+                        status VARCHAR(20) NOT NULL DEFAULT 'present',
+                        remark TEXT,
+                        marked_by INTEGER,
+                        marked_at TIMESTAMPTZ DEFAULT NOW()
+                    )
+                `);
+                await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS uniq_attendance_session_student
+                    ON attendance (session_id, student_id)`);
+                await client.query(`CREATE INDEX IF NOT EXISTS idx_attendance_student
+                    ON attendance (student_id)`);
+                console.log('[DB] ✓ Ensured attendance tables exist');
+            } catch (error) {
+                console.error('[DB] ✗ Failed to create attendance tables:', error.message);
+            }
+
             try {
                 await client.query(`
                     CREATE TABLE IF NOT EXISTS invoice_payments (
@@ -5181,6 +5225,393 @@ Please review and approve this registration in the admin panel.`;
         } catch (error) {
             console.error('Error calculating discount:', error);
             res.status(500).json({ message: 'Server error calculating discount.' });
+        }
+    });
+
+    // ===================== Attendance =====================
+    // Teachers mark their own class from their phone; admins can mark or correct
+    // any class. Parents see it in the app and get a push when a child is absent
+    // or when the academy cancels a class (a cancelled class owes a make-up).
+
+    const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const todayIso = () => new Date().toISOString().slice(0, 10);
+    const isAdminUser = (req) => String(req.session.user?.role || '').toLowerCase() === 'admin';
+
+    // Batches running on a given date, for the signed-in teacher (or all, for admins).
+    const batchesOnDate = async (dateIso, teacherId) => {
+        const dayName = WEEKDAY_NAMES[new Date(`${dateIso}T12:00:00`).getDay()];
+        const params = [dayName];
+        let where = `($1 = ANY(COALESCE(b.days, ARRAY[]::text[])))`;
+        if (teacherId) { params.push(teacherId); where += ` AND b.teacher_id = $2`; }
+        const result = await pool.query(
+            `SELECT b.*, c.name AS course_name, u.name AS teacher_name
+             FROM batches b
+             LEFT JOIN courses c ON c.id = b.course_id
+             LEFT JOIN users u ON u.id = b.teacher_id
+             WHERE ${where}
+             ORDER BY b.start_time NULLS LAST, b.batch_name`,
+            params
+        );
+        return result.rows;
+    };
+
+    const sessionFor = async (batchId, dateIso) => (await pool.query(
+        'SELECT * FROM class_sessions WHERE batch_id = $1 AND session_date = $2',
+        [batchId, dateIso]
+    )).rows[0] || null;
+
+    // Who hears about a student's attendance: the parent if there is one, else the student.
+    const notifyAboutStudent = async (studentId, title, message) => {
+        try {
+            const contact = await resolveFeeContact(studentId);
+            const userId = contact?.userId || studentId;
+            createNotificationForUser(userId, title, message, 'Info');
+            sendPushNotification(userId, title, message);
+        } catch (e) {
+            console.error('[Attendance] notify failed:', e.message);
+        }
+    };
+
+    // The teacher's day: which of my classes are on today, and are they marked yet?
+    app.get('/api/attendance/my-classes', ensureAuthenticated, async (req, res) => {
+        try {
+            const date = req.query.date || todayIso();
+            const teacherId = isAdminUser(req) && req.query.all === 'true' ? null : req.session.user.id;
+            const batches = await batchesOnDate(date, teacherId);
+            const out = [];
+            for (const b of batches) {
+                const session = await sessionFor(b.id, date);
+                const studentIds = Array.isArray(b.student_ids) ? b.student_ids : [];
+                out.push({
+                    batch_id: b.id,
+                    batch_name: b.batch_name,
+                    course_name: b.course_name,
+                    teacher_name: b.teacher_name,
+                    mode: b.mode,
+                    start_time: b.start_time,
+                    end_time: b.end_time,
+                    student_count: studentIds.length,
+                    date,
+                    status: session ? session.status : 'not_marked',
+                    marked_at: session ? session.marked_at : null,
+                    cancel_reason: session ? session.cancel_reason : null,
+                });
+            }
+            res.json(out);
+        } catch (error) {
+            console.error('Error listing classes to mark:', error);
+            res.status(500).json({ message: 'Server error listing your classes.' });
+        }
+    });
+
+    // The roster for one class, with whatever was marked before.
+    app.get('/api/attendance/roster', ensureAuthenticated, async (req, res) => {
+        try {
+            const { batch_id } = req.query;
+            const date = req.query.date || todayIso();
+            if (!batch_id) return res.status(400).json({ message: 'batch_id is required.' });
+            const batch = (await pool.query(
+                `SELECT b.*, c.name AS course_name FROM batches b
+                 LEFT JOIN courses c ON c.id = b.course_id WHERE b.id = $1`, [batch_id]
+            )).rows[0];
+            if (!batch) return res.status(404).json({ message: 'Batch not found' });
+            if (!isAdminUser(req) && String(batch.teacher_id) !== String(req.session.user.id)) {
+                return res.status(403).json({ message: 'This batch belongs to another teacher.' });
+            }
+            const ids = Array.isArray(batch.student_ids) ? batch.student_ids : [];
+            const students = ids.length === 0 ? [] : (await pool.query(
+                `SELECT id, name, photo_url FROM users WHERE id = ANY($1) AND is_deleted = false ORDER BY name`,
+                [ids]
+            )).rows;
+            const session = await sessionFor(batch_id, date);
+            const marks = session ? (await pool.query(
+                'SELECT student_id, status, remark FROM attendance WHERE session_id = $1', [session.id]
+            )).rows : [];
+            const byStudent = new Map(marks.map(m => [String(m.student_id), m]));
+            res.json({
+                batch: {
+                    id: batch.id, batch_name: batch.batch_name, course_name: batch.course_name,
+                    mode: batch.mode, start_time: batch.start_time, end_time: batch.end_time,
+                },
+                date,
+                session_status: session ? session.status : 'not_marked',
+                cancel_reason: session ? session.cancel_reason : null,
+                marked_at: session ? session.marked_at : null,
+                students: students.map(st => ({
+                    id: String(st.id),
+                    name: st.name,
+                    photo_url: st.photo_url,
+                    status: byStudent.get(String(st.id))?.status || 'present',
+                    remark: byStudent.get(String(st.id))?.remark || null,
+                })),
+            });
+        } catch (error) {
+            console.error('Error loading roster:', error);
+            res.status(500).json({ message: 'Server error loading the class roster.' });
+        }
+    });
+
+    // Save attendance for a class. Re-marking the same class updates it.
+    app.post('/api/attendance/mark', ensureAuthenticated, async (req, res) => {
+        const client = await pool.connect();
+        try {
+            const { batch_id, entries } = req.body || {};
+            const date = req.body?.date || todayIso();
+            if (!batch_id || !Array.isArray(entries)) {
+                return res.status(400).json({ message: 'batch_id and entries are required.' });
+            }
+            const batch = (await client.query('SELECT * FROM batches WHERE id = $1', [batch_id])).rows[0];
+            if (!batch) return res.status(404).json({ message: 'Batch not found' });
+            if (!isAdminUser(req) && String(batch.teacher_id) !== String(req.session.user.id)) {
+                return res.status(403).json({ message: 'This batch belongs to another teacher.' });
+            }
+
+            await client.query('BEGIN');
+            const session = (await client.query(
+                `INSERT INTO class_sessions (batch_id, session_date, start_time, end_time, status, teacher_id, marked_by, marked_at)
+                 VALUES ($1, $2, $3, $4, 'held', $5, $6, NOW())
+                 ON CONFLICT (batch_id, session_date) DO UPDATE
+                   SET status = 'held', cancel_reason = NULL, marked_by = $6, marked_at = NOW(), updated_at = NOW()
+                 RETURNING *`,
+                [batch_id, date, batch.start_time, batch.end_time, batch.teacher_id, req.session.user.id]
+            )).rows[0];
+
+            const previous = new Map((await client.query(
+                'SELECT student_id, status FROM attendance WHERE session_id = $1', [session.id]
+            )).rows.map(r => [String(r.student_id), r.status]));
+
+            const newlyAbsent = [];
+            for (const entry of entries) {
+                const status = ['present', 'absent', 'late', 'excused'].includes(entry.status) ? entry.status : 'present';
+                await client.query(
+                    `INSERT INTO attendance (session_id, student_id, status, remark, marked_by, marked_at)
+                     VALUES ($1, $2, $3, $4, $5, NOW())
+                     ON CONFLICT (session_id, student_id) DO UPDATE
+                       SET status = $3, remark = $4, marked_by = $5, marked_at = NOW()`,
+                    [session.id, entry.student_id, status, entry.remark || null, req.session.user.id]
+                );
+                if ((status === 'absent' || status === 'late') && previous.get(String(entry.student_id)) !== status) {
+                    newlyAbsent.push({ studentId: entry.student_id, status });
+                }
+            }
+            await client.query('COMMIT');
+
+            res.json({ success: true, session_id: session.id, marked: entries.length, notified: newlyAbsent.length });
+
+            // Tell parents only about what changed, so re-saving doesn't spam them.
+            const when = new Date(`${date}T12:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+            for (const a of newlyAbsent) {
+                const student = (await pool.query('SELECT name FROM users WHERE id = $1', [a.studentId])).rows[0];
+                const name = student?.name || 'Your child';
+                const title = a.status === 'absent' ? 'Marked absent' : 'Marked late';
+                await notifyAboutStudent(a.studentId, title,
+                    a.status === 'absent'
+                        ? `${name} was marked absent for ${batch.batch_name} on ${when}.`
+                        : `${name} was marked late for ${batch.batch_name} on ${when}.`);
+            }
+        } catch (error) {
+            await client.query('ROLLBACK').catch(() => {});
+            console.error('Error marking attendance:', error);
+            res.status(500).json({ message: 'Server error saving attendance.' });
+        } finally {
+            client.release();
+        }
+    });
+
+    // The academy calls a class off: everyone is told, and the class is owed back.
+    app.post('/api/attendance/cancel', ensureAuthenticated, async (req, res) => {
+        try {
+            const { batch_id, reason } = req.body || {};
+            const date = req.body?.date || todayIso();
+            if (!batch_id) return res.status(400).json({ message: 'batch_id is required.' });
+            const batch = (await pool.query('SELECT * FROM batches WHERE id = $1', [batch_id])).rows[0];
+            if (!batch) return res.status(404).json({ message: 'Batch not found' });
+            if (!isAdminUser(req) && String(batch.teacher_id) !== String(req.session.user.id)) {
+                return res.status(403).json({ message: 'This batch belongs to another teacher.' });
+            }
+            const session = (await pool.query(
+                `INSERT INTO class_sessions (batch_id, session_date, start_time, end_time, status, cancel_reason, teacher_id, marked_by, marked_at)
+                 VALUES ($1, $2, $3, $4, 'cancelled', $5, $6, $7, NOW())
+                 ON CONFLICT (batch_id, session_date) DO UPDATE
+                   SET status = 'cancelled', cancel_reason = $5, marked_by = $7, marked_at = NOW(), updated_at = NOW()
+                 RETURNING *`,
+                [batch_id, date, batch.start_time, batch.end_time, reason || null, batch.teacher_id, req.session.user.id]
+            )).rows[0];
+            // A cancelled class has no attendance to keep.
+            await pool.query('DELETE FROM attendance WHERE session_id = $1', [session.id]);
+            res.json({ success: true, session_id: session.id, message: 'Class cancelled. A make-up class is owed.' });
+
+            const when = new Date(`${date}T12:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+            for (const studentId of (batch.student_ids || [])) {
+                await notifyAboutStudent(studentId, 'Class cancelled',
+                    `${batch.batch_name} on ${when} is cancelled${reason ? ` (${reason})` : ''}. ` +
+                    `The academy will arrange a make-up class.`);
+            }
+        } catch (error) {
+            console.error('Error cancelling class:', error);
+            res.status(500).json({ message: 'Server error cancelling the class.' });
+        }
+    });
+
+    // Classes the academy cancelled and has not yet given back (admin).
+    app.get('/api/attendance/owed-makeups', ensureAdmin, async (req, res) => {
+        try {
+            const result = await pool.query(
+                `SELECT s.id, s.batch_id, to_char(s.session_date, 'YYYY-MM-DD') AS session_date,
+                        s.cancel_reason, b.batch_name, c.name AS course_name,
+                        u.name AS teacher_name, COALESCE(array_length(b.student_ids, 1), 0) AS student_count
+                 FROM class_sessions s
+                 JOIN batches b ON b.id = s.batch_id
+                 LEFT JOIN courses c ON c.id = b.course_id
+                 LEFT JOIN users u ON u.id = b.teacher_id
+                 WHERE s.status = 'cancelled' AND s.compensated_by IS NULL
+                 ORDER BY s.session_date DESC`
+            );
+            res.json(result.rows);
+        } catch (error) {
+            console.error('Error listing owed make-ups:', error);
+            res.status(500).json({ message: 'Server error listing make-up classes.' });
+        }
+    });
+
+    // Schedule the make-up for a cancelled class (admin).
+    app.post('/api/attendance/makeup', ensureAdmin, async (req, res) => {
+        try {
+            const { cancelled_session_id, date, start_time, end_time } = req.body || {};
+            if (!cancelled_session_id || !date) {
+                return res.status(400).json({ message: 'cancelled_session_id and date are required.' });
+            }
+            const cancelled = (await pool.query(
+                `SELECT *, to_char(session_date, 'YYYY-MM-DD') AS session_date
+                 FROM class_sessions WHERE id = $1`, [cancelled_session_id])).rows[0];
+            if (!cancelled || cancelled.status !== 'cancelled') {
+                return res.status(404).json({ message: 'Cancelled class not found.' });
+            }
+            const batch = (await pool.query('SELECT * FROM batches WHERE id = $1', [cancelled.batch_id])).rows[0];
+            const makeup = (await pool.query(
+                `INSERT INTO class_sessions (batch_id, session_date, start_time, end_time, status, makeup_for, teacher_id)
+                 VALUES ($1, $2, $3, $4, 'makeup', $5, $6)
+                 ON CONFLICT (batch_id, session_date) DO UPDATE
+                   SET status = 'makeup', makeup_for = $5, start_time = $3, end_time = $4, updated_at = NOW()
+                 RETURNING *`,
+                [cancelled.batch_id, date, start_time || cancelled.start_time, end_time || cancelled.end_time,
+                 cancelled.id, batch?.teacher_id || null]
+            )).rows[0];
+            await pool.query('UPDATE class_sessions SET compensated_by = $1, updated_at = NOW() WHERE id = $2',
+                [makeup.id, cancelled.id]);
+            res.json({ success: true, makeup_session_id: makeup.id });
+
+            const missed = new Date(`${cancelled.session_date}T12:00:00`)
+                .toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+            const when = new Date(`${date}T12:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+            for (const studentId of (batch?.student_ids || [])) {
+                await notifyAboutStudent(studentId, 'Make-up class scheduled',
+                    `The ${batch.batch_name} class cancelled on ${missed} will be held on ${when}.`);
+            }
+        } catch (error) {
+            console.error('Error scheduling make-up class:', error);
+            res.status(500).json({ message: 'Server error scheduling the make-up class.' });
+        }
+    });
+
+    // A student's own record, for the parent/student app. Parents may read their
+    // household's students; admins and the batch teacher may read anyone's.
+    app.get('/api/attendance/student/:studentId', ensureAuthenticated, async (req, res) => {
+        try {
+            const { studentId } = req.params;
+            const from = req.query.from || new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+            const to = req.query.to || todayIso();
+            if (!isAdminUser(req)) {
+                const household = await householdFor(req);
+                const allowed = household.studentIds.map(String).includes(String(studentId))
+                    || String(req.session.user.id) === String(studentId)
+                    || (await pool.query(
+                        `SELECT 1 FROM batches WHERE teacher_id = $1 AND $2 = ANY(COALESCE(student_ids, ARRAY[]::int[])) LIMIT 1`,
+                        [req.session.user.id, studentId]
+                    )).rows.length > 0;
+                if (!allowed) return res.status(403).json({ message: 'Not your student.' });
+            }
+            const rows = (await pool.query(
+                `SELECT to_char(s.session_date, 'YYYY-MM-DD') AS session_date, s.status AS session_status, s.cancel_reason,
+                        a.status, a.remark, b.batch_name, c.name AS course_name
+                 FROM class_sessions s
+                 JOIN batches b ON b.id = s.batch_id
+                 LEFT JOIN courses c ON c.id = b.course_id
+                 LEFT JOIN attendance a ON a.session_id = s.id AND a.student_id = $1
+                 WHERE $1 = ANY(COALESCE(b.student_ids, ARRAY[]::int[]))
+                   AND s.session_date BETWEEN $2 AND $3
+                 ORDER BY s.session_date DESC`,
+                [studentId, from, to]
+            )).rows;
+            const held = rows.filter(r => r.session_status !== 'cancelled' && r.status);
+            const present = held.filter(r => r.status === 'present' || r.status === 'late').length;
+            res.json({
+                from, to,
+                summary: {
+                    classes: held.length,
+                    present,
+                    absent: held.filter(r => r.status === 'absent').length,
+                    late: held.filter(r => r.status === 'late').length,
+                    cancelled: rows.filter(r => r.session_status === 'cancelled').length,
+                    percentage: held.length ? Math.round((present / held.length) * 100) : null,
+                },
+                records: rows,
+            });
+        } catch (error) {
+            console.error('Error loading student attendance:', error);
+            res.status(500).json({ message: 'Server error loading attendance.' });
+        }
+    });
+
+    // Monthly summary for a batch (admin): one row per student.
+    app.get('/api/attendance/report', ensureAdmin, async (req, res) => {
+        try {
+            const { batch_id, month } = req.query; // month = YYYY-MM
+            if (!batch_id || !month) return res.status(400).json({ message: 'batch_id and month are required.' });
+            const from = `${month}-01`;
+            const to = new Date(new Date(`${from}T12:00:00`).getFullYear(), new Date(`${from}T12:00:00`).getMonth() + 1, 0)
+                .toISOString().slice(0, 10);
+            const sessions = (await pool.query(
+                `SELECT id, batch_id, status, cancel_reason, makeup_for, compensated_by,
+                        to_char(session_date, 'YYYY-MM-DD') AS session_date
+                 FROM class_sessions
+                 WHERE batch_id = $1 AND session_date BETWEEN $2 AND $3
+                 ORDER BY class_sessions.session_date`,
+                [batch_id, from, to]
+            )).rows;
+            const batch = (await pool.query('SELECT * FROM batches WHERE id = $1', [batch_id])).rows[0];
+            const ids = Array.isArray(batch?.student_ids) ? batch.student_ids : [];
+            const students = ids.length === 0 ? [] : (await pool.query(
+                'SELECT id, name FROM users WHERE id = ANY($1) AND is_deleted = false ORDER BY name', [ids]
+            )).rows;
+            const marks = sessions.length === 0 ? [] : (await pool.query(
+                'SELECT session_id, student_id, status FROM attendance WHERE session_id = ANY($1)',
+                [sessions.map(s => s.id)]
+            )).rows;
+            const held = sessions.filter(s => s.status !== 'cancelled');
+            res.json({
+                month, from, to,
+                sessions: sessions.map(s => ({
+                    id: s.id, date: s.session_date, status: s.status, cancel_reason: s.cancel_reason,
+                })),
+                students: students.map(st => {
+                    const mine = marks.filter(m => String(m.student_id) === String(st.id));
+                    const present = mine.filter(m => m.status === 'present' || m.status === 'late').length;
+                    const counted = mine.filter(m => held.some(h => h.id === m.session_id)).length;
+                    return {
+                        id: String(st.id), name: st.name,
+                        present,
+                        absent: mine.filter(m => m.status === 'absent').length,
+                        late: mine.filter(m => m.status === 'late').length,
+                        classes: counted,
+                        percentage: counted ? Math.round((present / counted) * 100) : null,
+                        marks: mine.map(m => ({ session_id: m.session_id, status: m.status })),
+                    };
+                }),
+            });
+        } catch (error) {
+            console.error('Error building attendance report:', error);
+            res.status(500).json({ message: 'Server error building the attendance report.' });
         }
     });
 
