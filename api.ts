@@ -1661,20 +1661,25 @@ export const getBatches = async (): Promise<Batch[]> => {
 
     return (data || []).map((batch: any) => ({
       id: String(batch.id),
-      name: batch.name,
+      // The column is batch_name; reading batch.name left every name blank.
+      name: batch.batch_name || batch.name || 'Untitled batch',
       description: batch.description,
       courseId: batch.course_id,
       courseName: courses.find((c: any) => c.id === batch.course_id)?.name || 'Unknown Course',
       teacherId: batch.teacher_id,
       teacherName: teachers.find((t: any) => t.id === batch.teacher_id)?.name || 'Unassigned',
       schedule: batch.schedule || [],
-      capacity: batch.capacity,
-      enrolled: batch.enrolled || 0,
+      studentIds: (batch.student_ids || []).map((id: any) => String(id)),
+      capacity: batch.max_students ?? batch.capacity,
+      enrolled: Array.isArray(batch.student_ids) ? batch.student_ids.length : (batch.enrolled || 0),
       mode: batch.mode,
       locationId: batch.location_id,
       startDate: batch.start_date,
       endDate: batch.end_date,
       isActive: batch.is_active !== false,
+      days: batch.days || [],
+      startTime: batch.start_time || undefined,
+      endTime: batch.end_time || undefined,
       studio: batch.studio || undefined
     }));
   } catch (error) {
@@ -1824,6 +1829,28 @@ export const addBatch = async (batchData: Partial<Batch>): Promise<Batch> => {
     console.error('Error in addBatch:', error);
     throw error;
   }
+};
+
+/** Puts a batch under a teacher (pass null to leave it unassigned). */
+export const setBatchTeacher = async (batchId: string, teacherId: string | null): Promise<void> => {
+  const response = await fetch(`/api/batches/${batchId}/teacher`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ teacher_id: teacherId })
+  });
+  if (!response.ok) throw new Error('Could not assign the teacher to the batch');
+};
+
+/** Adds students to a batch, keeping whoever is already in it. */
+export const addStudentsToBatch = async (batchId: string, studentIds: string[]): Promise<void> => {
+  const response = await fetch(`/api/batches/${batchId}/students`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ student_ids: studentIds })
+  });
+  if (!response.ok) throw new Error('Could not add the student to the batch');
 };
 
 export const updateBatch = async (batchId: string, batchData: Partial<Batch>): Promise<Batch> => {

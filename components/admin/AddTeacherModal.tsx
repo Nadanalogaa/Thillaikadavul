@@ -1,32 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import type { User, Course } from '../../types';
+import type { User, Course, Batch } from '../../types';
 import { UserRole, Sex, ClassPreference, EmploymentType, UserStatus } from '../../types';
-import { WEEKDAYS, TIME_SLOTS } from '../../constants';
-import { getAdminUsers, getCourses } from '../../api';
+import { getCourses, getBatches } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
+import BatchPicker from './BatchPicker';
 import {
     FormModalShell, Section, Field, FieldGrid, PhotoPicker,
     inputClass, selectClass,
 } from './FormModalShell';
 
-// This is the data structure for the changes we plan to make.
-// Maps studentId to a record of changes per course.
-export type AssignmentChanges = Map<string, Record<string, { newTiming?: string; assignNewTeacher?: boolean }>>;
-const ALL_TIMINGS = WEEKDAYS.flatMap(day => TIME_SLOTS.map(slot => `${day} ${slot}`));
-
 interface AddTeacherModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (teacherData: Partial<User>, assignments: AssignmentChanges) => Promise<void>;
+    /** batchIds: batches this teacher takes over (students and timings live there). */
+    onSave: (teacherData: Partial<User>, batchIds: string[]) => Promise<void>;
 }
 
 const AddTeacherModal: React.FC<AddTeacherModalProps> = ({ isOpen, onClose, onSave }) => {
     const { theme } = useTheme();
     const dark = theme === 'dark';
     const [formData, setFormData] = useState<Partial<User>>({});
-    const [allStudents, setAllStudents] = useState<User[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
-    const [assignmentChanges, setAssignmentChanges] = useState<AssignmentChanges>(new Map());
+    const [batches, setBatches] = useState<Batch[]>([]);
+    const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
 
     const [isLoading, setIsLoading] = useState(false);
 
@@ -44,7 +40,7 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({ isOpen, onClose, onSa
             dob: '',
             dateOfJoining: new Date().toISOString().split('T')[0],
         });
-        setAssignmentChanges(new Map());
+        setSelectedBatchIds([]);
     };
 
     useEffect(() => {
@@ -52,12 +48,12 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({ isOpen, onClose, onSa
             resetForm();
             const fetchInitialData = async () => {
                 try {
-                    const [users, fetchedCourses] = await Promise.all([
-                        getAdminUsers(),
-                        getCourses()
+                    const [fetchedCourses, fetchedBatches] = await Promise.all([
+                        getCourses(),
+                        getBatches()
                     ]);
-                    setAllStudents(users.filter(u => u.role === UserRole.Student));
                     setCourses(fetchedCourses);
+                    setBatches(fetchedBatches);
                 } catch (error) {
                     console.error("Failed to fetch data for add teacher modal", error);
                 }
@@ -71,57 +67,15 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({ isOpen, onClose, onSa
     };
 
     const toggleExpertise = (courseName: string) => {
-        const wasSelected = (formData.courseExpertise || []).includes(courseName);
         setFormData(prev => {
             const expertise = prev.courseExpertise || [];
             return {
                 ...prev,
-                courseExpertise: wasSelected
+                courseExpertise: expertise.includes(courseName)
                     ? expertise.filter(c => c !== courseName)
                     : [...expertise, courseName],
             };
         });
-
-        // When expertise is removed, remove any pending assignments for that course
-        if (wasSelected) {
-            const newChanges = new Map(assignmentChanges);
-            let hasChanges = false;
-            assignmentChanges.forEach((studentCourses, studentId) => {
-                if (studentCourses[courseName]) {
-                    hasChanges = true;
-                    const newStudentCourses = { ...studentCourses };
-                    delete newStudentCourses[courseName];
-                    if (Object.keys(newStudentCourses).length === 0) {
-                        newChanges.delete(studentId);
-                    } else {
-                        newChanges.set(studentId, newStudentCourses);
-                    }
-                }
-            });
-            if (hasChanges) {
-                setAssignmentChanges(newChanges);
-            }
-        }
-    };
-
-    const handleAssignmentAction = (studentId: string, course: string, type: 'timing' | 'assign', value: any) => {
-        const newChanges = new Map(assignmentChanges);
-        const studentChanges = { ...(newChanges.get(studentId) || {}) };
-        const courseChange = { ...(studentChanges[course] || {}) };
-
-        if (type === 'timing') {
-            courseChange.newTiming = value;
-            // When timing is removed, the student should be unassigned
-            if (!value) {
-                courseChange.assignNewTeacher = false;
-            }
-        } else if (type === 'assign') {
-            courseChange.assignNewTeacher = value;
-        }
-
-        studentChanges[course] = courseChange;
-        newChanges.set(studentId, studentChanges);
-        setAssignmentChanges(newChanges);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -131,110 +85,11 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({ isOpen, onClose, onSa
             return;
         }
         setIsLoading(true);
-        await onSave(formData, assignmentChanges);
+        await onSave(formData, selectedBatchIds);
         setIsLoading(false);
     };
 
-    const getEffectiveSchedule = (studentId: string, course: string): { timing: string; teacherId?: string } => {
-        const student = allStudents.find(u => u.id === studentId);
-        const originalSchedule = student?.schedules?.find(s => s.course === course);
-        const pending = assignmentChanges.get(studentId)?.[course];
-
-        const effectiveTiming = pending?.newTiming !== undefined ? pending.newTiming : originalSchedule?.timing;
-
-        // This is for display only; the real assignment happens on save.
-        const effectiveTeacherId = pending?.assignNewTeacher ? 'new-teacher' : originalSchedule?.teacherId;
-
-        return {
-            timing: effectiveTiming || '',
-            teacherId: effectiveTeacherId,
-        };
-    };
-
     const expertise = formData.courseExpertise || [];
-
-    const renderAssignments = () => {
-        if (expertise.length === 0) {
-            return (
-                <p className={`py-6 text-center text-sm ${dark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Select course expertise above, and the matching students appear here.
-                </p>
-            );
-        }
-
-        const relevantStudents = allStudents.filter(student =>
-            student.courses?.some(course => expertise.includes(course))
-        );
-
-        if (relevantStudents.length === 0) {
-            return (
-                <p className={`py-6 text-center text-sm ${dark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    No students are enrolled in the selected course(s).
-                </p>
-            );
-        }
-
-        const th = `px-3 py-2 text-left text-xs font-medium uppercase tracking-wide ${dark ? 'text-gray-300' : 'text-gray-500'}`;
-        return (
-            <div className={`overflow-x-auto rounded-lg border ${dark ? 'border-gray-700' : 'border-gray-200'}`}>
-                <table className="min-w-full text-sm">
-                    <thead className={dark ? 'bg-gray-700/50' : 'bg-gray-50'}>
-                        <tr>
-                            <th scope="col" className={th}>Student</th>
-                            <th scope="col" className={th}>Course</th>
-                            <th scope="col" className={`${th} w-1/3`}>Batch timing</th>
-                            <th scope="col" className={`${th} text-center`}>Assign</th>
-                        </tr>
-                    </thead>
-                    <tbody className={`divide-y ${dark ? 'divide-gray-700' : 'divide-gray-200'}`}>
-                        {relevantStudents.map(student => {
-                            const assignableCourses = student.courses?.filter(c => expertise.includes(c)) || [];
-                            return assignableCourses.map(course => {
-                                const { timing: effectiveTiming } = getEffectiveSchedule(student.id, course);
-                                const studentBookedSlots = allStudents.find(s => s.id === student.id)?.schedules?.reduce((acc, s) => {
-                                    if (s.timing) acc[s.timing] = s.course;
-                                    return acc;
-                                }, {} as Record<string, string>) || {};
-
-                                const isAssigned = assignmentChanges.get(student.id)?.[course]?.assignNewTeacher || false;
-
-                                return (
-                                    <tr key={`${student.id}-${course}`} className={dark ? 'hover:bg-gray-700/30' : 'hover:bg-gray-50'}>
-                                        <td className={`whitespace-nowrap px-3 py-2 font-medium ${dark ? 'text-gray-100' : 'text-gray-900'}`}>{student.name}</td>
-                                        <td className={`whitespace-nowrap px-3 py-2 ${dark ? 'text-gray-300' : 'text-gray-500'}`}>{course}</td>
-                                        <td className="px-3 py-2">
-                                            <select
-                                                value={effectiveTiming}
-                                                onChange={(e) => handleAssignmentAction(student.id, course, 'timing', e.target.value)}
-                                                className={`${selectClass} py-1`}
-                                            >
-                                                <option value="">Not set</option>
-                                                {ALL_TIMINGS.map(timing => {
-                                                    const bookingCourse = studentBookedSlots[timing];
-                                                    const isBookedByOther = !!(bookingCourse && bookingCourse !== course);
-                                                    return <option key={timing} value={timing} disabled={isBookedByOther}>{timing}{isBookedByOther ? ` (Booked for ${bookingCourse})` : ''}</option>;
-                                                })}
-                                            </select>
-                                        </td>
-                                        <td className="px-3 py-2 text-center">
-                                            <input
-                                                type="checkbox"
-                                                className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
-                                                checked={isAssigned}
-                                                disabled={!effectiveTiming}
-                                                onChange={(e) => handleAssignmentAction(student.id, course, 'assign', e.target.checked)}
-                                                title={!effectiveTiming ? 'Please set a timing first' : ''}
-                                            />
-                                        </td>
-                                    </tr>
-                                );
-                            });
-                        })}
-                    </tbody>
-                </table>
-            </div>
-        );
-    };
 
     return (
         <FormModalShell
@@ -242,7 +97,7 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({ isOpen, onClose, onSa
             onClose={onClose}
             onSubmit={handleSubmit}
             title="Add New Teacher"
-            subtitle="Create the profile, set expertise and assign students in one go."
+            subtitle="Create the profile, set expertise and assign batches in one go."
             submitLabel="Add Teacher"
             isSubmitting={isLoading}
         >
@@ -342,10 +197,20 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({ isOpen, onClose, onSa
                     </Section>
 
                 <Section
-                    title="Students & timings"
-                    description="Pick a time slot, then tick to move that student to this teacher."
+                    title="Batches"
+                    description="Choose the batches this teacher takes. Students and timings come from the batch."
                 >
-                    {renderAssignments()}
+                    <BatchPicker
+                        mode="teacher"
+                        batches={batches}
+                        courseFilter={expertise}
+                        selectedIds={selectedBatchIds}
+                        onToggle={(id) => setSelectedBatchIds(prev =>
+                            prev.includes(id) ? prev.filter(b => b !== id) : [...prev, id])}
+                        emptyHint={expertise.length > 0
+                            ? 'No batches for the selected course(s) yet. Create one under Batches.'
+                            : 'Select course expertise above to see matching batches.'}
+                    />
                 </Section>
             </>
         </FormModalShell>

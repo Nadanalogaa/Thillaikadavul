@@ -258,6 +258,7 @@ export interface Batch {
   teacherId?: Partial<User> | string; // Can be string or populated object
   teacherName?: string; // For display purposes
   schedule: BatchSchedule[];
+  studentIds?: string[]; // Members of the batch
   capacity?: number; // Maximum number of students
   enrolled?: number; // Current number of enrolled students
   mode?: ClassPreference.Online | ClassPreference.Offline;

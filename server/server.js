@@ -4236,6 +4236,46 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
+    // Assign (or clear) a batch's teacher. Used by Add Teacher, where the admin
+    // picks the batches the new teacher takes over.
+    app.put('/api/batches/:id/teacher', ensureAdmin, async (req, res) => {
+        try {
+            const { teacher_id } = req.body || {};
+            const result = await pool.query(
+                'UPDATE batches SET teacher_id = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+                [teacher_id || null, req.params.id]
+            );
+            if (result.rows.length === 0) return res.status(404).json({ message: 'Batch not found' });
+            res.json(parseBatchData(result.rows[0]));
+        } catch (error) {
+            console.error('Error setting batch teacher:', error);
+            res.status(500).json({ message: 'Server error setting the batch teacher.' });
+        }
+    });
+
+    // Add students to a batch without touching the rest of it (Add Student).
+    // Existing members are kept and duplicates ignored.
+    app.post('/api/batches/:id/students', ensureAdmin, async (req, res) => {
+        try {
+            const ids = Array.isArray(req.body?.student_ids) ? req.body.student_ids : [];
+            if (ids.length === 0) return res.status(400).json({ message: 'No students given.' });
+            const result = await pool.query(
+                `UPDATE batches
+                 SET student_ids = (
+                       SELECT ARRAY(SELECT DISTINCT unnest(COALESCE(student_ids, '{}') || $1::int[]))
+                     ),
+                     updated_at = NOW()
+                 WHERE id = $2 RETURNING *`,
+                [ids.map(Number).filter(n => !Number.isNaN(n)), req.params.id]
+            );
+            if (result.rows.length === 0) return res.status(404).json({ message: 'Batch not found' });
+            res.json(parseBatchData(result.rows[0]));
+        } catch (error) {
+            console.error('Error adding students to batch:', error);
+            res.status(500).json({ message: 'Server error adding students to the batch.' });
+        }
+    });
+
     app.delete('/api/batches/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;

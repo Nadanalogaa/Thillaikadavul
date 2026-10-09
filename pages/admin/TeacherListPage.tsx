@@ -3,12 +3,11 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom';
 import type { User, Course } from '../../types';
 import { UserRole, ClassPreference, UserStatus } from '../../types';
-import { getAdminUsers, updateUserByAdmin, deleteUserByAdmin, addStudentByAdmin, sendNotification, getCourses } from '../../api';
+import { getAdminUsers, updateUserByAdmin, deleteUserByAdmin, addStudentByAdmin, sendNotification, getCourses, setBatchTeacher } from '../../api';
 import EditUserModal from '../../components/admin/EditUserModal';
 import AddTeacherModal from '../../components/admin/AddTeacherModal';
 import SendNotificationModal from '../../components/admin/SendNotificationModal';
 import { WEEKDAYS, TIME_SLOTS } from '../../constants';
-import type { AssignmentChanges } from '../../components/admin/AddTeacherModal';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -235,73 +234,23 @@ const TeacherListPage: React.FC = () => {
         }
     };
     
-    const handleSaveNewTeacher = async (teacherData: Partial<User>, assignmentChanges: AssignmentChanges) => {
+    const handleSaveNewTeacher = async (teacherData: Partial<User>, batchIds: string[]) => {
         try {
-            // Step 1: Create the new teacher to get their ID
             const newTeacher = await addStudentByAdmin(teacherData);
-            
-            // Step 2: If there are assignments, prepare student updates
-            if (assignmentChanges.size > 0) {
-                const currentUsers = await getAdminUsers(); // Fetch fresh user data
-                const studentsToUpdate = new Map<string, User>();
 
-                // Iterate over the map of intended changes
-                for (const [studentId, courseChanges] of assignmentChanges.entries()) {
-                    const originalStudent = currentUsers.find(u => u.id === studentId);
-                    if (!originalStudent) continue;
-
-                    // Use the already modified student object if it exists, otherwise clone the original
-                    const studentToUpdate = studentsToUpdate.get(studentId) || JSON.parse(JSON.stringify(originalStudent));
-                    let newSchedules = studentToUpdate.schedules ? [...studentToUpdate.schedules] : [];
-
-                    // Apply all changes for the current student
-                    for (const [course, change] of Object.entries(courseChanges)) {
-                        const scheduleIndex = newSchedules.findIndex(s => s.course === course);
-                        let schedule = scheduleIndex > -1 ? { ...newSchedules[scheduleIndex] } : { course, timing: '', teacherId: '' };
-
-                        if (change.newTiming !== undefined) {
-                            schedule.timing = change.newTiming;
-                        }
-
-                        if (change.assignNewTeacher) {
-                            schedule.teacherId = newTeacher.id;
-                        }
-
-                        if (schedule.timing === '' || schedule.timing === null) {
-                            // If timing is cleared, remove the schedule entirely
-                            newSchedules = newSchedules.filter(s => s.course !== course);
-                        } else if (scheduleIndex > -1) {
-                            newSchedules[scheduleIndex] = schedule;
-                        } else {
-                            newSchedules.push(schedule);
-                        }
-                    }
-                    studentToUpdate.schedules = newSchedules;
-                    studentsToUpdate.set(studentId, studentToUpdate);
-                }
-
-                // Step 3: Batch update all modified students
-                if (studentsToUpdate.size > 0) {
-                    await Promise.all(
-                        Array.from(studentsToUpdate.values()).map(s => updateUserByAdmin(s.id, s))
-                    );
-                }
+            // Batches hold the students and timings, so assigning the teacher to a
+            // batch is all that is needed here.
+            if (batchIds.length > 0) {
+                await Promise.all(batchIds.map(id => setBatchTeacher(id, newTeacher.id)));
             }
 
-            // Step 4: Refresh all data and close the modal
             await fetchData();
             setIsAddModalOpen(false);
-
-            // Show success message
-            const assignmentCount = assignmentChanges.size;
-            const successMessage = assignmentCount > 0
-                ? `✅ Teacher "${teacherData.name || 'New Teacher'}" created successfully with ${assignmentCount} student assignments! 📧 Email notifications and in-app notifications sent to all affected students, teachers, and admin.`
-                : `✅ Teacher "${teacherData.name || 'New Teacher'}" created successfully! 📧 Welcome email and registration notifications sent.`;
-
-            alert(successMessage);
-
+            alert(batchIds.length > 0
+                ? `✅ Teacher "${teacherData.name || 'New Teacher'}" created and assigned to ${batchIds.length} batch${batchIds.length === 1 ? '' : 'es'}.`
+                : `✅ Teacher "${teacherData.name || 'New Teacher'}" created successfully.`);
         } catch (err) {
-            alert(err instanceof Error ? err.message : 'An error occurred while creating the teacher.');
+            alert(err instanceof Error ? err.message : 'Failed to create the teacher.');
         }
     };
 

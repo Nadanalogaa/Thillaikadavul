@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { User, Course, Batch } from '../../types';
 import { UserRole, ClassPreference, UserStatus } from '../../types';
-import { getAdminUsers, updateUserByAdmin, deleteUserByAdmin, addStudentByAdmin, sendNotification, getCourses, getBatches, updateBatch } from '../../api';
+import { getAdminUsers, updateUserByAdmin, deleteUserByAdmin, addStudentByAdmin, sendNotification, getCourses, getBatches, updateBatch, addStudentsToBatch } from '../../api';
 import EditUserModal from '../../components/admin/EditUserModal';
 import AddStudentModal from '../../components/admin/AddStudentModal';
 import SendNotificationModal from '../../components/admin/SendNotificationModal';
@@ -366,14 +366,22 @@ const StudentListPage: React.FC = () => {
     };
 
 
-    const handleSaveNewStudent = async (newUser: Partial<User>) => {
+    const handleSaveNewStudent = async (newUser: Partial<User>, batchIds: string[] = []) => {
         try {
             const savedStudent = await addStudentByAdmin(newUser);
+
+            // Class day, time and teacher come from the batch, so the student is
+            // simply added to the batches the admin picked.
+            if (batchIds.length > 0) {
+                await Promise.all(batchIds.map(id => addStudentsToBatch(id, [savedStudent.id])));
+            }
+
             setAllUsers(prev => [...prev, savedStudent]);
             setIsAddModalOpen(false);
 
-            // Show success message
-            alert(`✅ Student "${newUser.name || 'New Student'}" added successfully! 📧 Welcome email and registration notifications sent to student and admin.`);
+            alert(batchIds.length > 0
+                ? `✅ Student "${newUser.name || 'New Student'}" added to ${batchIds.length} batch${batchIds.length === 1 ? '' : 'es'}. 📧 Welcome email sent.`
+                : `✅ Student "${newUser.name || 'New Student'}" added successfully! 📧 Welcome email and registration notifications sent to student and admin.`);
         } catch (err) {
             alert(err instanceof Error ? err.message : 'Failed to add student.');
         }

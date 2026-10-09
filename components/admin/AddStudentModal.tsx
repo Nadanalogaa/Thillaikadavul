@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import type { User, Course } from '../../types';
+import type { User, Course, Batch } from '../../types';
 import { UserRole, Sex, Grade, ClassPreference, UserStatus } from '../../types';
 import { GRADES } from '../../constants';
-import { getCourses, getGrades } from '../../api';
+import { getCourses, getGrades, getBatches } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
-import CourseTimingManager from './CourseTimingManager';
+import BatchPicker from './BatchPicker';
 import {
     FormModalShell, Section, Field, FieldGrid, PhotoPicker,
     inputClass, selectClass, textareaClass,
@@ -13,7 +13,8 @@ import {
 interface AddStudentModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (user: Partial<User>) => void;
+    /** batchIds: batches to put the new student into (timings come from the batch). */
+    onSave: (user: Partial<User>, batchIds: string[]) => void;
 }
 
 const EMPTY_STUDENT: Partial<User> = {
@@ -35,6 +36,8 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onSa
     const [formData, setFormData] = useState<Partial<User>>(EMPTY_STUDENT);
     const [courses, setCourses] = useState<Course[]>([]);
     const [grades, setGrades] = useState<any[]>([]);
+    const [batches, setBatches] = useState<Batch[]>([]);
+    const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
     const [courseGrades, setCourseGrades] = useState<Record<string, string>>({}); // courseId -> gradeId
     const [isLoading, setIsLoading] = useState(false);
 
@@ -42,7 +45,8 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onSa
         if (isOpen) {
             const fetchData = async () => {
                 try {
-                    const [fetchedCourses, fetchedGrades] = await Promise.all([getCourses(), getGrades()]);
+                    const [fetchedCourses, fetchedGrades, fetchedBatches] = await Promise.all([getCourses(), getGrades(), getBatches()]);
+                    setBatches(fetchedBatches);
                     // Remove duplicates based on course name
                     const uniqueCourses = fetchedCourses.filter((course, index, array) =>
                         array.findIndex(c => c.name === course.name) === index
@@ -76,10 +80,6 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onSa
         });
     };
 
-    const handleScheduleChange = (schedules: NonNullable<User['schedules']>) => {
-        setFormData(prev => ({ ...prev, schedules }));
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         // Format validation: valid email + 10-digit phone.
@@ -101,8 +101,9 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onSa
         const course_grades = Object.entries(courseGrades)
             .filter(([courseId, gradeId]) => gradeId && selectedCourseIds.has(courseId))
             .map(([courseId, gradeId]) => ({ course_id: courseId, grade_id: gradeId }));
-        await onSave({ ...formData, ...(course_grades.length ? { course_grades } : {}) } as any);
+        await onSave({ ...formData, ...(course_grades.length ? { course_grades } : {}) } as any, selectedBatchIds);
         setCourseGrades({});
+        setSelectedBatchIds([]);
         setFormData(EMPTY_STUDENT);
         setIsLoading(false);
     };
@@ -260,14 +261,21 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, onSa
                 </FieldGrid>
             </Section>
 
-            <Section title="Batch timings" description="Choose the weekly slots for each selected course.">
+            <Section
+                title="Batches"
+                description="Put the student in a batch — its day, time and teacher come with it."
+            >
                 {selectedCourses.length === 0 ? (
                     <p className={`text-sm ${dark ? 'text-gray-400' : 'text-gray-500'}`}>Select a course first.</p>
                 ) : (
-                    <CourseTimingManager
-                        selectedCourses={selectedCourses}
-                        schedules={formData.schedules || []}
-                        onChange={handleScheduleChange}
+                    <BatchPicker
+                        mode="student"
+                        batches={batches}
+                        courseFilter={selectedCourses}
+                        selectedIds={selectedBatchIds}
+                        onToggle={(id) => setSelectedBatchIds(prev =>
+                            prev.includes(id) ? prev.filter(b => b !== id) : [...prev, id])}
+                        emptyHint="No batches for the selected course(s) yet. You can add the student to a batch later from Batches."
                     />
                 )}
             </Section>
