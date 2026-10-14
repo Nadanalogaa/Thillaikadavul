@@ -86,3 +86,20 @@ Thumbs.db
 # Local development
 .vite/dist.tar.gz
 supabase_backup.sql.gz
+
+# Database dumps — these contain every student's personal data and this repo
+# is public. Never commit one. (*.sql is NOT ignored: supabase_backup.sql and
+# minimal-schema.sql are schema files the Dockerfile copies into the image.)
+*.dump
+*.sql.gz
+
+# Built Android artifacts
+*.apk
+*.aab
+
+# Uploads written at runtime (payment proofs, course icons)
+server/uploads/
+
+# Local data imports
+import-log.txt
+docs/NadanalogaDatas.csv
