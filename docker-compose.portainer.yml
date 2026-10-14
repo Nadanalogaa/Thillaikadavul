@@ -9,6 +9,9 @@ services:
       args:
         - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
         - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+    # Rebuild from source on every deploy. Without this, Portainer reuses an
+    # existing image of the same name and the deploy silently ships old code.
+    pull_policy: build
     container_name: nadanaloga-main-app
     restart: always
     # Only Nginx Proxy Manager reaches the app, over nadanaloga-main-network.
