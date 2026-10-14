@@ -71,6 +71,12 @@ COPY fix-admin-user.cjs ./
 COPY supabase_backup.sql ./
 COPY minimal-schema.sql ./
 
+# Create the upload directories inside the image. The stack mounts a named
+# volume here; Docker populates an empty volume from the image, ownership
+# included, so the app (running as nadanaloga) can write to it. Without this
+# the mount point is created as root and the app dies with EACCES on startup.
+RUN mkdir -p /app/server/uploads/icons /app/server/uploads/payments
+
 # Set ownership
 RUN chown -R nadanaloga:nodejs /app
 USER nadanaloga
