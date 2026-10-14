@@ -11,8 +11,10 @@ services:
         - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
     container_name: nadanaloga-main-app
     restart: always
+    # Only Nginx Proxy Manager reaches the app, over nadanaloga-main-network.
+    # Bound to localhost so port 3000 is not open to the internet.
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -52,6 +54,10 @@ services:
       WHATSAPP_ADMIN_NUMBER: ${WHATSAPP_ADMIN_NUMBER}
       WHATSAPP_TEMPLATE_NAME: ${WHATSAPP_TEMPLATE_NAME}
       WHATSAPP_TEMPLATE_LANG: ${WHATSAPP_TEMPLATE_LANG}
+    volumes:
+      # Payment proofs and course icons are written to server/uploads. Without
+      # this volume every redeploy of the stack deleted them.
+      - app_uploads:/app/server/uploads
     networks:
       - nadanaloga-main-network
     healthcheck:
@@ -59,6 +65,10 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+volumes:
+  app_uploads:
+    name: nadanaloga-uploads
 
 networks:
   nadanaloga-main-network:
