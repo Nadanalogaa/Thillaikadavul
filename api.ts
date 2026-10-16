@@ -65,6 +65,61 @@ const safeSetLocalStorage = (key: string, value: any) => {
   }
 };
 
+// --- Expired sessions ----------------------------------------------------
+// The signed-in user is cached in localStorage, which never expires, while the
+// server session does. Without this, once the session lapsed every /api call
+// answered 401 and the screens rendered empty lists — the admin module showed
+// zeros until you logged out and back in. Any 401 from an authenticated
+// endpoint now clears the cached user and sends you to sign in again.
+const AUTH_ENDPOINTS = [
+  '/api/login',
+  '/api/logout',
+  '/api/register',
+  '/api/register-with-email',
+  '/api/check-email',
+  '/api/forgot-password',
+  '/api/reset-password',
+];
+
+let handlingExpiredSession = false;
+
+const onSessionExpired = () => {
+  if (handlingExpiredSession || typeof window === 'undefined') return;
+  handlingExpiredSession = true;
+  currentUser = null;
+  try {
+    localStorage.removeItem('currentUser');
+  } catch {
+    // Private browsing can refuse storage; the redirect still signs them out.
+  }
+  // Only the admin area has a login route; everyone else signs in from a modal.
+  const path = window.location.pathname;
+  window.location.assign(path.startsWith('/admin') ? '/admin/login?expired=1' : '/?expired=1');
+};
+
+if (typeof window !== 'undefined' && !(window as any).__nadanalogaAuthFetch) {
+  (window as any).__nadanalogaAuthFetch = true;
+  const nativeFetch = window.fetch.bind(window);
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const response = await nativeFetch(input as any, init);
+    if (response.status === 401) {
+      try {
+        const raw =
+          typeof input === 'string' ? input
+          : input instanceof URL ? input.toString()
+          : (input as Request).url;
+        const path = raw.startsWith('http') ? new URL(raw).pathname : raw.split('?')[0];
+        if (path.startsWith('/api/') && !AUTH_ENDPOINTS.includes(path)) {
+          onSessionExpired();
+        }
+      } catch {
+        // Never let this check interfere with the response itself.
+      }
+    }
+    return response;
+  };
+}
+
 // Email validation cache to avoid duplicate API calls
 const emailCache = new Map<string, { exists: boolean; timestamp: number }>();
 const CACHE_DURATION = 30000; // 30 seconds

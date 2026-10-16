@@ -1077,13 +1077,17 @@ async function startServer() {
         secret: process.env.SESSION_SECRET || 'a-secure-secret-key',
         resave: false,
         saveUninitialized: false,
+        // Renew the cookie on every request, so someone using the admin module
+        // daily is never signed out mid-task. Sessions live in Postgres, so a
+        // redeploy does not drop them.
+        rolling: true,
         store: new pgSession({
             pool: pool,
             tableName: 'session',
             createTableIfMissing: true,
         }),
         cookie: {
-            maxAge: 1000 * 60 * 60 * 24, // 1 day
+            maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days, renewed on each request
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
