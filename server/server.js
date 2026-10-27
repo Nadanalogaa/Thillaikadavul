@@ -3201,17 +3201,35 @@ Please review and approve this registration in the admin panel.`;
             const { id } = req.params;
             const userData = req.body;
 
+            // Only write columns that actually exist. The admin client sends a
+            // dozen fields with no column behind them (preferred_timings,
+            // documents, schedules, country, timezone, ...) and a single unknown
+            // key made Postgres reject the statement, so every "Save Changes"
+            // on a student or teacher failed with a 500.
+            const columns = new Set((await pool.query(
+                `SELECT column_name FROM information_schema.columns
+                  WHERE table_schema = 'public' AND table_name = 'users'`
+            )).rows.map(r => r.column_name));
+
             const updateFields = [];
             const values = [];
             let paramCount = 1;
 
             Object.keys(userData).forEach(key => {
-                if (key !== 'id' && key !== 'created_at') {
+                // updated_at is set by the statement itself; letting the client
+                // supply it too produced "multiple assignments to same column".
+                if (key !== 'id' && key !== 'created_at' && key !== 'updated_at' && columns.has(key)) {
                     updateFields.push(`${key} = $${paramCount}`);
                     values.push(userData[key]);
                     paramCount++;
                 }
             });
+
+            if (updateFields.length === 0) {
+                const unchanged = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+                if (unchanged.rows.length === 0) return res.status(404).json({ message: 'User not found' });
+                return res.json(parseUserData(unchanged.rows[0]));
+            }
 
             values.push(id);
             const query = `UPDATE users SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = $${paramCount} RETURNING *`;

@@ -4,12 +4,14 @@ import type { User, Document, Course, Batch, CourseTimingSlot } from '../../type
 import { UserRole, ClassPreference, Sex, EmploymentType, Grade, UserStatus } from '../../types';
 import { GRADES } from '../../constants';
 import { getAdminUsers, getCourses, getBatches as getAdminBatches } from '../../api';
-import Modal from '../Modal';
 import DocumentManager from './DocumentManager';
 import TabButton from './TabButton';
 import StudentAssignmentManager from './StudentAssignmentManager';
-import ModalHeader from '../ModalHeader';
 import QuickBatchCreateModal from './QuickBatchCreateModal';
+import {
+    FormModalShell, Section, Field, FieldGrid, PhotoPicker,
+    inputClass, selectClass, textareaClass,
+} from './FormModalShell';
 
 type BatchChange = { oldBatchId?: string; newBatchId: string };
 type BatchChangeMap = Map<string, BatchChange>;
@@ -244,125 +246,128 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, user, on
     const isStudent = formData.role === UserRole.Student;
 
     const renderStudentPersonalInfo = () => (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
-            <div>
-                <label className="form-label">Full Name</label>
-                <input type="text" name="name" value={formData.name || ''} onChange={handleChange} required className="form-input" />
-            </div>
-            <div>
-                <label className="form-label">Parent's/Guardian's Name</label>
-                <input type="text" name="fatherName" value={formData.fatherName || ''} onChange={handleChange} className="form-input" />
-            </div>
-            <div>
-                <label className="form-label">Email Address</label>
-                <input type="email" name="email" value={formData.email || ''} onChange={handleChange} required className="form-input" />
-            </div>
-             <div>
-                <label className="form-label">Date of Birth</label>
-                <input type="date" name="dob" value={formData.dob || ''} onChange={handleChange} required className="form-input" />
-            </div>
-            <div>
-                <label className="form-label">Sex</label>
-                <select name="sex" value={formData.sex} onChange={handleChange} className="form-select">
-                    {Object.values(Sex).map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-            </div>
-            <div>
-                <label className="form-label">Contact Number</label>
-                <input type="tel" name="contactNumber" value={formData.contactNumber || ''} onChange={handleChange} required className="form-input" />
-            </div>
-            <div className="grid grid-cols-subgrid lg:col-span-3 md:grid-cols-3 gap-x-6">
-                <div className="lg:col-span-1">
-                    <label className="form-label">School Name</label>
-                    <input type="text" name="schoolName" value={formData.schoolName || ''} onChange={handleChange} className="form-input" />
-                </div>
-                <div className="lg:col-span-1">
-                    <label className="form-label">Standard</label>
-                    <input type="text" name="standard" value={formData.standard || ''} onChange={handleChange} className="form-input" />
-                </div>
-                <div className="lg:col-span-1">
-                    <label className="form-label">Status</label>
-                    <select name="status" value={formData.status || 'Active'} onChange={handleChange} className="form-select">
-                        {Object.values(UserStatus).map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                </div>
-            </div>
-            <div className="lg:col-span-3">
-                 <label className="form-label">Address</label>
-                <textarea name="address" rows={1} value={formData.address || ''} onChange={handleChange} className="form-textarea resize-none"></textarea>
-            </div>
-            
-            <div className="lg:col-span-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
-                    <div>
-                        <label className="form-label">Notes</label>
-                        <textarea name="notes" rows={5} value={formData.notes || ''} onChange={handleChange} className="form-textarea"></textarea>
-                    </div>
-                    <div>
-                        <label className="form-label">Documents</label>
+        <>
+            <Section
+                title="Student"
+                aside={
+                    <PhotoPicker
+                        photoUrl={formData.photoUrl}
+                        name={formData.name}
+                        onChange={(photoUrl) => setFormData(prev => ({ ...prev, photoUrl }))}
+                    />
+                }
+            >
+                <FieldGrid>
+                    <Field label="Full name" span={3} htmlFor="edit-name">
+                        <input type="text" id="edit-name" name="name" value={formData.name || ''} onChange={handleChange} required className={inputClass} />
+                    </Field>
+                    <Field label="Parent / guardian's name" span={3} htmlFor="edit-fatherName">
+                        <input type="text" id="edit-fatherName" name="fatherName" value={formData.fatherName || ''} onChange={handleChange} className={inputClass} />
+                    </Field>
+                    <Field label="Email address" span={3} htmlFor="edit-email">
+                        <input type="email" id="edit-email" name="email" value={formData.email || ''} onChange={handleChange} required className={inputClass} />
+                    </Field>
+                    <Field label="Contact number" span={3} htmlFor="edit-contactNumber">
+                        <input type="tel" id="edit-contactNumber" name="contactNumber" value={formData.contactNumber || ''} onChange={handleChange} required className={inputClass} />
+                    </Field>
+                    <Field label="Date of birth" span={2} htmlFor="edit-dob">
+                        <input type="date" id="edit-dob" name="dob" value={formData.dob || ''} onChange={handleChange} required className={inputClass} />
+                    </Field>
+                    <Field label="Sex" span={2} htmlFor="edit-sex">
+                        <select id="edit-sex" name="sex" value={formData.sex} onChange={handleChange} className={selectClass}>
+                            {Object.values(Sex).map(sx => <option key={sx} value={sx}>{sx}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="Status" span={2} htmlFor="edit-status">
+                        <select id="edit-status" name="status" value={formData.status || 'Active'} onChange={handleChange} className={selectClass}>
+                            {Object.values(UserStatus).map(st => <option key={st} value={st}>{st}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="Address" span={6} htmlFor="edit-address">
+                        <textarea id="edit-address" name="address" rows={2} value={formData.address || ''} onChange={handleChange} className={textareaClass} />
+                    </Field>
+                </FieldGrid>
+            </Section>
+
+            <Section title="Academic details">
+                <FieldGrid>
+                    <Field label="School name" span={3} htmlFor="edit-schoolName">
+                        <input type="text" id="edit-schoolName" name="schoolName" value={formData.schoolName || ''} onChange={handleChange} className={inputClass} />
+                    </Field>
+                    <Field label="Standard" span={3} htmlFor="edit-standard">
+                        <input type="text" id="edit-standard" name="standard" value={formData.standard || ''} onChange={handleChange} className={inputClass} />
+                    </Field>
+                </FieldGrid>
+            </Section>
+
+            <Section title="Notes and documents">
+                <FieldGrid>
+                    <Field label="Notes" span={6} htmlFor="edit-notes">
+                        <textarea id="edit-notes" name="notes" rows={3} value={formData.notes || ''} onChange={handleChange} className={textareaClass} />
+                    </Field>
+                    <Field label="Documents" span={6}>
                         <DocumentManager documents={formData.documents || []} onDocumentsChange={handleDocumentsChange} />
-                    </div>
-                </div>
-            </div>
-        </div>
+                    </Field>
+                </FieldGrid>
+            </Section>
+        </>
     );
 
     const renderTeacherPersonalInfo = () => (
-         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
-            <div>
-                <label className="form-label">Full Name</label>
-                <input type="text" name="name" value={formData.name || ''} onChange={handleChange} required className="form-input" />
-            </div>
-            <div>
-                <label className="form-label">Email Address</label>
-                <input type="email" name="email" value={formData.email || ''} onChange={handleChange} required className="form-input" />
-            </div>
-            <div>
-                <label className="form-label">Contact Number</label>
-                <input type="tel" name="contactNumber" value={formData.contactNumber || ''} onChange={handleChange} required className="form-input" />
-            </div>
-             <div>
-                <label className="form-label">Date of Birth</label>
-                <input type="date" name="dob" value={formData.dob || ''} onChange={handleChange} required className="form-input" />
-            </div>
-            <div>
-                <label className="form-label">Sex</label>
-                <select name="sex" value={formData.sex} onChange={handleChange} className="form-select">
-                    {Object.values(Sex).map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-            </div>
-             <div>
-                <label className="form-label">Employment</label>
-                <select name="employmentType" value={formData.employmentType} onChange={handleChange} className="form-select">
-                    {Object.values(EmploymentType).map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-            </div>
-            <div className="lg:col-span-2">
-                <label className="form-label">Educational Qualifications</label>
-                <input type="text" name="educationalQualifications" value={formData.educationalQualifications || ''} onChange={handleChange} className="form-input" />
-            </div>
-             <div>
-                <label className="form-label">Status</label>
-                <select name="status" value={formData.status || 'Active'} onChange={handleChange} className="form-select">
-                    {Object.values(UserStatus).map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-            </div>
+        <>
+            <Section
+                title="Teacher"
+                aside={
+                    <PhotoPicker
+                        photoUrl={formData.photoUrl}
+                        name={formData.name}
+                        onChange={(photoUrl) => setFormData(prev => ({ ...prev, photoUrl }))}
+                    />
+                }
+            >
+                <FieldGrid>
+                    <Field label="Full name" span={3} htmlFor="edit-name">
+                        <input type="text" id="edit-name" name="name" value={formData.name || ''} onChange={handleChange} required className={inputClass} />
+                    </Field>
+                    <Field label="Email address" span={3} htmlFor="edit-email">
+                        <input type="email" id="edit-email" name="email" value={formData.email || ''} onChange={handleChange} required className={inputClass} />
+                    </Field>
+                    <Field label="Contact number" span={2} htmlFor="edit-contactNumber">
+                        <input type="tel" id="edit-contactNumber" name="contactNumber" value={formData.contactNumber || ''} onChange={handleChange} required className={inputClass} />
+                    </Field>
+                    <Field label="Date of birth" span={2} htmlFor="edit-dob">
+                        <input type="date" id="edit-dob" name="dob" value={formData.dob || ''} onChange={handleChange} required className={inputClass} />
+                    </Field>
+                    <Field label="Sex" span={2} htmlFor="edit-sex">
+                        <select id="edit-sex" name="sex" value={formData.sex} onChange={handleChange} className={selectClass}>
+                            {Object.values(Sex).map(sx => <option key={sx} value={sx}>{sx}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="Employment" span={2} htmlFor="edit-employmentType">
+                        <select id="edit-employmentType" name="employmentType" value={formData.employmentType} onChange={handleChange} className={selectClass}>
+                            {Object.values(EmploymentType).map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="Status" span={2} htmlFor="edit-status">
+                        <select id="edit-status" name="status" value={formData.status || 'Active'} onChange={handleChange} className={selectClass}>
+                            {Object.values(UserStatus).map(st => <option key={st} value={st}>{st}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="Educational qualifications" span={6} htmlFor="edit-educationalQualifications">
+                        <input type="text" id="edit-educationalQualifications" name="educationalQualifications" value={formData.educationalQualifications || ''} onChange={handleChange} className={inputClass} />
+                    </Field>
+                    <Field label="Address" span={6} htmlFor="edit-address">
+                        <textarea id="edit-address" name="address" rows={2} value={formData.address || ''} onChange={handleChange} className={textareaClass} />
+                    </Field>
+                </FieldGrid>
+            </Section>
 
-            <div className="lg:col-span-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
-                    <div>
-                        <label className="form-label">Address</label>
-                        <textarea name="address" rows={5} value={formData.address || ''} onChange={handleChange} className="form-textarea"></textarea>
-                    </div>
-                    <div>
-                        <label className="form-label">Documents</label>
-                        <DocumentManager documents={formData.documents || []} onDocumentsChange={handleDocumentsChange} />
-                    </div>
-                </div>
-            </div>
-        </div>
+            <Section title="Documents">
+                <DocumentManager documents={formData.documents || []} onDocumentsChange={handleDocumentsChange} />
+            </Section>
+        </>
     );
-    
+
     const renderStudentBatchSchedule = () => {
         const findStudentBatchForCourse = (studentId: string, courseName: string): Batch | undefined => {
             return allBatches.find(batch => 
@@ -412,27 +417,24 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, user, on
                         </div>
                     </div>
                 )}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                    <div>
-                        <label className="form-label">Date of Joining</label>
-                        <input type="date" name="dateOfJoining" value={formData.dateOfJoining || ''} onChange={handleChange} className="form-input" />
-                    </div>
-                    <div>
-                        <label className="form-label">Grade</label>
-                        <select name="grade" value={formData.grade} onChange={handleChange} className="form-select">
+                <FieldGrid>
+                    <Field label="Date of joining" span={2} htmlFor="edit-dateOfJoining">
+                        <input type="date" id="edit-dateOfJoining" name="dateOfJoining" value={formData.dateOfJoining || ''} onChange={handleChange} className={inputClass} />
+                    </Field>
+                    <Field label="Grade" span={2} htmlFor="edit-grade">
+                        <select id="edit-grade" name="grade" value={formData.grade} onChange={handleChange} className={selectClass}>
                             {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
                         </select>
-                    </div>
-                    <div>
-                        <label className="form-label">Class Preference</label>
-                        <select name="classPreference" value={formData.classPreference} onChange={handleChange} className="form-select">
+                    </Field>
+                    <Field label="Class preference" span={2} htmlFor="edit-classPreference">
+                        <select id="edit-classPreference" name="classPreference" value={formData.classPreference} onChange={handleChange} className={selectClass}>
                             <option value={ClassPreference.Online}>Online</option>
                             <option value={ClassPreference.Offline}>Offline</option>
                         </select>
-                    </div>
-                </div>
-                <fieldset className="mt-6">
-                    <legend className="form-label mb-2">Course Selection</legend>
+                    </Field>
+                </FieldGrid>
+                <fieldset className="mt-4">
+                    <legend className="mb-2 block text-xs font-medium text-gray-600">Courses</legend>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-2">
                         {courses.map(course => (
                             <label key={course.id} className="flex items-center space-x-2">
@@ -443,9 +445,8 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, user, on
                     </div>
                 </fieldset>
 
-                <div className="mt-6 pt-6 border-t">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Batch Assignments</h3>
-                    <p className="text-sm text-gray-500 mb-4 -mt-2">Move this student between batches for each course.</p>
+                <div className="mt-4 border-t pt-4">
+                    <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-700">Batch assignments</h4>
                     <div className="space-y-4">
                         {(formData.courses || []).map(courseName => {
                             const currentBatch = findStudentBatchForCourse(formData.id!, courseName);
@@ -560,22 +561,20 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, user, on
     const renderTeacherSchedule = () => {
         return (
             <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div>
-                        <label className="form-label">Date of Joining</label>
-                        <input type="date" name="dateOfJoining" value={formData.dateOfJoining || ''} onChange={handleChange} className="form-input" />
-                    </div>
-                    <div>
-                        <label className="form-label">Class Preference</label>
-                        <select name="classPreference" value={formData.classPreference} onChange={handleChange} className="form-select">
+                <FieldGrid>
+                    <Field label="Date of joining" span={3} htmlFor="edit-dateOfJoining">
+                        <input type="date" id="edit-dateOfJoining" name="dateOfJoining" value={formData.dateOfJoining || ''} onChange={handleChange} className={inputClass} />
+                    </Field>
+                    <Field label="Class preference" span={3} htmlFor="edit-classPreference">
+                        <select id="edit-classPreference" name="classPreference" value={formData.classPreference} onChange={handleChange} className={selectClass}>
                             <option value={ClassPreference.Online}>Online</option>
                             <option value={ClassPreference.Offline}>Offline</option>
                             <option value={ClassPreference.Hybrid}>Hybrid</option>
                         </select>
-                    </div>
-                </div>
-                <fieldset className="mt-6">
-                    <legend className="form-label mb-2">Course Expertise</legend>
+                    </Field>
+                </FieldGrid>
+                <fieldset className="mt-4">
+                    <legend className="mb-2 block text-xs font-medium text-gray-600">Course expertise</legend>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-2">
                         {courses.map(course => (
                             <label key={course.id} className="flex items-center space-x-2">
@@ -591,67 +590,59 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, user, on
 
     return (
         <>
-            <Modal isOpen={isOpen} onClose={onClose} size="full">
-                <div className="flex flex-col h-full">
-                    <ModalHeader 
-                        title={`Edit ${isStudent ? "Student" : "Teacher"} Account`}
-                        subtitle={`Manage profile information for ${user.name}.`}
-                    />
-                    
-                    <form onSubmit={handleSubmit} className="flex-grow flex flex-col">
-                        <div className="border-b border-gray-200">
-                            <nav className="-mb-px flex space-x-6" aria-label="Tabs">
-                                <TabButton isActive={activeTab === 'personal'} onClick={() => setActiveTab('personal')}>
-                                    Personal Information
-                                </TabButton>
-                                <TabButton isActive={activeTab === 'schedule'} onClick={() => setActiveTab('schedule')}>
-                                    Schedule &amp; Courses
-                                </TabButton>
-                                {!isStudent && (
-                                    <TabButton isActive={activeTab === 'assignments'} onClick={() => setActiveTab('assignments')}>
-                                        Student Assignments
-                                        {assignmentChanges.size > 0 && (
-                                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                                {assignmentChanges.size} changed
-                                            </span>
-                                        )}
-                                    </TabButton>
+            <FormModalShell
+                isOpen={isOpen}
+                onClose={onClose}
+                onSubmit={handleSubmit}
+                title={`Edit ${isStudent ? 'Student' : 'Teacher'}`}
+                subtitle={user.name}
+                submitLabel="Save Changes"
+                isSubmitting={isLoading}
+                toolbar={
+                    <nav className="-mb-px flex gap-6 overflow-x-auto" aria-label="Tabs">
+                        <TabButton isActive={activeTab === 'personal'} onClick={() => setActiveTab('personal')}>
+                            Personal Information
+                        </TabButton>
+                        <TabButton isActive={activeTab === 'schedule'} onClick={() => setActiveTab('schedule')}>
+                            Schedule &amp; Courses
+                        </TabButton>
+                        {!isStudent && (
+                            <TabButton isActive={activeTab === 'assignments'} onClick={() => setActiveTab('assignments')}>
+                                Student Assignments
+                                {assignmentChanges.size > 0 && (
+                                    <span className="ml-2 inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800">
+                                        {assignmentChanges.size} changed
+                                    </span>
                                 )}
-                            </nav>
-                        </div>
+                            </TabButton>
+                        )}
+                    </nav>
+                }
+            >
+                {activeTab === 'personal' && (isStudent ? renderStudentPersonalInfo() : renderTeacherPersonalInfo())}
 
-                        <div className="py-6 flex-grow">
-                            {activeTab === 'personal' && (
-                                <div className="bg-white p-6 rounded-lg shadow-sm">
-                                    {isStudent ? renderStudentPersonalInfo() : renderTeacherPersonalInfo()}
-                                </div>
-                            )}
-                            {activeTab === 'schedule' && (
-                                <div className="bg-white p-6 rounded-lg shadow-sm">
-                                {isStudent ? renderStudentBatchSchedule() : renderTeacherSchedule()}
-                                </div>
-                            )}
-                            {activeTab === 'assignments' && !isStudent && (
-                                <StudentAssignmentManager 
-                                    teacher={formData as User}
-                                    allUsers={allUsers}
-                                    onAssignmentsChange={handleAssignmentsChange}
-                                    courses={courses}
-                                />
-                            )}
-                        </div>
-                        
-                        <div className="flex justify-end pt-6 mt-auto border-t border-gray-200">
-                            <button type="button" onClick={onClose} className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary">
-                                Cancel
-                            </button>
-                            <button type="submit" disabled={isLoading} className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:bg-indigo-300 disabled:cursor-not-allowed">
-                                {isLoading ? 'Saving...' : 'Save Changes'}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </Modal>
+                {activeTab === 'schedule' && (
+                    <Section
+                        title={isStudent ? 'Courses and batches' : 'Teaching details'}
+                        description={isStudent
+                            ? 'Which courses this student takes, and the batch for each.'
+                            : 'Joining date, class preference and the courses this teacher can take.'}
+                    >
+                        {isStudent ? renderStudentBatchSchedule() : renderTeacherSchedule()}
+                    </Section>
+                )}
+
+                {activeTab === 'assignments' && !isStudent && (
+                    <Section title="Student assignments" description="Move students between this teacher and others.">
+                        <StudentAssignmentManager
+                            teacher={formData as User}
+                            allUsers={allUsers}
+                            onAssignmentsChange={handleAssignmentsChange}
+                            courses={courses}
+                        />
+                    </Section>
+                )}
+            </FormModalShell>
              <QuickBatchCreateModal
                 isOpen={isQuickCreateOpen}
                 onClose={() => setIsQuickCreateOpen(false)}
