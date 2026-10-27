@@ -10,6 +10,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/utils/fee_format.dart';
 import '../../../di/injection_container.dart';
 import '../../widgets/receipt_sheet.dart';
+import 'student_payment_proof_screen.dart';
 
 /// Household fees drilldown: this month's total → per student → each invoice,
 /// with "Pay" on any pending invoice of any student in the household. The
@@ -29,6 +30,13 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
   bool _loading = true;
   String? _error;
   int? _payingInvoiceId; // invoice currently in Razorpay checkout
+
+  /// Mirrors online_payments_enabled from /api/household/fees. While Razorpay
+  /// is switched off, families pay by UPI and send the receipt instead, so the
+  /// screen offers the upload rather than a Pay button that cannot work.
+  /// Strict: anything other than an explicit true means the upload path,
+  /// which always works, rather than a Pay button that may not.
+  bool get _onlinePayments => _fees?['online_payments_enabled'] == true;
 
   @override
   void initState() {
@@ -72,6 +80,15 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
       content: Text(msg),
       backgroundColor: error ? AppColors.error : AppColors.success,
     ));
+  }
+
+  Future<void> _uploadReceipt(int invoiceId) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => StudentPaymentProofScreen(invoiceId: invoiceId),
+      ),
+    );
+    if (mounted) _load();
   }
 
   Future<void> _pay(int invoiceId) async {
@@ -334,15 +351,36 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
               ),
               if (!isPaid) ...[
                 const SizedBox(width: 10),
-                FilledButton(
-                  onPressed: id == 0 ? null : () => _pay(id),
-                  style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 14)),
-                  child: const Text('Pay'),
-                ),
+                if (_onlinePayments)
+                  FilledButton(
+                    onPressed: id == 0 ? null : () => _pay(id),
+                    style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 14)),
+                    child: const Text('Pay'),
+                  )
+                else
+                  FilledButton.icon(
+                    onPressed: id == 0 ? null : () => _uploadReceipt(id),
+                    icon: const Icon(Icons.upload_file, size: 18),
+                    label: const Text("I've paid"),
+                    style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12)),
+                  ),
               ],
             ],
           ),
+          if (!isPaid && _onlinePayments && id != 0)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => _uploadReceipt(id),
+                icon: const Icon(Icons.upload_file, size: 16),
+                label: const Text('Paid by UPI? Upload receipt'),
+                style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    visualDensity: VisualDensity.compact),
+              ),
+            ),
           if (isPaid && receiptNo.isNotEmpty)
             InkWell(
               onTap: () => showReceiptSheet(context, receiptNo),

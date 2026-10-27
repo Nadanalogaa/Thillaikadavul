@@ -3539,7 +3539,8 @@ Please review and approve this registration in the admin panel.`;
             const period = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
             if (studentIds.length === 0) {
                 return res.json({ period, total_generated: 0, total_paid: 0, total_due: 0,
-                    has_bill: false, all_paid: false, due_date: null, students: [] });
+                    has_bill: false, all_paid: false, due_date: null, students: [],
+                    online_payments_enabled: razorpayConfigured() });
             }
             const invRes = await pool.query(
                 `SELECT i.id, i.student_id, i.course_name, i.amount, i.currency, i.status, i.billing_period,
@@ -3586,6 +3587,10 @@ Please review and approve this registration in the admin panel.`;
                 all_paid: totalGenerated > 0 && totalDue === 0,
                 due_date: earliestDue,
                 students: Array.from(byStudent.values()),
+                // The app hides "Pay online" when this is false and offers to
+                // upload a UPI receipt instead, so turning Razorpay off is a
+                // config change rather than an app release.
+                online_payments_enabled: razorpayConfigured(),
             });
         } catch (error) {
             console.error('Error building household fees:', error);
@@ -6332,7 +6337,9 @@ Please review and approve this registration in the admin panel.`;
     const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || '';
     const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '';
     const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || '';
-    const razorpayConfigured = () => RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET;
+    // Boolean, not the truthy string: this value is serialised to the app as
+    // online_payments_enabled, and '' would read as "not false" there.
+    const razorpayConfigured = () => Boolean(RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET);
     // RAZORPAY_UPI_ONLY=true: checkout shows ONLY UPI, with Google Pay and PhonePe
     // as the apps. Off by default: switch it on only after UPI is enabled on the
     // Razorpay account, or checkout would have no way to pay at all.
