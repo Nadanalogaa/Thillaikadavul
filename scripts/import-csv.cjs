@@ -17,6 +17,20 @@ const DEFAULT_STUDENT_PASSWORD = 'nadanaloga123';
 let sessionCookie = '';
 
 // ─── HTTP Helper ───────────────────────────────────────────────
+// A child of a multi-child family has no address of their own. Give them a
+// placeholder on the domain the app recognises as one (see isRealEmail and
+// is_child_placeholder in server.js), so their fee and attendance notices go
+// to the parent. The earlier "parent+childN@gmail.com" form delivered to the
+// parent too, but read as a real mailbox to those checks and confused families.
+function childPlaceholderEmail(parentEmail, childIndex) {
+  const local = String(parentEmail || '')
+    .split('@')[0]
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'student';
+  return `${local}-child${childIndex}@child.nadanaloga.local`;
+}
+
 async function api(method, endpoint, body = null) {
   const url = `${API_BASE}${endpoint}`;
   const opts = {
@@ -332,7 +346,7 @@ async function main() {
       for (let i = 0; i < students.length; i++) {
         const student = students[i];
         const childIndex = i + 1;
-        const studentEmail = parentEmail.replace('@', `+child${childIndex}@`);
+        const studentEmail = childPlaceholderEmail(parentEmail, childIndex);
 
         // Use course NAMES instead of IDs for frontend filtering
         const courseNames = [...new Set(
@@ -416,7 +430,7 @@ async function main() {
     for (let i = 0; i < students.length; i++) {
       const student = students[i];
       const studentEmail = isMultipleChildren
-        ? parentEmail.replace('@', `+child${i + 1}@`)
+        ? childPlaceholderEmail(parentEmail, i + 1)
         : parentEmail;
 
       for (const entry of student.courseEntries) {

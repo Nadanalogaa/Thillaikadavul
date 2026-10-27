@@ -1338,9 +1338,12 @@ async function startServer() {
         const year = new Date().getFullYear();
         const seqResult = await pool.query(`SELECT nextval('user_id_seq') as seq`);
         const generatedUserId = `NDA-${year}-${String(seqResult.rows[0].seq).padStart(4, '0')}`;
-        const syntheticEmail = (headEmail && headEmail.includes('@'))
-            ? headEmail.replace('@', `+${generatedUserId.toLowerCase()}@`)
-            : `${generatedUserId.toLowerCase()}@child.nadanaloga.local`;
+        // A child with no address of their own gets a placeholder the system
+        // recognises as one (isRealEmail, is_child_placeholder), so notices go
+        // to the parent via resolveFeeContact. Deriving it from the parent's
+        // address with a +tag instead would look like a real mailbox to both
+        // those checks, and shows families a confusing address.
+        const syntheticEmail = `${generatedUserId.toLowerCase()}@child.nadanaloga.local`;
         const placeholderPassword = await bcrypt.hash(uuidv4(), 10);
 
         const result = await pool.query(
@@ -3124,11 +3127,10 @@ Please review and approve this registration in the admin panel.`;
             const seqResult = await pool.query(`SELECT nextval('user_id_seq') as seq`);
             const generatedUserId = `NDA-${year}-${String(seqResult.rows[0].seq).padStart(4, '0')}`;
 
-            // Synthetic, unique, non-functional email derived from the parent + user_id.
-            const parentEmail = parentResult.rows[0].email;
-            const syntheticEmail = (parentEmail && parentEmail.includes('@'))
-                ? parentEmail.replace('@', `+${generatedUserId.toLowerCase()}@`)
-                : `${generatedUserId.toLowerCase()}@child.nadanaloga.local`;
+            // Unique, non-functional placeholder. See the note on the other
+            // child-creation path: a +tag on the parent's address reads as a
+            // real mailbox to isRealEmail and is confusing to families.
+            const syntheticEmail = `${generatedUserId.toLowerCase()}@child.nadanaloga.local`;
             const placeholderPassword = await bcrypt.hash(uuidv4(), 10);
 
             const result = await pool.query(
