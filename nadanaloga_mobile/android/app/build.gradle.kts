@@ -63,8 +63,15 @@ android {
             } else {
                 signingConfigs.getByName("debug")
             }
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // R8 shrinks and obfuscates the Java/Kotlin side. Play reports an
+            // app as poorly optimised without it. Reflection-based libraries
+            // are protected by proguard-rules.pro.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }
