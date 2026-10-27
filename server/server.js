@@ -615,6 +615,22 @@ async function startServer() {
                 console.error('[DB] ✗ Failed to create notification_settings:', error.message);
             }
 
+            // Small key/value store for things an admin sets once, such as the
+            // app version families should be running.
+            try {
+                await client.query(`
+                    CREATE TABLE IF NOT EXISTS app_settings (
+                        key VARCHAR(64) PRIMARY KEY,
+                        value TEXT,
+                        updated_at TIMESTAMPTZ DEFAULT NOW(),
+                        updated_by INTEGER
+                    )
+                `);
+                console.log('[DB] ✓ Ensured app_settings table exists');
+            } catch (error) {
+                console.error('[DB] ✗ Failed to create app_settings:', error.message);
+            }
+
             try {
                 await client.query(`
                     CREATE TABLE IF NOT EXISTS invoice_payments (
@@ -4814,6 +4830,80 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // --- Notification API Endpoints ---
+    // --- App version gate --------------------------------------------------
+    // The app compares its own build number with these on startup. Below the
+    // minimum it blocks with "update required"; below the latest it shows a
+    // dismissible banner. Build numbers, not version names, because they are
+    // integers and always increase.
+    const APP_VERSION_KEYS = {
+        android_latest_build: '0',
+        android_minimum_build: '0',
+        android_version_name: '',
+        android_store_url: 'https://play.google.com/store/apps/details?id=com.nadanaloga.nadanaloga_mobile',
+        update_message: '',
+    };
+
+    const readAppSettings = async (keys) => {
+        const out = { ...keys };
+        try {
+            const { rows } = await pool.query(
+                'SELECT key, value FROM app_settings WHERE key = ANY($1)', [Object.keys(keys)]
+            );
+            for (const r of rows) if (r.value !== null) out[r.key] = r.value;
+        } catch (e) {
+            console.error('[AppSettings] read failed, using defaults:', e.message);
+        }
+        return out;
+    };
+
+    // Public: the app asks this before anyone has signed in.
+    app.get('/api/app-version', async (req, res) => {
+        try {
+            const s = await readAppSettings(APP_VERSION_KEYS);
+            res.json({
+                latest_build: Number(s.android_latest_build) || 0,
+                minimum_build: Number(s.android_minimum_build) || 0,
+                version_name: s.android_version_name || '',
+                store_url: s.android_store_url || APP_VERSION_KEYS.android_store_url,
+                message: s.update_message || '',
+            });
+        } catch (error) {
+            console.error('Error reading app version:', error);
+            // Never block the app on this: zeros mean "nothing to do".
+            res.json({ latest_build: 0, minimum_build: 0, version_name: '', store_url: '', message: '' });
+        }
+    });
+
+    app.get('/api/app-settings', ensureAdmin, async (req, res) => {
+        try {
+            res.json(await readAppSettings(APP_VERSION_KEYS));
+        } catch (error) {
+            console.error('Error reading app settings:', error);
+            res.status(500).json({ message: 'Server error reading app settings.' });
+        }
+    });
+
+    app.put('/api/app-settings', ensureAdmin, async (req, res) => {
+        const body = req.body || {};
+        const keys = Object.keys(APP_VERSION_KEYS).filter(k => body[k] !== undefined);
+        if (keys.length === 0) return res.status(400).json({ message: 'Nothing to save.' });
+        try {
+            for (const k of keys) {
+                await pool.query(
+                    `INSERT INTO app_settings (key, value, updated_at, updated_by)
+                     VALUES ($1, $2, NOW(), $3)
+                     ON CONFLICT (key) DO UPDATE
+                       SET value = EXCLUDED.value, updated_at = NOW(), updated_by = EXCLUDED.updated_by`,
+                    [k, String(body[k] ?? ''), req.session.user?.id || null]
+                );
+            }
+            res.json(await readAppSettings(APP_VERSION_KEYS));
+        } catch (error) {
+            console.error('Error saving app settings:', error);
+            res.status(500).json({ message: 'Server error saving app settings.' });
+        }
+    });
+
     // --- Notification settings (admin) -----------------------------------
     // The catalogue plus the saved channels, so the admin screen can render
     // every row even before anything has been customised.

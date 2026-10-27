@@ -67,6 +67,7 @@ import LocationsManagementPage from './pages/admin/LocationsManagementPage';
 import DemoBookingsManagementPage from './pages/admin/DemoBookingsManagementPage';
 import AttendancePage from './pages/admin/AttendancePage';
 import NotificationSettingsPage from './pages/admin/NotificationSettingsPage';
+import AppUpdatePage from './pages/admin/AppUpdatePage';
 
 // New Student Pages
 import StudentDashboardHomePage from './pages/student/StudentDashboardHomePage';
@@ -272,6 +273,7 @@ function App() {
             <Route path="/admin/batches" element={<AdminProtectedRoute><BatchesPage /></AdminProtectedRoute>} />
             <Route path="/admin/attendance" element={<AdminProtectedRoute><AttendancePage /></AdminProtectedRoute>} />
             <Route path="/admin/notifications" element={<AdminProtectedRoute><NotificationSettingsPage /></AdminProtectedRoute>} />
+            <Route path="/admin/app-update" element={<AdminProtectedRoute><AppUpdatePage /></AdminProtectedRoute>} />
             <Route path="/admin/locations" element={<AdminProtectedRoute><LocationsManagementPage /></AdminProtectedRoute>} />
             <Route path="/admin/fees" element={<AdminProtectedRoute><FeeManagementPage /></AdminProtectedRoute>} />
             <Route path="/admin/grades" element={<AdminProtectedRoute><GradeManagementPage /></AdminProtectedRoute>} />

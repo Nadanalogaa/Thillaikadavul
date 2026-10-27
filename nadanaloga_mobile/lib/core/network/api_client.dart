@@ -637,6 +637,12 @@ class ApiClient {
         options: Options(validateStatus: (_) => true));
   }
 
+  /// What version families should be running. No auth: checked at startup.
+  Future<Response> getAppVersion() {
+    return _dio.get(ApiEndpoints.appVersion,
+        options: Options(validateStatus: (_) => true));
+  }
+
   /// A student's own attendance history and summary.
   Future<Response> getStudentAttendance(int studentId) {
     return _dio.get(ApiEndpoints.attendanceForStudent(studentId),

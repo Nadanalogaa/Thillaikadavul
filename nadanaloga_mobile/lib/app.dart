@@ -8,6 +8,7 @@ import 'core/services/fcm_service.dart';
 import 'di/injection_container.dart';
 import 'presentation/bloc/auth/auth_bloc.dart';
 import 'presentation/bloc/auth/auth_event.dart';
+import 'presentation/widgets/update_gate.dart';
 
 class NadanalogaApp extends StatefulWidget {
   const NadanalogaApp({super.key});
@@ -99,6 +100,8 @@ class _NadanalogaAppState extends State<NadanalogaApp> {
         themeMode: ThemeMode.light,
         routerConfig: AppRouter.createRouter(_authBloc),
         scaffoldMessengerKey: _scaffoldMessengerKey,
+        // Wraps every screen, so the update notice shows wherever they are.
+        builder: (context, child) => UpdateGate(child: child ?? const SizedBox()),
       ),
     );
   }

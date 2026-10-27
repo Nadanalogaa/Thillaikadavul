@@ -109,6 +109,9 @@ class ApiEndpoints {
 
   static const String deleteMyAccount = '$apiPrefix/account/delete';
 
+  // The version families should be running; public, checked before sign-in.
+  static const String appVersion = '$apiPrefix/app-version';
+
   // Attendance
   static const String attendanceMyClasses = '$apiPrefix/attendance/my-classes';
   static const String attendanceRoster = '$apiPrefix/attendance/roster';

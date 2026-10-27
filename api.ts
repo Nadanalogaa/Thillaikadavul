@@ -4423,3 +4423,36 @@ export const saveNotificationSettings = async (events: NotificationEventSetting[
     throw new Error(body.message || 'Could not save notification settings.');
   }
 };
+
+// --- Mobile app version (admin) ------------------------------------------
+// The app compares its own build number with these on startup.
+export interface AppVersionSettings {
+  android_latest_build: string;
+  android_minimum_build: string;
+  android_version_name: string;
+  android_store_url: string;
+  update_message: string;
+}
+
+export const getAppSettings = async (): Promise<AppVersionSettings> => {
+  const response = await fetch('/api/app-settings', { credentials: 'include' });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.message || 'Could not load app settings.');
+  }
+  return response.json();
+};
+
+export const saveAppSettings = async (settings: Partial<AppVersionSettings>): Promise<AppVersionSettings> => {
+  const response = await fetch('/api/app-settings', {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.message || 'Could not save app settings.');
+  }
+  return response.json();
+};
