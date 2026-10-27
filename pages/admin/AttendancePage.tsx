@@ -47,6 +47,8 @@ const AttendancePage: React.FC = () => {
 
     const [roster, setRoster] = useState<AttendanceRoster | null>(null);
     const [marks, setMarks] = useState<Record<string, string>>({});
+    // What the teacher taught today; families see it in the app.
+    const [classNote, setClassNote] = useState('');
     const [saving, setSaving] = useState(false);
 
     const [batches, setBatches] = useState<Batch[]>([]);
@@ -83,6 +85,7 @@ const AttendancePage: React.FC = () => {
         try {
             const data = await getAttendanceRoster(String(batchId), date);
             setRoster(data);
+            setClassNote(data.class_note || '');
             setMarks(Object.fromEntries(data.students.map(s => [s.id, s.status])));
         } catch (e) {
             setError(e instanceof Error ? e.message : 'Could not open the class');
@@ -95,7 +98,8 @@ const AttendancePage: React.FC = () => {
         try {
             const result = await markAttendance(
                 String(roster.batch.id), date,
-                roster.students.map(s => ({ student_id: s.id, status: marks[s.id] || 'present' }))
+                roster.students.map(s => ({ student_id: s.id, status: marks[s.id] || 'present' })),
+                classNote.trim()
             );
             setRoster(null);
             setClasses(await getAttendanceClasses(date));
@@ -345,6 +349,19 @@ const AttendancePage: React.FC = () => {
                             <p className={`text-xs ${muted}`}>{formatDate(date)} · {roster.students.length} students</p>
                         </div>
                         <div className="max-h-[55vh] overflow-y-auto p-4">
+                            <label className={`mb-1 block text-xs font-medium ${muted}`} htmlFor="class-note">
+                                Today's class
+                            </label>
+                            <textarea
+                                id="class-note"
+                                rows={2}
+                                maxLength={1000}
+                                value={classNote}
+                                onChange={e => setClassNote(e.target.value)}
+                                placeholder="What was taught today? e.g. Adavu practice — tatta adavu 1 to 5"
+                                className="form-textarea mb-1 w-full text-sm"
+                            />
+                            <p className={`mb-3 text-xs ${muted}`}>Parents see this in the app.</p>
                             {roster.students.length === 0 && <p className={muted}>No students in this batch.</p>}
                             {roster.students.map(s => (
                                 <div key={s.id} className={`flex items-center justify-between gap-3 border-b py-2 ${dark ? 'border-gray-700' : 'border-gray-100'}`}>

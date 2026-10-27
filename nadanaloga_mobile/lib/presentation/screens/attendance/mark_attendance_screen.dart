@@ -31,12 +31,19 @@ class _MarkAttendanceScreenState extends State<MarkAttendanceScreen> {
   String _sessionStatus = 'not_marked';
   String? _cancelReason;
   String? _batchTiming;
+  final _noteController = TextEditingController();
   final List<_Row> _rows = [];
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -57,6 +64,7 @@ class _MarkAttendanceScreenState extends State<MarkAttendanceScreen> {
               name: '${s['name'] ?? 'Student'}',
               status: '${s['status'] ?? 'present'}',
             )));
+      _noteController.text = '${data['class_note'] ?? ''}';
       setState(() {
         _sessionStatus = '${data['session_status'] ?? 'not_marked'}';
         _cancelReason = data['cancel_reason'] as String?;
@@ -83,6 +91,7 @@ class _MarkAttendanceScreenState extends State<MarkAttendanceScreen> {
         widget.batchId,
         widget.date,
         _rows.map((row) => {'student_id': row.id, 'status': row.status}).toList(),
+        classNote: _noteController.text.trim(),
       );
       final code = r.statusCode ?? 0;
       if (code >= 200 && code < 300) {
@@ -207,9 +216,10 @@ class _MarkAttendanceScreenState extends State<MarkAttendanceScreen> {
                       Expanded(
                         child: ListView.separated(
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-                          itemCount: _rows.length,
+                          itemCount: _rows.length + 1,
                           separatorBuilder: (_, __) => const SizedBox(height: 8),
-                          itemBuilder: (context, i) => _studentCard(_rows[i]),
+                          itemBuilder: (context, i) =>
+                              i == 0 ? _classNoteCard() : _studentCard(_rows[i - 1]),
                         ),
                       ),
                   ],
@@ -266,6 +276,43 @@ class _MarkAttendanceScreenState extends State<MarkAttendanceScreen> {
               Text('Already marked — saving again updates it.', style: AppTextStyles.caption),
             ],
           ],
+        ),
+      );
+
+  /// What was taught today. Parents are told about it through the app, so it
+  /// is worth a line even when everyone is present.
+  Widget _classNoteCard() => Card(
+        margin: const EdgeInsets.only(bottom: 4),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.menu_book_outlined, size: 18, color: AppColors.primary),
+                  const SizedBox(width: 6),
+                  Text("Today's class", style: AppTextStyles.labelLarge),
+                ],
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _noteController,
+                minLines: 2,
+                maxLines: 4,
+                maxLength: 1000,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(
+                  hintText: 'What did you teach today? e.g. Adavu practice — tatta adavu 1 to 5',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                  counterText: '',
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text('Parents see this in the app.', style: AppTextStyles.caption),
+            ],
+          ),
         ),
       );
 

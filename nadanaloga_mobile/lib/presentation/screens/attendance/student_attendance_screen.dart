@@ -169,14 +169,26 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
       child: ListTile(
         leading: Icon(icon, color: color),
         title: Text(formatDisplayDate('${r['session_date'] ?? ''}'), style: AppTextStyles.bodyMedium),
-        subtitle: Text(
-          [
-            '${r['batch_name'] ?? ''}',
-            if (sessionStatus == 'cancelled' && (r['cancel_reason'] ?? '').toString().isNotEmpty)
-              '${r['cancel_reason']}',
-          ].where((s) => s.isNotEmpty).join(' · '),
-          style: AppTextStyles.caption,
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              [
+                '${r['batch_name'] ?? ''}',
+                if (sessionStatus == 'cancelled' && (r['cancel_reason'] ?? '').toString().isNotEmpty)
+                  '${r['cancel_reason']}',
+              ].where((s) => s.isNotEmpty).join(' · '),
+              style: AppTextStyles.caption,
+            ),
+            // What the teacher taught that day.
+            if ((r['class_note'] ?? '').toString().trim().isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text('${r['class_note']}',
+                  style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary)),
+            ],
+          ],
         ),
+        isThreeLine: (r['class_note'] ?? '').toString().trim().isNotEmpty,
         trailing: Text(label,
             style: AppTextStyles.caption.copyWith(color: color, fontWeight: FontWeight.w600)),
       ),

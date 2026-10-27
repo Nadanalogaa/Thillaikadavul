@@ -589,9 +589,30 @@ async function startServer() {
                     ON attendance (session_id, student_id)`);
                 await client.query(`CREATE INDEX IF NOT EXISTS idx_attendance_student
                     ON attendance (student_id)`);
+                // What the teacher taught that day, shown to parents in the app.
+                await client.query(`ALTER TABLE class_sessions ADD COLUMN IF NOT EXISTS class_note TEXT`);
                 console.log('[DB] ✓ Ensured attendance tables exist');
             } catch (error) {
                 console.error('[DB] ✗ Failed to create attendance tables:', error.message);
+            }
+
+            // Which channels each kind of notification may use. A row missing
+            // means "all channels", so behaviour is unchanged until an admin
+            // edits it; all three false means nothing is sent for that event.
+            try {
+                await client.query(`
+                    CREATE TABLE IF NOT EXISTS notification_settings (
+                        event_key VARCHAR(64) PRIMARY KEY,
+                        in_app BOOLEAN NOT NULL DEFAULT true,
+                        push BOOLEAN NOT NULL DEFAULT true,
+                        email BOOLEAN NOT NULL DEFAULT true,
+                        updated_at TIMESTAMPTZ DEFAULT NOW(),
+                        updated_by INTEGER
+                    )
+                `);
+                console.log('[DB] ✓ Ensured notification_settings table exists');
+            } catch (error) {
+                console.error('[DB] ✗ Failed to create notification_settings:', error.message);
             }
 
             try {
@@ -1206,16 +1227,94 @@ async function startServer() {
     };
 
     // Create in-app notification and send push (fire-and-forget)
-    const createNotificationForUser = (userId, title, message, type = 'Info') => {
+    // --- Notification routing -------------------------------------------
+    // Every kind of notification the academy sends, and which channels it may
+    // use. The admin edits this at Admin -> Notifications; unticking all three
+    // for a row means that event notifies nobody.
+    const NOTIFICATION_EVENTS = [
+        { key: 'registration.new_student', group: 'Registration', label: 'New student registered', detail: 'Tells the admin someone signed up.' },
+        { key: 'registration.welcome',     group: 'Registration', label: 'Welcome / enrolment confirmed', detail: 'Sent to the family when their account is approved.' },
+        { key: 'profile.updated',          group: 'Registration', label: 'Profile updated', detail: 'When an admin edits a student or teacher.' },
+        { key: 'batch.allocation',         group: 'Batches',      label: 'Added to a batch' },
+        { key: 'batch.transfer',           group: 'Batches',      label: 'Moved or removed from a batch' },
+        { key: 'batch.teacher_changed',    group: 'Batches',      label: 'Teacher changed' },
+        { key: 'fees.invoice_ready',       group: 'Fees',         label: "This month's fees are ready" },
+        { key: 'fees.reminder',            group: 'Fees',         label: 'Fee reminder', detail: 'Sent while a bill is unpaid.' },
+        { key: 'fees.payment_received',    group: 'Fees',         label: 'Payment received / receipt' },
+        { key: 'fees.proof_rejected',      group: 'Fees',         label: 'Payment proof not accepted' },
+        { key: 'attendance.absent_late',   group: 'Attendance',   label: 'Marked absent or late' },
+        { key: 'attendance.class_note',    group: 'Attendance',   label: "Today's class note", detail: 'What the teacher taught that day.' },
+        { key: 'attendance.class_off',     group: 'Attendance',   label: 'Class cancelled / make-up owed' },
+        { key: 'content.event',            group: 'Academy news', label: 'New event' },
+        { key: 'content.notice',           group: 'Academy news', label: 'New notice' },
+        { key: 'content.material',         group: 'Academy news', label: 'New study material' },
+        { key: 'content.grade_exam',       group: 'Academy news', label: 'Grade exam' },
+    ];
+    const NOTIFICATION_EVENT_KEYS = new Set(NOTIFICATION_EVENTS.map(e => e.key));
+    const ALL_CHANNELS = { in_app: true, push: true, email: true };
+
+    // Cached because this is consulted on every notification. Cleared on save.
+    let notificationSettings = null;
+    const loadNotificationSettings = async () => {
+        if (notificationSettings) return notificationSettings;
+        const map = new Map();
+        try {
+            const { rows } = await pool.query('SELECT event_key, in_app, push, email FROM notification_settings');
+            for (const r of rows) map.set(r.event_key, { in_app: r.in_app, push: r.push, email: r.email });
+        } catch (e) {
+            console.error('[Notification] could not read settings, allowing all:', e.message);
+        }
+        notificationSettings = map;
+        return map;
+    };
+    const clearNotificationSettings = () => { notificationSettings = null; };
+
+    // Most notifications identify themselves by title rather than by passing a
+    // key, so this maps the titles actually in use onto the catalogue. A title
+    // that matches nothing is left unrestricted rather than silently dropped.
+    const eventKeyForTitle = (title) => {
+        const t = String(title || '');
+        if (/fees ready|new invoice/i.test(t)) return 'fees.invoice_ready';
+        if (/fee reminder/i.test(t)) return 'fees.reminder';
+        if (/payment received|receipt/i.test(t)) return 'fees.payment_received';
+        if (/proof not accepted/i.test(t)) return 'fees.proof_rejected';
+        if (/batch allocation|enrollment confirmed/i.test(t)) return 'batch.allocation';
+        if (/batch removal|batch transfer/i.test(t)) return 'batch.transfer';
+        if (/teacher changed/i.test(t)) return 'batch.teacher_changed';
+        if (/enrollment updated|profile updated/i.test(t)) return 'profile.updated';
+        if (/new event/i.test(t)) return 'content.event';
+        if (/new notice/i.test(t)) return 'content.notice';
+        if (/new material|study material/i.test(t)) return 'content.material';
+        if (/grade exam|exam result/i.test(t)) return 'content.grade_exam';
+        if (/new registration|new student/i.test(t)) return 'registration.new_student';
+        if (/welcome/i.test(t)) return 'registration.welcome';
+        return null;
+    };
+
+    /** Channels allowed for an event. Unknown or unset events use every channel. */
+    const channelsFor = async (eventKey, title) => {
+        const key = eventKey || eventKeyForTitle(title);
+        if (!key) return ALL_CHANNELS;
+        const map = await loadNotificationSettings();
+        return map.get(key) || ALL_CHANNELS;
+    };
+
+    /** Whether this event may be emailed. Call before sending mail. */
+    const emailAllowed = async (eventKey, title) => (await channelsFor(eventKey, title)).email;
+
+    const createNotificationForUser = (userId, title, message, type = 'Info', eventKey = null) => {
         const validTypes = ['Info', 'Warning', 'Success', 'Error'];
         if (!validTypes.includes(type)) type = 'Info';
-        pool.query(
-            'INSERT INTO notifications (user_id, title, message, type) VALUES ($1, $2, $3, $4)',
-            [userId, title, message, type]
-        ).then(() => {
-            // Send push notification after successfully creating in-app notification
-            sendPushNotification(userId, title, message);
-        }).catch(error => {
+        (async () => {
+            const ch = await channelsFor(eventKey, title);
+            if (ch.in_app) {
+                await pool.query(
+                    'INSERT INTO notifications (user_id, title, message, type) VALUES ($1, $2, $3, $4)',
+                    [userId, title, message, type]
+                );
+            }
+            if (ch.push) sendPushNotification(userId, title, message);
+        })().catch(error => {
             console.error(`[Notification] Failed for user ${userId}:`, error.message);
         });
     };
@@ -4715,6 +4814,56 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // --- Notification API Endpoints ---
+    // --- Notification settings (admin) -----------------------------------
+    // The catalogue plus the saved channels, so the admin screen can render
+    // every row even before anything has been customised.
+    app.get('/api/notification-settings', ensureAdmin, async (req, res) => {
+        try {
+            const map = await loadNotificationSettings();
+            res.json({
+                events: NOTIFICATION_EVENTS.map(e => ({
+                    ...e,
+                    channels: map.get(e.key) || ALL_CHANNELS,
+                })),
+            });
+        } catch (error) {
+            console.error('Error reading notification settings:', error);
+            res.status(500).json({ message: 'Server error reading notification settings.' });
+        }
+    });
+
+    app.put('/api/notification-settings', ensureAdmin, async (req, res) => {
+        const incoming = Array.isArray(req.body?.events) ? req.body.events : null;
+        if (!incoming) return res.status(400).json({ message: 'events must be an array.' });
+        const unknown = incoming.map(e => e.key).filter(k => !NOTIFICATION_EVENT_KEYS.has(k));
+        if (unknown.length) return res.status(400).json({ message: `Unknown event(s): ${unknown.join(', ')}` });
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            for (const e of incoming) {
+                const ch = e.channels || {};
+                await client.query(
+                    `INSERT INTO notification_settings (event_key, in_app, push, email, updated_at, updated_by)
+                     VALUES ($1, $2, $3, $4, NOW(), $5)
+                     ON CONFLICT (event_key) DO UPDATE
+                       SET in_app = EXCLUDED.in_app, push = EXCLUDED.push, email = EXCLUDED.email,
+                           updated_at = NOW(), updated_by = EXCLUDED.updated_by`,
+                    [e.key, !!ch.in_app, !!ch.push, !!ch.email, req.session.user?.id || null]
+                );
+            }
+            await client.query('COMMIT');
+            clearNotificationSettings();
+            res.json({ saved: incoming.length });
+        } catch (error) {
+            await client.query('ROLLBACK').catch(() => {});
+            console.error('Error saving notification settings:', error);
+            res.status(500).json({ message: 'Server error saving notification settings.' });
+        } finally {
+            client.release();
+        }
+    });
+
     app.get('/api/notifications/:userId', async (req, res) => {
         try {
             const { userId } = req.params;
@@ -5290,12 +5439,13 @@ Please review and approve this registration in the admin panel.`;
     )).rows[0] || null;
 
     // Who hears about a student's attendance: the parent if there is one, else the student.
-    const notifyAboutStudent = async (studentId, title, message) => {
+    const notifyAboutStudent = async (studentId, title, message, eventKey = null) => {
         try {
             const contact = await resolveFeeContact(studentId);
             const userId = contact?.userId || studentId;
-            createNotificationForUser(userId, title, message, 'Info');
-            sendPushNotification(userId, title, message);
+            // createNotificationForUser already pushes; calling sendPushNotification
+            // here as well sent every parent the same alert twice.
+            createNotificationForUser(userId, title, message, 'Info', eventKey);
         } catch (e) {
             console.error('[Attendance] notify failed:', e.message);
         }
@@ -5365,6 +5515,7 @@ Please review and approve this registration in the admin panel.`;
                 date,
                 session_status: session ? session.status : 'not_marked',
                 cancel_reason: session ? session.cancel_reason : null,
+                class_note: session ? session.class_note : null,
                 marked_at: session ? session.marked_at : null,
                 students: students.map(st => ({
                     id: String(st.id),
@@ -5386,6 +5537,8 @@ Please review and approve this registration in the admin panel.`;
         try {
             const { batch_id, entries } = req.body || {};
             const date = req.body?.date || todayIso();
+            // What the teacher covered today, shown to parents in the app.
+            const classNote = String(req.body?.class_note || '').trim().slice(0, 1000);
             if (!batch_id || !Array.isArray(entries)) {
                 return res.status(400).json({ message: 'batch_id and entries are required.' });
             }
@@ -5395,14 +5548,21 @@ Please review and approve this registration in the admin panel.`;
                 return res.status(403).json({ message: 'This batch belongs to another teacher.' });
             }
 
+            const previousNote = (await client.query(
+                'SELECT class_note FROM class_sessions WHERE batch_id = $1 AND session_date = $2',
+                [batch_id, date]
+            )).rows[0]?.class_note || '';
+
             await client.query('BEGIN');
             const session = (await client.query(
-                `INSERT INTO class_sessions (batch_id, session_date, start_time, end_time, status, teacher_id, marked_by, marked_at)
-                 VALUES ($1, $2, $3, $4, 'held', $5, $6, NOW())
+                `INSERT INTO class_sessions (batch_id, session_date, start_time, end_time, status, teacher_id, marked_by, marked_at, class_note)
+                 VALUES ($1, $2, $3, $4, 'held', $5, $6, NOW(), NULLIF($7, ''))
                  ON CONFLICT (batch_id, session_date) DO UPDATE
-                   SET status = 'held', cancel_reason = NULL, marked_by = $6, marked_at = NOW(), updated_at = NOW()
+                   SET status = 'held', cancel_reason = NULL, marked_by = $6, marked_at = NOW(), updated_at = NOW(),
+                       -- keep an existing note if this save does not carry one
+                       class_note = COALESCE(NULLIF($7, ''), class_sessions.class_note)
                  RETURNING *`,
-                [batch_id, date, batch.start_time, batch.end_time, batch.teacher_id, req.session.user.id]
+                [batch_id, date, batch.start_time, batch.end_time, batch.teacher_id, req.session.user.id, classNote]
             )).rows[0];
 
             const previous = new Map((await client.query(
@@ -5436,7 +5596,17 @@ Please review and approve this registration in the admin panel.`;
                 await notifyAboutStudent(a.studentId, title,
                     a.status === 'absent'
                         ? `${name} was marked absent for ${batch.batch_name} on ${when}.`
-                        : `${name} was marked late for ${batch.batch_name} on ${when}.`);
+                        : `${name} was marked late for ${batch.batch_name} on ${when}.`,
+                    'attendance.absent_late');
+            }
+
+            // Today's class note goes to every family in the batch, once: only
+            // when the teacher has just written or changed it.
+            if (classNote && classNote !== (previousNote || '')) {
+                for (const studentId of (batch.student_ids || [])) {
+                    await notifyAboutStudent(studentId, `Today's class — ${batch.batch_name}`,
+                        classNote, 'attendance.class_note');
+                }
             }
         } catch (error) {
             await client.query('ROLLBACK').catch(() => {});
@@ -5474,7 +5644,7 @@ Please review and approve this registration in the admin panel.`;
             for (const studentId of (batch.student_ids || [])) {
                 await notifyAboutStudent(studentId, 'Class cancelled',
                     `${batch.batch_name} on ${when} is cancelled${reason ? ` (${reason})` : ''}. ` +
-                    `The academy will arrange a make-up class.`);
+                    `The academy will arrange a make-up class.`, 'attendance.class_off');
             }
         } catch (error) {
             console.error('Error cancelling class:', error);
@@ -5535,7 +5705,8 @@ Please review and approve this registration in the admin panel.`;
             const when = new Date(`${date}T12:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
             for (const studentId of (batch?.student_ids || [])) {
                 await notifyAboutStudent(studentId, 'Make-up class scheduled',
-                    `The ${batch.batch_name} class cancelled on ${missed} will be held on ${when}.`);
+                    `The ${batch.batch_name} class cancelled on ${missed} will be held on ${when}.`,
+                    'attendance.class_off');
             }
         } catch (error) {
             console.error('Error scheduling make-up class:', error);
@@ -5562,7 +5733,7 @@ Please review and approve this registration in the admin panel.`;
             }
             const rows = (await pool.query(
                 `SELECT to_char(s.session_date, 'YYYY-MM-DD') AS session_date, s.status AS session_status, s.cancel_reason,
-                        a.status, a.remark, b.batch_name, c.name AS course_name
+                        s.class_note, a.status, a.remark, b.batch_name, c.name AS course_name
                  FROM class_sessions s
                  JOIN batches b ON b.id = s.batch_id
                  LEFT JOIN courses c ON c.id = b.course_id

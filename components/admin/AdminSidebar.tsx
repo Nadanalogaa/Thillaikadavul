@@ -28,6 +28,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ isOpen, onClose }) => {
         { name: 'Grade Exams', path: '/admin/grade-exams', icon: CertificateIcon },
         { name: 'Book Materials', path: '/admin/book-materials', icon: BookIcon },
         { name: 'Notices', path: '/admin/notices', icon: MegaphoneIcon },
+        { name: 'Notifications', path: '/admin/notifications', icon: MegaphoneIcon },
         { name: 'Trash', path: '/admin/trash', icon: TrashIcon },
     ];
 

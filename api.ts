@@ -1918,6 +1918,7 @@ export interface AttendanceRoster {
   date: string;
   session_status: string;
   cancel_reason?: string | null;
+  class_note?: string | null;
   students: { id: string; name: string; status: string; remark?: string | null }[];
 }
 
@@ -1931,11 +1932,13 @@ export const getAttendanceRoster = (batchId: string, date: string): Promise<Atte
 export const markAttendance = (
   batchId: string,
   date: string,
-  entries: { student_id: string; status: string; remark?: string }[]
+  entries: { student_id: string; status: string; remark?: string }[],
+  // What was taught today. Families are told about it through the app.
+  classNote = ''
 ) => attendanceFetch('/mark', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ batch_id: batchId, date, entries }),
+  body: JSON.stringify({ batch_id: batchId, date, entries, class_note: classNote }),
 });
 
 export const cancelClass = (batchId: string, date: string, reason: string) =>
@@ -4378,5 +4381,45 @@ export const createDemoBookingNotification = async (demoBooking: DemoBooking): P
     }
   } catch (error) {
     console.error('Error in createDemoBookingNotification:', error);
+  }
+};
+
+// --- Notification settings (admin) ---------------------------------------
+// Which channels each kind of notification may use. Unticking all three for a
+// row means that event notifies nobody.
+export interface NotificationChannels {
+  in_app: boolean;
+  push: boolean;
+  email: boolean;
+}
+
+export interface NotificationEventSetting {
+  key: string;
+  group: string;
+  label: string;
+  detail?: string;
+  channels: NotificationChannels;
+}
+
+export const getNotificationSettings = async (): Promise<NotificationEventSetting[]> => {
+  const response = await fetch('/api/notification-settings', { credentials: 'include' });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.message || 'Could not load notification settings.');
+  }
+  const data = await response.json();
+  return Array.isArray(data.events) ? data.events : [];
+};
+
+export const saveNotificationSettings = async (events: NotificationEventSetting[]): Promise<void> => {
+  const response = await fetch('/api/notification-settings', {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ events: events.map(e => ({ key: e.key, channels: e.channels })) }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.message || 'Could not save notification settings.');
   }
 };

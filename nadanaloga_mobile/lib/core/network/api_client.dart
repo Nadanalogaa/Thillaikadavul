@@ -616,10 +616,17 @@ class ApiClient {
   }
 
   /// entries: [{student_id, status, remark?}]
+  /// [classNote] is what the teacher taught today; parents are told about it.
   Future<Response> markAttendance(
-      int batchId, String date, List<Map<String, dynamic>> entries) {
+      int batchId, String date, List<Map<String, dynamic>> entries,
+      {String classNote = ''}) {
     return _dio.post(ApiEndpoints.attendanceMark,
-        data: {'batch_id': batchId, 'date': date, 'entries': entries},
+        data: {
+          'batch_id': batchId,
+          'date': date,
+          'entries': entries,
+          'class_note': classNote,
+        },
         options: Options(validateStatus: (_) => true));
   }
 
