@@ -1726,9 +1726,11 @@ export const getBatches = async (): Promise<Batch[]> => {
       name: batch.batch_name || batch.name || 'Untitled batch',
       description: batch.description,
       courseId: batch.course_id,
-      courseName: courses.find((c: any) => c.id === batch.course_id)?.name || 'Unknown Course',
+      // The server sends the names; the lookups are a fallback (the teachers
+      // list is admin-only, so a family would otherwise see "Unassigned").
+      courseName: batch.course_name || courses.find((c: any) => c.id === batch.course_id)?.name || 'Unknown Course',
       teacherId: batch.teacher_id,
-      teacherName: teachers.find((t: any) => t.id === batch.teacher_id)?.name || 'Unassigned',
+      teacherName: batch.teacher_name || teachers.find((t: any) => t.id === batch.teacher_id)?.name || 'Unassigned',
       schedule: batch.schedule || [],
       studentIds: (batch.student_ids || []).map((id: any) => String(id)),
       capacity: batch.max_students ?? batch.capacity,
@@ -1741,7 +1743,9 @@ export const getBatches = async (): Promise<Batch[]> => {
       days: batch.days || [],
       startTime: batch.start_time || undefined,
       endTime: batch.end_time || undefined,
-      studio: batch.studio || undefined
+      studio: batch.studio || undefined,
+      timeSlots: Array.isArray(batch.time_slots) ? batch.time_slots : [],
+      locationName: batch.location_name || undefined,
     }));
   } catch (error) {
     console.error('Error in getBatches:', error);
@@ -2191,9 +2195,10 @@ export const getNotifications = async (): Promise<Notification[]> => {
     return (data || []).map(notification => ({
       id: String(notification.id),
       userId: notification.user_id,
-      subject: notification.subject,
+      // Columns are title / is_read; older rows may carry subject / read.
+      subject: notification.title ?? notification.subject,
       message: notification.message,
-      read: notification.read,
+      read: notification.is_read ?? notification.read ?? false,
       createdAt: notification.created_at,
       link: notification.link
     }));
@@ -2596,67 +2601,51 @@ export const getStudentInvoicesForFamily = async (studentId: string): Promise<In
   }
 };
 
+// "17:00" / "17:00:00" -> "5:00 PM"
+const clock12 = (t?: string): string => {
+  if (!t) return '';
+  const [h, m = '00'] = t.split(':');
+  const hour = Number(h);
+  if (Number.isNaN(hour)) return t;
+  const suffix = hour >= 12 ? 'PM' : 'AM';
+  return `${hour % 12 === 0 ? 12 : hour % 12}:${m.slice(0, 2)} ${suffix}`;
+};
+
+/** A batch's class times, one line per day: "Mon 5:00 PM – 6:00 PM". */
+export const batchTimingLines = (batch: Batch): string[] => {
+  const span = (a?: string, b?: string) => (a ? ` ${clock12(a)}${b ? ` – ${clock12(b)}` : ''}` : '');
+  if (batch.timeSlots && batch.timeSlots.length > 0) {
+    return batch.timeSlots.map(s => `${String(s.day).slice(0, 3)}${span(s.start_time, s.end_time)}`);
+  }
+  if (batch.days && batch.days.length > 0) {
+    return batch.days.map(d => `${String(d).slice(0, 3)}${span(batch.startTime, batch.endTime)}`);
+  }
+  // Older batches kept free-text timings in `schedule`.
+  return (batch.schedule || []).map((s: any) => s && s.timing).filter(Boolean);
+};
+
+// One child's batches, with course, teacher and class times. Membership is
+// the batch's student list (older batches also listed students per schedule row).
 export const getStudentEnrollmentsForFamily = async (studentId: string): Promise<StudentEnrollment[]> => {
   try {
-    // Get all batches from Supabase
     const batches = await getBatches();
-    const enrollments: StudentEnrollment[] = [];
-    
-    // Find batches where this student is enrolled
-    for (const batch of batches) {
-      if (batch.schedule && Array.isArray(batch.schedule)) {
-        // Check if student is in ANY schedule of this batch
-        const studentSchedules = batch.schedule.filter(scheduleItem => 
-          scheduleItem.studentIds && scheduleItem.studentIds.includes(studentId)
-        );
-        
-        // If student is in this batch, create ONE enrollment with all timings
-        if (studentSchedules.length > 0) {
-          console.log('DEBUG: Batch name:', batch.name);
-          console.log('DEBUG: Batch schedule data:', batch.schedule);
-          console.log('DEBUG: Student schedules found:', studentSchedules);
-          
-          const timings = studentSchedules.map(scheduleItem => {
-            console.log('DEBUG: Processing schedule item:', scheduleItem);
-            // Use the timing property directly if it exists, otherwise try legacy day:timeSlot format
-            if (scheduleItem.timing) {
-              return scheduleItem.timing;
-            } else if ((scheduleItem as any).day && (scheduleItem as any).timeSlot) {
-              return `${(scheduleItem as any).day}: ${(scheduleItem as any).timeSlot}`;
-            } else {
-              return null;
-            }
-          }).filter(timing => timing && !timing.includes('undefined'));
-          
-          console.log('DEBUG: Final timings:', timings);
-          
-          enrollments.push({
-            studentId: studentId,
-            batchName: batch.name,
-            courseName: batch.courseName,
-            timings: timings.length > 0 ? timings : ['Schedule not set'],
-            teacher: batch.teacherId ? {
-              id: typeof batch.teacherId === 'string' ? batch.teacherId : (batch.teacherId as any)?.id || 'unknown',
-              name: batch.teacherName || 'Unknown Teacher'
-            } : null,
-            mode: batch.mode
-          });
-        }
-      }
-    }
-    
-    return enrollments;
+    const sid = String(studentId);
+    return batches
+      .filter(batch => (batch.studentIds || []).map(String).includes(sid)
+        || (batch.schedule || []).some((s: any) => (s?.studentIds || []).map(String).includes(sid)))
+      .map(batch => {
+        const timings = batchTimingLines(batch);
+        return {
+          studentId: sid,
+          batchName: batch.name,
+          courseName: batch.courseName,
+          timings: timings.length > 0 ? timings : ['Class times not set yet'],
+          teacher: batch.teacherId ? { id: String(batch.teacherId), name: batch.teacherName || 'Teacher' } : null,
+          mode: batch.mode,
+        } as StudentEnrollment;
+      });
   } catch (error) {
     console.error('Error getting student enrollments:', error);
-    
-    // Fallback to localStorage if Supabase fails
-    if (typeof window !== 'undefined') {
-      const enrollments = localStorage.getItem('enrollments');
-      if (enrollments) {
-        const allEnrollments = JSON.parse(enrollments);
-        return allEnrollments.filter((enr: StudentEnrollment) => enr.studentId === studentId);
-      }
-    }
     return [];
   }
 };
@@ -2990,6 +2979,7 @@ export const getEvents = async (limit?: number): Promise<Event[]> => {
       time: event.event_time || event.time,
       location: event.location,
       isPublic: event.is_public,
+      recipientIds: (event.recipient_ids || []).map((x: any) => String(x)),
       createdAt: new Date(event.created_at),
       createdBy: event.created_by,
       targetAudience: event.target_audience || [],
@@ -3207,10 +3197,11 @@ export const getGradeExams = async (): Promise<GradeExam[]> => {
     const data = await response.json();
     return (data || []).map(exam => ({
       id: String(exam.id),
-      title: exam.title,
-      description: exam.description,
-      date: new Date(exam.date),
-      time: exam.time,
+      // Columns are exam_name / exam_date / exam_time / syllabus.
+      title: exam.exam_name ?? exam.title,
+      description: exam.syllabus ?? exam.description,
+      date: new Date(exam.exam_date ?? exam.date),
+      time: exam.exam_time ?? exam.time,
       duration: exam.duration,
       course: exam.course,
       grade: exam.grade,
@@ -3218,7 +3209,9 @@ export const getGradeExams = async (): Promise<GradeExam[]> => {
       registrationFee: exam.registration_fee,
       registrationDeadline: exam.registration_deadline ? new Date(exam.registration_deadline) : undefined,
       isOpen: exam.is_open,
-      createdAt: new Date(exam.created_at)
+      createdAt: new Date(exam.created_at),
+      recipientIds: (exam.recipient_ids || []).map((x: any) => String(x)),
+      location: exam.location,
     }));
   } catch (error) {
     console.error('Error in getGradeExams:', error);
@@ -3401,7 +3394,7 @@ export const getBookMaterials = async (): Promise<BookMaterial[]> => {
       title: material.title,
       description: material.description,
       courseId: material.course_id,
-      courseName: material.course_name,
+      courseName: material.course_name ?? material.course,
       type: material.type,
       url: material.url,
       fileUrl: material.url, // Add fileUrl for compatibility
@@ -3813,8 +3806,9 @@ export const getNotices = async (limit?: number): Promise<Notice[]> => {
       targetAudience: notice.target_audience,
       type: 'Info', // Default type for UI compatibility
       courseName: null, // Default course name for UI compatibility
-      recipientIds: notice.recipient_ids || [],
-      issuedAt: notice.issued_at
+      recipientIds: (notice.recipient_ids || []).map((x: any) => String(x)),
+      // There is no issued_at column; the notice was issued when it was created.
+      issuedAt: notice.issued_at ?? notice.created_at
     }));
   } catch (error) {
     console.error('Error in getNotices:', error);

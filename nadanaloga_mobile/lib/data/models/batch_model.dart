@@ -62,6 +62,10 @@ class BatchModel {
   final String? endTime;
   final String? studio;
   final List<BatchTimeSlot> timeSlots;
+  // Display names the batches list sends with the ids (may be null on other endpoints).
+  final String? teacherName;
+  final String? courseName;
+  final String? locationName;
 
   const BatchModel({
     required this.id,
@@ -82,6 +86,9 @@ class BatchModel {
     this.endTime,
     this.studio,
     this.timeSlots = const [],
+    this.teacherName,
+    this.courseName,
+    this.locationName,
   });
 
   factory BatchModel.fromJson(Map<String, dynamic> json) {
@@ -109,6 +116,9 @@ class BatchModel {
               .map((e) => BatchTimeSlot.fromJson(e))
               .toList()
           : const [],
+      teacherName: json['teacher_name'] as String?,
+      courseName: json['course_name'] as String?,
+      locationName: json['location_name'] as String?,
     );
   }
 

@@ -105,6 +105,13 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
     }
   }
 
+  String? _courseNameOf(int? id) {
+    for (final c in _courses) {
+      if (c.id == id) return c.name;
+    }
+    return null;
+  }
+
   List<BatchModel> _batchesOf(int? id) => id == null
       ? const []
       : _allBatches.where((b) => b.allStudentIds.contains(id)).toList();
@@ -175,7 +182,18 @@ class _StudentShellScreenState extends State<StudentShellScreen> {
                 user: user,
                 studentId: primaryStudentId,
                 students: householdStudents,
-                batches: _batchesOf(primaryStudentId),
+                batchSections: householdStudents.isNotEmpty
+                    ? [
+                        for (final p in householdStudents)
+                          BatchSection(name: p.name, batches: _batchesOf(p.id)),
+                      ]
+                    : [
+                        BatchSection(
+                          name: user?.name ?? 'You',
+                          batches: _batchesOf(primaryStudentId),
+                        ),
+                      ],
+                courseNameOf: _courseNameOf,
                 isLoading: _isLoading,
                 onRefresh: _loadData,
               ),
@@ -219,7 +237,9 @@ class _StudentMoreMenuScreen extends StatelessWidget {
   final int? studentId;
   /// Every student behind this login, so Attendance can ask which child.
   final List<ProfileModel> students;
-  final List<BatchModel> batches;
+  /// Each student's batches, for More → Batches.
+  final List<BatchSection> batchSections;
+  final String? Function(int?) courseNameOf;
   final bool isLoading;
   final VoidCallback onRefresh;
 
@@ -227,7 +247,8 @@ class _StudentMoreMenuScreen extends StatelessWidget {
     this.user,
     this.studentId,
     this.students = const [],
-    this.batches = const [],
+    this.batchSections = const [],
+    required this.courseNameOf,
     this.isLoading = false,
     required this.onRefresh,
   });
@@ -338,7 +359,8 @@ class _StudentMoreMenuScreen extends StatelessWidget {
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => StudentBatchesScreen(
-              batches: batches,
+              sections: batchSections,
+              courseNameOf: courseNameOf,
               isLoading: isLoading,
               onRefresh: onRefresh,
             ),

@@ -34,21 +34,21 @@ const ParentStudentView: React.FC<ParentStudentViewProps> = ({ parentUser }) => 
 
     if (foundStudent) {
       setStudent(foundStudent);
-      loadStudentData(foundStudent.id);
+      loadStudentData(foundStudent.id, foundStudent.courses);
     } else {
       // Try to get from sessionStorage as fallback
       const storedStudent = sessionStorage.getItem('selectedStudent');
       if (storedStudent) {
         const parsed = JSON.parse(storedStudent);
         setStudent(parsed);
-        loadStudentData(parsed.id);
+        loadStudentData(parsed.id, parsed.courses);
       } else {
         navigate('/parent/dashboard');
       }
     }
   }, [studentId, parentUser, navigate]);
 
-  const loadStudentData = async (studentId: number) => {
+  const loadStudentData = async (studentId: number, courses: string[] = []) => {
     try {
       const [
         enrollmentsData,
@@ -68,12 +68,24 @@ const ParentStudentView: React.FC<ParentStudentViewProps> = ({ parentUser }) => 
         getGradeExams().catch(() => [])
       ]);
 
+      // The server returns the whole family's items; this page is one child's.
+      // Keep what names this child (or the parent), or names no one; a course
+      // item goes to the child only when they take that course.
+      const me = String(studentId);
+      const parentId = String((parentUser as any)?.id ?? '');
+      const courseSet = new Set((courses || []).map((c: any) => String(c).trim().toLowerCase()));
+      const forChild = (ids?: any[], course?: string | null) => {
+        const list = (ids || []).map(String);
+        if (list.length) return list.includes(me) || list.includes(parentId);
+        if (course && String(course).trim()) return courseSet.has(String(course).trim().toLowerCase());
+        return true;
+      };
       setEnrollments(enrollmentsData);
-      setNotifications(notificationsData);
-      setEvents(eventsData);
-      setNotices(noticesData);
-      setBookMaterials(bookMaterialsData);
-      setGradeExams(gradeExamsData);
+      setNotifications(notificationsData.filter((n: any) => String(n.userId) === me || String(n.userId) === parentId));
+      setEvents(eventsData.filter((e: any) => forChild(e.recipientIds)));
+      setNotices(noticesData.filter((n: any) => forChild(n.recipientIds)));
+      setBookMaterials(bookMaterialsData.filter((m: any) => forChild(m.recipientIds, m.courseName)));
+      setGradeExams(gradeExamsData.filter((g: any) => forChild(g.recipientIds, g.course)));
       setInvoices(invoicesData); // Already filtered by getStudentInvoicesForFamily
     } catch (error) {
       console.error('Error loading student data:', error);
@@ -488,14 +500,14 @@ const ParentStudentView: React.FC<ParentStudentViewProps> = ({ parentUser }) => 
                     }`}
                   >
                     <h4 className={`font-medium text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                      {notification.title}
+                      {notification.subject || notification.title}
                     </h4>
                     <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                       {notification.message}
                     </p>
-                    {notification.created_at && (
+                    {(notification.createdAt || notification.created_at) && (
                       <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
-                        {new Date(notification.created_at).toLocaleDateString()}
+                        {new Date(notification.createdAt || notification.created_at).toLocaleDateString()}
                       </p>
                     )}
                   </div>
@@ -539,11 +551,11 @@ const ParentStudentView: React.FC<ParentStudentViewProps> = ({ parentUser }) => 
                     <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                       {event.description}
                     </p>
-                    {event.event_date && (
+                    {event.date && !isNaN(new Date(event.date).getTime()) && (
                       <p className={`text-xs mt-2 flex items-center ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
                         <Clock className="w-3 h-3 mr-1" />
-                        {new Date(event.event_date).toLocaleDateString()}
-                        {event.event_time && ` at ${event.event_time}`}
+                        {new Date(event.date).toLocaleDateString()}
+                        {event.time && ` at ${event.time}`}
                       </p>
                     )}
                   </div>
@@ -587,9 +599,9 @@ const ParentStudentView: React.FC<ParentStudentViewProps> = ({ parentUser }) => 
                     <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                       {notice.content}
                     </p>
-                    {notice.created_at && (
+                    {notice.issuedAt && (
                       <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
-                        {new Date(notice.created_at).toLocaleDateString()}
+                        {new Date(notice.issuedAt).toLocaleDateString()}
                       </p>
                     )}
                   </div>
@@ -631,7 +643,7 @@ const ParentStudentView: React.FC<ParentStudentViewProps> = ({ parentUser }) => 
                       {material.title}
                     </h4>
                     <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {material.course_name}
+                      {material.courseName}
                     </p>
                     {material.description && (
                       <p className={`text-xs mt-2 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
@@ -674,18 +686,18 @@ const ParentStudentView: React.FC<ParentStudentViewProps> = ({ parentUser }) => 
                     }`}
                   >
                     <h4 className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                      {exam.title || exam.grade_name}
+                      {exam.title}
                     </h4>
-                    {exam.course_name && (
+                    {exam.course && (
                       <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {exam.course_name}
+                        {exam.course}
                       </p>
                     )}
-                    {exam.exam_date && (
+                    {exam.date && !isNaN(new Date(exam.date).getTime()) && (
                       <p className={`text-xs mt-2 flex items-center ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
                         <Calendar className="w-3 h-3 mr-1" />
-                        {new Date(exam.exam_date).toLocaleDateString()}
-                        {exam.exam_time && ` at ${exam.exam_time}`}
+                        {new Date(exam.date).toLocaleDateString()}
+                        {exam.time && ` at ${exam.time}`}
                       </p>
                     )}
                   </div>

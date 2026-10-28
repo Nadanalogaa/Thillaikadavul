@@ -273,6 +273,9 @@ export interface Batch {
   startTime?: string; // Class start time (e.g., '17:00')
   endTime?: string; // Class end time (e.g., '18:30')
   studio?: string; // Studio/room the batch runs in (e.g., 'Old Studio', 'New Studio')
+  // Per-day timings, e.g. [{day:'Monday', start_time:'17:00', end_time:'18:00'}]
+  timeSlots?: { day: string; start_time?: string; end_time?: string }[];
+  locationName?: string;
 }
 
 // --- Student Enrollment Type ---
@@ -427,6 +430,7 @@ export interface GradeExam {
   isOpen?: boolean; // Whether registration is open
   createdAt?: Date; // Creation timestamp
   recipientIds?: string[];
+  location?: string;
 }
 
 export interface Notice {

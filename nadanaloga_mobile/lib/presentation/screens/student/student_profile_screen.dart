@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
 import '../../../core/network/api_client.dart';
-import '../../../data/models/location_model.dart';
+import '../../../core/utils/date_display.dart';
+import '../../../data/models/user_model.dart';
 import '../../../di/injection_container.dart';
 import '../../bloc/auth/auth_bloc.dart';
 import '../../bloc/auth/auth_state.dart';
+import '../../widgets/user_avatar.dart';
 
+/// More → Profile: the signed-in account (a parent, or a student who signs
+/// in for themself) and, underneath, every student in the family with their
+/// ID, courses, grades and batches. Courses belong to the students, never to
+/// a parent's login, so they are read from the household, not the account.
 class StudentProfileScreen extends StatefulWidget {
   const StudentProfileScreen({super.key});
 
@@ -17,36 +22,88 @@ class StudentProfileScreen extends StatefulWidget {
   State<StudentProfileScreen> createState() => _StudentProfileScreenState();
 }
 
+class _FamilyStudent {
+  final int id;
+  final String name;
+  final String? userId;
+  final String? photoUrl;
+  final List<String> courses; // "Bharatham · Grade 2"
+  final List<String> batches;
+
+  const _FamilyStudent({
+    required this.id,
+    required this.name,
+    this.userId,
+    this.photoUrl,
+    this.courses = const [],
+    this.batches = const [],
+  });
+}
+
 class _StudentProfileScreenState extends State<StudentProfileScreen> {
-  LocationModel? _location;
-  bool _isLoadingLocation = false;
+  bool _loading = true;
+  String? _error;
+  List<_FamilyStudent> _students = const [];
 
   @override
   void initState() {
     super.initState();
-    _loadLocationIfNeeded();
+    _load();
   }
 
-  Future<void> _loadLocationIfNeeded() async {
-    final state = context.read<AuthBloc>().state;
-    if (state is AuthAuthenticated && state.user.preferredLocationId != null) {
-      setState(() => _isLoadingLocation = true);
-      try {
-        final apiClient = sl<ApiClient>();
-        final response = await apiClient.getLocations();
-        if (mounted && response.statusCode == 200 && response.data is List) {
-          final locations = (response.data as List)
-              .map((l) => LocationModel.fromJson(l))
-              .toList();
-          final match = locations
-              .where((l) => l.id == state.user.preferredLocationId)
-              .toList();
-          if (match.isNotEmpty) {
-            setState(() => _location = match.first);
-          }
-        }
-      } catch (_) {}
-      setState(() => _isLoadingLocation = false);
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final r = await sl<ApiClient>().getHousehold();
+      if (!mounted) return;
+      if (r.statusCode != 200 || r.data is! Map) {
+        setState(() {
+          _error = 'Could not load your family details.';
+          _loading = false;
+        });
+        return;
+      }
+      final members = ((r.data as Map)['members'] as List? ?? const [])
+          .whereType<Map>()
+          .map((m) => Map<String, dynamic>.from(m))
+          .where((m) => '${m['role']}'.toLowerCase() == 'student');
+      final list = <_FamilyStudent>[];
+      for (final m in members) {
+        final grades = (m['course_grades'] as List? ?? const [])
+            .whereType<Map>()
+            .map((g) {
+          final c = '${g['course_name'] ?? ''}'.trim();
+          final gr = '${g['grade_name'] ?? ''}'.trim();
+          return gr.isEmpty ? c : '$c · $gr';
+        }).where((s) => s.isNotEmpty).toList();
+        // A course with no grade yet still shows.
+        final graded = grades.map((s) => s.split(' · ').first.toLowerCase()).toSet();
+        final plain = (m['courses'] as List? ?? const [])
+            .map((c) => '$c'.trim())
+            .where((c) => c.isNotEmpty && !graded.contains(c.toLowerCase()));
+        list.add(_FamilyStudent(
+          id: m['id'] is int ? m['id'] as int : int.tryParse('${m['id']}') ?? 0,
+          name: '${m['name'] ?? 'Student'}',
+          userId: m['user_id'] as String?,
+          photoUrl: m['photo_url'] as String?,
+          courses: [...grades, ...plain],
+          batches: (m['batch_names'] as List? ?? const []).map((b) => '$b').toList(),
+        ));
+      }
+      setState(() {
+        _students = list;
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _error = 'Could not load your family details. Please check your connection.';
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -55,133 +112,59 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         final user = state is AuthAuthenticated ? state.user : null;
-
         return Scaffold(
           appBar: AppBar(
-            // No automaticallyImplyLeading:false — this screen is now PUSHED from
-            // the More menu and needs its back button.
             title: const Text('Profile'),
             backgroundColor: AppColors.studentAccent,
           ),
           body: user == null
               ? const Center(child: CircularProgressIndicator())
-              : SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(16),
                     children: [
-                      // Profile Header Card
-                      _ProfileHeaderCard(user: user)
-                          .animate()
-                          .fadeIn(duration: 400.ms)
-                          .slideY(begin: -0.1, end: 0),
-                      const SizedBox(height: 24),
-
-                      // Personal Information Section
-                      _SectionTitle(title: 'Personal Information')
-                          .animate(delay: 100.ms)
-                          .fadeIn(),
-                      const SizedBox(height: 12),
-                      _InfoCard(
-                        children: [
-                          _InfoRow(
-                            icon: Icons.person,
-                            label: 'Full Name',
-                            value: user.name,
-                          ),
-                          _InfoRow(
-                            icon: Icons.email,
-                            label: 'Email',
-                            value: user.shownEmail,
-                          ),
-                          if (user.contactNumber != null)
-                            _InfoRow(
-                              icon: Icons.phone,
-                              label: 'Contact',
-                              value: user.contactNumber!,
-                            ),
-                          _InfoRow(
-                            icon: Icons.badge,
-                            label: 'Student ID',
-                            value: user.userId ?? 'Not assigned',
-                          ),
-                        ],
-                      ).animate(delay: 150.ms).fadeIn().slideX(begin: 0.05, end: 0),
-                      const SizedBox(height: 24),
-
-                      // Academic Information Section
-                      _SectionTitle(title: 'Academic Information')
-                          .animate(delay: 200.ms)
-                          .fadeIn(),
-                      const SizedBox(height: 12),
-                      _InfoCard(
-                        children: [
-                          _InfoRow(
-                            icon: Icons.school,
-                            label: 'Class Mode',
-                            value: user.classPreference ?? 'Not set',
-                            valueColor: AppColors.info,
-                          ),
-                          _InfoRow(
-                            icon: Icons.location_city,
-                            label: 'Branch',
-                            value: _isLoadingLocation
-                                ? 'Loading...'
-                                : _location?.name ?? 'Not assigned',
-                          ),
-                          if (_location?.city != null)
-                            _InfoRow(
-                              icon: Icons.map,
-                              label: 'City',
-                              value: _location!.city!,
-                            ),
-                        ],
-                      ).animate(delay: 250.ms).fadeIn().slideX(begin: 0.05, end: 0),
-                      const SizedBox(height: 24),
-
-                      // Enrolled Courses Section
-                      _SectionTitle(title: 'Enrolled Courses')
-                          .animate(delay: 300.ms)
-                          .fadeIn(),
-                      const SizedBox(height: 12),
-                      if (user.courses.isEmpty)
-                        _EmptyCoursesCard()
-                            .animate(delay: 350.ms)
-                            .fadeIn()
+                      _header(user),
+                      const SizedBox(height: 20),
+                      Text('Account', style: AppTextStyles.h4),
+                      const SizedBox(height: 10),
+                      _card([
+                        _row(Icons.person, 'Name', user.name),
+                        if ((user.contactNumber ?? '').isNotEmpty)
+                          _row(Icons.phone, 'Phone (your login)', user.contactNumber!),
+                        _row(Icons.email, 'Email',
+                            user.shownEmail.isEmpty ? 'Not given' : user.shownEmail),
+                        if ((user.userId ?? '').isNotEmpty)
+                          _row(Icons.badge, 'Account ID', user.userId!),
+                        if ((user.address ?? '').trim().isNotEmpty)
+                          _row(Icons.home_outlined, 'Address', user.address!.trim()),
+                        if ((user.dateOfJoining ?? user.createdAt) != null)
+                          _row(Icons.calendar_today, 'Joined',
+                              formatDisplayDate(user.dateOfJoining ?? user.createdAt)),
+                      ]),
+                      const SizedBox(height: 20),
+                      Text(_students.length > 1 ? 'Your family' : 'Student',
+                          style: AppTextStyles.h4),
+                      const SizedBox(height: 10),
+                      if (_loading)
+                        const Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else if (_error != null)
+                        _card([
+                          Text(_error!, style: AppTextStyles.bodyMedium),
+                          TextButton(onPressed: _load, child: const Text('Try again')),
+                        ])
+                      else if (_students.isEmpty)
+                        _card([
+                          Text('No students are linked to this login yet.',
+                              style: AppTextStyles.bodyMedium
+                                  .copyWith(color: AppColors.textSecondary)),
+                        ])
                       else
-                        ...user.courses.asMap().entries.map((entry) {
-                          final index = entry.key;
-                          final courseName = entry.value;
-                          return _CourseChip(courseName: courseName)
-                              .animate(delay: Duration(milliseconds: 350 + (index * 50)))
-                              .fadeIn()
-                              .slideX(begin: 0.05, end: 0);
-                        }),
-                      const SizedBox(height: 24),
-
-                      // Account Information Section
-                      _SectionTitle(title: 'Account Information')
-                          .animate(delay: 400.ms)
-                          .fadeIn(),
-                      const SizedBox(height: 12),
-                      _InfoCard(
-                        children: [
-                          _InfoRow(
-                            icon: Icons.verified_user,
-                            label: 'Role',
-                            value: user.role,
-                            valueColor: AppColors.studentAccent,
-                          ),
-                          if (user.createdAt != null)
-                            _InfoRow(
-                              icon: Icons.calendar_today,
-                              label: 'Member Since',
-                              value: _formatDate(user.createdAt!),
-                            ),
-                        ],
-                      ).animate(delay: 450.ms).fadeIn().slideX(begin: 0.05, end: 0),
-                      const SizedBox(height: 24),
-
+                        for (final s in _students) _studentCard(s),
                     ],
                   ),
                 ),
@@ -190,338 +173,123 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
     );
   }
 
-  String _formatDate(String dateStr) {
-    try {
-      final date = DateTime.parse(dateStr);
-      final months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-      ];
-      return '${date.day} ${months[date.month - 1]} ${date.year}';
-    } catch (_) {
-      return dateStr;
-    }
-  }
-}
-
-class _ProfileHeaderCard extends StatelessWidget {
-  final dynamic user;
-
-  const _ProfileHeaderCard({required this.user});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.studentAccent.withValues(alpha: 0.15),
-        ),
-      ),
-      child: Column(
+  Widget _header(UserModel user) => Column(
         children: [
-          // Avatar
-          Container(
-            width: 88,
-            height: 88,
-            decoration: BoxDecoration(
-              color: AppColors.studentAccent,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                _getInitials(user.name),
-                style: AppTextStyles.h1.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 36,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Name
-          Text(
-            user.name,
-            style: AppTextStyles.h2.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 4),
-
-          // Email
-          Text(
-            user.shownEmail,
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.textSecondary,
-            ),
-            textAlign: TextAlign.center,
+          UserAvatar(
+            photoUrl: user.photoUrl,
+            name: user.name,
+            radius: 44,
+            color: AppColors.studentAccent,
+            fontSize: 34,
           ),
           const SizedBox(height: 12),
-
-          // Badges row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (user.userId != null)
-                _Badge(
-                  icon: Icons.badge,
-                  label: user.userId!,
-                  color: AppColors.studentAccent,
-                ),
-              if (user.userId != null) const SizedBox(width: 8),
-              _Badge(
-                icon: Icons.person,
-                label: 'Student',
-                color: AppColors.info,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _getInitials(String name) {
-    final parts = name.trim().split(' ');
-    if (parts.length >= 2) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    }
-    return name.isNotEmpty ? name[0].toUpperCase() : '?';
-  }
-}
-
-class _Badge extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-
-  const _Badge({
-    required this.icon,
-    required this.label,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: AppTextStyles.labelSmall.copyWith(
-              color: color,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  final String title;
-
-  const _SectionTitle({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Text(
-        title,
-        style: AppTextStyles.h4,
-      ),
-    );
-  }
-}
-
-class _InfoCard extends StatelessWidget {
-  final List<Widget> children;
-
-  const _InfoCard({required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: AppColors.divider),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(children: children),
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color? valueColor;
-
-  const _InfoRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.valueColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
+          Text(user.name,
+              style: AppTextStyles.h2.copyWith(fontWeight: FontWeight.w600),
+              textAlign: TextAlign.center),
+          const SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(
               color: AppColors.studentAccent.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(20),
             ),
-            child: Icon(icon, size: 18, color: AppColors.studentAccent),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                Text(
-                  value,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: valueColor,
-                  ),
-                ),
-              ],
-            ),
+            child: Text(user.role,
+                style: AppTextStyles.labelSmall.copyWith(
+                    color: AppColors.studentAccent, fontWeight: FontWeight.w600)),
           ),
         ],
-      ),
-    );
-  }
-}
+      );
 
-class _CourseChip extends StatelessWidget {
-  final String courseName;
-
-  const _CourseChip({required this.courseName});
-
-  IconData _courseIcon(String name) {
-    final lower = name.toLowerCase();
-    if (lower.contains('bharatanatyam') || lower.contains('dance')) {
-      return Icons.sports_gymnastics;
-    }
-    if (lower.contains('vocal') || lower.contains('music') ||
-        lower.contains('western')) {
-      return Icons.music_note;
-    }
-    if (lower.contains('veena') || lower.contains('instrument')) {
-      return Icons.piano;
-    }
-    if (lower.contains('drawing') || lower.contains('art')) {
-      return Icons.palette;
-    }
-    if (lower.contains('abacus') || lower.contains('math')) {
-      return Icons.calculate;
-    }
-    if (lower.contains('phonics') || lower.contains('language')) {
-      return Icons.abc;
-    }
-    return Icons.school;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final color = AppColors.getCourseColor(courseName);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(_courseIcon(courseName), size: 20, color: color),
+  Widget _studentCard(_FamilyStudent s) => Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AppColors.divider),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  UserAvatar(
+                    photoUrl: s.photoUrl,
+                    name: s.name,
+                    radius: 24,
+                    color: AppColors.studentAccent.withValues(alpha: 0.15),
+                    foreground: AppColors.studentAccent,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(s.name, style: AppTextStyles.labelLarge),
+                        if ((s.userId ?? '').isNotEmpty)
+                          Text(s.userId!,
+                              style: AppTextStyles.caption
+                                  .copyWith(color: AppColors.textSecondary)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              if (s.courses.isEmpty)
+                _line(Icons.menu_book_outlined, 'No course yet')
+              else
+                for (final c in s.courses) _line(Icons.menu_book_outlined, c),
+              for (final b in s.batches) _line(Icons.group_work_outlined, b),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              courseName,
-              style: AppTextStyles.labelLarge.copyWith(
-                fontWeight: FontWeight.w500,
+        ),
+      );
+
+  Widget _card(List<Widget> children) => Card(
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AppColors.divider),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+        ),
+      );
+
+  Widget _row(IconData icon, String label, String value) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 18, color: AppColors.studentAccent),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label,
+                      style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+                  Text(value,
+                      style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w500)),
+                ],
               ),
             ),
-          ),
-          Icon(
-            Icons.chevron_right,
-            color: color.withValues(alpha: 0.5),
-          ),
-        ],
-      ),
-    );
-  }
-}
+          ],
+        ),
+      );
 
-class _EmptyCoursesCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.info.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            Icons.library_books_outlined,
-            size: 40,
-            color: AppColors.info.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'No courses enrolled yet',
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _line(IconData icon, String text) => Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: AppColors.textSecondary),
+            const SizedBox(width: 8),
+            Expanded(child: Text(text, style: AppTextStyles.bodyMedium)),
+          ],
+        ),
+      );
 }

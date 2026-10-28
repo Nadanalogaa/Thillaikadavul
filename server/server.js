@@ -1200,8 +1200,12 @@ async function startServer() {
         }
         try {
             // Get user's active FCM tokens
+            // A child has no phone of its own: the parent signs in and registers
+            // the device, so a push about the child goes to the parent's devices.
             const result = await pool.query(
-                'SELECT fcm_token FROM user_fcm_tokens WHERE user_id = $1 AND is_active = true',
+                `SELECT DISTINCT fcm_token FROM user_fcm_tokens
+                  WHERE is_active = true
+                    AND (user_id = $1 OR user_id = (SELECT parent_id FROM users WHERE id = $1))`,
                 [userId]
             );
             if (result.rows.length === 0) {
@@ -2015,7 +2019,7 @@ async function startServer() {
     // Hoisted function declaration so both /api/login and /api/switch-profile can use it.
     async function buildProfilesForUser(user) {
         const digits = String(user.contact_number || '').replace(/\D/g, '');
-        const cols = 'id, name, display_name, role, photo_url, courses, grade, parent_id';
+        const cols = 'id, name, display_name, role, photo_url, courses, grade, parent_id, user_id';
         let rows;
         if (digits.length >= 7) {
             rows = (await pool.query(
@@ -2054,6 +2058,7 @@ async function startServer() {
                 photo_url: r.photo_url || null,
                 courses: safeJsonArray(r.courses),
                 grade: r.grade || null,
+                user_id: r.user_id || null,
             });
         }
         return profiles;
@@ -4211,7 +4216,15 @@ Please review and approve this registration in the admin panel.`;
 
     app.get('/api/batches', async (req, res) => {
         try {
-            const result = await pool.query('SELECT * FROM batches ORDER BY created_at DESC');
+            // Names alongside the ids, so a family's Batches page can say who
+            // teaches, which course and where without three more lookups.
+            const result = await pool.query(
+                `SELECT b.*, t.name AS teacher_name, c.name AS course_name, l.name AS location_name
+                   FROM batches b
+                   LEFT JOIN users t ON t.id = b.teacher_id
+                   LEFT JOIN courses c ON c.id = b.course_id
+                   LEFT JOIN locations l ON l.id = b.location_id
+                  ORDER BY b.created_at DESC`);
             const batches = result.rows.map(parseBatchData);
             res.json(batches);
         } catch (error) {
@@ -4975,12 +4988,25 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.get('/api/notifications/:userId', async (req, res) => {
+    // Whose notifications this session may read. An admin may read anyone's.
+    // A family reads the whole household's: messages about a child (attendance,
+    // class notes, fees) are addressed to the child, while the parent is the
+    // one signed in. Returns null when the requested id is not theirs.
+    async function notificationIdsFor(req, requestedId) {
+        const me = req.session.user;
+        if (String(me.role || '').toLowerCase() === 'admin') return [Number(requestedId)];
+        const { memberIds } = await householdFor(req);
+        const ids = [...new Set([Number(me.id), ...memberIds.map(Number)])];
+        return ids.includes(Number(requestedId)) ? ids : null;
+    }
+
+    app.get('/api/notifications/:userId', ensureAuthenticated, async (req, res) => {
         try {
-            const { userId } = req.params;
+            const ids = await notificationIdsFor(req, req.params.userId);
+            if (!ids) return res.status(403).json({ message: 'Not allowed.' });
             const result = await pool.query(
-                'SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC',
-                [userId]
+                'SELECT * FROM notifications WHERE user_id = ANY($1::int[]) ORDER BY created_at DESC',
+                [ids]
             );
             res.json(result.rows);
         } catch (error) {
@@ -4989,12 +5015,13 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.get('/api/notifications/:userId/unread-count', async (req, res) => {
+    app.get('/api/notifications/:userId/unread-count', ensureAuthenticated, async (req, res) => {
         try {
-            const { userId } = req.params;
+            const ids = await notificationIdsFor(req, req.params.userId);
+            if (!ids) return res.status(403).json({ message: 'Not allowed.' });
             const result = await pool.query(
-                'SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND is_read = false',
-                [userId]
+                'SELECT COUNT(*) as count FROM notifications WHERE user_id = ANY($1::int[]) AND is_read = false',
+                [ids]
             );
             res.json({ count: parseInt(result.rows[0].count) });
         } catch (error) {
@@ -5003,12 +5030,18 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.put('/api/notifications/:id/mark-read', async (req, res) => {
+    app.put('/api/notifications/:id/mark-read', ensureAuthenticated, async (req, res) => {
         try {
             const { id } = req.params;
+            const me = req.session.user;
+            const isAdmin = String(me.role || '').toLowerCase() === 'admin';
+            const ids = isAdmin ? null
+                : [...new Set([Number(me.id), ...(await householdFor(req)).memberIds.map(Number)])];
             const result = await pool.query(
-                'UPDATE notifications SET is_read = true WHERE id = $1 RETURNING *',
-                [id]
+                isAdmin
+                    ? 'UPDATE notifications SET is_read = true WHERE id = $1 RETURNING *'
+                    : 'UPDATE notifications SET is_read = true WHERE id = $1 AND user_id = ANY($2::int[]) RETURNING *',
+                isAdmin ? [id] : [id, ids]
             );
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: 'Notification not found' });
@@ -6134,6 +6167,28 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // --- Event API Endpoints ---
+    // Which events, notices, exams and materials a signed-in family sees.
+    // A post is for them when it names no one (everyone), or names one of the
+    // household's profiles. Exams and materials tied to a course go to families
+    // with a student in that course. Admins, teachers and signed-out visitors
+    // (the public website) get the list unchanged.
+    async function forThisFamily(req, rows, { courseKey = null } = {}) {
+        const me = req.session && req.session.user;
+        const role = String(me && me.role || '').toLowerCase();
+        if (!me || role === 'admin' || role === 'teacher' || me.is_super_admin) return rows;
+        const { profiles, memberIds } = await householdFor(req);
+        const ids = new Set([Number(me.id), ...memberIds.map(Number)]);
+        const norm = (v) => String(v || '').trim().toLowerCase();
+        const courses = new Set();
+        for (const p of profiles) for (const c of (p.courses || [])) courses.add(norm(c));
+        return rows.filter(r => {
+            const rec = Array.isArray(r.recipient_ids) ? r.recipient_ids.map(Number) : [];
+            if (rec.length) return rec.some(i => ids.has(i));
+            if (courseKey && norm(r[courseKey])) return courses.has(norm(r[courseKey]));
+            return true;
+        });
+    }
+
     app.get('/api/events', async (req, res) => {
         try {
             const { isPublic } = req.query;
@@ -6143,7 +6198,7 @@ Please review and approve this registration in the admin panel.`;
             }
             query += ' ORDER BY event_date DESC';
             const result = await pool.query(query);
-            res.json(result.rows);
+            res.json(await forThisFamily(req, result.rows));
         } catch (error) {
             console.error('Error fetching events:', error);
             res.status(500).json({ message: 'Server error fetching events.' });
@@ -6221,7 +6276,7 @@ Please review and approve this registration in the admin panel.`;
     app.get('/api/grade-exams', async (req, res) => {
         try {
             const result = await pool.query('SELECT * FROM grade_exams ORDER BY exam_date DESC');
-            res.json(result.rows);
+            res.json(await forThisFamily(req, result.rows, { courseKey: 'course' }));
         } catch (error) {
             console.error('Error fetching grade exams:', error);
             res.status(500).json({ message: 'Server error fetching grade exams.' });
@@ -6299,7 +6354,7 @@ Please review and approve this registration in the admin panel.`;
     app.get('/api/book-materials', async (req, res) => {
         try {
             const result = await pool.query('SELECT * FROM book_materials ORDER BY created_at DESC');
-            res.json(result.rows);
+            res.json(await forThisFamily(req, result.rows, { courseKey: 'course' }));
         } catch (error) {
             console.error('Error fetching book materials:', error);
             res.status(500).json({ message: 'Server error fetching book materials.' });
@@ -6376,7 +6431,12 @@ Please review and approve this registration in the admin panel.`;
     app.get('/api/notices', async (req, res) => {
         try {
             const result = await pool.query('SELECT * FROM notices ORDER BY created_at DESC');
-            res.json(result.rows);
+            // Families don't see a notice past its expiry date; admins still do.
+            const role = String(req.session && req.session.user && req.session.user.role || '').toLowerCase();
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            const live = role === 'admin' ? result.rows
+                : result.rows.filter(n => !n.expiry_date || new Date(n.expiry_date) >= today);
+            res.json(await forThisFamily(req, live));
         } catch (error) {
             console.error('Error fetching notices:', error);
             res.status(500).json({ message: 'Server error fetching notices.' });

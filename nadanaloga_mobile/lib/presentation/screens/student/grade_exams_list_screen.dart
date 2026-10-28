@@ -37,15 +37,11 @@ class _GradeExamsListScreenState extends State<GradeExamsListScreen> {
       final r = await sl<ApiClient>().getGradeExams();
       if (!mounted) return;
       if (r.statusCode == 200 && r.data is List) {
-        final sid = widget.studentId;
+        // The server already returns only this family's items, for every child.
         setState(() {
           _items = (r.data as List)
               .whereType<Map>()
               .map((e) => GradeExamModel.fromJson(Map<String, dynamic>.from(e)))
-              .where((e) =>
-                  e.recipientIds == null ||
-                  e.recipientIds!.isEmpty ||
-                  (sid != null && e.recipientIds!.contains(sid)))
               .toList();
         });
       } else {
