@@ -530,7 +530,8 @@ class _HomeDashboardState extends State<HomeDashboard> {
             _Tile(Icons.groups_2_outlined, '${d.teachingBatches.length}',
                 'Batches', AppColors.teacherAccent, null),
             _Tile(Icons.people_outline, '${d.studentsTaught}', 'Students',
-                AppColors.primary, null),
+                AppColors.primary, () => _push(TeachingSummaryScreen(
+                    teacherId: d.teacher!.id, teacherName: d.teacher!.name))),
             _Tile(
                 Icons.event_repeat_outlined,
                 '${ClassSchedule.weeklyClassCount(d.teachingBatches)}',

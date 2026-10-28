@@ -4499,7 +4499,9 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // Get batch with populated details (teacher name, course name, student names)
-    app.get('/api/batches/:id/details', ensureAdmin, async (req, res) => {
+    // Admins, and the batch's own teacher: a teacher needs the names, parents
+    // and phone numbers of the students in front of them.
+    app.get('/api/batches/:id/details', ensureAuthenticated, async (req, res) => {
         try {
             const { id } = req.params;
             const batchResult = await pool.query('SELECT * FROM batches WHERE id = $1', [id]);
@@ -4507,6 +4509,9 @@ Please review and approve this registration in the admin panel.`;
                 return res.status(404).json({ message: 'Batch not found' });
             }
             const batch = parseBatchData(batchResult.rows[0]);
+            if (!isAdminUser(req) && String(batch.teacher_id) !== String(req.session.user.id)) {
+                return res.status(403).json({ message: 'This batch belongs to another teacher.' });
+            }
 
             // Get teacher name
             let teacherName = null;
@@ -4527,8 +4532,14 @@ Please review and approve this registration in the admin panel.`;
             let students = [];
             if (studentIds.length > 0) {
                 const studentResult = await pool.query(
-                    'SELECT id, name, email, user_id FROM users WHERE id = ANY($1)',
-                    [studentIds]
+                    `SELECT u.id, u.name, u.email, u.user_id, u.contact_number, u.father_name AS parent_name,
+                            u.class_preference, g.name AS grade
+                       FROM users u
+                       LEFT JOIN student_course_grades scg ON scg.student_id = u.id AND scg.course_id = $2
+                       LEFT JOIN grades g ON g.id = scg.grade_id
+                      WHERE u.id = ANY($1) AND u.is_deleted = false
+                      ORDER BY u.name`,
+                    [studentIds, batch.course_id || null]
                 );
                 students = studentResult.rows;
             }

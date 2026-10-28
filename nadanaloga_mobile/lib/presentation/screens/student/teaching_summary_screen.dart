@@ -4,6 +4,7 @@ import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
 import '../../../core/network/api_client.dart';
 import '../../../data/models/batch_model.dart';
+import '../attendance/batch_students_screen.dart';
 import '../../../di/injection_container.dart';
 
 /// A teacher's teaching at a glance: the batches she takes, their timings and
@@ -71,8 +72,7 @@ class _TeachingSummaryBodyState extends State<TeachingSummaryBody> {
             .map((b) => BatchModel.fromJson(Map<String, dynamic>.from(b)))
             .toList();
         setState(() {
-          _batches =
-              all.where((b) => b.teacherId == widget.teacherId).toList();
+          _batches = all.where((b) => b.teacherId == widget.teacherId).toList();
         });
       } else {
         setState(() => _error = 'Could not load batches.');
@@ -191,57 +191,65 @@ class _TeachingSummaryBodyState extends State<TeachingSummaryBody> {
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: BorderSide(
-            color: AppColors.teacherAccent.withValues(alpha: 0.15)),
+        side:
+            BorderSide(color: AppColors.teacherAccent.withValues(alpha: 0.15)),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      // Tap for the students in this batch: names, parents, phone numbers.
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) =>
+              BatchStudentsScreen(batchId: b.id, batchName: b.batchName),
+        )),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(b.batchName, style: AppTextStyles.labelLarge),
+                        if (b.mode != null && b.mode!.isNotEmpty)
+                          Text(b.mode!,
+                              style: AppTextStyles.caption
+                                  .copyWith(color: AppColors.textSecondary)),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.teacherAccent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '$count ${count == 1 ? 'student' : 'students'}',
+                      style: AppTextStyles.caption
+                          .copyWith(color: AppColors.teacherAccent),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              for (final t in _timings(b))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
                     children: [
-                      Text(b.batchName, style: AppTextStyles.labelLarge),
-                      if (b.mode != null && b.mode!.isNotEmpty)
-                        Text(b.mode!,
-                            style: AppTextStyles.caption
-                                .copyWith(color: AppColors.textSecondary)),
+                      const Icon(Icons.schedule,
+                          size: 16, color: AppColors.textSecondary),
+                      const SizedBox(width: 6),
+                      Expanded(child: Text(t, style: AppTextStyles.bodyMedium)),
                     ],
                   ),
                 ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.teacherAccent.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '$count ${count == 1 ? 'student' : 'students'}',
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.teacherAccent),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            for (final t in _timings(b))
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  children: [
-                    const Icon(Icons.schedule,
-                        size: 16, color: AppColors.textSecondary),
-                    const SizedBox(width: 6),
-                    Expanded(child: Text(t, style: AppTextStyles.bodyMedium)),
-                  ],
-                ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
