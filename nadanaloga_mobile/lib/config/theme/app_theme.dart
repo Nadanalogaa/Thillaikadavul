@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'app_colors.dart';
 import 'app_text_styles.dart';
 
@@ -22,6 +23,13 @@ class AppTheme {
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.textOnPrimary,
+        // Light status-bar icons on the dark bar. Setting only the icon
+        // brightness keeps Flutter from calling the status-bar colour API,
+        // which is deprecated on Android 15.
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+        ),
         elevation: 0,
         centerTitle: true,
         titleTextStyle: TextStyle(
@@ -142,6 +150,13 @@ class AppTheme {
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.darkSurface,
         foregroundColor: AppColors.darkTextPrimary,
+        // Light status-bar icons on the dark bar. Setting only the icon
+        // brightness keeps Flutter from calling the status-bar colour API,
+        // which is deprecated on Android 15.
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+        ),
         elevation: 0,
         centerTitle: true,
         titleTextStyle: TextStyle(

@@ -22,11 +22,15 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  // Set system UI overlay style
+  // Draw behind the status and navigation bars on every Android version
+  // (Android 15 forces it anyway). Only icon brightness is set here: the bar
+  // colours are left alone, because the calls that set them
+  // (setStatusBarColor / setNavigationBarColor) are deprecated in Android 15.
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.light,
     ),
   );
 

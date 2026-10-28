@@ -2,8 +2,11 @@
 # listed here, or it compiles fine and fails only on the device.
 
 # --- Flutter embedding and plugins ---
--keep class io.flutter.** { *; }
--keep class io.flutter.plugins.** { *; }
+# Flutter's Gradle plugin adds the embedding's own keep rules, and each plugin
+# ships consumer rules. Keeping all of io.flutter.** here stopped R8 from
+# obfuscating most of the app (Play: "Low obfuscation rate"), so only the
+# registrant, which is found by name, is kept.
+-keep class io.flutter.plugins.GeneratedPluginRegistrant { *; }
 -dontwarn io.flutter.embedding.**
 
 # --- Razorpay -----------------------------------------------------------
@@ -21,13 +24,13 @@
 -optimizations !method/inlining/*
 
 # --- Firebase / FCM push notifications ---
--keep class com.google.firebase.** { *; }
+# Firebase and Play services ship their own consumer keep rules; blanket keeps
+# of both libraries were the bulk of the unobfuscated code.
 -dontwarn com.google.firebase.**
--keep class com.google.android.gms.** { *; }
 -dontwarn com.google.android.gms.**
 
 # --- Play Core: referenced by Flutter's deferred components, not bundled ---
 -dontwarn com.google.android.play.core.**
 
 # --- Keep annotations and signatures that reflection depends on ---
--keepattributes *Annotation*, Signature, InnerClasses, EnclosingMethod
+-keepattributes *Annotation*, Signature, InnerClasses, EnclosingMethod, JavascriptInterface

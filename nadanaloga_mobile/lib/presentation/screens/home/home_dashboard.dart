@@ -122,7 +122,11 @@ class _HomeDashboardState extends State<HomeDashboard> {
     final d = _data;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+      // Light icons over the coloured header; no bar colours (deprecated on Android 15).
+      value: const SystemUiOverlayStyle(
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+      ),
       child: Scaffold(
         backgroundColor: AppColors.background,
         body: RefreshIndicator(
