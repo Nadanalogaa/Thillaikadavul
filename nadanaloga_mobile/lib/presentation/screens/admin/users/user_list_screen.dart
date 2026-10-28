@@ -32,7 +32,9 @@ class _UserListView extends StatefulWidget {
 
 class _UserListViewState extends State<_UserListView> {
   final _searchController = TextEditingController();
-  String? _selectedRole;
+  // Students by default: the register is one login per family, and a parent
+  // row next to each child reads as a duplicate. Parents have their own chip.
+  String? _selectedRole = 'Student';
   String? _selectedStatus; // null = all, 'active', 'inactive'
   bool _discountOnly = false;
 
@@ -116,6 +118,15 @@ class _UserListViewState extends State<_UserListView> {
                   selected: _selectedRole == 'Teacher',
                   onSelected: () {
                     setState(() => _selectedRole = 'Teacher');
+                    _loadUsers();
+                  },
+                ),
+                const SizedBox(width: 8),
+                _FilterChip(
+                  label: 'Parents',
+                  selected: _selectedRole == 'Parent',
+                  onSelected: () {
+                    setState(() => _selectedRole = 'Parent');
                     _loadUsers();
                   },
                 ),

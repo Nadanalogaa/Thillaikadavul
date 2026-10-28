@@ -614,6 +614,9 @@ const StudentListPage: React.FC = () => {
                                                     <Link to={`/admin/student/${user.id}`} className="text-brand-primary hover:text-brand-dark hover:underline">
                                                         {user.name}
                                                     </Link>
+                                                    {user.fatherName && (
+                                                        <div className="text-xs text-gray-600 mt-0.5">Parent: {user.fatherName}</div>
+                                                    )}
                                                     <div className="text-xs text-gray-500 mt-1">
                                                         ID: <span className="font-mono">{user.userId || user.id}</span> | {user.classPreference || 'N/A'}
                                                     </div>

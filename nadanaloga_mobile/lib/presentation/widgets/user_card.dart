@@ -72,6 +72,11 @@ class UserCard extends StatelessWidget {
             RoleBadge(role: user.role, isSuperAdmin: user.isSuperAdmin),
           ],
         ),
+        // The family: a student is listed under their parent's name.
+        if (user.fatherName != null && user.fatherName!.trim().isNotEmpty) ...[
+          const SizedBox(height: 2),
+          _infoRow(Icons.family_restroom, 'Parent: ${user.fatherName!.trim()}'),
+        ],
         const SizedBox(height: 4),
         // Tappable phone (dials on tap). ID removed per request.
         if (user.contactNumber != null && user.contactNumber!.isNotEmpty)
