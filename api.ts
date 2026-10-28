@@ -1961,6 +1961,14 @@ export interface OwedMakeup {
 
 export const getOwedMakeups = (): Promise<OwedMakeup[]> => attendanceFetch('/owed-makeups');
 
+/** Undo a cancellation made by mistake: the class goes back to "not marked". */
+export const reinstateClass = (cancelledSessionId: number) =>
+  attendanceFetch('/reinstate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: cancelledSessionId }),
+  });
+
 export const scheduleMakeup = (cancelledSessionId: number, date: string, startTime?: string, endTime?: string) =>
   attendanceFetch('/makeup', {
     method: 'POST',

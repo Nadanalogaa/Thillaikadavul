@@ -4,7 +4,7 @@ import AdminLayout from '../../components/admin/AdminLayout';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import {
     getAttendanceClasses, getAttendanceRoster, markAttendance, cancelClass,
-    getOwedMakeups, scheduleMakeup, getAttendanceReport, getBatches,
+    getOwedMakeups, scheduleMakeup, reinstateClass, getAttendanceReport, getBatches,
     type AttendanceClass, type AttendanceRoster, type OwedMakeup, type AttendanceReport,
 } from '../../api';
 import type { Batch } from '../../types';
@@ -133,6 +133,18 @@ const AttendancePage: React.FC = () => {
             setError(e instanceof Error ? e.message : 'Could not build the report');
         } finally {
             setLoading(false);
+        }
+    };
+
+    // A cancellation made by mistake. Back to "not marked"; nothing is sent.
+    const reinstate = async (row: OwedMakeup) => {
+        if (!window.confirm(`Undo the cancellation of "${row.batch_name}" on ${formatDate(row.session_date)}?\n\nThe class goes back to not marked and no make-up is owed.`)) return;
+        try {
+            await reinstateClass(row.id);
+            setOwed(await getOwedMakeups());
+            setClasses(await getAttendanceClasses(date));
+        } catch (e) {
+            alert(e instanceof Error ? e.message : 'Could not undo the cancellation');
         }
     };
 
@@ -334,6 +346,13 @@ const AttendancePage: React.FC = () => {
                                 />
                                 <button onClick={() => giveBack(row)} className="rounded-md bg-brand-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark">
                                     Schedule make-up
+                                </button>
+                                <button
+                                    onClick={() => reinstate(row)}
+                                    title="Cancelled by mistake? Put the class back as not marked."
+                                    className={`rounded-md border px-3 py-1.5 text-sm font-medium ${dark ? 'border-gray-600 text-gray-200 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                                >
+                                    Undo cancel
                                 </button>
                             </div>
                         </div>

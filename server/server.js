@@ -5728,7 +5728,27 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // The academy calls a class off: everyone is told, and the class is owed back.
-    app.post('/api/attendance/cancel', ensureAuthenticated, async (req, res) => {
+    // Cancelling is the academy's call, not the teacher's: it tells every family
+    // and puts the academy on the hook for a make-up. Admin only.
+    // Undo a cancellation made by mistake: the session goes back to "not
+    // marked" and the make-up is no longer owed. Nothing is sent to families
+    // here; the admin tells them if the cancellation notice already went out.
+    app.post('/api/attendance/reinstate', ensureAdmin, async (req, res) => {
+        try {
+            const { session_id } = req.body || {};
+            if (!session_id) return res.status(400).json({ message: 'session_id is required.' });
+            const r = await pool.query(
+                `DELETE FROM class_sessions WHERE id = $1 AND status = 'cancelled'
+                 RETURNING batch_id, to_char(session_date, 'YYYY-MM-DD') AS session_date`, [session_id]);
+            if (r.rows.length === 0) return res.status(404).json({ message: 'No cancelled class with that id.' });
+            res.json({ success: true, ...r.rows[0] });
+        } catch (error) {
+            console.error('Error reinstating class:', error);
+            res.status(500).json({ message: 'Server error reinstating the class.' });
+        }
+    });
+
+    app.post('/api/attendance/cancel', ensureAdmin, async (req, res) => {
         try {
             const { batch_id, reason } = req.body || {};
             const date = req.body?.date || todayIso();

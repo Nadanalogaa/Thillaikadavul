@@ -117,69 +117,6 @@ class _MarkAttendanceScreenState extends State<MarkAttendanceScreen> {
     if (mounted) setState(() => _saving = false);
   }
 
-  Future<void> _cancelClass() async {
-    final controller = TextEditingController();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Cancel this class?'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Every family in this batch is told the class is off and that a '
-              'make-up will be arranged. The academy owes them this class.',
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              decoration: const InputDecoration(
-                labelText: 'Reason (shown to parents)',
-                hintText: 'e.g. Deepavali holiday',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Keep class')),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Cancel class'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-
-    setState(() => _saving = true);
-    final messenger = ScaffoldMessenger.of(context);
-    final navigator = Navigator.of(context);
-    try {
-      final r = await sl<ApiClient>().cancelClass(widget.batchId, widget.date, controller.text.trim());
-      final code = r.statusCode ?? 0;
-      if (code >= 200 && code < 300) {
-        messenger.showSnackBar(const SnackBar(
-          content: Text('Class cancelled. Families have been told a make-up is owed.'),
-        ));
-        navigator.pop(true);
-        return;
-      }
-      messenger.showSnackBar(SnackBar(
-        content: Text(_message(r.data, 'Could not cancel the class.')),
-        backgroundColor: AppColors.error,
-      ));
-    } catch (_) {
-      messenger.showSnackBar(const SnackBar(
-        content: Text('Connection error. The class was not cancelled.'),
-        backgroundColor: AppColors.error,
-      ));
-    }
-    if (mounted) setState(() => _saving = false);
-  }
-
   int get _absentCount => _rows.where((r) => r.status == 'absent').length;
 
   @override
@@ -188,13 +125,6 @@ class _MarkAttendanceScreenState extends State<MarkAttendanceScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mark attendance'),
-        actions: [
-          if (!_loading && !cancelled && _rows.isNotEmpty)
-            TextButton(
-              onPressed: _saving ? null : _cancelClass,
-              child: const Text('Class off', style: TextStyle(color: Colors.white)),
-            ),
-        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -206,8 +136,9 @@ class _MarkAttendanceScreenState extends State<MarkAttendanceScreen> {
                     if (cancelled)
                       Expanded(
                         child: _Centered(
-                          text: 'This class is cancelled${_cancelReason?.isNotEmpty == true ? ' (${_cancelReason!})' : ''}.'
-                              '\nThe academy owes a make-up class.',
+                          text: 'The academy has cancelled this class'
+                              '${_cancelReason?.isNotEmpty == true ? ' (${_cancelReason!})' : ''}.'
+                              '\nA make-up will be arranged.',
                         ),
                       )
                     else if (_rows.isEmpty)
