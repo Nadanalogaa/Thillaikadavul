@@ -107,7 +107,6 @@ class ApiEndpoints {
       '$apiPrefix/fees/receipts/${Uri.encodeComponent(no)}/reverse';
   static String invoicePaymentById(int id) => '$apiPrefix/invoice-payments/$id';
 
-  static const String deleteMyAccount = '$apiPrefix/account/delete';
 
   // The version families should be running; public, checked before sign-in.
   static const String appVersion = '$apiPrefix/app-version';

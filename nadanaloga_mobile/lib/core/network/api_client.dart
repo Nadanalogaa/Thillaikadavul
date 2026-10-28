@@ -632,12 +632,6 @@ class ApiClient {
         data: {'reason': reason});
   }
 
-  /// Deletes the signed-in user's own account (Google Play requirement).
-  Future<Response> deleteMyAccount() {
-    return _dio.post(ApiEndpoints.deleteMyAccount,
-        options: Options(validateStatus: (_) => true));
-  }
-
   // --- Attendance API ---
 
   /// The signed-in teacher's classes on a date, and whether they are marked.
