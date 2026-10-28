@@ -4212,7 +4212,11 @@ Please review and approve this registration in the admin panel.`;
     // Helper function to parse JSON fields in batch data
     const parseBatchData = (batch) => ({
         ...batch,
-        schedule: typeof batch.schedule === 'string' ? JSON.parse(batch.schedule || '[]') : (batch.schedule || [])
+        // Tolerant: one row with a non-JSON schedule must not fail the whole list.
+        schedule: (() => {
+            if (typeof batch.schedule !== 'string') return batch.schedule || [];
+            try { return JSON.parse(batch.schedule || '[]'); } catch { return []; }
+        })()
     });
 
     app.get('/api/batches', async (req, res) => {

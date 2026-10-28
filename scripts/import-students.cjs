@@ -207,9 +207,10 @@ const count = (k, n = 1) => { summary[k] = (summary[k] || 0) + n; };
         const batchId = {};
         for (const b of DATA.batches) {
             const ids = studentsByBatch[b.key] || [];
-            const schedule = b.days.length
-                ? `${b.days.join(' & ')} ${b.start_time ? `${b.start_time}–${b.end_time}` : ''}`.trim()
-                : null;
+            // `schedule` is a legacy JSON column the batch list parses; the real
+            // timings are days/time_slots. Anything but a JSON array here 500s
+            // GET /api/batches, so write an empty array.
+            const schedule = '[]';
             const r = await client.query(
                 `INSERT INTO batches (batch_name, course_id, teacher_id, mode, days, start_time, end_time,
                                       time_slots, student_ids, schedule, start_date)
