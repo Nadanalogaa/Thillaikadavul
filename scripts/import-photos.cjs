@@ -44,9 +44,14 @@ if (!process.env.DATABASE_URL) { console.error('DATABASE_URL is required'); proc
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: false });
 
 /** Fetch a Drive file; resolves {buffer, type} or rejects if it is not public. */
+// Each request times out, and IPv4 is forced: inside the container a Drive
+// connection over IPv6 can stall for good, and a stalled file must not hang
+// the whole pass.
+const REQUEST_TIMEOUT_MS = 20000;
 const fetchDrive = (id) => new Promise((resolve, reject) => {
     const url = `https://drive.google.com/uc?export=download&id=${id}`;
-    const get = (u, hops) => https.get(u, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (r) => {
+    const get = (u, hops) => {
+        const rq = https.get(u, { headers: { 'User-Agent': 'Mozilla/5.0' }, family: 4, timeout: REQUEST_TIMEOUT_MS }, (r) => {
         if ([301, 302, 303, 307, 308].includes(r.statusCode) && r.headers.location && hops < 5) {
             r.resume();
             return get(new URL(r.headers.location, u).toString(), hops + 1);
@@ -60,7 +65,10 @@ const fetchDrive = (id) => new Promise((resolve, reject) => {
         r.on('data', c => chunks.push(c));
         r.on('end', () => resolve({ buffer: Buffer.concat(chunks), type }));
         r.on('error', reject);
-    }).on('error', reject);
+        });
+        rq.on('timeout', () => { rq.destroy(new Error(`timed out after ${REQUEST_TIMEOUT_MS / 1000}s`)); });
+        rq.on('error', reject);
+    };
     get(url, 0);
 });
 
@@ -72,9 +80,10 @@ const ext = (type) => type.includes('png') ? 'png' : type.includes('webp') ? 'we
     console.log(`${students.length} students have a Drive photo id`);
     if (!CHECK) fs.mkdirSync(PHOTO_DIR, { recursive: true });
 
-    let done = 0, skipped = 0, notFound = 0;
+    let done = 0, skipped = 0, notFound = 0, seen = 0;
     const problems = [];
     for (const s of students) {
+        if (++seen % 20 === 0) console.log(`  … ${seen} of ${students.length} checked`);
         const row = (await pool.query(
             `SELECT id, user_id FROM users WHERE role = 'Student' AND is_deleted = false
                AND LOWER(name) = LOWER($1) AND contact_number = $2 LIMIT 1`,
