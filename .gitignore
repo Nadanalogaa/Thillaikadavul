@@ -103,3 +103,8 @@ server/uploads/
 # Local data imports
 import-log.txt
 docs/NadanalogaDatas.csv
+
+# The academy's student register and its cleaned export: names, phones,
+# addresses and emails of every family. This repository is public.
+Nadanaloga_Students.xlsx
+scripts/students-import.json

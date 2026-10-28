@@ -2189,8 +2189,8 @@ async function startServer() {
     };
     // The primary login account for a match (a shared phone can return a family).
     const pickPrimaryAccount = (rows) =>
-        rows.find(r => (r.is_primary !== false) && r.email && r.email.includes('@') && !r.email.includes('@child.nadanaloga.local'))
-        || rows.find(r => r.email && r.email.includes('@') && !r.email.includes('@child.nadanaloga.local'))
+        rows.find(r => (r.is_primary !== false) && r.email && r.email.includes('@') && !r.email.includes('.nadanaloga.local'))
+        || rows.find(r => r.email && r.email.includes('@') && !r.email.includes('.nadanaloga.local'))
         || rows[0];
     const maskEmail = (e) => {
         if (!e || !e.includes('@')) return null;
@@ -2204,7 +2204,7 @@ async function startServer() {
             const { identifier } = req.body;
             if (!identifier) return res.status(400).json({ message: 'Enter your phone number, email, or ID.' });
             const account = pickPrimaryAccount(await findAccountsByIdentifier(identifier));
-            if (account && account.email && account.email.includes('@') && !account.email.includes('@child.nadanaloga.local')) {
+            if (account && account.email && account.email.includes('@') && !account.email.includes('.nadanaloga.local')) {
                 const code = String(Math.floor(100000 + Math.random() * 900000));
                 const codeHash = await bcrypt.hash(code, 10);
                 const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
@@ -2288,7 +2288,7 @@ async function startServer() {
             });
 
             try {
-                if (me.email && !String(me.email).endsWith('@child.nadanaloga.local')) {
+                if (me.email && !String(me.email).endsWith('.nadanaloga.local')) {
                     sendEmailBackground(me.email, me.name || 'there', 'Your Nadanaloga account has been deleted',
                         `Your Nadanaloga account${result.rows.length > 1 ? ` and ${result.rows.length - 1} linked student profile(s)` : ''} has been deleted at your request.\n\n` +
                         `You can no longer sign in. Personal details are removed from our systems within 30 days; ` +
@@ -3576,7 +3576,7 @@ Please review and approve this registration in the admin panel.`;
             const rows = (await pool.query(
                 `SELECT id, name, email, role, contact_number, parent_id, is_primary,
                         is_deleted, must_change_password,
-                        (email LIKE '%@child.nadanaloga.local') AS is_child_placeholder
+                        (email LIKE '%.nadanaloga.local') AS is_child_placeholder
                  FROM users WHERE ${phoneMatchSql('$1')}
                  ORDER BY is_deleted, parent_id NULLS FIRST, id`,
                 [digits]
@@ -6649,7 +6649,7 @@ Please review and approve this registration in the admin panel.`;
     // bill becomes paid (cash at the office, Razorpay, approved proof) and
     // reverseReceipt() the only way to undo one — so the app, the reports and
     // the cash drawer can never disagree.
-    const isRealEmail = (e) => !!e && String(e).includes('@') && !String(e).toLowerCase().endsWith('@child.nadanaloga.local');
+    const isRealEmail = (e) => !!e && String(e).includes('@') && !String(e).toLowerCase().endsWith('.nadanaloga.local');
     const inr = (n) => `₹${Math.round(Number(n || 0)).toLocaleString('en-IN')}`;
     const istDateTime = (d) => new Date(d || Date.now()).toLocaleString('en-IN', {
         timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
@@ -6688,7 +6688,7 @@ Please review and approve this registration in the admin panel.`;
             const adult = (await pool.query(
                 `SELECT id, name, email FROM users
                  WHERE ${phoneMatchSql('$1')} AND is_deleted = false AND parent_id IS NULL AND id <> $2
-                   AND COALESCE(email, '') NOT ILIKE '%@child.nadanaloga.local'
+                   AND COALESCE(email, '') NOT ILIKE '%.nadanaloga.local'
                  ORDER BY CASE WHEN LOWER(TRIM(role)) IN ('parent', 'teacher', 'admin') THEN 0 ELSE 1 END, id
                  LIMIT 1`, [digits, s.id]
             )).rows[0];
