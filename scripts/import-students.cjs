@@ -24,8 +24,19 @@
 const fs = require('fs');
 const path = require('path');
 
-const serverModules = path.join(__dirname, '..', 'server', 'node_modules');
-const req = (m) => { try { return require(m); } catch { return require(path.join(serverModules, m)); } };
+// pg and bcryptjs live under server/node_modules. Look there relative to this
+// file (repo checkout) and under /app (the container), whichever exists.
+const moduleDirs = [
+    path.join(__dirname, '..', 'server', 'node_modules'),
+    path.join(__dirname, 'node_modules'),
+    '/app/server/node_modules',
+].filter(d => fs.existsSync(d));
+const req = (m) => {
+    try { return require(m); } catch (e) {
+        for (const d of moduleDirs) { try { return require(path.join(d, m)); } catch {} }
+        throw e;
+    }
+};
 const { Pool } = req('pg');
 const bcrypt = req('bcryptjs');
 
