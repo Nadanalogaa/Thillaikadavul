@@ -345,7 +345,7 @@ class _AccordionTeacherCardState extends State<_AccordionTeacherCard> {
                   const SizedBox(height: 10),
 
                   // Details
-                  _CompactInfoRow(icon: Icons.email_outlined, label: 'Email', value: teacher.email),
+                  _CompactInfoRow(icon: Icons.email_outlined, label: 'Email', value: teacher.shownEmail),
                   const SizedBox(height: 6),
                   _CompactInfoRow(icon: Icons.phone_outlined, label: 'Phone', value: teacher.contactNumber ?? '-'),
                   if (teacher.courseExpertise.isNotEmpty) ...[

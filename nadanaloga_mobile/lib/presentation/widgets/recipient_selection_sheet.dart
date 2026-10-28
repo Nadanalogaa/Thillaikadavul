@@ -642,7 +642,7 @@ class _RecipientSelectionSheetState extends State<RecipientSelectionSheet>
       onChanged: (val) => onChanged(val ?? false),
       activeColor: AppColors.primary,
       title: Text(user.name, style: AppTextStyles.labelLarge),
-      subtitle: Text(user.email, style: AppTextStyles.caption),
+      subtitle: Text(user.shownEmail, style: AppTextStyles.caption),
       secondary: CircleAvatar(
         radius: 18,
         backgroundColor: AppColors.primary.withValues(alpha: 0.1),

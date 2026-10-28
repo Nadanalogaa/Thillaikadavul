@@ -18,6 +18,7 @@ import {
     UtcTimeSlot
 } from '../../utils/timezone';
 import TimezoneDetector from '../TimezoneDetector';
+import { displayEmail } from '../../utils/displayEmail';
 
 interface EditBatchModalProps {
     isOpen: boolean;
@@ -59,7 +60,7 @@ const StudentPopover: React.FC<{
                         </div>
                         <div>
                             <h3 className="font-semibold text-gray-900">{student.name}</h3>
-                            <p className="text-sm text-gray-600">{student.email}</p>
+                            <p className="text-sm text-gray-600">{displayEmail(student)}</p>
                         </div>
                     </div>
                     

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Modal from '../Modal';
 import ModalHeader from '../ModalHeader';
 import type { User } from '../../types';
+import { displayEmail } from '../../utils/displayEmail';
 
 interface SendNotificationModalProps {
   isOpen: boolean;
@@ -93,7 +94,7 @@ const SendNotificationModal: React.FC<SendNotificationModalProps> = ({ isOpen, o
           <div className="bg-gray-50 p-3 rounded-md max-h-32 overflow-y-auto border">
             <h4 className="text-sm font-medium text-gray-600 mb-2">Recipients:</h4>
             <ul className="text-sm text-gray-500 list-disc list-inside space-y-1">
-              {recipients.map(r => <li key={r.id}>{r.name} ({r.email})</li>)}
+              {recipients.map(r => <li key={r.id}>{r.name} ({displayEmail(r) || 'no email'})</li>)}
             </ul>
           </div>
         </div>

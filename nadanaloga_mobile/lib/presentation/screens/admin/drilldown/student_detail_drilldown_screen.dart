@@ -138,7 +138,7 @@ class _ProfileTab extends StatelessWidget {
             title: 'Contact Information',
             icon: Icons.contact_phone_outlined,
             items: [
-              _InfoRow('Email', student.email),
+              _InfoRow('Email', student.shownEmail),
               _InfoRow('Phone', student.contactNumber ?? '-'),
               _InfoRow('Address', student.address ?? '-'),
             ],

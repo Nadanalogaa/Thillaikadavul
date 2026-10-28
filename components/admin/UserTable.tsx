@@ -3,6 +3,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import type { User } from '../../types';
 import { ArrowRightIcon } from '../icons';
+import { displayEmail } from '../../utils/displayEmail';
 
 interface UserTableProps {
     title: string;
@@ -43,7 +44,7 @@ const UserTable: React.FC<UserTableProps> = ({ title, users, onEdit, onDelete, v
                                 users.map((user) => (
                                     <tr key={user.id} className="hover:bg-gray-50">
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.name}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{displayEmail(user)}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.classPreference}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
                                             <button onClick={() => onEdit(user)} className="text-brand-primary hover:text-brand-dark">Edit</button>

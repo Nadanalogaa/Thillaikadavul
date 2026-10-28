@@ -161,6 +161,8 @@ export interface User {
   userId?: string | null;
   name: string;
   email: string;
+  // Address to show: own when real, else the family's (children have a stand-in login).
+  contactEmail?: string | null;
   password?: string; // In a real app, this should be a secure hash. Optional on client.
   role: UserRole;
   classPreference?: ClassPreference; 

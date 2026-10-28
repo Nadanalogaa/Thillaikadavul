@@ -466,8 +466,8 @@ class _ParentStudentDetailScreenState extends State<ParentStudentDetailScreen> w
               _buildInfoRow(Icons.event, 'Joined On', _formatDate(student.dateOfJoining)),
             if (student.contactNumber != null)
               _buildInfoRow(Icons.phone, 'Contact', student.contactNumber!),
-            if (student.email.isNotEmpty)
-              _buildInfoRow(Icons.email, 'Email', student.email),
+            if (student.shownEmail.isNotEmpty)
+              _buildInfoRow(Icons.email, 'Email', student.shownEmail),
           ],
         ),
         const SizedBox(height: 16),

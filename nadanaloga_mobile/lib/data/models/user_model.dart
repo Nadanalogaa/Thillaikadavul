@@ -75,6 +75,9 @@ class UserModel {
   final String? userId; // NDA-YYYY-XXXX
   final String name;
   final String email;
+  /// The address to show: this user's own when real, else the family's
+  /// (children have a stand-in login address). Null when the family has none.
+  final String? contactEmail;
   final String role; // Admin, Teacher, Student
   final bool isSuperAdmin;
   final String? classPreference;
@@ -111,6 +114,7 @@ class UserModel {
     this.userId,
     required this.name,
     required this.email,
+    this.contactEmail,
     required this.role,
     this.isSuperAdmin = false,
     this.classPreference,
@@ -149,6 +153,7 @@ class UserModel {
       userId: json['user_id'] as String?,
       name: json['name'] ?? '',
       email: json['email'] ?? '',
+      contactEmail: json['contact_email'] as String?,
       role: _normalizeRole(json['role'] as String? ?? 'Student'),
       isSuperAdmin: json['is_super_admin'] == true,
       classPreference: json['class_preference'] as String?,
@@ -192,12 +197,23 @@ class UserModel {
     );
   }
 
+  /// The email to put on screen. Never the stand-in "…nadanaloga.local"
+  /// login address; empty when there is nothing real to show.
+  String get shownEmail {
+    final c = contactEmail?.trim() ?? '';
+    if (c.isNotEmpty) return c;
+    final e = email.trim();
+    if (e.isEmpty || e.toLowerCase().endsWith('.nadanaloga.local')) return '';
+    return e;
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'user_id': userId,
       'name': name,
       'email': email,
+      'contact_email': contactEmail,
       'role': role,
       'is_super_admin': isSuperAdmin,
       'class_preference': classPreference,
@@ -307,6 +323,7 @@ class UserModel {
       userId: userId ?? this.userId,
       name: name ?? this.name,
       email: email ?? this.email,
+      contactEmail: contactEmail,
       role: role ?? this.role,
       isSuperAdmin: isSuperAdmin ?? this.isSuperAdmin,
       classPreference: classPreference ?? this.classPreference,

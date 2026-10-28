@@ -161,7 +161,7 @@ class _EditUserScreenState extends State<EditUserScreen> {
 
                           // Email (read-only)
                           TextFormField(
-                            initialValue: _user!.email,
+                            initialValue: _user!.shownEmail,
                             decoration: const InputDecoration(
                               labelText: 'Email',
                               prefixIcon: Icon(Icons.email),

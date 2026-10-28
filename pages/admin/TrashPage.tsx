@@ -5,6 +5,7 @@ import { getTrashedUsers, restoreUser, deleteUserPermanently } from '../../api';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useTheme } from '../../contexts/ThemeContext';
+import { displayEmail } from '../../utils/displayEmail';
 
 const TrashPage: React.FC = () => {
     const { theme } = useTheme();
@@ -79,7 +80,7 @@ const TrashPage: React.FC = () => {
                                             <tr key={user.id} className="hover:bg-gray-50">
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.name}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.role}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{displayEmail(user)}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.deletedAt ? new Date(user.deletedAt).toLocaleString() : 'N/A'}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
                                                     <button onClick={() => handleRestore(user.id)} className="text-green-600 hover:text-green-800">Restore</button>

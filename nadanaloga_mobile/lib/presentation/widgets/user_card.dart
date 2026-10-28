@@ -141,7 +141,7 @@ class UserCard extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          user.email,
+          user.shownEmail,
           style: AppTextStyles.caption,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,

@@ -7,6 +7,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import Modal from '../../components/Modal';
 import ModalHeader from '../../components/ModalHeader';
 import SendContentNotificationModal from '../../components/admin/SendContentNotificationModal';
+import { displayEmail } from '../../utils/displayEmail';
 
 const EventForm: React.FC<{ event?: Partial<Event>, onSave: (event: Partial<Event>) => Promise<void>, isLoading: boolean }> = ({ event, onSave, isLoading }) => {
     const [formData, setFormData] = useState<Partial<Event>>({});
@@ -375,7 +376,7 @@ const EventsManagementPage: React.FC = () => {
                                         {responseStats[viewingResponses.id].acceptedUsers.map((user: any) => (
                                             <div key={user.id} className="bg-green-50 p-3 rounded-lg border border-green-200">
                                                 <div className="font-medium text-green-900">{user.name}</div>
-                                                <div className="text-sm text-green-700">{user.email}</div>
+                                                <div className="text-sm text-green-700">{displayEmail(user)}</div>
                                             </div>
                                         ))}
                                     </div>
@@ -390,7 +391,7 @@ const EventsManagementPage: React.FC = () => {
                                         {responseStats[viewingResponses.id].maybeUsers.map((user: any) => (
                                             <div key={user.id} className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
                                                 <div className="font-medium text-yellow-900">{user.name}</div>
-                                                <div className="text-sm text-yellow-700">{user.email}</div>
+                                                <div className="text-sm text-yellow-700">{displayEmail(user)}</div>
                                             </div>
                                         ))}
                                     </div>
@@ -405,7 +406,7 @@ const EventsManagementPage: React.FC = () => {
                                         {responseStats[viewingResponses.id].declinedUsers.map((user: any) => (
                                             <div key={user.id} className="bg-red-50 p-3 rounded-lg border border-red-200">
                                                 <div className="font-medium text-red-900">{user.name}</div>
-                                                <div className="text-sm text-red-700">{user.email}</div>
+                                                <div className="text-sm text-red-700">{displayEmail(user)}</div>
                                             </div>
                                         ))}
                                     </div>

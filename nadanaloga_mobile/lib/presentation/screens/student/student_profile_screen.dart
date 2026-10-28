@@ -94,7 +94,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                           _InfoRow(
                             icon: Icons.email,
                             label: 'Email',
-                            value: user.email,
+                            value: user.shownEmail,
                           ),
                           if (user.contactNumber != null)
                             _InfoRow(
@@ -351,7 +351,7 @@ class _ProfileHeaderCard extends StatelessWidget {
 
           // Email
           Text(
-            user.email,
+            user.shownEmail,
             style: AppTextStyles.bodyMedium.copyWith(
               color: AppColors.textSecondary,
             ),

@@ -7,6 +7,7 @@ import { CourseIcon, SparklesIcon } from '../../components/icons';
 import WizardTabs from '../../components/WizardTabs';
 import { InvoiceStatus } from '../../types';
 import EditUserModal from '../../components/admin/EditUserModal';
+import { displayEmail } from '../../utils/displayEmail';
 
 interface StudentProfileViewPageProps {
     studentId: string;
@@ -252,7 +253,7 @@ const StudentProfileViewPage: React.FC<StudentProfileViewPageProps> = ({ student
                  return (
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                          <InfoField label="Parent's/Guardian's Name" value={student.fatherName} />
-                         <InfoField label="Email ID" value={student.email} />
+                         <InfoField label="Email ID" value={displayEmail(student) || 'Not given'} />
                          <InfoField label="Contact Number" value={student.contactNumber} />
                          <InfoField label="Alternate Contact" value={student.alternateContactNumber} />
                          <InfoField label="Country" value={student.country} />

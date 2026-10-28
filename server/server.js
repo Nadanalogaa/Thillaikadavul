@@ -3112,6 +3112,34 @@ Please review and approve this registration in the admin panel.`;
         };
     };
 
+    // A child profile has a stand-in login address (…@child.nadanaloga.local)
+    // because each email can belong to one login only; the family's real address
+    // sits on the parent. Screens show contact_email: the user's own address when
+    // it is real, else the parent's, else a real address on the same phone
+    // number. Null when the family has none. `email` itself is left alone so an
+    // edit-and-save never tries to give the child the parent's address.
+    const isPlaceholderEmail = (e) => !e || !String(e).includes('@') || String(e).toLowerCase().endsWith('.nadanaloga.local');
+    const attachContactEmails = async (users) => {
+        const needs = users.filter(u => isPlaceholderEmail(u.email));
+        for (const u of users) u.contact_email = isPlaceholderEmail(u.email) ? null : u.email;
+        if (!needs.length) return users;
+        const parentIds = [...new Set(needs.map(u => u.parent_id).filter(Boolean))];
+        const phones = [...new Set(needs.map(u => u.contact_number).filter(Boolean))];
+        const rows = (await pool.query(
+            `SELECT id, email, contact_number, is_primary FROM users
+              WHERE is_deleted = false AND email LIKE '%@%' AND email NOT ILIKE '%.nadanaloga.local'
+                AND (id = ANY($1::int[]) OR contact_number = ANY($2::text[]))
+              ORDER BY is_primary DESC NULLS LAST, id`,
+            [parentIds, phones])).rows;
+        const byId = new Map(rows.map(r => [r.id, r.email]));
+        const byPhone = new Map();
+        for (const r of rows) if (r.contact_number && !byPhone.has(r.contact_number)) byPhone.set(r.contact_number, r.email);
+        for (const u of needs) {
+            u.contact_email = (u.parent_id && byId.get(u.parent_id)) || (u.contact_number && byPhone.get(u.contact_number)) || null;
+        }
+        return users;
+    };
+
     // Get all non-deleted users
     app.get('/api/users', ensureAdmin, async (req, res) => {
         try {
@@ -3191,7 +3219,7 @@ Please review and approve this registration in the admin panel.`;
                 }
             }
 
-            res.json(users);
+            res.json(await attachContactEmails(users));
         } catch (error) {
             console.error('Error fetching users:', error);
             res.status(500).json({ message: 'Server error fetching users.' });
@@ -3211,7 +3239,7 @@ Please review and approve this registration in the admin panel.`;
                 'SELECT * FROM users WHERE id = ANY($1) AND is_deleted = false ORDER BY parent_id NULLS FIRST, COALESCE(display_name, name)',
                 [ids]
             )).rows;
-            res.json(rows.map(parseUserData));
+            res.json(await attachContactEmails(rows.map(parseUserData)));
         } catch (error) {
             console.error('Error fetching family:', error);
             res.status(500).json({ message: 'Server error fetching family.' });
@@ -3226,7 +3254,7 @@ Please review and approve this registration in the admin panel.`;
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: 'User not found' });
             }
-            res.json(parseUserData(result.rows[0]));
+            res.json((await attachContactEmails([parseUserData(result.rows[0])]))[0]);
         } catch (error) {
             console.error('Error fetching user:', error);
             res.status(500).json({ message: 'Server error fetching user.' });
@@ -3303,7 +3331,7 @@ Please review and approve this registration in the admin panel.`;
                 'SELECT * FROM users WHERE parent_id = $1 AND is_deleted = false ORDER BY display_name',
                 [id]
             );
-            res.json(result.rows.map(parseUserData));
+            res.json(await attachContactEmails(result.rows.map(parseUserData)));
         } catch (error) {
             console.error('Error listing child profiles:', error);
             res.status(500).json({ message: 'Server error listing child profiles.' });

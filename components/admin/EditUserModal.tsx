@@ -8,6 +8,7 @@ import DocumentManager from './DocumentManager';
 import TabButton from './TabButton';
 import StudentAssignmentManager from './StudentAssignmentManager';
 import QuickBatchCreateModal from './QuickBatchCreateModal';
+import { displayEmail, isPlaceholderEmail } from '../../utils/displayEmail';
 import {
     FormModalShell, Section, Field, FieldGrid, PhotoPicker,
     inputClass, selectClass, textareaClass,
@@ -264,9 +265,16 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, user, on
                     <Field label="Parent / guardian's name" span={3} htmlFor="edit-fatherName">
                         <input type="text" id="edit-fatherName" name="fatherName" value={formData.fatherName || ''} onChange={handleChange} className={inputClass} />
                     </Field>
-                    <Field label="Email address" span={3} htmlFor="edit-email">
-                        <input type="email" id="edit-email" name="email" value={formData.email || ''} onChange={handleChange} required className={inputClass} />
-                    </Field>
+                    {isPlaceholderEmail(formData.email) ? (
+                        // A child's own login address is a stand-in; the real one is on the parent's login.
+                        <Field label="Family email (from parent's login)" span={3} htmlFor="edit-email">
+                            <input type="text" id="edit-email" value={displayEmail(formData) || 'No family email on file'} readOnly disabled className={inputClass} />
+                        </Field>
+                    ) : (
+                        <Field label="Email address" span={3} htmlFor="edit-email">
+                            <input type="email" id="edit-email" name="email" value={formData.email || ''} onChange={handleChange} required className={inputClass} />
+                        </Field>
+                    )}
                     <Field label="Contact number" span={3} htmlFor="edit-contactNumber">
                         <input type="tel" id="edit-contactNumber" name="contactNumber" value={formData.contactNumber || ''} onChange={handleChange} required className={inputClass} />
                     </Field>

@@ -11,6 +11,7 @@ import '../../../../data/models/user_model.dart';
 import '../../../../data/models/grade_model.dart';
 import '../../../../data/models/course_model.dart';
 import '../../../../di/injection_container.dart';
+import '../../../../core/utils/date_display.dart';
 import '../../../bloc/auth/auth_bloc.dart';
 import '../../../bloc/auth/auth_state.dart';
 import '../../../bloc/user_management/user_management_bloc.dart';
@@ -258,7 +259,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
 
             // Personal info
             _SectionHeader(title: 'Personal Information'),
-            _InfoRow(icon: Icons.email, label: 'Email', value: user.email),
+            _InfoRow(icon: Icons.email, label: 'Email', value: user.shownEmail.isEmpty ? 'Not given' : user.shownEmail),
             if (user.contactNumber != null)
               _InfoRow(
                   icon: Icons.phone,
@@ -276,7 +277,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                   value: user.address!),
             if (user.dob != null)
               _InfoRow(
-                  icon: Icons.cake, label: 'Date of Birth', value: user.dob!),
+                  icon: Icons.cake, label: 'Date of Birth', value: formatDisplayDate(user.dob)),
             if (user.sex != null)
               _InfoRow(icon: Icons.wc, label: 'Gender', value: user.sex!),
 
@@ -325,7 +326,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                 _InfoRow(
                   icon: Icons.calendar_today,
                   label: 'Joined',
-                  value: user.dateOfJoining!,
+                  value: formatDisplayDate(user.dateOfJoining),
                 ),
             ],
 

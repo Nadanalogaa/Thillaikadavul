@@ -3,6 +3,7 @@ import type { User, Course } from '../../types';
 import { getAdminUsers, getCourses, getStudentDiscounts, createStudentDiscount, deleteStudentDiscount } from '../../api';
 import AdminLayout from '../../components/admin/AdminLayout';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
+import { displayEmail } from '../../utils/displayEmail';
 
 const DiscountManagementPage: React.FC = () => {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -156,7 +157,7 @@ const DiscountManagementPage: React.FC = () => {
                       <input type="checkbox" checked={isSel} onChange={() => toggle(String(s.id))} className="h-4 w-4" />
                       <div className="flex-grow">
                         <p className="text-sm font-medium text-gray-800">{s.name}</p>
-                        <p className="text-xs text-gray-500">{s.email}</p>
+                        <p className="text-xs text-gray-500">{displayEmail(s)}</p>
                       </div>
                       {existing && (
                         <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">{Number(existing.discount_percentage)}% off</span>

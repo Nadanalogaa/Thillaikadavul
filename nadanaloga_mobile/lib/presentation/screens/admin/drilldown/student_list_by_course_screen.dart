@@ -62,7 +62,7 @@ class _StudentListByCourseScreenState extends State<StudentListByCourseScreen> {
       filtered = filtered.where((s) {
         return s.name.toLowerCase().contains(query) ||
             (s.fatherName?.toLowerCase().contains(query) ?? false) ||
-            s.email.toLowerCase().contains(query) ||
+            s.email.toLowerCase().contains(query) || s.shownEmail.toLowerCase().contains(query) ||
             (s.contactNumber?.contains(query) ?? false) ||
             (s.userId?.toLowerCase().contains(query) ?? false);
       }).toList();
@@ -449,7 +449,7 @@ class _AccordionStudentCardState extends State<_AccordionStudentCard> {
                   Row(
                     children: [
                       Expanded(child: _CompactInfoItem(icon: Icons.calendar_today_outlined, label: 'Joined', value: _formatDate(student.dateOfJoining))),
-                      Expanded(child: _CompactInfoItem(icon: Icons.email_outlined, label: 'Email', value: student.email)),
+                      Expanded(child: _CompactInfoItem(icon: Icons.email_outlined, label: 'Email', value: student.shownEmail)),
                     ],
                   ),
                   const SizedBox(height: 8),

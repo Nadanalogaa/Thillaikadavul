@@ -82,7 +82,7 @@ class TrashScreen extends StatelessWidget {
                         children: [
                           const SizedBox(height: 4),
                           Text(
-                            user.email,
+                            user.shownEmail,
                             style: AppTextStyles.bodyMedium.copyWith(
                               color: AppColors.textSecondary,
                             ),

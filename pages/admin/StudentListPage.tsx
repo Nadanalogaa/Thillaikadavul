@@ -13,6 +13,7 @@ import Tooltip from '../../components/Tooltip';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useTheme } from '../../contexts/ThemeContext';
+import { displayEmail } from '../../utils/displayEmail';
 
 type SortDirection = 'ascending' | 'descending';
 type SortConfig = { key: keyof User; direction: SortDirection } | null;
@@ -198,6 +199,7 @@ const StudentListPage: React.FC = () => {
                     student.name,
                     student.id,
                     student.email,
+                    displayEmail(student),
                     student.grade,
                     student.contactNumber,
                     ...(student.courses || []),
