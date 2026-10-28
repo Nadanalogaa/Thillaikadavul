@@ -105,7 +105,7 @@ class MemberDetailScreen extends StatelessWidget {
     return HomeCard(
       child: Row(
         children: [
-          InitialsAvatar(member.name, size: 56),
+          InitialsAvatar(member.name, size: 56, photoUrl: member.photoUrl),
           const SizedBox(width: 14),
           Expanded(
             child: Column(

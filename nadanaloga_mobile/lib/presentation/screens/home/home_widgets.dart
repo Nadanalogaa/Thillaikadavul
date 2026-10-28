@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/utils/media_url.dart';
+import '../../widgets/user_avatar.dart';
+
 import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
 
@@ -107,13 +110,16 @@ class StatusPill extends StatelessWidget {
   }
 }
 
-/// Initials in a soft coloured circle; the colour is stable per name.
+/// The person's photo when there is one, else initials in a soft coloured
+/// circle; the colour is stable per name.
 class InitialsAvatar extends StatelessWidget {
   final String name;
   final double size;
   final Color? color;
+  final String? photoUrl;
 
-  const InitialsAvatar(this.name, {super.key, this.size = 44, this.color});
+  const InitialsAvatar(this.name,
+      {super.key, this.size = 44, this.color, this.photoUrl});
 
   static const _palette = [
     Color(0xFF7B1FA2),
@@ -136,6 +142,17 @@ class InitialsAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = color ??
         _palette[name.codeUnits.fold<int>(0, (a, b) => a + b) % _palette.length];
+    final photo = absoluteMediaUrl(photoUrl);
+    if (photo != null) {
+      return UserAvatar(
+        photoUrl: photo,
+        name: name,
+        radius: size / 2,
+        color: c.withValues(alpha: 0.14),
+        foreground: c,
+        fontSize: size * 0.36,
+      );
+    }
     return Container(
       width: size,
       height: size,

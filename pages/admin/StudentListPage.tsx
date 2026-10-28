@@ -611,6 +611,14 @@ const StudentListPage: React.FC = () => {
                                                     />
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                  <div className="flex items-center gap-3">
+                                                    <img
+                                                        src={user.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=e8eaf6&color=1a237e&size=80`}
+                                                        alt=""
+                                                        className="h-10 w-10 flex-shrink-0 rounded-full object-cover ring-1 ring-gray-200"
+                                                        onError={(e) => { (e.currentTarget as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=e8eaf6&color=1a237e&size=80`; }}
+                                                    />
+                                                    <div className="min-w-0">
                                                     <Link to={`/admin/student/${user.id}`} className="text-brand-primary hover:text-brand-dark hover:underline">
                                                         {user.name}
                                                     </Link>
@@ -620,6 +628,8 @@ const StudentListPage: React.FC = () => {
                                                     <div className="text-xs text-gray-500 mt-1">
                                                         ID: <span className="font-mono">{user.userId || user.id}</span> | {user.classPreference || 'N/A'}
                                                     </div>
+                                                    </div>
+                                                  </div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                     <div className="flex items-center space-x-2">

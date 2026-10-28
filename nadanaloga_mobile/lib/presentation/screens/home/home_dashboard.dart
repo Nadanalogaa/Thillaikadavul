@@ -435,7 +435,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
                 padding: const EdgeInsets.symmetric(vertical: 5),
                 child: Row(
                   children: [
-                    InitialsAvatar(s.name, size: 26),
+                    InitialsAvatar(s.name, size: 26, photoUrl: s.photoUrl),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(s.name,
@@ -774,7 +774,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
         padding: const EdgeInsets.fromLTRB(14, 14, 8, 14),
         child: Row(
           children: [
-            InitialsAvatar(m.name),
+            InitialsAvatar(m.name, photoUrl: m.photoUrl),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

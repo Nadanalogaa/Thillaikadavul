@@ -4533,7 +4533,7 @@ Please review and approve this registration in the admin panel.`;
             if (studentIds.length > 0) {
                 const studentResult = await pool.query(
                     `SELECT u.id, u.name, u.email, u.user_id, u.contact_number, u.father_name AS parent_name,
-                            u.class_preference, g.name AS grade
+                            u.class_preference, u.photo_url, g.name AS grade
                        FROM users u
                        LEFT JOIN student_course_grades scg ON scg.student_id = u.id AND scg.course_id = $2
                        LEFT JOIN grades g ON g.id = scg.grade_id

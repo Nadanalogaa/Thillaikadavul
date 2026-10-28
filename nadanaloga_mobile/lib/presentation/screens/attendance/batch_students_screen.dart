@@ -5,6 +5,7 @@ import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
 import '../../../core/network/api_client.dart';
 import '../../../di/injection_container.dart';
+import '../../widgets/user_avatar.dart';
 
 /// The students in one of a teacher's batches: name, parent, phone to tap,
 /// and the grade in this course. Read-only; the admin changes membership.
@@ -116,10 +117,11 @@ class _BatchStudentsScreenState extends State<BatchStudentsScreen> {
         padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
         child: Row(
           children: [
-            CircleAvatar(
-              backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-              child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
-                  style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+            UserAvatar(
+              photoUrl: s['photo_url'] as String?,
+              name: name,
+              color: AppColors.primary.withValues(alpha: 0.12),
+              foreground: AppColors.primary,
             ),
             const SizedBox(width: 12),
             Expanded(

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../../core/utils/media_url.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
@@ -238,7 +240,7 @@ class _AccordionTeacherCardState extends State<_AccordionTeacherCard> {
                     radius: 20,
                     backgroundColor: AppColors.teacherAccent.withOpacity(0.1),
                     backgroundImage: teacher.photoUrl != null && teacher.photoUrl!.isNotEmpty
-                        ? NetworkImage(teacher.photoUrl!)
+                        ? NetworkImage(absoluteMediaUrl(teacher.photoUrl)!)
                         : null,
                     child: teacher.photoUrl == null || teacher.photoUrl!.isEmpty
                         ? Text(

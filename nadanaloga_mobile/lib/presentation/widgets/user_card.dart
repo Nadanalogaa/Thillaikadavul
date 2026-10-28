@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import 'user_avatar.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/theme/app_colors.dart';
@@ -28,16 +30,11 @@ class UserCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
+              UserAvatar(
+                photoUrl: user.photoUrl,
+                name: user.name,
                 radius: 22,
-                backgroundColor: _avatarColor(user.role),
-                child: Text(
-                  user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                color: _avatarColor(user.role),
               ),
               const SizedBox(width: 12),
               Expanded(

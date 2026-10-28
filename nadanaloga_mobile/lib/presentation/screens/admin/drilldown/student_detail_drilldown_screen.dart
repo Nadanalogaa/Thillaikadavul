@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../../core/utils/media_url.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
@@ -218,7 +220,7 @@ class _ProfileHeader extends StatelessWidget {
             radius: 50,
             backgroundColor: Colors.white,
             backgroundImage: student.photoUrl != null && student.photoUrl!.isNotEmpty
-                ? NetworkImage(student.photoUrl!)
+                ? NetworkImage(absoluteMediaUrl(student.photoUrl)!)
                 : null,
             child: student.photoUrl == null || student.photoUrl!.isEmpty
                 ? Text(

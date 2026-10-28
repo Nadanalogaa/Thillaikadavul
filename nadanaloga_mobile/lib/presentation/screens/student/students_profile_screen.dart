@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/utils/date_display.dart';
+
+import '../../widgets/user_avatar.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../config/theme/app_colors.dart';
@@ -88,7 +92,7 @@ class _StudentsProfileScreenState extends State<StudentsProfileScreen> {
   Widget _card(UserModel s) {
     final rows = <List<String>>[
       if (s.userId != null && s.userId!.isNotEmpty) ['ID', s.userId!],
-      if (s.dob != null && s.dob!.isNotEmpty) ['Date of birth', s.dob!],
+      if (s.dob != null && s.dob!.isNotEmpty) ['Date of birth', formatDisplayDate(s.dob!)],
       if (s.sex != null && s.sex!.isNotEmpty) ['Gender', s.sex!],
       if (s.schoolName != null && s.schoolName!.isNotEmpty) ['School', s.schoolName!],
       if (s.standard != null && s.standard!.isNotEmpty) ['Standard', s.standard!],
@@ -97,7 +101,7 @@ class _StudentsProfileScreenState extends State<StudentsProfileScreen> {
       if (s.classPreference != null && s.classPreference!.isNotEmpty)
         ['Class preference', s.classPreference!],
       if (s.dateOfJoining != null && s.dateOfJoining!.isNotEmpty)
-        ['Joined', s.dateOfJoining!],
+        ['Joined', formatDisplayDate(s.dateOfJoining!)],
     ];
     return Card(
       shape: RoundedRectangleBorder(
@@ -111,15 +115,11 @@ class _StudentsProfileScreenState extends State<StudentsProfileScreen> {
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                  backgroundImage:
-                      s.photoUrl != null ? NetworkImage(s.photoUrl!) : null,
-                  child: s.photoUrl == null
-                      ? Text(s.name.isNotEmpty ? s.name[0].toUpperCase() : '?',
-                          style: AppTextStyles.labelLarge
-                              .copyWith(color: AppColors.primary))
-                      : null,
+                UserAvatar(
+                  photoUrl: s.photoUrl,
+                  name: s.name,
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  foreground: AppColors.primary,
                 ),
                 const SizedBox(width: 10),
                 Expanded(

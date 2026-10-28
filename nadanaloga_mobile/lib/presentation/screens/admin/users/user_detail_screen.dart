@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../widgets/user_avatar.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -227,17 +229,12 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
             Center(
               child: Column(
                 children: [
-                  CircleAvatar(
+                  UserAvatar(
+                    photoUrl: user.photoUrl,
+                    name: user.name,
                     radius: 40,
-                    backgroundColor: _avatarColor(user.role),
-                    child: Text(
-                      user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    color: _avatarColor(user.role),
+                    fontSize: 32,
                   ),
                   const SizedBox(height: 12),
                   Text(user.name, style: AppTextStyles.h2),
@@ -371,14 +368,10 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                   (child) => Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: AppColors.studentAccent,
-                        child: Text(
-                          child.name.isNotEmpty
-                              ? child.name[0].toUpperCase()
-                              : '?',
-                          style: const TextStyle(color: Colors.white),
-                        ),
+                      leading: UserAvatar(
+                        photoUrl: child.photoUrl,
+                        name: child.name,
+                        color: AppColors.studentAccent,
                       ),
                       title: Text(child.name),
                       subtitle: Text(child.userId ?? 'Student'),
