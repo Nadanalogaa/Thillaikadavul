@@ -12,6 +12,41 @@ import 'api_interceptors.dart';
 class ApiClient {
   late final Dio _dio;
   late final CookieJar _cookieJar;
+
+  /// Called once when the server stops accepting this session, so the app can
+  /// sign the user out and show the login screen. Without it an expired
+  /// session left every screen empty, with nothing explaining why.
+  void Function()? onSessionExpired;
+  bool _handlingExpiry = false;
+
+  /// Signing in and registering answer 401 for a wrong password, which must
+  /// stay on the form rather than bouncing the user to the login screen.
+  static const _authPaths = {
+    '/api/login',
+    '/api/logout',
+    '/api/register',
+    '/api/check-email',
+    '/api/forgot-password',
+    '/api/reset-password',
+    '/api/auth/me',
+  };
+
+  Interceptor get _sessionExpiryInterceptor => InterceptorsWrapper(
+        onResponse: (response, handler) {
+          if (response.statusCode == 401) {
+            final path = Uri.tryParse(response.requestOptions.path)?.path ??
+                response.requestOptions.path;
+            if (!_authPaths.contains(path) && !_handlingExpiry) {
+              _handlingExpiry = true;
+              clearCookies().whenComplete(() {
+                onSessionExpired?.call();
+                _handlingExpiry = false;
+              });
+            }
+          }
+          handler.next(response);
+        },
+      );
   bool _initialized = false;
 
   Dio get dio => _dio;
@@ -42,7 +77,10 @@ class ApiClient {
       // and skip the manual cookie interceptor — browsers forbid setting the
       // Cookie header from JS, so it's redundant and would otherwise crash init.
       _cookieJar = CookieJar();
-      _dio.interceptors.add(LoggingInterceptor());
+      _dio.interceptors.addAll([
+        LoggingInterceptor(),
+        _sessionExpiryInterceptor,
+      ]);
     } else {
       // Native: persist the session cookie across app restarts.
       final dir = await getApplicationDocumentsDirectory();
@@ -52,6 +90,7 @@ class ApiClient {
       _dio.interceptors.addAll([
         CookieManager(_cookieJar),
         LoggingInterceptor(),
+        _sessionExpiryInterceptor,
       ]);
     }
 

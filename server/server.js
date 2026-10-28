@@ -1131,6 +1131,20 @@ async function startServer() {
         }
     }));
 
+    // Families should not be signed out of the app. The cookie is rolling, so
+    // any use renews it: opening the app once a year is enough. Admins get a
+    // shorter life because their account can change everyone's data and is more
+    // often used on a shared or office machine.
+    const SESSION_DAYS_ADMIN = 30;
+    const SESSION_DAYS_FAMILY = 365;
+    const applySessionLength = (req, user) => {
+        const role = String(user?.role || '').toLowerCase();
+        const days = (role === 'admin' || user?.is_super_admin === true)
+            ? SESSION_DAYS_ADMIN
+            : SESSION_DAYS_FAMILY;
+        req.session.cookie.maxAge = days * 24 * 60 * 60 * 1000;
+    };
+
     const ensureAuthenticated = (req, res, next) => {
         if (req.session.user) return next();
         res.status(401).json({ message: 'Unauthorized' });
@@ -2154,6 +2168,7 @@ async function startServer() {
             req.session.profiles = profiles;
 
             req.session.user = parsedUser;
+            applySessionLength(req, parsedUser);
             res.json(parsedUser);
         } catch (error) {
             console.error('Login error:', error);
@@ -3539,6 +3554,7 @@ Please review and approve this registration in the admin panel.`;
             parsed.profiles = req.session.profiles || [];
 
             req.session.user = parsed;
+            applySessionLength(req, parsed);
             res.json(parsed);
         } catch (error) {
             console.error('Switch profile error:', error);

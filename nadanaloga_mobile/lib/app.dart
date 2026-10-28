@@ -4,10 +4,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'config/theme/app_theme.dart';
 import 'config/routes/app_router.dart';
+import 'core/network/api_client.dart';
 import 'core/services/fcm_service.dart';
 import 'di/injection_container.dart';
 import 'presentation/bloc/auth/auth_bloc.dart';
 import 'presentation/bloc/auth/auth_event.dart';
+import 'presentation/bloc/auth/auth_state.dart';
 import 'presentation/widgets/update_gate.dart';
 
 class NadanalogaApp extends StatefulWidget {
@@ -29,6 +31,23 @@ class _NadanalogaAppState extends State<NadanalogaApp> {
     _authBloc = sl<AuthBloc>()..add(AuthCheckSession());
     _fcmService = sl<FcmService>();
     _setupPushNotificationHandlers();
+    _handleExpiredSessions();
+  }
+
+  /// When the server stops accepting the session, sign out and say so. Without
+  /// this the app kept its stored login, every request came back 401, and the
+  /// screens simply showed nothing.
+  void _handleExpiredSessions() {
+    sl<ApiClient>().onSessionExpired = () {
+      if (_authBloc.state is! AuthAuthenticated) return;
+      _authBloc.add(AuthLogoutRequested());
+      _scaffoldMessengerKey.currentState?.showSnackBar(
+        const SnackBar(
+          content: Text('Your session has ended. Please sign in again.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    };
   }
 
   void _setupPushNotificationHandlers() {
