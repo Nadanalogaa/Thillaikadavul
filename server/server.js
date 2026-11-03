@@ -29,6 +29,19 @@ const safeJsonArray = (value) => {
         const parsed = JSON.parse(trimmed);
         return Array.isArray(parsed) ? parsed : [parsed];
     } catch (_) {
+        // A Postgres array literal ({"Drawing","Western dance"}) — what the
+        // website's Edit Student wrote before the user update serialised lists.
+        if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+            const inner = trimmed.slice(1, -1);
+            const items = [];
+            const re = /"((?:[^"\\]|\\.)*)"|([^,]+)/g;
+            let m;
+            while ((m = re.exec(inner)) !== null) {
+                const v = m[1] !== undefined ? m[1].replace(/\\(.)/g, '$1') : m[2].trim();
+                if (v) items.push(v);
+            }
+            return items;
+        }
         return trimmed.split(',').map((s) => s.trim()).filter(Boolean);
     }
 };
@@ -3390,10 +3403,23 @@ Please review and approve this registration in the admin panel.`;
             // documents, schedules, country, timezone, ...) and a single unknown
             // key made Postgres reject the statement, so every "Save Changes"
             // on a student or teacher failed with a 500.
-            const columns = new Set((await pool.query(
-                `SELECT column_name FROM information_schema.columns
+            const columnTypes = new Map((await pool.query(
+                `SELECT column_name, data_type FROM information_schema.columns
                   WHERE table_schema = 'public' AND table_name = 'users'`
-            )).rows.map(r => r.column_name));
+            )).rows.map(r => [r.column_name, r.data_type]));
+            const columns = new Set(columnTypes.keys());
+            // Shape each value for its column: an empty form field is NULL for
+            // dates and numbers (a blank date of birth made every save of that
+            // student fail), and lists are stored as JSON text like the import
+            // wrote them (pg turned arrays into {"Drawing"}, which read back as
+            // a course literally named {"Drawing"}).
+            const shape = (key, v) => {
+                const type = columnTypes.get(key) || '';
+                if (key === 'status' && typeof v === 'string') return v.trim().toLowerCase();
+                if (v === '' && !/char|text/.test(type)) return null;
+                if ((Array.isArray(v) || (v && typeof v === 'object')) && /char|text|json/.test(type)) return JSON.stringify(v);
+                return v;
+            };
 
             const updateFields = [];
             const values = [];
@@ -3404,10 +3430,7 @@ Please review and approve this registration in the admin panel.`;
                 // supply it too produced "multiple assignments to same column".
                 if (key !== 'id' && key !== 'created_at' && key !== 'updated_at' && columns.has(key)) {
                     updateFields.push(`${key} = $${paramCount}`);
-                    // Status is stored lowercase ('active', 'on hold'...); the
-                    // website sends 'Active', which billing and lists then missed.
-                    values.push(key === 'status' && typeof userData[key] === 'string'
-                        ? userData[key].trim().toLowerCase() : userData[key]);
+                    values.push(shape(key, userData[key]));
                     paramCount++;
                 }
             });
