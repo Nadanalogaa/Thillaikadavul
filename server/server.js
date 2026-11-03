@@ -5064,8 +5064,10 @@ Please review and approve this registration in the admin panel.`;
         android_store_url: 'https://play.google.com/store/apps/details?id=com.nadanaloga.nadanaloga_mobile',
         update_message: '',
         // Where families pay by UPI while online payment (Razorpay) is off.
-        upi_id: 'thendralmadhan-1@okhdfcbank',
-        upi_payee_name: 'NADANALOGA NATYALAYA',
+        // HDFC SmartHub Vyapar merchant ID (a business ID: Google Pay accepts
+        // pre-filled payments to it, unlike the earlier personal ID).
+        upi_id: 'Vyapar.170154547897@hdfcbank',
+        upi_payee_name: 'TAMIL THENDRAL B',
     };
 
     const readAppSettings = async (keys) => {
