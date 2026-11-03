@@ -1,493 +1,347 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { GoogleGenAI } from '@google/genai';
-import type { User, Course, Batch, Invoice, ClassPreference, CourseTimingSlot } from '../../types';
-import { getAdminUserById, getCourses, getBatches, getAdminInvoices, updateUserByAdmin, updateBatch, getGrades, getStudentGrades, assignStudentGrade, removeStudentGrade } from '../../api';
-import AdminPageHeader from '../../components/admin/AdminPageHeader';
-import { CourseIcon, SparklesIcon } from '../../components/icons';
-import WizardTabs from '../../components/WizardTabs';
-import { InvoiceStatus } from '../../types';
-import EditUserModal from '../../components/admin/EditUserModal';
-import { displayEmail } from '../../utils/displayEmail';
-import { placeStudent } from '../../services/batchAdminApi';
-import { batchTimingLines } from '../../api';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import AdminLayout from '../../components/admin/AdminLayout';
+import PersonEditModal from '../../components/admin/PersonEditModal';
+import { useTheme } from '../../contexts/ThemeContext';
+import {
+    Person, StudentGrade, GradeOption, Invoice, AttendanceSummary,
+    getPerson, updatePerson, getChildren, getStudentGrades, setStudentGrade, clearStudentGrade,
+    listGradeOptions, getStudentInvoices, getAttendanceSummary, inr, showDate, ageFrom, isPlaceholderEmail,
+} from '../../services/peopleAdminApi';
+import { AdminBatch, NamedItem, listBatches, listCourses, placeStudent, slotLines } from '../../services/batchAdminApi';
 
-interface StudentProfileViewPageProps {
-    studentId: string;
-}
+// Admin -> a student. Everything about them on one full-width page, and the
+// things that belong together are edited together: each course row holds the
+// grade (which sets the monthly fee) and the batch (teacher and class times).
+// Personal details open in the shared Edit form.
 
-const InfoField: React.FC<{ label: string; value?: string | number | null; className?: string }> = ({ label, value, className }) => (
-    <div className={className}>
-        <h4 className="text-sm font-medium text-gray-500">{label}</h4>
-        <p className="text-gray-800 mt-1">{value || <span className="text-gray-400 italic">Not Provided</span>}</p>
-    </div>
-);
-
-const getStatusBadgeClass = (status: InvoiceStatus | string) => {
-    // Bills are stored lowercase ('paid'); compare on the enum's spelling.
-    const s = String(status || '').toLowerCase();
-    status = (s.charAt(0).toUpperCase() + s.slice(1)) as InvoiceStatus;
-    switch (status) {
-        case InvoiceStatus.Paid:
-            return 'bg-green-100 text-green-800';
-        case InvoiceStatus.Pending:
-            return 'bg-yellow-100 text-yellow-800';
-        case InvoiceStatus.Overdue:
-            return 'bg-red-100 text-red-800';
-        default:
-            return 'bg-gray-100 text-gray-800';
-    }
+const STATUS_STYLE: Record<string, string> = {
+    active: 'bg-emerald-100 text-emerald-800',
+    'on hold': 'bg-amber-100 text-amber-800',
+    inactive: 'bg-gray-200 text-gray-700',
+    graduated: 'bg-sky-100 text-sky-800',
+};
+const BILL_STYLE: Record<string, string> = {
+    paid: 'bg-emerald-100 text-emerald-800',
+    pending: 'bg-amber-100 text-amber-800',
+    overdue: 'bg-red-100 text-red-800',
 };
 
-const StudentProfileViewPage: React.FC<StudentProfileViewPageProps> = ({ studentId }) => {
-    const [student, setStudent] = useState<User | null>(null);
-    const [courses, setCourses] = useState<Course[]>([]);
-    const [batches, setBatches] = useState<Batch[]>([]);
+const StudentProfileViewPage: React.FC<{ studentId: string }> = ({ studentId }) => {
+    const id = Number(studentId);
+    const navigate = useNavigate();
+    const { theme } = useTheme();
+    const dark = theme === 'dark';
+    const card = `rounded-xl border p-5 shadow-sm ${dark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`;
+    const muted = dark ? 'text-gray-400' : 'text-gray-500';
+    const strong = dark ? 'text-white' : 'text-gray-900';
+
+    const [student, setStudent] = useState<Person | null>(null);
+    const [parent, setParent] = useState<Person | null>(null);
+    const [siblings, setSiblings] = useState<Person[]>([]);
+    const [grades, setGrades] = useState<StudentGrade[]>([]);
+    const [gradeOptions, setGradeOptions] = useState<GradeOption[]>([]);
+    const [courses, setCourses] = useState<NamedItem[]>([]);
+    const [batches, setBatches] = useState<AdminBatch[]>([]);
     const [invoices, setInvoices] = useState<Invoice[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [attendance, setAttendance] = useState<AttendanceSummary | null>(null);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [currentStep, setCurrentStep] = useState(1);
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [studentGrades, setStudentGrades] = useState<any[]>([]);
-    const [allGrades, setAllGrades] = useState<any[]>([]);
-    const [savingGradeCourseId, setSavingGradeCourseId] = useState<string | null>(null);
-    const [editingGradeCourseId, setEditingGradeCourseId] = useState<string | null>(null);
+    const [busy, setBusy] = useState<string | null>(null);
+    const [message, setMessage] = useState<string | null>(null);
+    const [editing, setEditing] = useState(false);
+    const [addCourse, setAddCourse] = useState('');
 
-    const steps = ['Profile', 'Account & Contact', 'Schedule & Courses', 'Grades & Fees', 'Fee History'];
-
-    const fetchData = useCallback(async () => {
-        setIsLoading(true);
+    const load = useCallback(async () => {
         try {
-            const [fetchedStudent, fetchedCourses, fetchedBatches, allInvoices, sGrades, gGrades] = await Promise.all([
-                getAdminUserById(studentId),
-                getCourses(),
-                getBatches(),
-                getAdminInvoices(), // Fetch all invoices and filter locally
-                getStudentGrades(Number(studentId)),
-                getGrades(),
+            const s = await getPerson(id);
+            const [g, go, c, b, inv, att] = await Promise.all([
+                getStudentGrades(id), listGradeOptions(), listCourses(), listBatches(),
+                getStudentInvoices(id), getAttendanceSummary(id),
             ]);
-            setStudent(fetchedStudent);
-            setCourses(fetchedCourses);
-            setBatches(fetchedBatches);
-            // Invoices carry a flat student_id (no nested student object).
-            setInvoices(allInvoices.filter(inv => String(inv.studentId ?? inv.student?.id) === String(studentId)));
-            setStudentGrades(sGrades || []);
-            setAllGrades(gGrades || []);
+            setStudent(s); setGrades(g); setGradeOptions(go); setCourses(c); setBatches(b); setInvoices(inv); setAttendance(att);
+            if (s.parent_id) {
+                const [p, kids] = await Promise.all([getPerson(s.parent_id).catch(() => null), getChildren(s.parent_id).catch(() => [])]);
+                setParent(p);
+                setSiblings(kids.filter(k => k.id !== s.id));
+            } else { setParent(null); setSiblings([]); }
             setError(null);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Could not fetch student data.");
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Could not load the student.');
         } finally {
-            setIsLoading(false);
+            setLoading(false);
         }
-    }, [studentId]);
+    }, [id]);
+    useEffect(() => { setLoading(true); load(); }, [load]);
 
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
-
-    const handleGenerateWelcome = async () => {
-        if (!student) return;
-
-        setIsGenerating(true);
-        try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
-            const prompt = `Generate a short, personalized, and encouraging welcome message for a new student joining our arts academy.
-            Student's Name: ${student.name}
-            Enrolled Courses: ${student.courses?.join(', ') || 'Not specified'}
-            Current Grade: ${student.grade || 'Not specified'}
-            Keep it under 50 words. The tone should be warm and inspiring. Address the student by their first name.`;
-
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: prompt,
-            });
-
-            alert(`Generated Welcome Message:\n\n${response.text}`);
-        } catch (err) {
-            console.error("Gemini API call failed:", err);
-            alert("Failed to generate a welcome message. Please check the console for details.");
-        } finally {
-            setIsGenerating(false);
-        }
+    const run = async (key: string, fn: () => Promise<unknown>, done: string) => {
+        setBusy(key); setMessage(null);
+        try { await fn(); await load(); setMessage(done); }
+        catch (e) { setMessage(e instanceof Error ? e.message : 'Something went wrong.'); }
+        finally { setBusy(null); }
     };
 
-     const handleStudentSaveChanges = async (payload: { user: User; batchChanges: Map<string, { oldBatchId?: string; newBatchId: string; selectedTimings?: Set<string> }>, allBatches: Batch[] }) => {
-        const { user, batchChanges, allBatches: freshBatches } = payload;
-        
-        let confirmMsg = `You are about to save profile changes for ${user.name}.`;
-        if (batchChanges.size > 0) {
-            confirmMsg += "\n\nBatch changes:\n";
-            batchChanges.forEach((change, course) => {
-                const oldBatchName = freshBatches.find(b => b.id === change.oldBatchId)?.name || "Unassigned";
-                const newBatchName = freshBatches.find(b => b.id === change.newBatchId)?.name || "Unassigned";
-                if (oldBatchName !== newBatchName) {
-                    confirmMsg += `- ${course}: from "${oldBatchName}" to "${newBatchName}"\n`;
-                }
-            });
-        }
-        confirmMsg += "\nDo you want to proceed?";
-
-        if (window.confirm(confirmMsg)) {
-            try {
-                await updateUserByAdmin(user.id, user);
-                // Batch changes go through the batch's own student list, one
-                // batch per course. (The old copy rebuilt batches from the
-                // retired `schedule` field and emptied both batches.)
-                for (const { oldBatchId, newBatchId } of batchChanges.values()) {
-                    const next = newBatchId && newBatchId !== 'unassigned' ? Number(newBatchId) : null;
-                    if (String(next ?? '') === String(oldBatchId ?? '')) continue;
-                    await placeStudent(Number(user.id), next, oldBatchId ? Number(oldBatchId) : null);
-                }
-                
-                setIsEditModalOpen(false);
-                await fetchData();
-            } catch (err) {
-                alert(err instanceof Error ? err.message : 'An error occurred while saving.');
-            }
-        }
-    };
-    
-    const getStudentEnrollments = () => {
+    // One row per course the student takes (their list, plus any course that
+    // has a grade but went missing from the list).
+    const rows = useMemo(() => {
         if (!student) return [];
-        
-        return batches.map(batch => {
-            if ((batch.studentIds || []).map(String).includes(String(student.id))) {
-                return {
-                    batchName: batch.name,
-                    courseName: batch.courseName,
-                    timings: batchTimingLines(batch),
-                    teacher: batch.teacherName ? ({ id: String(batch.teacherId ?? ''), name: batch.teacherName } as User) : null,
-                    mode: batch.mode,
-                };
-            }
-            return null;
-        }).filter((e): e is NonNullable<typeof e> => e !== null);
-    };
+        const names = [...student.courses];
+        for (const g of grades) if (!names.some(n => n.toLowerCase() === g.course_name.toLowerCase())) names.push(g.course_name);
+        return names.map(name => {
+            const course = courses.find(c => c.name.toLowerCase() === name.toLowerCase()) || null;
+            const grade = course ? grades.find(g => g.course_id === course.id) || null : null;
+            const options = course ? gradeOptions.filter(o => o.course_id === course.id && o.is_active !== false) : [];
+            const courseBatches = course ? batches.filter(b => b.courseId === course.id) : [];
+            const batch = courseBatches.find(b => b.studentIds.includes(id)) || null;
+            return { name, course, grade, options, courseBatches, batch };
+        });
+    }, [student, grades, gradeOptions, courses, batches, id]);
 
-    const handleAssignGrade = async (courseId: string, gradeId: string) => {
+    const monthlyTotal = grades.reduce((s, g) => s + Number(g.net_amount || 0), 0);
+    const thisPeriod = new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
+    const thisMonth = invoices.filter(i => i.billing_period === thisPeriod);
+    const dueNow = thisMonth.filter(i => i.status !== 'paid').reduce((s, i) => s + i.amount, 0);
+    const notTaken = courses.filter(c => !rows.some(r => r.name.toLowerCase() === c.name.toLowerCase()));
+
+    const changeGrade = (courseId: number, gradeId: string, courseName: string) =>
+        run(`g${courseId}`, () => gradeId ? setStudentGrade(id, courseId, Number(gradeId)) : clearStudentGrade(id, courseId),
+            gradeId ? `${courseName} grade saved. The fee follows it from this month's bill run.` : `${courseName} grade cleared: it will not be billed.`);
+
+    const changeBatch = (courseName: string, newId: string, oldId: number | null) =>
+        run(`b${courseName}`, () => placeStudent(id, newId ? Number(newId) : null, oldId),
+            newId ? `Placed in ${batches.find(b => b.id === Number(newId))?.name}.` : `Taken out of the ${courseName} batch.`);
+
+    const removeCourse = (name: string) => {
         if (!student) return;
-        setSavingGradeCourseId(courseId);
-        try {
-            if (!gradeId) {
-                await removeStudentGrade(Number(student.id), Number(courseId));
-            } else {
-                await assignStudentGrade(Number(student.id), Number(courseId), Number(gradeId));
-            }
-            const refreshed = await getStudentGrades(Number(student.id));
-            setStudentGrades(refreshed || []);
-            setEditingGradeCourseId(null);
-        } catch (err) {
-            alert(err instanceof Error ? err.message : 'Failed to update grade');
-        } finally {
-            setSavingGradeCourseId(null);
-        }
+        if (!window.confirm(`Remove ${name} for ${student.name}?\n\nThe grade and batch place go too, and it is not billed from next month. Bills already issued stay.`)) return;
+        run(`r${name}`, () => updatePerson(id, { courses: student.courses.filter(c => c.toLowerCase() !== name.toLowerCase()) }), `${name} removed.`);
     };
 
-    const netAmountOf = (g: any) => {
-        const fee = Number(g.monthly_fee || 0);
-        const pct = Number(g.discount_percentage || 0);
-        return g.net_amount != null ? Number(g.net_amount) : (pct > 0 ? fee - (fee * pct) / 100 : fee);
+    const addNewCourse = () => {
+        if (!student || !addCourse) return;
+        run('add', () => updatePerson(id, { courses: [...student.courses, addCourse] }),
+            `${addCourse} added. Set its grade to start billing, and pick a batch.`);
+        setAddCourse('');
     };
-    const gradesTotal = studentGrades.reduce((sum, g) => sum + netAmountOf(g), 0);
-    const gradesGross = studentGrades.reduce((sum, g) => sum + Number(g.monthly_fee || 0), 0);
-    const anyDiscount = studentGrades.some(g => Number(g.discount_percentage || 0) > 0);
-    const gradesCurrency = studentGrades[0]?.currency || 'INR';
 
-    if (isLoading) return <div className="p-8 text-center">Loading student profile...</div>;
-    if (error) return <div className="p-8 text-center text-red-500 bg-red-100 rounded-md">{error}</div>;
-    if (!student) return <div className="p-8 text-center">Student not found.</div>;
+    if (loading) return <AdminLayout><p className={`py-16 text-center ${muted}`}>Loading student…</p></AdminLayout>;
+    if (error || !student) return <AdminLayout><p className="rounded-md bg-red-50 p-4 text-center text-red-700">{error || 'Student not found.'}</p></AdminLayout>;
 
-    const renderStepContent = () => {
-        switch (currentStep) {
-            case 1: // Profile
-                return (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="md:col-span-1 flex flex-col items-center">
-                            <img 
-                                src={student.photoUrl || `https://ui-avatars.com/api/?name=${student.name}&background=e8eaf6&color=1a237e&size=128`}
-                                alt="Profile" 
-                                className="h-40 w-40 rounded-full object-cover shadow-lg"
-                            />
-                        </div>
-                        <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
-                            <InfoField label="Student Name" value={student.name} className="sm:col-span-2" />
-                            <InfoField label="Date of Birth" value={student.dob ? new Date(student.dob).toLocaleDateString() : null} />
-                            <InfoField label="Sex" value={student.sex} />
-                            <InfoField label="School Name" value={student.schoolName} />
-                            <InfoField label="Standard" value={student.standard} />
-                            <InfoField label="Grade" value={student.grade} />
-                             <InfoField label="Date of Joining" value={student.dateOfJoining ? new Date(student.dateOfJoining).toLocaleDateString() : null} />
-                        </div>
-                    </div>
-                );
-            case 2: // Account & Contact
-                 return (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                         <InfoField label="Parent's/Guardian's Name" value={student.fatherName} />
-                         <InfoField label="Email ID" value={displayEmail(student) || 'Not given'} />
-                         <InfoField label="Contact Number" value={student.contactNumber} />
-                         <InfoField label="Alternate Contact" value={student.alternateContactNumber} />
-                         <InfoField label="Country" value={student.country} />
-                         <InfoField label="State" value={student.state} />
-                         <InfoField label="City" value={student.city} />
-                         <InfoField label="Postal Code" value={student.postalCode} />
-                         <InfoField label="Address" value={student.address} className="md:col-span-3"/>
-                         <InfoField label="Student ID" value={student.id} className="font-mono text-sm" />
-                     </div>
-                 );
-            case 3: // Schedule & Courses
-                const enrollments = getStudentEnrollments();
-                return (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div>
-                            <h4 className="text-sm font-medium text-gray-500 mb-2">Enrolled Courses</h4>
-                            {student.courses && student.courses.length > 0 ? (
-                                <div className="flex flex-wrap gap-2">
-                                    {student.courses.map(courseName => (
-                                        <div key={courseName} className="flex items-center space-x-2 bg-gray-100 px-3 py-1.5 rounded-md">
-                                             <CourseIcon iconName={courses.find(c => c.name === courseName)?.icon || ''} className="h-5 w-5 text-brand-primary" />
-                                            <span className="text-sm font-medium text-gray-800">{courseName}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : <p className="text-gray-400 italic">No courses selected.</p>}
-                        </div>
-                         <div>
-                            <h4 className="text-sm font-medium text-gray-500 mb-2">Preferences</h4>
-                            <div className="flex space-x-8">
-                                <InfoField label="Class Preference" value={student.classPreference} />
-                            </div>
-                        </div>
-                        <div className="md:col-span-2">
-                            <h4 className="text-sm font-medium text-gray-500 mb-2">Student's Preferred Timings</h4>
-                            {student.preferredTimings && student.preferredTimings.length > 0 ? (
-                                <div className="flex flex-wrap gap-2">
-                                    {student.preferredTimings.map((timing: string | CourseTimingSlot, index: number) => {
-                                        // Handle both old string format and new CourseTimingSlot object format
-                                        if (typeof timing === 'string') {
-                                            return (
-                                                <span key={timing} className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-1 rounded-full">
-                                                    {timing}
-                                                </span>
-                                            );
-                                        } else if (timing && typeof timing === 'object' && timing.courseName && timing.day && timing.timeSlot) {
-                                            const displayText = `${timing.courseName}: ${timing.day.substring(0, 3)} ${timing.timeSlot}`;
-                                            return (
-                                                <span key={timing.id || `${timing.courseName}-${timing.day}-${timing.timeSlot}-${index}`} className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-1 rounded-full">
-                                                    {displayText}
-                                                </span>
-                                            );
-                                        }
-                                        return null;
-                                    }).filter(Boolean)}
-                                </div>
-                            ) : <p className="text-gray-400 italic">No preferred timings set.</p>}
-                        </div>
-                        <div className="md:col-span-2">
-                            <h4 className="text-sm font-medium text-gray-500 mb-2">Assigned Schedule</h4>
-                             {enrollments.length > 0 ? (
-                                <div className="space-y-4">
-                                    {enrollments.map((enrollment, idx) => (
-                                        <div key={idx} className="p-3 bg-indigo-50/70 rounded-lg border border-indigo-200">
-                                            <div className="flex justify-between items-start">
-                                                <div>
-                                                    <p className="font-semibold text-gray-800">{enrollment.courseName}: <span className="font-normal">in "{enrollment.batchName}"</span></p>
-                                                    <p className="text-sm text-gray-600">Teacher: {enrollment.teacher?.name || <span className="text-gray-400 italic">Not Assigned</span>}</p>
-                                                </div>
-                                                {enrollment.mode && (
-                                                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${enrollment.mode === 'Online' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
-                                                        {enrollment.mode}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <ul className="text-sm list-disc list-inside ml-4 mt-1 space-y-0.5">
-                                                {enrollment.timings.map(t => <li key={t}>{t}</li>)}
-                                            </ul>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="text-center text-sm text-gray-500 py-4 border-2 border-dashed rounded-lg">
-                                    Student is not currently assigned to a batch.
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                );
-            case 4: // Grades & Fees (Enrollment)
-                return (
-                    <div>
-                        <div className="flex items-center justify-between mb-4">
-                            <h4 className="text-sm font-medium text-gray-500">Grade per course determines the monthly fee. Admin assigns a grade for each enrolled course.</h4>
-                            <div className="bg-brand-primary/5 text-brand-primary font-semibold px-4 py-2 rounded-md">
-                                Total: {gradesTotal.toFixed(0)} {gradesCurrency}/month
-                                {anyDiscount && <span className="ml-2 text-xs text-gray-400 line-through">{gradesGross.toFixed(0)}</span>}
-                            </div>
-                        </div>
-                        {(student.courses && student.courses.length > 0) ? (
-                            <div className="space-y-3">
-                                {student.courses.map(courseName => {
-                                    const course = courses.find(c => c.name === courseName);
-                                    const courseId = course?.id;
-                                    const assigned = studentGrades.find(g => String(g.course_id) === String(courseId));
-                                    const options = allGrades.filter(g => String(g.course_id) === String(courseId));
-                                    return (
-                                        <div key={courseName} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-gray-50 rounded-lg border">
-                                            <div className="flex items-center space-x-2">
-                                                <CourseIcon iconName={course?.icon || ''} className="h-5 w-5 text-brand-primary" />
-                                                <div>
-                                                    <p className="font-semibold text-gray-800">{courseName}</p>
-                                                    {assigned ? (
-                                                        Number(assigned.discount_percentage || 0) > 0 ? (
-                                                            <p className="text-sm text-green-700">{assigned.grade_name} · {netAmountOf(assigned).toFixed(0)} {assigned.currency || 'INR'}/month <span className="text-gray-400">({Number(assigned.monthly_fee).toFixed(0)} − {Number(assigned.discount_percentage)}%)</span></p>
-                                                        ) : (
-                                                            <p className="text-sm text-gray-600">{assigned.grade_name} · {Number(assigned.monthly_fee).toFixed(0)} {assigned.currency || 'INR'}/month</p>
-                                                        )
-                                                    ) : (
-                                                        <p className="text-sm text-gray-400 italic">No grade assigned</p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                {!courseId ? (
-                                                    <span className="text-xs text-gray-400 italic">Course not found</span>
-                                                ) : options.length === 0 ? (
-                                                    <span className="text-xs text-gray-400 italic">No grades configured for this course</span>
-                                                ) : (assigned && editingGradeCourseId !== String(courseId)) ? (
-                                                    // Grade already set (e.g. at registration) → show it read-only with an Edit action.
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setEditingGradeCourseId(String(courseId))}
-                                                        className="inline-flex items-center gap-1 border border-brand-primary text-brand-primary text-sm font-medium px-3 py-2 rounded-md hover:bg-brand-primary/10"
-                                                    >
-                                                        ✏️ Edit
-                                                    </button>
-                                                ) : (
-                                                    <>
-                                                        <select
-                                                            value={assigned?.grade_id || ''}
-                                                            disabled={savingGradeCourseId === String(courseId)}
-                                                            onChange={e => handleAssignGrade(String(courseId), e.target.value)}
-                                                            className="border border-gray-300 rounded-md px-3 py-2 text-sm disabled:opacity-50"
-                                                            autoFocus={editingGradeCourseId === String(courseId)}
-                                                        >
-                                                            <option value="">— Not assigned —</option>
-                                                            {options.map(g => (
-                                                                <option key={g.id} value={g.id}>
-                                                                    {g.name} ({Number(g.monthly_fee).toFixed(0)} {g.currency || 'INR'})
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                        {editingGradeCourseId === String(courseId) && assigned && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setEditingGradeCourseId(null)}
-                                                                className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1"
-                                                            >
-                                                                Cancel
-                                                            </button>
-                                                        )}
-                                                    </>
-                                                )}
-                                                {savingGradeCourseId === String(courseId) && <span className="text-xs text-gray-500">Saving…</span>}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <div className="text-center text-sm text-gray-500 py-6 border-2 border-dashed rounded-lg">
-                                Student has not applied for any course yet.
-                            </div>
-                        )}
-                    </div>
-                );
-            case 5: // Fee History
-                return (
-                    <div className="bg-white rounded-lg shadow-sm border overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                             <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issue Date</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                </tr>
-                            </thead>
-                             <tbody className="bg-white divide-y divide-gray-200">
-                                {invoices.length > 0 ? (
-                                    invoices.map(invoice => (
-                                        <tr key={invoice.id}>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{new Date(invoice.issueDate).toLocaleDateString()}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{invoice.courseName}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{invoice.amount} {invoice.currency}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{new Date(invoice.dueDate).toLocaleDateString()}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(invoice.status)}`}>
-                                                    {invoice.status}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr><td colSpan={5} className="text-center py-4 text-gray-500">No invoices found for this student.</td></tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                );
-            default: return null;
-        }
-    }
+    const status = (student.status || 'active').toLowerCase();
+    const email = student.contact_email || (isPlaceholderEmail(student.email) ? '' : student.email);
+    const age = ageFrom(student.dob);
+    const Row: React.FC<{ label: string; value?: React.ReactNode }> = ({ label, value }) => (
+        <div className="flex justify-between gap-4 py-1.5 text-sm">
+            <span className={muted}>{label}</span>
+            <span className={`text-right font-medium ${strong}`}>{value || <span className="font-normal text-gray-400">—</span>}</span>
+        </div>
+    );
 
     return (
-        <div className="bg-gray-50 min-h-full py-6">
-            <div className="container mx-auto px-6 lg:px-8">
-                <div className="max-w-5xl mx-auto">
-                    <div className="flex justify-between items-start">
-                        <AdminPageHeader
-                            title="Student Profile"
-                            subtitle={`Viewing details for ${student.name}`}
-                            backLinkPath="/admin/students"
-                            backTooltipText="Back to Student List"
-                        />
-                         <div className="mt-1 flex-shrink-0 flex items-center space-x-2">
-                             <button
-                                onClick={handleGenerateWelcome}
-                                disabled={isGenerating}
-                                className="bg-brand-purple hover:bg-opacity-90 text-white font-semibold px-4 py-2 rounded-md shadow-sm transition-colors flex items-center space-x-2 disabled:bg-opacity-50"
-                            >
-                                <SparklesIcon className="h-5 w-5" />
-                                <span>{isGenerating ? 'Generating...' : 'Generate Welcome'}</span>
-                            </button>
-                             <button
-                                onClick={() => setIsEditModalOpen(true)}
-                                className="bg-brand-primary hover:bg-brand-dark text-white font-semibold px-4 py-2 rounded-md shadow-sm transition-colors"
-                            >
-                                Edit Profile
-                            </button>
+        <AdminLayout>
+            <div className="w-full space-y-5">
+                {/* Header */}
+                <div className={`${card} flex flex-wrap items-center gap-5`}>
+                    {student.photo_url
+                        ? <img src={student.photo_url} alt="" className="h-20 w-20 rounded-full object-cover ring-2 ring-indigo-100" />
+                        : <div className="flex h-20 w-20 items-center justify-center rounded-full bg-indigo-100 text-2xl font-bold text-indigo-700">{student.name.split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase()}</div>}
+                    <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h1 className={`text-2xl font-bold ${strong}`}>{student.name}</h1>
+                            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${STATUS_STYLE[status] || STATUS_STYLE.inactive}`}>{status}</span>
                         </div>
+                        <p className={`mt-1 text-sm ${muted}`}>
+                            {[student.user_id, student.father_name && `Parent: ${student.father_name}`, student.contact_number, email].filter(Boolean).join(' · ')}
+                        </p>
+                        <p className={`text-sm ${muted}`}>Joined {showDate(student.date_of_joining || student.created_at) || '—'}{age != null ? ` · ${age} years` : ''}</p>
                     </div>
-                    
-                    <div className="bg-white p-6 rounded-lg shadow-xl">
-                        <WizardTabs steps={steps} currentStep={currentStep} onStepClick={setCurrentStep} />
-                        <div className="mt-6 min-h-[20rem]">
-                            {renderStepContent()}
+                    <div className="flex flex-wrap gap-2">
+                        <button type="button" onClick={() => navigate('/admin/students')} className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">← Students</button>
+                        <Link to="/admin/fees" className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Fees</Link>
+                        <button type="button" onClick={() => setEditing(true)} className="rounded-md bg-brand-primary px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark">Edit details</button>
+                    </div>
+                </div>
+
+                {/* Key numbers */}
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                    {[
+                        { label: 'Courses', value: String(rows.length), tone: 'text-indigo-700' },
+                        { label: 'Monthly fee', value: inr(monthlyTotal), tone: 'text-indigo-700' },
+                        { label: `${thisPeriod}`, value: thisMonth.length === 0 ? 'No bill yet' : dueNow > 0 ? `${inr(dueNow)} due` : 'Paid', tone: dueNow > 0 ? 'text-amber-700' : 'text-emerald-700' },
+                        { label: 'Attendance (3 months)', value: attendance && attendance.classes ? `${attendance.percentage ?? 0}%` : 'No classes yet', tone: 'text-emerald-700' },
+                    ].map(k => (
+                        <div key={k.label} className={card}>
+                            <div className={`text-xs font-medium uppercase tracking-wide ${muted}`}>{k.label}</div>
+                            <div className={`mt-1 text-xl font-bold ${k.tone}`}>{k.value}</div>
                         </div>
+                    ))}
+                </div>
+
+                {message && <p className={`rounded-md px-4 py-2 text-sm ${dark ? 'bg-gray-800 text-gray-200' : 'bg-indigo-50 text-indigo-900'}`}>{message}</p>}
+
+                {/* Courses: grade -> fee, batch -> teacher and times (full width) */}
+                        <section className={card}>
+                            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <h2 className={`text-lg font-semibold ${strong}`}>Courses, fees and batches</h2>
+                                    <p className={`text-xs ${muted}`}>The grade sets the monthly fee. A course with no grade is not billed.</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <select value={addCourse} onChange={e => setAddCourse(e.target.value)} className="form-select text-sm">
+                                        <option value="">Add a course…</option>
+                                        {notTaken.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                                    </select>
+                                    <button type="button" onClick={addNewCourse} disabled={!addCourse || !!busy}
+                                        className="rounded-md bg-brand-primary px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">Add</button>
+                                </div>
+                            </div>
+                            {rows.length === 0 && <p className={`py-6 text-center text-sm ${muted}`}>No courses yet.</p>}
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full text-sm">
+                                    {rows.length > 0 && (
+                                        <thead className={dark ? 'text-gray-400' : 'text-gray-500'}>
+                                            <tr>{['Course', 'Grade', 'Monthly fee', 'Batch', 'Teacher and class times', ''].map(h =>
+                                                <th key={h} className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide">{h}</th>)}</tr>
+                                        </thead>
+                                    )}
+                                    <tbody className={dark ? 'divide-y divide-gray-700' : 'divide-y divide-gray-100'}>
+                                        {rows.map(r => (
+                                            <tr key={r.name} className="align-top">
+                                                <td className={`whitespace-nowrap px-2 py-3 font-semibold ${strong}`}>{r.name}</td>
+                                                <td className="px-2 py-3">
+                                                    {r.course ? (
+                                                        <select value={r.grade?.grade_id || ''} disabled={!!busy}
+                                                            onChange={e => changeGrade(r.course!.id, e.target.value, r.name)}
+                                                            className={`form-select w-52 text-sm ${r.grade ? '' : 'border-amber-400'}`}>
+                                                            <option value="">Not set (not billed)</option>
+                                                            {r.options.map(o => <option key={o.id} value={o.id}>{o.name} · {inr(o.monthly_fee)}</option>)}
+                                                        </select>
+                                                    ) : <span className="text-amber-600">Unknown course</span>}
+                                                </td>
+                                                <td className="px-2 py-3">
+                                                    {r.grade ? (
+                                                        <div>
+                                                            <span className={`font-semibold ${strong}`}>{inr(r.grade.net_amount)}</span>
+                                                            {r.grade.discount_percentage > 0 && <div className={`text-xs ${muted}`}>{inr(r.grade.monthly_fee)} − {r.grade.discount_percentage}%</div>}
+                                                        </div>
+                                                    ) : <span className="text-amber-600">—</span>}
+                                                </td>
+                                                <td className="px-2 py-3">
+                                                    {r.course && (
+                                                        <select value={r.batch?.id || ''} disabled={!!busy}
+                                                            onChange={e => changeBatch(r.name, e.target.value, r.batch?.id || null)}
+                                                            className={`form-select w-60 text-sm ${r.batch ? '' : 'border-amber-400'}`}>
+                                                            <option value="">Not in a batch</option>
+                                                            {r.courseBatches.map(b => <option key={b.id} value={b.id}>{b.name} ({b.studentIds.length})</option>)}
+                                                        </select>
+                                                    )}
+                                                </td>
+                                                <td className={`min-w-[16rem] px-2 py-3 ${muted}`}>
+                                                    {r.batch ? (
+                                                        <>
+                                                            <div className={`font-medium ${strong}`}>{r.batch.teacherName || 'No teacher'}</div>
+                                                            <div>{slotLines(r.batch.timeSlots).join(', ') || 'Times not set'}</div>
+                                                        </>
+                                                    ) : '—'}
+                                                </td>
+                                                <td className="px-2 py-3 text-right">
+                                                    <button type="button" onClick={() => removeCourse(r.name)} disabled={!!busy}
+                                                        className="text-xs font-medium text-red-600 hover:underline">Remove</button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+
+
+                <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+                    <div className="space-y-5 xl:col-span-2">
+                        {/* Bills */}
+                        <section className={card}>
+                            <div className="mb-3 flex items-center justify-between">
+                                <h2 className={`text-lg font-semibold ${strong}`}>Bills and payments</h2>
+                                <Link to="/admin/fees" className="text-sm font-medium text-brand-primary hover:underline">Collect / record a payment →</Link>
+                            </div>
+                            {invoices.length === 0 ? <p className={`py-6 text-center text-sm ${muted}`}>No bills yet.</p> : (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full text-sm">
+                                        <thead className={dark ? 'text-gray-400' : 'text-gray-500'}>
+                                            <tr>{['Month', 'Course', 'Amount', 'Status', 'Due', 'Receipt'].map(h =>
+                                                <th key={h} className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide">{h}</th>)}</tr>
+                                        </thead>
+                                        <tbody className={dark ? 'divide-y divide-gray-700' : 'divide-y divide-gray-100'}>
+                                            {invoices.map(i => (
+                                                <tr key={i.id}>
+                                                    <td className={`px-2 py-2.5 font-medium ${strong}`}>{i.billing_period}{i.prorated_from ? <span className={`block text-xs font-normal ${muted}`}>from {showDate(i.prorated_from)}</span> : null}</td>
+                                                    <td className={`px-2 py-2.5 ${muted}`}>{i.course_name}</td>
+                                                    <td className={`px-2 py-2.5 font-semibold ${strong}`}>{inr(i.amount)}</td>
+                                                    <td className="px-2 py-2.5">
+                                                        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${BILL_STYLE[i.status] || 'bg-gray-100 text-gray-700'}`}>{i.status}</span>
+                                                        {i.status !== 'paid' && i.payment_status === 'submitted' && <span className="ml-1 text-xs text-sky-700">proof sent</span>}
+                                                    </td>
+                                                    <td className={`px-2 py-2.5 ${muted}`}>{showDate(i.due_date)}</td>
+                                                    <td className={`px-2 py-2.5 ${muted}`}>{i.receipt_number ? <>{i.receipt_number}<span className="block text-xs">{showDate(i.paid_at)} · {i.paid_method}</span></> : '—'}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </section>
+                    </div>
+
+                    <div className="space-y-5">
+                        <section className={card}>
+                            <h2 className={`mb-2 text-lg font-semibold ${strong}`}>Personal</h2>
+                            <Row label="Date of birth" value={student.dob ? `${showDate(student.dob)}${age != null ? ` (${age})` : ''}` : null} />
+                            <Row label="Gender" value={student.sex} />
+                            <Row label="Class / standard" value={student.standard} />
+                            <Row label="School" value={student.school_name} />
+                            <Row label="Class preference" value={student.class_preference} />
+                            <Row label="Address" value={student.address} />
+                            {student.notes && <p className={`mt-2 rounded-md p-2 text-sm ${dark ? 'bg-gray-700 text-gray-200' : 'bg-gray-50 text-gray-700'}`}>{student.notes}</p>}
+                        </section>
+
+                        <section className={card}>
+                            <h2 className={`mb-2 text-lg font-semibold ${strong}`}>Family</h2>
+                            <Row label="Parent / guardian" value={parent?.name || student.father_name} />
+                            <Row label="Phone (login)" value={(parent?.contact_number || student.contact_number) && <a className="text-brand-primary" href={`tel:${parent?.contact_number || student.contact_number}`}>{parent?.contact_number || student.contact_number}</a>} />
+                            <Row label="Email" value={email} />
+                            <Row label="Family account" value={parent?.user_id} />
+                            {siblings.length > 0 && (
+                                <div className="mt-2">
+                                    <div className={`text-xs font-medium uppercase tracking-wide ${muted}`}>Also at the academy</div>
+                                    <ul className="mt-1 space-y-1">
+                                        {siblings.map(s => (
+                                            <li key={s.id}><Link to={`/admin/student/${s.id}`} className="text-sm font-medium text-brand-primary hover:underline">{s.name}</Link> <span className={`text-xs ${muted}`}>{s.courses.join(', ')}</span></li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </section>
+
+                        <section className={card}>
+                            <h2 className={`mb-2 text-lg font-semibold ${strong}`}>Attendance · last 3 months</h2>
+                            {!attendance || attendance.classes === 0 ? <p className={`text-sm ${muted}`}>No classes marked yet.</p> : (
+                                <div className="grid grid-cols-4 gap-2 text-center">
+                                    {[['Classes', attendance.classes], ['Present', attendance.present], ['Absent', attendance.absent], ['Late', attendance.late]].map(([l, v]) => (
+                                        <div key={String(l)} className={`rounded-lg p-2 ${dark ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                                            <div className={`text-lg font-bold ${strong}`}>{v}</div>
+                                            <div className={`text-xs ${muted}`}>{l}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </section>
                     </div>
                 </div>
             </div>
-            {student && (
-                <EditUserModal
-                    isOpen={isEditModalOpen}
-                    onClose={() => setIsEditModalOpen(false)}
-                    user={student}
-                    onSave={() => {}} // Not used for student edits
-                    onStudentSave={handleStudentSaveChanges}
-                />
-            )}
-        </div>
+
+            <PersonEditModal isOpen={editing} personId={id} onClose={() => setEditing(false)}
+                onSaved={async () => { setEditing(false); await load(); setMessage('Details saved.'); }} />
+        </AdminLayout>
     );
 };
 

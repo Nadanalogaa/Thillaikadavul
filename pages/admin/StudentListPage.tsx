@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { User, Course, Batch } from '../../types';
 import { UserRole, ClassPreference, UserStatus } from '../../types';
 import { getAdminUsers, updateUserByAdmin, deleteUserByAdmin, addStudentByAdmin, sendNotification, getCourses, getBatches, updateBatch, addStudentsToBatch } from '../../api';
-import EditUserModal from '../../components/admin/EditUserModal';
+import PersonEditModal from '../../components/admin/PersonEditModal';
 import AddStudentModal from '../../components/admin/AddStudentModal';
 import SendNotificationModal from '../../components/admin/SendNotificationModal';
 import { GRADES } from '../../constants';
@@ -679,12 +679,11 @@ const StudentListPage: React.FC = () => {
                         </div>
                     )}
 
-            <EditUserModal 
+            <PersonEditModal
                 isOpen={!!editingUser}
+                personId={editingUser?.id ?? null}
                 onClose={handleCloseEditModal}
-                user={editingUser}
-                onSave={(users) => { /* Placeholder for teacher saves */ }}
-                onStudentSave={handleStudentSaveChanges}
+                onSaved={async () => { handleCloseEditModal(); await fetchData(); }}
             />
             <AddStudentModal
                 isOpen={isAddModalOpen}

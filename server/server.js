@@ -1710,7 +1710,7 @@ async function startServer() {
         // Grade-based fees: a student's grade in each course.
         const gradeMapRes = await pool.query(`
             SELECT scg.student_id, scg.course_id, scg.grade_id, c.name AS course_name,
-                   g.name AS grade_name, g.monthly_fee
+                   g.name AS grade_name, g.monthly_fee, scg.created_at AS enrolled_at
             FROM student_course_grades scg
             LEFT JOIN courses c ON scg.course_id = c.id
             LEFT JOIN grades g ON scg.grade_id = g.id
@@ -1810,8 +1810,25 @@ async function startServer() {
             if (gradeFees && gradeFees.length > 0) {
                 for (const gf of gradeFees) {
                     const label = `${gf.course_name || 'Course'} - ${gf.grade_name || 'Grade'}`;
+                    // An existing student (joined before this month) who takes up
+                    // a course partway through the month — its grade was set
+                    // after the 1st — is billed for it from that day, like a
+                    // joiner. Students who joined this month use the joiner rule.
+                    let courseTerms = terms;
+                    const added = gf.enrolled_at ? new Date(gf.enrolled_at) : null;
+                    const addedDay = added ? new Date(added.getFullYear(), added.getMonth(), added.getDate()) : null;
+                    if (addedDay && addedDay.getFullYear() === now.getFullYear() && addedDay.getMonth() === now.getMonth()
+                        && addedDay.getDate() > 1 && (!joined || joined < monthFirst)) {
+                        const weekAfter = new Date(addedDay.getFullYear(), addedDay.getMonth(), addedDay.getDate() + 7);
+                        courseTerms = {
+                            factor: (daysInMonth - addedDay.getDate() + 1) / daysInMonth,
+                            issueDate: toDateStr(addedDay),
+                            dueDate: toDateStr(weekAfter > monthTenth ? weekAfter : monthTenth),
+                            proratedFrom: toDateStr(addedDay),
+                        };
+                    }
                     await createLine(s, label, gf.course_id, Number(gf.monthly_fee), gf.grade_id,
-                        resolveBatchId(s.id, gf.course_id), terms);
+                        resolveBatchId(s.id, gf.course_id), courseTerms);
                 }
             } else {
                 noGrade++;
@@ -3453,9 +3470,29 @@ Please review and approve this registration in the admin panel.`;
             values.push(id);
             const query = `UPDATE users SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = $${paramCount} RETURNING *`;
 
+            const before = (await pool.query('SELECT role, courses FROM users WHERE id = $1', [id])).rows[0];
             const result = await pool.query(query, values);
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: 'User not found' });
+            }
+            // A course taken off a student's list: drop its grade (which is what
+            // bills it) and take them out of that course's batches, so the
+            // course stops for real. Bills already issued stay as they are.
+            if (before && String(before.role).toLowerCase() === 'student' && userData.courses !== undefined) {
+                const norm = (c) => String(c).trim().toLowerCase();
+                const now = new Set(safeJsonArray(result.rows[0].courses).map(norm));
+                const removed = safeJsonArray(before.courses).filter(c => !now.has(norm(c)));
+                if (removed.length) {
+                    const ids = (await pool.query('SELECT id FROM courses WHERE LOWER(name) = ANY($1::text[])',
+                        [removed.map(norm)])).rows.map(r => r.id);
+                    if (ids.length) {
+                        await pool.query('DELETE FROM student_course_grades WHERE student_id = $1 AND course_id = ANY($2::int[])', [id, ids]);
+                        await pool.query(
+                            `UPDATE batches SET student_ids = array_remove(student_ids, $1::int), updated_at = NOW()
+                              WHERE course_id = ANY($2::int[]) AND $1::int = ANY(student_ids)`, [id, ids]);
+                        console.log(`[Users] ${id}: removed course(s) ${removed.join(', ')} — grade and batch cleared`);
+                    }
+                }
             }
             res.json(parseUserData(result.rows[0]));
         } catch (error) {
@@ -5343,6 +5380,15 @@ Please review and approve this registration in the admin panel.`;
                  RETURNING *`,
                 [id, course_id, grade_id]
             );
+            // Keep the student's course list in step: a grade means they take it.
+            const c = (await pool.query('SELECT name FROM courses WHERE id = $1', [course_id])).rows[0];
+            if (c) {
+                const u = (await pool.query('SELECT courses FROM users WHERE id = $1', [id])).rows[0];
+                const list = safeJsonArray(u && u.courses);
+                if (!list.some(x => String(x).trim().toLowerCase() === String(c.name).trim().toLowerCase())) {
+                    await pool.query('UPDATE users SET courses = $1, updated_at = NOW() WHERE id = $2', [JSON.stringify([...list, c.name]), id]);
+                }
+            }
             res.status(201).json(result.rows[0]);
 
             // Notify the student of the enrollment (fire-and-forget).

@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import type { User, Course } from '../../types';
 import { UserRole, ClassPreference, UserStatus } from '../../types';
 import { getAdminUsers, updateUserByAdmin, deleteUserByAdmin, addStudentByAdmin, sendNotification, getCourses, setBatchTeacher, getBatches } from '../../api';
-import EditUserModal from '../../components/admin/EditUserModal';
+import PersonEditModal from '../../components/admin/PersonEditModal';
 import AddTeacherModal from '../../components/admin/AddTeacherModal';
 import SendNotificationModal from '../../components/admin/SendNotificationModal';
 import { WEEKDAYS, TIME_SLOTS } from '../../constants';
@@ -503,11 +503,11 @@ const TeacherListPage: React.FC = () => {
                         </div>
                     )}
 
-            <EditUserModal 
+            <PersonEditModal
                 isOpen={!!editingUser}
+                personId={editingUser?.id ?? null}
                 onClose={() => setEditingUser(null)}
-                user={editingUser}
-                onSave={handleSaveUsers}
+                onSaved={async () => { setEditingUser(null); await fetchData(); }}
             />
              <AddTeacherModal 
                 isOpen={isAddModalOpen}
