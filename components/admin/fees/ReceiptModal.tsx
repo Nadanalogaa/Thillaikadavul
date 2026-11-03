@@ -126,6 +126,12 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptNumber, onClose, can
                                     <dd className="font-mono text-xs break-all">{receipt.transaction_id}</dd>
                                 </div>
                             )}
+                            {(receipt as any).proof_url && (
+                                <div>
+                                    <dt className={muted}>Screenshot</dt>
+                                    <dd><a href={(receipt as any).proof_url} target="_blank" rel="noreferrer" className="font-medium text-indigo-600 hover:underline">View payment screenshot</a></dd>
+                                </div>
+                            )}
                         </dl>
 
                         {receipt.status === 'reversed' && (

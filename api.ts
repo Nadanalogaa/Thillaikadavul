@@ -1687,6 +1687,19 @@ export const collectCash = async (invoiceIds: (number | string)[]): Promise<Coll
   return feesJson<CollectCashResult>(res, 'Could not record the cash payment.');
 };
 
+// A UPI payment the parent made outside the app (screenshot came on WhatsApp):
+// the admin attaches it and marks the bills paid — one receipt, like cash.
+export const recordUpiPayment = async (
+  invoiceIds: (number | string)[], screenshot: File | null, utr: string,
+): Promise<CollectCashResult> => {
+  const form = new FormData();
+  form.append('invoice_ids', invoiceIds.map(Number).join(','));
+  if (utr.trim()) form.append('transaction_id', utr.trim());
+  if (screenshot) form.append('proof', screenshot);
+  const res = await fetch('/api/fees/record-upi', { method: 'POST', credentials: 'include', body: form });
+  return feesJson<CollectCashResult>(res, 'Could not record the UPI payment.');
+};
+
 export const getReceipt = async (receiptNumber: string): Promise<FeeReceipt> => {
   const res = await fetch(`/api/fees/receipts/${encodeURIComponent(receiptNumber)}`, { credentials: 'include' });
   return feesJson<FeeReceipt>(res, 'Could not load the receipt.');

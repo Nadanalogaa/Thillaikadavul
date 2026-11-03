@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Check } from 'lucide-react';
 import type { CollectCashResult, FamilyDue } from '../../../types';
-import { collectCash, getFamilyDue } from '../../../api';
+import { collectCash, getFamilyDue, recordUpiPayment } from '../../../api';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { FeeModal, formatDateTime, formatRupees } from './feeUi';
 
@@ -11,9 +11,16 @@ interface CollectCashModalProps {
     /** `collected` is true when a payment was recorded (the caller should refresh). */
     onClose: (collected: boolean) => void;
     onViewReceipt: (receiptNumber: string) => void;
+    /** 'upi': the parent paid by UPI outside the app (screenshot on WhatsApp);
+     *  the admin attaches the screenshot and marks the bills paid. */
+    mode?: 'cash' | 'upi';
 }
 
-const CollectCashModal: React.FC<CollectCashModalProps> = ({ student, onClose, onViewReceipt }) => {
+const CollectCashModal: React.FC<CollectCashModalProps> = ({ student, onClose, onViewReceipt, mode = 'cash' }) => {
+    const upi = mode === 'upi';
+    const [shot, setShot] = useState<File | null>(null);
+    const [shotPreview, setShotPreview] = useState<string | null>(null);
+    const [utr, setUtr] = useState('');
     const { theme } = useTheme();
     const dark = theme === 'dark';
     const [family, setFamily] = useState<FamilyDue | null>(null);
@@ -32,6 +39,7 @@ const CollectCashModal: React.FC<CollectCashModalProps> = ({ student, onClose, o
         setSubmitError(null);
         setLoadError(null);
         setResult(null);
+        setShot(null); setShotPreview(null); setUtr('');
         if (studentId === null) return;
         let cancelled = false;
         setLoading(true);
@@ -64,9 +72,11 @@ const CollectCashModal: React.FC<CollectCashModalProps> = ({ student, onClose, o
         setSubmitting(true);
         setSubmitError(null);
         try {
-            setResult(await collectCash(Array.from(checked)));
+            setResult(upi
+                ? await recordUpiPayment(Array.from(checked), shot, utr)
+                : await collectCash(Array.from(checked)));
         } catch (e) {
-            setSubmitError(e instanceof Error ? e.message : 'Could not record the cash payment.');
+            setSubmitError(e instanceof Error ? e.message : upi ? 'Could not record the UPI payment.' : 'Could not record the cash payment.');
         } finally {
             setSubmitting(false);
         }
@@ -77,7 +87,8 @@ const CollectCashModal: React.FC<CollectCashModalProps> = ({ student, onClose, o
     const tag = (cls: string) => `inline-flex items-center rounded border px-1.5 py-0.5 text-[11px] font-medium ${cls}`;
 
     return (
-        <FeeModal open={!!student} onClose={close} title={result ? 'Cash collected' : `Collect cash — ${student?.name || ''}`}>
+        <FeeModal open={!!student} onClose={close}
+            title={result ? (upi ? 'UPI payment recorded' : 'Cash collected') : upi ? `Record UPI payment — ${student?.name || ''}` : `Collect cash — ${student?.name || ''}`}>
             {result ? (
                 <div className="px-5 py-6">
                     <div className="flex flex-col items-center text-center">
@@ -87,7 +98,7 @@ const CollectCashModal: React.FC<CollectCashModalProps> = ({ student, onClose, o
                         <p className="mt-3 text-sm font-medium">Receipt {result.receipt_number}</p>
                         <p className="mt-1 text-3xl font-bold tracking-tight">{formatRupees(result.total)}</p>
                         <p className={`mt-1 text-xs ${muted}`}>
-                            Cash{result.collected_by_name ? ` · collected by ${result.collected_by_name}` : ''}
+                            {upi ? 'UPI' : 'Cash'}{result.collected_by_name ? ` · ${upi ? 'recorded' : 'collected'} by ${result.collected_by_name}` : ''}
                             {result.paid_at ? ` · ${formatDateTime(result.paid_at)}` : ''}
                         </p>
                     </div>
@@ -129,12 +140,12 @@ const CollectCashModal: React.FC<CollectCashModalProps> = ({ student, onClose, o
                     )}
 
                     {family && family.bills.length === 0 && (
-                        <p className={`py-8 text-center text-sm ${muted}`}>Nothing to collect — this family has no unpaid bills.</p>
+                        <p className={`py-8 text-center text-sm ${muted}`}>Nothing to {upi ? 'mark paid' : 'collect'} — this family has no unpaid bills.</p>
                     )}
 
                     {family && family.bills.length > 0 && (
                         <>
-                            <p className={`text-sm ${muted}`}>All unpaid bills for this family. Untick any the parent is not paying today.</p>
+                            <p className={`text-sm ${muted}`}>All unpaid bills for this family. Untick any {upi ? 'this payment does not cover' : 'the parent is not paying today'}.</p>
                             <ul className={`mt-3 divide-y rounded-lg border ${border} ${dark ? 'divide-gray-800' : 'divide-gray-100'}`}>
                                 {family.bills.map(bill => {
                                     const id = Number(bill.id);
@@ -175,6 +186,33 @@ const CollectCashModal: React.FC<CollectCashModalProps> = ({ student, onClose, o
                                 </p>
                             </div>
 
+                            {upi && (
+                                <div className={`mt-4 rounded-lg border p-3 ${border}`}>
+                                    <p className="text-sm font-medium">Screenshot the parent sent (WhatsApp)</p>
+                                    <div className="mt-2 flex items-center gap-3">
+                                        {shotPreview && <img src={shotPreview} alt="" className="h-20 w-14 rounded border object-cover" />}
+                                        <label className={`cursor-pointer rounded-md border px-3 py-1.5 text-sm font-medium ${dark ? 'border-gray-600 hover:bg-gray-800' : 'border-gray-300 hover:bg-gray-50'}`}>
+                                            {shot ? 'Change screenshot' : 'Choose screenshot'}
+                                            <input type="file" accept="image/png,image/jpeg" className="hidden" onChange={e => {
+                                                const f = e.target.files?.[0] || null;
+                                                setShot(f);
+                                                setShotPreview(null);
+                                                // A data: URL — the site's image policy allows data:, not blob:.
+                                                if (f) {
+                                                    const reader = new FileReader();
+                                                    reader.onload = () => setShotPreview(String(reader.result));
+                                                    reader.readAsDataURL(f);
+                                                }
+                                            }} />
+                                        </label>
+                                        {!shot && <span className={`text-xs ${muted}`}>Optional, but keep it with the receipt.</span>}
+                                    </div>
+                                    <input value={utr} onChange={e => setUtr(e.target.value)} placeholder="UPI reference / UTR (optional)"
+                                        className="form-input mt-3 w-full text-sm" />
+                                    <p className={`mt-2 text-xs ${muted}`}>Check the amount reached the bank before marking paid.</p>
+                                </div>
+                            )}
+
                             {submitError && (
                                 <div className={`mt-4 rounded-lg border px-3 py-2 text-sm ${dark ? 'border-red-800 bg-red-900/30 text-red-300' : 'border-red-200 bg-red-50 text-red-700'}`}>
                                     {submitError}
@@ -187,7 +225,9 @@ const CollectCashModal: React.FC<CollectCashModalProps> = ({ student, onClose, o
                                 disabled={checked.size === 0 || submitting}
                                 className="mt-4 w-full rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                                {submitting ? 'Recording…' : checked.size === 0 ? 'Select a bill to collect' : `Collect ${formatRupees(total)} in cash`}
+                                {submitting ? 'Recording…'
+                                    : checked.size === 0 ? (upi ? 'Select the bills this payment covers' : 'Select a bill to collect')
+                                    : upi ? `Mark ${formatRupees(total)} paid (UPI)` : `Collect ${formatRupees(total)} in cash`}
                             </button>
                         </>
                     )}

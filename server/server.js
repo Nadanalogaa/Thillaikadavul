@@ -4115,6 +4115,42 @@ Please review and approve this registration in the admin panel.`;
 
     // Cash at the office. FULL payment only: the client sends which bills, never
     // an amount — each bill is settled for exactly its amount.
+    // A UPI payment the parent sent to the academy outside the app (e.g. the
+    // screenshot arrived on WhatsApp): the admin attaches the screenshot and
+    // marks the chosen bills paid in one step — same ledger and receipt as
+    // cash. The screenshot is optional but kept on the receipt when given.
+    app.post('/api/fees/record-upi', ensureAdmin, uploadPaymentProof.single('proof'), async (req, res) => {
+        try {
+            const ids = String(req.body.invoice_ids || '').split(',').map(Number).filter(Number.isInteger);
+            const utr = String(req.body.transaction_id || '').trim() || null;
+            const receipt = await recordPayments({
+                invoiceIds: ids,
+                method: 'UPI',
+                transactionId: utr,
+                collectedBy: { id: req.session.user.id, name: req.session.user.name },
+                notes: 'Recorded by the academy (screenshot received outside the app)',
+            });
+            if (req.file) {
+                await pool.query(
+                    `UPDATE invoice_payments SET proof_url = $1, payment_date = COALESCE($2::date, payment_date)
+                      WHERE receipt_number = $3 AND status = 'approved'`,
+                    [`/uploads/payments/${req.file.filename}`, req.body.payment_date || null, receipt.receiptNumber]);
+            }
+            res.json({
+                receipt_number: receipt.receiptNumber,
+                total: receipt.total,
+                paid_at: receipt.paidAt,
+                collected_by_name: receipt.collectedByName,
+                lines: receipt.lines.map(l => ({
+                    invoice_id: l.invoiceId, student_name: l.studentName, course_name: l.courseName,
+                    billing_period: l.billingPeriod, amount: l.amount,
+                })),
+            });
+        } catch (error) {
+            sendLedgerError(res, error, 'Could not record the UPI payment.');
+        }
+    });
+
     app.post('/api/fees/collect-cash', ensureAdmin, async (req, res) => {
         try {
             const receipt = await recordPayments({
@@ -4164,6 +4200,8 @@ Please review and approve this registration in the admin panel.`;
                 method: first.payment_method,
                 method_label: methodLabel(first.payment_method, first.collected_by_name),
                 transaction_id: first.transaction_id,
+                // The payment screenshot, when the bill was paid by UPI with one.
+                proof_url: (rows.find(r => r.proof_url) || {}).proof_url || null,
                 paid_at: first.paid_at || first.approved_at,
                 collected_by_name: first.collected_by_name,
                 reversed_at: first.reversed_at,
@@ -7216,6 +7254,14 @@ Please review and approve this registration in the admin panel.`;
                     billingPeriod: r.billing_period, amount: Number(r.amount),
                 });
             }
+            // A screenshot the family sent for a bill now paid another way
+            // (cash, or a screenshot the admin recorded) is closed, so it does
+            // not wait in "Payments to verify" for ever.
+            await client.query(
+                `UPDATE invoice_payments SET status = 'superseded', updated_at = NOW(),
+                        notes = COALESCE(notes || ' · ', '') || 'Bill paid another way (' || $2 || ')'
+                  WHERE invoice_id = ANY($1::int[]) AND status = 'submitted'`,
+                [ids, receiptNumber]);
             await client.query('COMMIT');
         } catch (e) {
             await client.query('ROLLBACK').catch(() => {});

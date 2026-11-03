@@ -74,6 +74,8 @@ const FeesRosterPanel: React.FC = () => {
     const [sending, setSending] = useState(false);
     const [reminders, setReminders] = useState<ReminderLink[] | null>(null);
     const [collectFor, setCollectFor] = useState<{ student_id: number; name: string } | null>(null);
+    // Admin records a UPI payment whose screenshot came on WhatsApp.
+    const [upiFor, setUpiFor] = useState<{ student_id: number; name: string } | null>(null);
     const [receiptNo, setReceiptNo] = useState<string | null>(null);
     const [addBillFor, setAddBillFor] = useState<{ student_id: number; name: string } | null>(null);
 
@@ -220,6 +222,14 @@ const FeesRosterPanel: React.FC = () => {
                                 : 'rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700'}
                         >
                             Collect cash
+                        </button>
+                        <button
+                            type="button"
+                            onClick={e => { stop(e); setUpiFor({ student_id: row.student_id, name: row.name }); }}
+                            className={secondaryBtn}
+                            title="The parent paid by UPI and sent the screenshot (e.g. on WhatsApp)"
+                        >
+                            UPI screenshot
                         </button>
                     </div>
                 );
@@ -596,6 +606,12 @@ const FeesRosterPanel: React.FC = () => {
                 student={collectFor}
                 onClose={collected => { setCollectFor(null); if (collected) load(); }}
                 onViewReceipt={no => { setCollectFor(null); load(); setReceiptNo(no); }}
+            />
+            <CollectCashModal
+                mode="upi"
+                student={upiFor}
+                onClose={recorded => { setUpiFor(null); if (recorded) load(); }}
+                onViewReceipt={no => { setUpiFor(null); load(); setReceiptNo(no); }}
             />
             <AddBillModal
                 student={addBillFor}
