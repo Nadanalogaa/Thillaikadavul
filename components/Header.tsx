@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { greetingName } from '../utils/greetingName';
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -295,7 +296,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
               <div className="flex items-center space-x-3">
                 <UnifiedNotificationBell user={currentUser} />
                 <span className={`${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} text-sm font-medium`}>
-                  Welcome, {displayName.split(' ')[0]}!
+                  Welcome, {greetingName(displayName)}!
                 </span>
                 <button 
                   onClick={onLogout} 

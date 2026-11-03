@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { greetingName } from '../../utils/greetingName';
 import { useOutletContext, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
@@ -190,7 +191,7 @@ const StudentDashboardHomePage: React.FC = () => {
                 <div className="flex justify-between items-center">
                     <div className="flex flex-col">
                         <h1 className={`text-xl sm:text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-1`}>
-                            Welcome back, {guardianName?.split(' ')[0]}!
+                            Welcome back, {greetingName(guardianName)}!
                         </h1>
                         <p className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                             {dateString}

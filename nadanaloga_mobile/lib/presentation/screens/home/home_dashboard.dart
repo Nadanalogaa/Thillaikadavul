@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/utils/greeting_name.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -236,7 +237,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
         : hour < 17
             ? 'Good afternoon'
             : 'Good evening';
-    final firstName = fullName.trim().split(RegExp(r'\s+')).first;
+    final firstName = greetingName(fullName);
     const weekdays = [
       'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
     ];
@@ -697,7 +698,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
     final color = s.courseName.isNotEmpty
         ? AppColors.getCourseColor(s.courseName)
         : widget.accent;
-    final teacherFirst = teacherName.trim().split(RegExp(r'\s+')).first;
+    final teacherFirst = greetingName(teacherName);
     final who = [
       if (s.learners.isNotEmpty) s.learners.join(' & '),
       if (s.teaching)
