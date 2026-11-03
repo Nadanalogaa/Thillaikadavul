@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart' show Response;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
@@ -10,6 +11,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/utils/fee_format.dart';
 import '../../../di/injection_container.dart';
 import '../../widgets/receipt_sheet.dart';
+import 'order_items_section.dart';
 import 'student_payment_proof_screen.dart';
 import 'upi_payment_flow.dart';
 
@@ -28,6 +30,8 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
   final _api = sl<ApiClient>();
   late final Razorpay _razorpay;
   Map<String, dynamic>? _fees;
+  /// Items the academy offers to order (uniforms, books…); empty if none.
+  List<Map<String, dynamic>> _orderable = const [];
   bool _loading = true;
   String? _error;
   int? _payingInvoiceId; // invoice currently in Razorpay checkout
@@ -57,14 +61,29 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
 
   Future<void> _load() async {
     setState(() {
-      _loading = true;
+      // Keep the list on screen while refreshing (e.g. after an order).
+      _loading = _fees == null;
       _error = null;
     });
     try {
-      final r = await _api.getHouseholdFees();
+      // The items list is optional: if it fails, the fees still show.
+      final results = await Future.wait([
+        _api.getHouseholdFees(),
+        _api.getOrderableCharges().then<Response?>((x) => x).catchError((_) => null),
+      ]);
+      final r = results[0]!;
+      final items = results[1];
       if (!mounted) return;
       if (r.statusCode == 200 && r.data is Map) {
-        setState(() => _fees = Map<String, dynamic>.from(r.data as Map));
+        setState(() {
+          _fees = Map<String, dynamic>.from(r.data as Map);
+          _orderable = items != null && items.statusCode == 200 && items.data is List
+              ? (items.data as List)
+                  .whereType<Map>()
+                  .map((m) => Map<String, dynamic>.from(m))
+                  .toList()
+              : const [];
+        });
       } else {
         setState(() => _error = 'Could not load fees.');
       }
@@ -208,6 +227,7 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
                       _summary(),
                       const SizedBox(height: 16),
                       ..._studentSections(),
+                      OrderItemsSection(items: _orderable, onOrdered: _load),
                     ],
                   ),
                 ),
@@ -222,8 +242,14 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
     final due = (f['total_due'] as num?)?.toDouble() ?? 0;
     final paid = (f['total_paid'] as num?)?.toDouble() ?? 0;
     final verifying = (f['total_verifying'] as num?)?.toDouble() ?? 0;
+    // Unpaid extra bills (costumes, uniforms…) and earlier months.
+    final otherDue = (f['other_due'] as num?)?.toDouble() ?? 0;
     final allVerifying = due > 0 && verifying >= due;
-    final accent = allPaid ? AppColors.success : allVerifying ? AppColors.info : AppColors.primary;
+    final accent = allPaid && otherDue <= 0
+        ? AppColors.success
+        : allVerifying
+            ? AppColors.info
+            : AppColors.primary;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -257,26 +283,44 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
                       : '${FeeFormat.rupees(verifying)} being verified',
                   style: AppTextStyles.caption
                       .copyWith(color: AppColors.info)),
-            if (!_onlinePayments && _payable.length > 1) ...[
-              const SizedBox(height: 10),
-              FilledButton.icon(
-                onPressed: _payAll,
-                icon: const Icon(Icons.payments_outlined, size: 18),
-                label: Text(uploadOnly(_fees)
-                    ? 'Upload one screenshot for all ${FeeFormat.rupees(billsTotal(_payable))}'
-                    : 'Pay all ${FeeFormat.rupees(billsTotal(_payable))} (${_payable.length} bills)'),
-                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(44)),
-              ),
-              const SizedBox(height: 4),
-              Text(uploadOnly(_fees)
-                      ? 'Paid them together? Upload one screenshot for all ${_payable.length} bills, or each bill below.'
-                      : 'One payment and one screenshot for all of them, or pay each bill below.',
-                  style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
-            ],
             if (!allPaid && paid > 0)
               Text('${FeeFormat.rupees(paid)} already paid this month',
                   style: AppTextStyles.caption
                       .copyWith(color: AppColors.textSecondary)),
+          ],
+          if (otherDue > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.add_circle_outline, size: 16, color: AppColors.warning),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      '${FeeFormat.rupees(otherDue)} other dues (costumes, uniforms…)',
+                      style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (!_onlinePayments && _payable.length > 1) ...[
+            const SizedBox(height: 10),
+            FilledButton.icon(
+              onPressed: _payAll,
+              icon: const Icon(Icons.payments_outlined, size: 18),
+              label: Text(uploadOnly(_fees)
+                  ? 'Upload one screenshot for all ${FeeFormat.rupees(billsTotal(_payable))}'
+                  : 'Pay all ${FeeFormat.rupees(billsTotal(_payable))} (${_payable.length} bills)'),
+              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(44)),
+            ),
+            const SizedBox(height: 4),
+            Text(uploadOnly(_fees)
+                    ? 'Paid them together? Upload one screenshot for all ${_payable.length} bills, or each bill below.'
+                    : 'One payment and one screenshot for all of them, or pay each bill below.',
+                style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
           ],
         ],
       ),
@@ -311,6 +355,13 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
         .cast<Map>()
         .map((m) => Map<String, dynamic>.from(m))
         .toList();
+    // Unpaid bills outside this month: extra bills and earlier months.
+    final period = '${_fees?['period'] ?? ''}';
+    final otherDue = invoices
+        .where((i) =>
+            '${i['billing_period'] ?? ''}' != period &&
+            '${i['status'] ?? ''}'.toLowerCase() != 'paid')
+        .fold<double>(0, (t, i) => t + ((i['amount'] as num?)?.toDouble() ?? 0));
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
@@ -320,7 +371,7 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
-          initiallyExpanded: monthDue > 0,
+          initiallyExpanded: monthDue > 0 || otherDue > 0,
           leading: CircleAvatar(
             backgroundColor: AppColors.primary.withValues(alpha: 0.12),
             child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
@@ -329,9 +380,12 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
           ),
           title: Text(name, style: AppTextStyles.labelLarge),
           subtitle: Text(
-            monthDue > 0
-                ? '${FeeFormat.rupees(monthDue)} due this month'
-                : 'Nothing due this month',
+            [
+              monthDue > 0
+                  ? '${FeeFormat.rupees(monthDue)} due this month'
+                  : 'Nothing due this month',
+              if (otherDue > 0) '+ ${FeeFormat.rupees(otherDue)} other',
+            ].join(' · '),
             style:
                 AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
           ),
@@ -368,6 +422,23 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
     final receiptNo = '${inv['receipt_number'] ?? ''}'.trim();
     final method = FeeFormat.method(
         inv['payment_method'] == null ? null : '${inv['payment_method']}');
+    final canPay = !isPaid && !verifying;
+    final longLabel = !_onlinePayments && uploadOnly(_fees);
+    final Widget payButton = _onlinePayments
+        ? FilledButton(
+            onPressed: id == 0 ? null : () => _pay(id),
+            style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 14)),
+            child: const Text('Pay'),
+          )
+        : FilledButton(
+            onPressed: id == 0 ? null : () => _payByUpi(inv, id, amount),
+            style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 14)),
+            child: Text(uploadOnly(_fees)
+                ? (rejected ? 'Upload again' : 'Upload screenshot')
+                : (rejected ? 'Pay again' : 'Pay')),
+          );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
@@ -398,27 +469,22 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
                           AppTextStyles.caption.copyWith(color: statusColor)),
                 ],
               ),
-              if (!isPaid && !verifying) ...[
+              if (canPay && !longLabel) ...[
                 const SizedBox(width: 10),
-                if (_onlinePayments)
-                  FilledButton(
-                    onPressed: id == 0 ? null : () => _pay(id),
-                    style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 14)),
-                    child: const Text('Pay'),
-                  )
-                else
-                  FilledButton(
-                    onPressed: id == 0 ? null : () => _payByUpi(inv, id, amount),
-                    style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 14)),
-                    child: Text(uploadOnly(_fees)
-                        ? (rejected ? 'Upload again' : 'Upload screenshot')
-                        : (rejected ? 'Pay again' : 'Pay')),
-                  ),
+                payButton,
               ],
             ],
           ),
+          // "Upload screenshot" is too long to sit beside a bill name on a
+          // narrow phone, so it gets its own line.
+          if (canPay && longLabel)
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: payButton,
+              ),
+            ),
           if (verifying)
             Padding(
               padding: const EdgeInsets.only(top: 4),

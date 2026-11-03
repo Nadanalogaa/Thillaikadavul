@@ -256,8 +256,14 @@ class _HomeDashboardState extends State<HomeDashboard> {
         today == 0
             ? 'No classes today'
             : '$today ${today == 1 ? 'class' : 'classes'} today',
-        if (d.students.isNotEmpty && d.hasBill)
-          d.allPaid ? 'Fees paid' : d.allVerifying ? 'Payment being verified' : '${FeeFormat.rupees(d.totalDue)} due',
+        if (d.students.isNotEmpty && (d.hasBill || d.otherDue > 0))
+          d.monthDue
+              ? (d.allVerifying
+                  ? 'Payment being verified'
+                  : '${FeeFormat.rupees(d.totalDue + d.otherDue)} due')
+              : d.otherDue > 0
+                  ? '${FeeFormat.rupees(d.otherDue)} due'
+                  : 'Fees paid',
       ];
       summary = parts.join('  ·  ');
     }
@@ -347,7 +353,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
   Widget _feeCard(HomeData d) {
     final month = d.period.split(' ').first;
 
-    if (!d.hasBill) {
+    if (!d.hasBill && d.otherDue <= 0) {
       return HomeCard(
         onTap: _openFees,
         child: Row(
@@ -372,7 +378,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
       );
     }
 
-    if (d.allPaid) {
+    if (d.allPaid && d.otherDue <= 0) {
       return HomeCard(
         onTap: _openFees,
         borderColor: AppColors.success.withValues(alpha: 0.35),
@@ -419,6 +425,9 @@ class _HomeDashboardState extends State<HomeDashboard> {
       }
     }
     final students = d.students;
+    // Only extra bills / earlier months are left when this month is clear.
+    final onlyOther = !d.monthDue;
+    final payable = payableBills(d.fees);
 
     return HomeCard(
       child: Column(
@@ -427,7 +436,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
           Row(
             children: [
               Expanded(
-                child: Text('$month fees',
+                child: Text(onlyOther ? 'Other dues' : '$month fees',
                     style: AppTextStyles.bodyMedium
                         .copyWith(color: AppColors.textSecondary)),
               ),
@@ -437,20 +446,34 @@ class _HomeDashboardState extends State<HomeDashboard> {
           ),
           const SizedBox(height: 4),
           Text(
-            FeeFormat.rupees(d.totalDue),
+            FeeFormat.rupees(onlyOther ? d.otherDue : d.totalDue),
             style: AppTextStyles.h1.copyWith(
                 fontWeight: FontWeight.w700, color: AppColors.textPrimary),
           ),
           Text(
-            [
-              if (due != null)
-                'Pay by ${FeeFormat.shortDate(d.fees?['due_date'] as String?)}',
-              if (d.totalVerifying > 0) '${FeeFormat.rupees(d.totalVerifying)} being verified',
-              if (d.totalPaid > 0) '${FeeFormat.rupees(d.totalPaid)} already paid',
-            ].join('  ·  '),
+            onlyOther
+                ? [
+                    d.hasBill ? '$month fees paid' : 'No fees for $month yet',
+                    '${d.otherBills} ${d.otherBills == 1 ? 'bill' : 'bills'}: costumes, uniforms…',
+                  ].join('  ·  ')
+                : [
+                    if (due != null)
+                      'Pay by ${FeeFormat.shortDate(d.fees?['due_date'] as String?)}',
+                    if (d.totalVerifying > 0) '${FeeFormat.rupees(d.totalVerifying)} being verified',
+                    if (d.totalPaid > 0) '${FeeFormat.rupees(d.totalPaid)} already paid',
+                  ].join('  ·  '),
             style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
           ),
-          if (students.length > 1) ...[
+          if (!onlyOther && d.otherDue > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '+ ${FeeFormat.rupees(d.otherDue)} other dues (costumes, uniforms…)',
+                style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+              ),
+            ),
+          if (students.length > 1 && !onlyOther) ...[
             const SizedBox(height: 12),
             const Divider(height: 1, color: AppColors.divider),
             const SizedBox(height: 6),
@@ -478,18 +501,20 @@ class _HomeDashboardState extends State<HomeDashboard> {
               Expanded(
                 child: FilledButton(
                   // Pay goes straight to paying; Details opens the bill list.
-                  onPressed: d.allVerifying ? null : _payNow,
+                  // Pays every payable bill (this month + other dues);
+                  // nothing payable means it is all waiting to be verified.
+                  onPressed: payable.isEmpty ? null : _payNow,
                   style: FilledButton.styleFrom(
                     backgroundColor: widget.accent,
                     minimumSize: const Size.fromHeight(46),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: Text(d.allVerifying
+                  child: Text(payable.isEmpty
                       ? 'Being verified'
                       : uploadOnly(d.fees)
-                          ? 'Upload payment screenshot · ${FeeFormat.rupees(billsTotal(payableBills(d.fees)))}'
-                          : 'Pay ${FeeFormat.rupees(billsTotal(payableBills(d.fees)))}'),
+                          ? 'Upload payment screenshot · ${FeeFormat.rupees(billsTotal(payable))}'
+                          : 'Pay ${FeeFormat.rupees(billsTotal(payable))}'),
                 ),
               ),
               const SizedBox(width: 10),

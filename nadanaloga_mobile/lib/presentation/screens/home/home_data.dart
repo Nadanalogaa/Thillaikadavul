@@ -142,6 +142,12 @@ class HomeData {
   /// Unpaid this month but a payment screenshot is waiting for the academy.
   double get totalVerifying => (fees?['total_verifying'] as num?)?.toDouble() ?? 0;
   bool get allVerifying => totalDue > 0 && totalVerifying >= totalDue;
+  /// Unpaid bills outside this month: extra bills (costumes, uniforms…) and
+  /// anything left from earlier months.
+  double get otherDue => (fees?['other_due'] as num?)?.toDouble() ?? 0;
+  int get otherBills => (fees?['other_bills'] as num?)?.toInt() ?? 0;
+  /// This month's fees are generated and not yet fully paid.
+  bool get monthDue => hasBill && !allPaid;
 
   /// Earliest due date among this month's unpaid bills, date part only.
   DateTime? get dueDate {

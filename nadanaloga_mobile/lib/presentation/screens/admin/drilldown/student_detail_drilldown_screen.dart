@@ -468,12 +468,6 @@ class _FeesTab extends StatelessWidget {
                   'No invoices found for this student',
                   style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textHint),
                 ),
-                const SizedBox(height: 24),
-                ElevatedButton.icon(
-                  onPressed: () => context.push('/admin/fees/invoices/add'),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Create Invoice'),
-                ),
               ],
             ),
           );

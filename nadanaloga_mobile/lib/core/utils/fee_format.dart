@@ -95,6 +95,35 @@ class FeeFormat {
     return '$day ${_monthsShort[month - 1]}';
   }
 
+  /// "20 Nov 2026" from a plain date or a server timestamp (timestamps are
+  /// shifted to IST, so a due date stored as IST midnight shows its own day).
+  static String date(String? value) {
+    if (value == null || value.isEmpty) return '';
+    final plain = RegExp(r'^(\d{4})-(\d{2})-(\d{2})$').firstMatch(value);
+    if (plain != null) {
+      final month = int.parse(plain.group(2)!);
+      if (month < 1 || month > 12) return value;
+      return '${int.parse(plain.group(3)!)} ${_monthsShort[month - 1]} ${plain.group(1)}';
+    }
+    final d = _toIst(value);
+    if (d == null) return value;
+    return '${d.day} ${_monthsShort[d.month - 1]} ${d.year}';
+  }
+
+  /// Price of an extra-bill item: "₹450", or "₹450–₹500" when its options
+  /// (sizes…) have their own prices. An option without a price costs [base].
+  static String priceRange(num base, List<dynamic> options) {
+    final prices = <num>[
+      for (final o in options)
+        if (o is Map) (o['amount'] is num && (o['amount'] as num) > 0) ? o['amount'] as num : base,
+    ];
+    if (prices.isEmpty) return rupees(base);
+    prices.sort();
+    return prices.first == prices.last
+        ? rupees(prices.first)
+        : '${rupees(prices.first)}–${rupees(prices.last)}';
+  }
+
   /// Friendly name for a stored payment method.
   static String method(String? m) {
     final v = (m ?? '').trim();

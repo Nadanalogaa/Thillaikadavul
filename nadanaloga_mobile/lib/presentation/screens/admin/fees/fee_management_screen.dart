@@ -15,6 +15,7 @@ import '../../../bloc/fee/fee_event.dart';
 import '../../../bloc/fee/fee_state.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/empty_state_widget.dart';
+import 'extra_bills_tab.dart';
 import 'fees_roster_tab.dart';
 
 class FeeManagementScreen extends StatefulWidget {
@@ -33,11 +34,12 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
   bool _loadingCourses = true;
   Set<int?> _expandedCourses = {};
   final _rosterKey = GlobalKey<FeesRosterTabState>();
+  final _extraKey = GlobalKey<ExtraBillsTabState>();
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     // Rebuild on tab change so the floating buttons match the visible tab.
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging && mounted) setState(() {});
@@ -161,6 +163,7 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
   @override
   Widget build(BuildContext context) {
     final onFeesTab = _tabController.index == 0;
+    final onExtraTab = _tabController.index == 2;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Fee Management'),
@@ -210,6 +213,9 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
         ],
         bottom: TabBar(
           controller: _tabController,
+          // Three tabs: scroll rather than cut "Grades & Fees" on narrow phones.
+          isScrollable: true,
+          tabAlignment: TabAlignment.center,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           indicatorColor: Colors.white,
@@ -217,6 +223,7 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
           tabs: const [
             Tab(text: 'Fees'),
             Tab(text: 'Grades & Fees'),
+            Tab(text: 'Extra bills'),
           ],
         ),
       ),
@@ -238,6 +245,7 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
           children: [
             FeesRosterTab(key: _rosterKey),
             _buildGradesFeesTab(),
+            ExtraBillsTab(key: _extraKey),
           ],
         ),
       ),
@@ -245,7 +253,14 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
       // actions live on each card and in the app-bar menu.
       floatingActionButton: onFeesTab
           ? null
-          : Column(
+          : onExtraTab
+              ? FloatingActionButton.extended(
+                  onPressed: () => _extraKey.currentState?.newBill(),
+                  icon: const Icon(Icons.add),
+                  label: const Text('New bill'),
+                  heroTag: 'new-extra-bill',
+                )
+              : Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Padding(

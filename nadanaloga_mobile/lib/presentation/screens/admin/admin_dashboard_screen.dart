@@ -14,6 +14,7 @@ import '../../bloc/dashboard/dashboard_bloc.dart';
 import '../../bloc/dashboard/dashboard_event.dart';
 import '../../bloc/dashboard/dashboard_state.dart';
 import '../../widgets/stat_card.dart';
+import 'fees/extra_bill_form_screen.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -200,10 +201,13 @@ class AdminDashboardScreen extends StatelessWidget {
                   ),
                   _QuickActionCard(
                     icon: Icons.receipt_long,
-                    title: 'Create Invoice',
-                    subtitle: 'Generate fee invoice',
+                    title: 'Extra Bill',
+                    subtitle: 'Costume, exam, uniform…',
                     color: AppColors.success,
-                    onTap: () => context.push('/admin/fees/invoices/add'),
+                    // One-off bills are raised only as extra bills (not
+                    // per-student invoices).
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => const ExtraBillFormScreen())),
                     index: 3,
                   ),
                   if (user?.isSuperAdmin == true)

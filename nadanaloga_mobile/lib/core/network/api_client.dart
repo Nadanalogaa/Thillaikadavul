@@ -671,6 +671,43 @@ class ApiClient {
         data: {'reason': reason});
   }
 
+  // --- Extra bills (costumes, exam fees, uniforms…) ---
+
+  /// Admin: every extra bill with paid / billed counts, plus the categories.
+  Future<Response> getFeeCharges() {
+    return _dio.get('${ApiEndpoints.apiPrefix}/fee-charges');
+  }
+
+  /// Admin: raise an extra bill ('assigned') or offer an item ('orderable').
+  Future<Response> createFeeCharge(Map<String, dynamic> data) {
+    return _dio.post('${ApiEndpoints.apiPrefix}/fee-charges', data: data);
+  }
+
+  /// Admin: one extra bill and each student's bill from it.
+  Future<Response> getFeeCharge(int id) {
+    return _dio.get('${ApiEndpoints.apiPrefix}/fee-charges/$id');
+  }
+
+  /// Admin: stop orders and withdraw the unpaid bills (paid ones stay).
+  Future<Response> closeFeeCharge(int id) {
+    return _dio.post('${ApiEndpoints.apiPrefix}/fee-charges/$id/close');
+  }
+
+  /// Family: items it can order for its students, with its orders so far.
+  Future<Response> getOrderableCharges() {
+    return _dio.get('${ApiEndpoints.apiPrefix}/fee-charges-orderable');
+  }
+
+  /// Family: order an item for one student; creates that student's bill.
+  Future<Response> orderFeeCharge(int id,
+      {required int studentId, String? option, int quantity = 1}) {
+    return _dio.post('${ApiEndpoints.apiPrefix}/fee-charges/$id/order', data: {
+      'student_id': studentId,
+      if (option != null) 'option': option,
+      'quantity': quantity,
+    });
+  }
+
   // --- Attendance API ---
 
   /// The signed-in teacher's classes on a date, and whether they are marked.
