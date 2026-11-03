@@ -90,7 +90,7 @@ class _StudentPaymentProofScreenState extends State<StudentPaymentProofScreen> {
       if (response.statusCode == 201) {
         setState(() => _submitted = true);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Payment proof submitted successfully.')),
+          const SnackBar(content: Text('Screenshot sent. The academy will confirm your payment soon.')),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -190,7 +190,7 @@ class _StudentPaymentProofScreenState extends State<StudentPaymentProofScreen> {
                       TextFormField(
                         controller: _transactionController,
                         decoration: const InputDecoration(
-                          labelText: 'Transaction ID (optional)',
+                          labelText: 'UPI reference / UTR number (optional)',
                           prefixIcon: Icon(Icons.confirmation_number),
                         ),
                       ),
@@ -234,7 +234,7 @@ class _StudentPaymentProofScreenState extends State<StudentPaymentProofScreen> {
                       const SizedBox(height: 16),
                       if (_submitted)
                         Text(
-                          'Your payment proof is submitted. Admin will review and confirm.',
+                          'Payment received — the academy will confirm it soon. The bill shows “Being verified” until then.',
                           style: AppTextStyles.caption.copyWith(
                             color: AppColors.textSecondary,
                           ),

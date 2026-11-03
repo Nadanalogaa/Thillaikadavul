@@ -139,6 +139,9 @@ class HomeData {
   bool get allPaid => fees?['all_paid'] == true;
   double get totalDue => (fees?['total_due'] as num?)?.toDouble() ?? 0;
   double get totalPaid => (fees?['total_paid'] as num?)?.toDouble() ?? 0;
+  /// Unpaid this month but a payment screenshot is waiting for the academy.
+  double get totalVerifying => (fees?['total_verifying'] as num?)?.toDouble() ?? 0;
+  bool get allVerifying => totalDue > 0 && totalVerifying >= totalDue;
 
   /// Earliest due date among this month's unpaid bills, date part only.
   DateTime? get dueDate {

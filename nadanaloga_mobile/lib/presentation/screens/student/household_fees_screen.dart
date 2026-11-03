@@ -11,6 +11,7 @@ import '../../../core/utils/fee_format.dart';
 import '../../../di/injection_container.dart';
 import '../../widgets/receipt_sheet.dart';
 import 'student_payment_proof_screen.dart';
+import '../../widgets/upi_pay_sheet.dart';
 
 /// Household fees drilldown: this month's total → per student → each invoice,
 /// with "Pay" on any pending invoice of any student in the household. The
@@ -89,6 +90,25 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
       ),
     );
     if (mounted) _load();
+  }
+
+  /// Pay by UPI app, then upload the screenshot (online payment is off).
+  Future<void> _payByUpi(Map<String, dynamic> inv, int id, double amount) async {
+    final upi = _fees?['upi'] is Map ? Map<String, dynamic>.from(_fees!['upi'] as Map) : const <String, dynamic>{};
+    final upiId = '${upi['id'] ?? ''}'.trim();
+    if (upiId.isEmpty) {
+      _uploadReceipt(id);
+      return;
+    }
+    final upload = await showUpiPaySheet(
+      context,
+      upiId: upiId,
+      payeeName: '${upi['name'] ?? 'Nadanaloga'}',
+      amount: amount,
+      invoiceId: id,
+      forWhat: '${inv['course_name'] ?? 'Fee'} · ${inv['billing_period'] ?? ''}',
+    );
+    if (upload && mounted) await _uploadReceipt(id);
   }
 
   Future<void> _pay(int invoiceId) async {
@@ -206,7 +226,9 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
     final allPaid = f['all_paid'] == true;
     final due = (f['total_due'] as num?)?.toDouble() ?? 0;
     final paid = (f['total_paid'] as num?)?.toDouble() ?? 0;
-    final accent = allPaid ? AppColors.success : AppColors.primary;
+    final verifying = (f['total_verifying'] as num?)?.toDouble() ?? 0;
+    final allVerifying = due > 0 && verifying >= due;
+    final accent = allPaid ? AppColors.success : allVerifying ? AppColors.info : AppColors.primary;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -222,7 +244,9 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
                 ? 'No fees generated for $period yet'
                 : allPaid
                     ? 'Paid for $period'
-                    : 'Due for $period',
+                    : allVerifying
+                        ? 'Payment being verified for $period'
+                        : 'Due for $period',
             style: AppTextStyles.labelLarge,
           ),
           if (hasBill) ...[
@@ -232,6 +256,12 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
               style: AppTextStyles.h3
                   .copyWith(color: accent, fontWeight: FontWeight.w700),
             ),
+            if (!allPaid && verifying > 0)
+              Text(allVerifying
+                      ? 'The academy will confirm your payment soon.'
+                      : '${FeeFormat.rupees(verifying)} being verified',
+                  style: AppTextStyles.caption
+                      .copyWith(color: AppColors.info)),
             if (!allPaid && paid > 0)
               Text('${FeeFormat.rupees(paid)} already paid this month',
                   style: AppTextStyles.caption
@@ -313,9 +343,17 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
     final amount = (inv['amount'] as num?)?.toDouble() ?? 0;
     final status = '${inv['status'] ?? 'pending'}'.toLowerCase();
     final isPaid = status == 'paid';
+    // The family's latest screenshot: waiting for the academy, or not accepted.
+    final proof = '${inv['proof_status'] ?? ''}'.toLowerCase();
+    final verifying = !isPaid && proof == 'submitted';
+    final rejected = !isPaid && proof == 'rejected';
+    final proofNote = '${inv['proof_note'] ?? ''}'.trim();
     final statusColor = isPaid
         ? AppColors.success
-        : (status == 'overdue' ? AppColors.error : AppColors.warning);
+        : verifying
+            ? AppColors.info
+            : (status == 'overdue' ? AppColors.error : AppColors.warning);
+    final statusText = verifying ? 'Being verified' : status[0].toUpperCase() + status.substring(1);
     final receiptNo = '${inv['receipt_number'] ?? ''}'.trim();
     final method = FeeFormat.method(
         inv['payment_method'] == null ? null : '${inv['payment_method']}');
@@ -344,12 +382,12 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
                 children: [
                   Text(FeeFormat.rupees(amount),
                       style: AppTextStyles.labelLarge),
-                  Text(status[0].toUpperCase() + status.substring(1),
+                  Text(statusText,
                       style:
                           AppTextStyles.caption.copyWith(color: statusColor)),
                 ],
               ),
-              if (!isPaid) ...[
+              if (!isPaid && !verifying) ...[
                 const SizedBox(width: 10),
                 if (_onlinePayments)
                   FilledButton(
@@ -359,17 +397,38 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
                     child: const Text('Pay'),
                   )
                 else
-                  FilledButton.icon(
-                    onPressed: id == 0 ? null : () => _uploadReceipt(id),
-                    icon: const Icon(Icons.upload_file, size: 18),
-                    label: const Text("I've paid"),
+                  FilledButton(
+                    onPressed: id == 0 ? null : () => _payByUpi(inv, id, amount),
                     style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12)),
+                        padding: const EdgeInsets.symmetric(horizontal: 14)),
+                    child: Text(rejected ? 'Pay again' : 'Pay'),
                   ),
               ],
             ],
           ),
-          if (!isPaid && _onlinePayments && id != 0)
+          if (verifying)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.hourglass_top, size: 14, color: AppColors.info),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text('Payment received — the academy will confirm it soon.',
+                        style: AppTextStyles.caption.copyWith(color: AppColors.info)),
+                  ),
+                ],
+              ),
+            ),
+          if (rejected)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Screenshot not accepted${proofNote.isNotEmpty ? ': $proofNote' : ''}. Please pay or upload again.',
+                style: AppTextStyles.caption.copyWith(color: AppColors.error),
+              ),
+            ),
+          if (!isPaid && !verifying && _onlinePayments && id != 0)
             Align(
               alignment: Alignment.centerRight,
               child: TextButton.icon(

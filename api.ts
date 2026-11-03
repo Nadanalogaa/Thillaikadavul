@@ -4262,6 +4262,9 @@ export interface AppVersionSettings {
   android_version_name: string;
   android_store_url: string;
   update_message: string;
+  /** UPI ID and payee name families pay fees to (shown in the app's Pay sheet). */
+  upi_id?: string;
+  upi_payee_name?: string;
 }
 
 export const getAppSettings = async (): Promise<AppVersionSettings> => {

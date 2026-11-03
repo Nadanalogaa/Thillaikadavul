@@ -3823,12 +3823,19 @@ Please review and approve this registration in the admin panel.`;
             const invRes = await pool.query(
                 `SELECT i.id, i.student_id, i.course_name, i.amount, i.currency, i.status, i.billing_period,
                         i.issue_date, i.due_date, i.payment_details, i.prorated_from,
-                        p.receipt_number, p.payment_method, p.paid_at, p.collected_by_name
+                        p.receipt_number, p.payment_method, p.paid_at, p.collected_by_name,
+                        lp.status AS proof_status, lp.notes AS proof_note, lp.submitted_at AS proof_submitted_at
                  FROM invoices i
                  LEFT JOIN LATERAL (
                      SELECT receipt_number, payment_method, paid_at, collected_by_name FROM invoice_payments
                      WHERE invoice_id = i.id AND status = 'approved' ORDER BY id DESC LIMIT 1
                  ) p ON true
+                 -- The latest proof the family sent: 'submitted' = waiting for
+                 -- the academy to check it, 'rejected' = not accepted (notes say why).
+                 LEFT JOIN LATERAL (
+                     SELECT status, notes, submitted_at FROM invoice_payments
+                     WHERE invoice_id = i.id ORDER BY id DESC LIMIT 1
+                 ) lp ON true
                  WHERE i.student_id = ANY($1)
                  ORDER BY i.issue_date DESC NULLS LAST, i.id DESC`, [studentIds]);
             const byStudent = new Map();
@@ -3838,7 +3845,7 @@ Please review and approve this registration in the admin panel.`;
                     month_generated: 0, month_paid: 0, month_due: 0, invoices: [],
                 });
             }
-            let totalGenerated = 0, totalPaid = 0, totalDue = 0, earliestDue = null;
+            let totalGenerated = 0, totalPaid = 0, totalDue = 0, totalVerifying = 0, earliestDue = null;
             for (const inv of invRes.rows) {
                 const s = byStudent.get(inv.student_id);
                 if (!s) continue;
@@ -3850,6 +3857,8 @@ Please review and approve this registration in the admin panel.`;
                     if (status === 'paid') { s.month_paid += amt; totalPaid += amt; }
                     else {
                         s.month_due += amt; totalDue += amt;
+                        // Screenshot sent, waiting for the academy to confirm.
+                        if (String(inv.proof_status || '').toLowerCase() === 'submitted') totalVerifying += amt;
                         if (inv.due_date && (!earliestDue || new Date(inv.due_date) < new Date(earliestDue))) {
                             earliestDue = inv.due_date;
                         }
@@ -3861,6 +3870,7 @@ Please review and approve this registration in the admin panel.`;
                 total_generated: totalGenerated,
                 total_paid: totalPaid,
                 total_due: totalDue,
+                total_verifying: totalVerifying,
                 has_bill: totalGenerated > 0,
                 all_paid: totalGenerated > 0 && totalDue === 0,
                 due_date: earliestDue,
@@ -3869,6 +3879,11 @@ Please review and approve this registration in the admin panel.`;
                 // upload a UPI receipt instead, so turning Razorpay off is a
                 // config change rather than an app release.
                 online_payments_enabled: razorpayConfigured(),
+                // Pay-by-UPI details (Admin -> App update).
+                upi: await (async () => {
+                    const st = await readAppSettings({ upi_id: APP_VERSION_KEYS.upi_id, upi_payee_name: APP_VERSION_KEYS.upi_payee_name });
+                    return { id: st.upi_id, name: st.upi_payee_name };
+                })(),
             });
         } catch (error) {
             console.error('Error building household fees:', error);
@@ -5042,6 +5057,9 @@ Please review and approve this registration in the admin panel.`;
         android_version_name: '',
         android_store_url: 'https://play.google.com/store/apps/details?id=com.nadanaloga.nadanaloga_mobile',
         update_message: '',
+        // Where families pay by UPI while online payment (Razorpay) is off.
+        upi_id: 'thendralmadhan-1@okhdfcbank',
+        upi_payee_name: 'NADANALOGA NATYALAYA',
     };
 
     const readAppSettings = async (keys) => {

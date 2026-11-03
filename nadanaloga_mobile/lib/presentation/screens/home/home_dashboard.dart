@@ -241,7 +241,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
             ? 'No classes today'
             : '$today ${today == 1 ? 'class' : 'classes'} today',
         if (d.students.isNotEmpty && d.hasBill)
-          d.allPaid ? 'Fees paid' : '${FeeFormat.rupees(d.totalDue)} due',
+          d.allPaid ? 'Fees paid' : d.allVerifying ? 'Payment being verified' : '${FeeFormat.rupees(d.totalDue)} due',
       ];
       summary = parts.join('  ·  ');
     }
@@ -387,7 +387,10 @@ class _HomeDashboardState extends State<HomeDashboard> {
     final daysLeft = due?.difference(DateTime(today.year, today.month, today.day)).inDays;
     String? statusLabel;
     Color statusColor = AppColors.info;
-    if (daysLeft != null) {
+    if (d.allVerifying) {
+      statusLabel = 'Being verified';
+      statusColor = AppColors.info;
+    } else if (daysLeft != null) {
       if (daysLeft < 0) {
         statusLabel = 'Overdue by ${-daysLeft} ${-daysLeft == 1 ? 'day' : 'days'}';
         statusColor = AppColors.error;
@@ -426,6 +429,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
             [
               if (due != null)
                 'Pay by ${FeeFormat.shortDate(d.fees?['due_date'] as String?)}',
+              if (d.totalVerifying > 0) '${FeeFormat.rupees(d.totalVerifying)} being verified',
               if (d.totalPaid > 0) '${FeeFormat.rupees(d.totalPaid)} already paid',
             ].join('  ·  '),
             style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
@@ -464,7 +468,9 @@ class _HomeDashboardState extends State<HomeDashboard> {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: Text('Pay ${FeeFormat.rupees(d.totalDue)}'),
+                  child: Text(d.allVerifying
+                      ? 'Being verified'
+                      : 'Pay ${FeeFormat.rupees(d.totalDue - d.totalVerifying)}'),
                 ),
               ),
               const SizedBox(width: 10),

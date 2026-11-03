@@ -11,6 +11,8 @@ const BLANK: AppVersionSettings = {
   android_version_name: '',
   android_store_url: '',
   update_message: '',
+  upi_id: '',
+  upi_payee_name: '',
 };
 
 const AppUpdatePage: React.FC = () => {
@@ -121,6 +123,28 @@ const AppUpdatePage: React.FC = () => {
               onChange={e => set('android_store_url', e.target.value)}
               placeholder="https://play.google.com/store/apps/details?id=com.nadanaloga.nadanaloga_mobile"
               className="form-input w-full text-sm" />
+          </div>
+        </div>
+      </section>
+
+      <section className={card}>
+        <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">
+          Fee payments by UPI
+        </h2>
+        <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+          Families tap Pay on a bill and their UPI app opens with this ID, the amount and the bill
+          number filled in. They then upload the screenshot, and you approve it under Fees.
+        </p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label className={label} htmlFor="upi">UPI ID</label>
+            <input id="upi" value={form.upi_id || ''} onChange={e => set('upi_id', e.target.value.trim())}
+              placeholder="name@okhdfcbank" className="form-input w-full text-sm" />
+          </div>
+          <div>
+            <label className={label} htmlFor="upiname">Payee name (as the bank shows it)</label>
+            <input id="upiname" value={form.upi_payee_name || ''} onChange={e => set('upi_payee_name', e.target.value)}
+              placeholder="NADANALOGA NATYALAYA" className="form-input w-full text-sm" />
           </div>
         </div>
       </section>
