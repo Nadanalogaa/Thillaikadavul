@@ -7,7 +7,6 @@ import { getAdminUsers, updateUserByAdmin, deleteUserByAdmin, addStudentByAdmin,
 import PersonEditModal from '../../components/admin/PersonEditModal';
 import AddStudentModal from '../../components/admin/AddStudentModal';
 import SendNotificationModal from '../../components/admin/SendNotificationModal';
-import { GRADES } from '../../constants';
 import { CourseIcon } from '../../components/icons';
 import Tooltip from '../../components/Tooltip';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
@@ -165,12 +164,37 @@ const StudentListPage: React.FC = () => {
         }
     };
 
+    // Grade filter options: the academy's grades students actually have,
+    // grouped by course (a grade name like "Pre-Grade" exists in several
+    // courses). Value = "course||grade".
+    const gradeOptions = useMemo(() => {
+        const byCourse = new Map<string, Set<string>>();
+        for (const st of students) {
+            for (const g of st.courseGrades || []) {
+                if (!g.grade_name) continue;
+                const c = g.course_name || 'Other';
+                if (!byCourse.has(c)) byCourse.set(c, new Set());
+                byCourse.get(c)!.add(g.grade_name);
+            }
+        }
+        const gradeOrder = (a: string, b: string) => {
+            const pre = (x: string) => (/^pre/i.test(x) ? 0 : 1);
+            return pre(a) - pre(b) || a.localeCompare(b, undefined, { numeric: true });
+        };
+        return [...byCourse.entries()]
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([course, grades]) => ({ course, grades: [...grades].sort(gradeOrder) }));
+    }, [students]);
+
     const filteredAndSortedStudents = useMemo(() => {
         let processStudents = [...students];
 
         // Filtering
         processStudents = processStudents.filter(student => {
-            if (gradeFilter && student.grade !== gradeFilter) return false;
+            if (gradeFilter) {
+                const [course, grade] = gradeFilter.split('||');
+                if (!(student.courseGrades || []).some(g => (g.course_name || 'Other') === course && g.grade_name === grade)) return false;
+            }
             if (preferenceFilter && student.classPreference !== preferenceFilter) return false;
             if (discountFilter) {
                 const hasDisc = (student.courseGrades || []).some(g => Number(g.discount_percentage || 0) > 0);
@@ -202,6 +226,7 @@ const StudentListPage: React.FC = () => {
                     student.email,
                     displayEmail(student),
                     student.grade,
+                    ...(student.courseGrades || []).map(g => g.grade_name),
                     student.contactNumber,
                     ...(student.courses || []),
                     ...enrollments.map(e => e.batchName),
@@ -215,8 +240,10 @@ const StudentListPage: React.FC = () => {
         // Sorting
         if (sortConfig !== null) {
             processStudents.sort((a, b) => {
-                const aVal = a[sortConfig.key as keyof User];
-                const bVal = b[sortConfig.key as keyof User];
+                // Grade column sorts by the grades shown (per course), not the old single grade.
+                const gradeText = (u: User) => (u.courseGrades || []).map(g => g.grade_name).filter(Boolean).join(', ') || u.grade || null;
+                const aVal = sortConfig.key === 'grade' ? gradeText(a) : a[sortConfig.key as keyof User];
+                const bVal = sortConfig.key === 'grade' ? gradeText(b) : b[sortConfig.key as keyof User];
 
                 if (aVal === undefined || aVal === null) return 1;
                 if (bVal === undefined || bVal === null) return -1;
@@ -438,7 +465,11 @@ const StudentListPage: React.FC = () => {
                                 <label htmlFor="grade-filter" className="text-sm font-medium text-gray-700">Grade</label>
                                 <select id="grade-filter" value={gradeFilter} onChange={e => setGradeFilter(e.target.value)} className="w-full form-select mt-1">
                                     <option value="">All Grades</option>
-                                    {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
+                                    {gradeOptions.map(({ course, grades }) => (
+                                        <optgroup key={course} label={course}>
+                                            {grades.map(g => <option key={`${course}||${g}`} value={`${course}||${g}`}>{g}</option>)}
+                                        </optgroup>
+                                    ))}
                                 </select>
                             </div>
                             <div>
