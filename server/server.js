@@ -5096,9 +5096,11 @@ Please review and approve this registration in the admin panel.`;
         // app shows this QR and lets the family save it to scan from photos.
         upi_qr_text: '0002010102110216440384363591390604165220240363591392061661000303635913900825HDFC00000015020008848527226460010A0000005240128VYAPAR.170154547897@HDFCBANK27420010A0000005240124STQD346925817398850995825204821153033565802IN5916TAMIL THENDRAL B6007chennai610660007362400524STQD346925817398850995820708363591396304be5e',
         // 'yes' shows the Google Pay / PhonePe / Paytm / CRED buttons that open
-        // the app with the bill filled in. Off for a counter merchant ID: the
-        // bank does not accept payments started from another app's link.
-        upi_app_links: 'no',
+        // the app with the bill filled in (the academy QR is shown below them
+        // either way). The academy wants them on; note the HDFC counter
+        // merchant ID refuses payments started from a link until HDFC enables
+        // app/intent payments, so families then use the QR.
+        upi_app_links: 'yes',
     };
 
     const readAppSettings = async (keys) => {

@@ -186,9 +186,10 @@ class _UpiPaySheetState extends State<_UpiPaySheet> {
     setState(() { _hint = '$what copied.'; _hintIsError = false; });
   }
 
-  /// Scan-the-academy-QR layout (counter merchant IDs).
-  List<Widget> _scanFirst() => [
-        Text('1. Scan the academy QR', style: AppTextStyles.labelLarge),
+  /// The academy QR, large, with Save — works with every UPI app, including
+  /// for a counter merchant ID that refuses payments started from app links.
+  List<Widget> _scanFirst({String heading = '1. Scan the academy QR', bool showHint = true}) => [
+        Text(heading, style: AppTextStyles.labelLarge),
         const SizedBox(height: 8),
         Center(
           child: Container(
@@ -211,7 +212,7 @@ class _UpiPaySheetState extends State<_UpiPaySheet> {
           'From another phone: just scan the QR above.',
           style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
         ),
-        if (_hint != null) ...[
+        if (showHint && _hint != null) ...[
           const SizedBox(height: 8),
           Text(_hint!,
               textAlign: TextAlign.center,
@@ -305,6 +306,9 @@ class _UpiPaySheetState extends State<_UpiPaySheet> {
                       color: _hintIsError ? AppColors.error : AppColors.success)),
             ],
             const SizedBox(height: 16),
+            // Buttons first; the QR stays right below for when an app
+            // refuses a payment started from a link.
+            ..._scanFirst(heading: 'If the app shows an error: scan the academy QR', showHint: false),
             ],
 
             // Always-works fallback: scan from another phone, or pay to the ID.
@@ -318,15 +322,7 @@ class _UpiPaySheetState extends State<_UpiPaySheet> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Already shown large above in the scan-the-QR layout.
-                  if (widget.appLinks) ...[
-                    Container(
-                      color: Colors.white,
-                      padding: const EdgeInsets.all(4),
-                      child: QrImageView(data: _qrData, size: 110),
-                    ),
-                    const SizedBox(width: 12),
-                  ],
+                  // The QR is shown large above.
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
