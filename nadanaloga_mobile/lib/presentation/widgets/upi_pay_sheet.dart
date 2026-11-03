@@ -1,7 +1,10 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/theme/app_colors.dart';
@@ -24,6 +27,8 @@ Future<bool> showUpiPaySheet(
   required String forWhat,
   Map<String, String> extra = const {},
   bool prefillAmount = true,
+  String? qrText,
+  bool appLinks = true,
 }) async {
   final result = await showModalBottomSheet<bool>(
     context: context,
@@ -37,6 +42,8 @@ Future<bool> showUpiPaySheet(
       forWhat: forWhat,
       extra: extra,
       prefillAmount: prefillAmount,
+      qrText: qrText,
+      appLinks: appLinks,
     ),
   );
   return result == true;
@@ -73,10 +80,17 @@ class _UpiPaySheet extends StatefulWidget {
   /// note (Google Pay rejects an unsigned merchant link with an amount),
   /// and the family types the amount shown here.
   final bool prefillAmount;
+  /// The bank's own QR text; shown (and saved) instead of a built UPI link.
+  final String? qrText;
+  /// Show the open-in-app buttons. Off for a counter merchant ID, which only
+  /// accepts payments made by scanning its QR.
+  final bool appLinks;
 
   const _UpiPaySheet({
     this.extra = const {},
     this.prefillAmount = true,
+    this.qrText,
+    this.appLinks = true,
     required this.upiId,
     required this.payeeName,
     required this.amount,
@@ -134,10 +148,78 @@ class _UpiPaySheetState extends State<_UpiPaySheet> {
     });
   }
 
+  String get _qrData => (widget.qrText ?? '').trim().isNotEmpty ? widget.qrText!.trim() : _upiLink;
+
+  /// Save the QR as a picture (share sheet: "Save Image" on iPhone, save to
+  /// gallery / Files on Android), so the family can scan it from their
+  /// photos in Google Pay, PhonePe or Paytm. White background: UPI apps
+  /// cannot read a QR on a transparent one.
+  Future<void> _saveQr() async {
+    try {
+      const size = 900.0;
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      canvas.drawRect(const Rect.fromLTWH(0, 0, size, size), Paint()..color = Colors.white);
+      canvas.translate(60, 60);
+      QrPainter(data: _qrData, version: QrVersions.auto, gapless: true)
+          .paint(canvas, const Size(size - 120, size - 120));
+      final image = await recorder.endRecording().toImage(size.toInt(), size.toInt());
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (bytes == null) throw Exception('no image');
+      await Share.shareXFiles(
+        [XFile.fromData(bytes.buffer.asUint8List(), name: 'nadanaloga-pay-qr.png', mimeType: 'image/png')],
+        text: 'Nadanaloga fees: scan this QR in your UPI app',
+      );
+      if (mounted) setState(() { _hint = 'Saved. Now open your UPI app, tap Scan and choose this picture.'; _hintIsError = false; });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _hint = "Couldn't save the picture. Take a screenshot of the QR instead, then scan it from your photos.";
+          _hintIsError = true;
+        });
+      }
+    }
+  }
+
   void _copy(String text, String what) {
     Clipboard.setData(ClipboardData(text: text));
     setState(() { _hint = '$what copied.'; _hintIsError = false; });
   }
+
+  /// Scan-the-academy-QR layout (counter merchant IDs).
+  List<Widget> _scanFirst() => [
+        Text('1. Scan the academy QR', style: AppTextStyles.labelLarge),
+        const SizedBox(height: 8),
+        Center(
+          child: Container(
+            color: Colors.white,
+            padding: const EdgeInsets.all(10),
+            child: QrImageView(data: _qrData, size: 220),
+          ),
+        ),
+        const SizedBox(height: 8),
+        FilledButton.icon(
+          onPressed: _saveQr,
+          icon: const Icon(Icons.download),
+          label: const Text('Save QR image'),
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(44)),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Paying from this phone: save the QR, open Google Pay, PhonePe or Paytm, tap Scan, '
+          'choose the picture from your photos, and enter the amount. '
+          'From another phone: just scan the QR above.',
+          style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+        ),
+        if (_hint != null) ...[
+          const SizedBox(height: 8),
+          Text(_hint!,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.caption.copyWith(
+                  color: _hintIsError ? AppColors.error : AppColors.success)),
+        ],
+        const SizedBox(height: 16),
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -178,6 +260,8 @@ class _UpiPaySheetState extends State<_UpiPaySheet> {
               ),
               const SizedBox(height: 12),
             ],
+            if (!widget.appLinks) ..._scanFirst(),
+            if (widget.appLinks) ...[
             Text('1. Choose your UPI app', style: AppTextStyles.labelLarge),
             const SizedBox(height: 8),
             GridView.count(
@@ -221,6 +305,7 @@ class _UpiPaySheetState extends State<_UpiPaySheet> {
                       color: _hintIsError ? AppColors.error : AppColors.success)),
             ],
             const SizedBox(height: 16),
+            ],
 
             // Always-works fallback: scan from another phone, or pay to the ID.
             Container(
@@ -233,12 +318,15 @@ class _UpiPaySheetState extends State<_UpiPaySheet> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    color: Colors.white,
-                    padding: const EdgeInsets.all(4),
-                    child: QrImageView(data: _upiLink, size: 110),
-                  ),
-                  const SizedBox(width: 12),
+                  // Already shown large above in the scan-the-QR layout.
+                  if (widget.appLinks) ...[
+                    Container(
+                      color: Colors.white,
+                      padding: const EdgeInsets.all(4),
+                      child: QrImageView(data: _qrData, size: 110),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

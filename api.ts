@@ -4270,6 +4270,10 @@ export interface AppVersionSettings {
   upi_txn_ref?: string;
   /** 'yes' fills the amount into the UPI app; 'no' (default) the family types it. */
   upi_prefill_amount?: string;
+  /** The bank's QR text exactly; the app shows it so families can scan / save it. */
+  upi_qr_text?: string;
+  /** 'yes' shows the open-in-Google-Pay/PhonePe buttons (needs a merchant ID that accepts app links). */
+  upi_app_links?: string;
 }
 
 export const getAppSettings = async (): Promise<AppVersionSettings> => {

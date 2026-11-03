@@ -3891,13 +3891,17 @@ Please review and approve this registration in the admin panel.`;
                         upi_id: APP_VERSION_KEYS.upi_id, upi_payee_name: APP_VERSION_KEYS.upi_payee_name,
                         upi_merchant_code: APP_VERSION_KEYS.upi_merchant_code, upi_txn_ref: APP_VERSION_KEYS.upi_txn_ref,
                         upi_prefill_amount: APP_VERSION_KEYS.upi_prefill_amount,
+                        upi_qr_text: APP_VERSION_KEYS.upi_qr_text,
+                        upi_app_links: APP_VERSION_KEYS.upi_app_links,
                     });
                     // Extra link parameters the app appends as-is (merchant code, reference).
                     const extra = {};
                     if (String(st.upi_merchant_code || '').trim()) extra.mc = String(st.upi_merchant_code).trim();
                     if (String(st.upi_txn_ref || '').trim()) extra.tr = String(st.upi_txn_ref).trim();
                     return { id: st.upi_id, name: st.upi_payee_name, extra,
-                        prefill_amount: String(st.upi_prefill_amount || '').toLowerCase() === 'yes' };
+                        prefill_amount: String(st.upi_prefill_amount || '').toLowerCase() === 'yes',
+                        qr_text: String(st.upi_qr_text || '').trim(),
+                        app_links: String(st.upi_app_links || '').toLowerCase() === 'yes' };
                 })(),
             });
         } catch (error) {
@@ -5087,6 +5091,14 @@ Please review and approve this registration in the admin panel.`;
         // with an amount, while the same link without one (exactly what the
         // bank's QR holds) goes through and the family types the amount.
         upi_prefill_amount: 'no',
+        // The bank's own QR, exactly (its text). Scanning it is what works
+        // for a shop-counter merchant ID such as HDFC SmartHub Vyapar, so the
+        // app shows this QR and lets the family save it to scan from photos.
+        upi_qr_text: '0002010102110216440384363591390604165220240363591392061661000303635913900825HDFC00000015020008848527226460010A0000005240128VYAPAR.170154547897@HDFCBANK27420010A0000005240124STQD346925817398850995825204821153033565802IN5916TAMIL THENDRAL B6007chennai610660007362400524STQD346925817398850995820708363591396304be5e',
+        // 'yes' shows the Google Pay / PhonePe / Paytm / CRED buttons that open
+        // the app with the bill filled in. Off for a counter merchant ID: the
+        // bank does not accept payments started from another app's link.
+        upi_app_links: 'no',
     };
 
     const readAppSettings = async (keys) => {

@@ -68,6 +68,9 @@ Future<void> payBillsByUpi(
           : const <String, String>{},
       // Off by default for a bank merchant ID (see the server's upi_prefill_amount).
       prefillAmount: upi['prefill_amount'] == true,
+      qrText: upi['qr_text'] is String ? upi['qr_text'] as String : null,
+      // Missing (older server) means the buttons, as before.
+      appLinks: upi['app_links'] != false,
     );
     if (!upload || !context.mounted) return;
   }

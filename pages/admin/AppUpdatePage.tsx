@@ -16,6 +16,8 @@ const BLANK: AppVersionSettings = {
   upi_merchant_code: '',
   upi_txn_ref: '',
   upi_prefill_amount: 'no',
+  upi_qr_text: '',
+  upi_app_links: 'no',
 };
 
 const AppUpdatePage: React.FC = () => {
@@ -167,6 +169,19 @@ const AppUpdatePage: React.FC = () => {
               <option value="no">No — the family types the amount (works with a bank's merchant QR)</option>
               <option value="yes">Yes — amount filled in (only if the bank provides signed links)</option>
             </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label className={label} htmlFor="upiapps">Open-in-app buttons (Google Pay, PhonePe…)</label>
+            <select id="upiapps" value={form.upi_app_links || 'no'} onChange={e => set('upi_app_links', e.target.value)} className="form-select w-full text-sm">
+              <option value="no">Off — families scan the academy QR (HDFC SmartHub Vyapar and other counter QRs)</option>
+              <option value="yes">On — only if the bank enabled payments from app links for this ID</option>
+            </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label className={label} htmlFor="upiqr">Bank QR text (exactly as in the bank's QR)</label>
+            <textarea id="upiqr" rows={2} value={form.upi_qr_text || ''} onChange={e => set('upi_qr_text', e.target.value.trim())}
+              placeholder="000201010211…" className="form-textarea w-full font-mono text-xs" />
+            <p className="mt-1 text-xs text-gray-500">The app shows this QR for families to scan or save. Leave empty to build one from the UPI ID.</p>
           </div>
         </div>
       </section>
