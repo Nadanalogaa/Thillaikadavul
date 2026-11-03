@@ -14,20 +14,13 @@ export interface NotificationData {
 
 class NotificationService {
   // Send notification to database and optionally email
-  async sendNotification(notificationData: NotificationData): Promise<void> {
-    try {
-      // 1. Create notification in database
-      await this.createDatabaseNotification(notificationData);
-      
-      // 2. Send email if required
-      if (notificationData.emailRequired) {
-        await this.sendEmailNotification(notificationData);
-      }
-      
-      console.log('Notification sent successfully:', notificationData.title);
-    } catch (error) {
-      console.error('Error sending notification:', error);
-    }
+  // Automatic notifications (new notice, event, batch change, ...) are sent by
+  // the SERVER when the record is saved, and only on the channels switched on
+  // in Admin -> Notification settings. This browser copy used to loop over
+  // every user and post emails/in-app messages itself, ignoring those
+  // settings and duplicating the server's. It now sends nothing.
+  async sendNotification(_notificationData: NotificationData): Promise<void> {
+    return;
   }
 
   // Create notification record in database

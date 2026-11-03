@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { GradeExam } from '../../types';
-import { getAdminGradeExams, addGradeExam, updateGradeExam, deleteGradeExam } from '../../api';
+import { getAdminGradeExams, addGradeExam, updateGradeExam, deleteGradeExam, getCourses } from '../../api';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -8,62 +8,84 @@ import Modal from '../../components/Modal';
 import ModalHeader from '../../components/ModalHeader';
 import SendContentNotificationModal from '../../components/admin/SendContentNotificationModal';
 
+// Fields match the grade_exams table: exam_name, course, exam_date,
+// exam_time, location, syllabus. A course limits the exam to families with a
+// child in that course; leave it empty for everyone.
 const GradeExamForm: React.FC<{ exam?: Partial<GradeExam>, onSave: (exam: Partial<GradeExam>) => void, isLoading: boolean }> = ({ exam, onSave, isLoading }) => {
-    const [formData, setFormData] = useState<Partial<GradeExam>>({});
+    const [formData, setFormData] = useState<Partial<GradeExam> & { dateText?: string }>({});
+    const [courses, setCourses] = useState<string[]>([]);
 
     useEffect(() => {
+        getCourses().then(cs => setCourses(cs.map(c => c.name))).catch(() => setCourses([]));
+    }, []);
+
+    useEffect(() => {
+        const d = exam?.date ? new Date(exam.date as any) : null;
         setFormData({
             id: exam?.id,
             title: exam?.title || '',
             description: exam?.description || '',
-            examDate: exam?.examDate ? new Date(exam.examDate).toISOString().split('T')[0] : '',
-            registrationDeadline: exam?.registrationDeadline ? new Date(exam.registrationDeadline).toISOString().split('T')[0] : '',
-            syllabusLink: exam?.syllabusLink || '',
+            course: exam?.course || '',
+            time: exam?.time ? String(exam.time).slice(0, 5) : '',
+            location: exam?.location || '',
+            dateText: d && !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : '',
         });
     }, [exam]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSave(formData);
+        const { dateText, ...rest } = formData;
+        onSave({ ...rest, date: dateText ? new Date(`${dateText}T00:00:00`) : (undefined as any) });
     };
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-                <label className="form-label">Exam Title</label>
-                <input name="title" value={formData.title} onChange={handleChange} required className="form-input w-full" />
+                <label className="form-label">Exam name</label>
+                <input name="title" value={formData.title || ''} onChange={handleChange} required className="form-input w-full" />
             </div>
-            <div>
-                <label className="form-label">Description</label>
-                <textarea name="description" value={formData.description} onChange={handleChange} required rows={3} className="form-textarea w-full" />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                    <label className="form-label">Exam Date</label>
-                    <input name="examDate" type="date" value={formData.examDate} onChange={handleChange} required className="form-input w-full" />
+                    <label className="form-label">Course</label>
+                    <select name="course" value={formData.course || ''} onChange={handleChange} className="form-select w-full">
+                        <option value="">Everyone</option>
+                        {courses.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
                 </div>
                 <div>
-                    <label className="form-label">Registration Deadline</label>
-                    <input name="registrationDeadline" type="date" value={formData.registrationDeadline} onChange={handleChange} required className="form-input w-full" />
+                    <label className="form-label">Place</label>
+                    <input name="location" value={formData.location || ''} onChange={handleChange} className="form-input w-full" />
+                </div>
+                <div>
+                    <label className="form-label">Exam date</label>
+                    <input name="dateText" type="date" value={formData.dateText || ''} onChange={handleChange} required className="form-input w-full" />
+                </div>
+                <div>
+                    <label className="form-label">Time</label>
+                    <input name="time" type="time" value={formData.time || ''} onChange={handleChange} className="form-input w-full" />
                 </div>
             </div>
             <div>
-                <label className="form-label">Syllabus Link (Optional)</label>
-                <input name="syllabusLink" type="url" value={formData.syllabusLink} onChange={handleChange} className="form-input w-full" placeholder="https://example.com/syllabus.pdf"/>
+                <label className="form-label">Syllabus / details</label>
+                <textarea name="description" value={formData.description || ''} onChange={handleChange} rows={4} className="form-textarea w-full" />
             </div>
             <div className="pt-4 flex justify-end">
                 <button type="submit" disabled={isLoading} className="btn-primary">
-                    {isLoading ? 'Saving...' : 'Save Exam Info'}
+                    {isLoading ? 'Saving...' : 'Save exam'}
                 </button>
             </div>
         </form>
     );
 };
 
+const showDate = (d: any) => {
+    const x = d ? new Date(d) : null;
+    return x && !isNaN(x.getTime()) ? x.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+};
 
 const GradeExamsManagementPage: React.FC = () => {
     const { theme } = useTheme();
@@ -135,9 +157,11 @@ const GradeExamsManagementPage: React.FC = () => {
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
-                                        <th className="th-base">Title</th>
-                                        <th className="th-base">Exam Date</th>
-                                        <th className="th-base">Registration Deadline</th>
+                                        <th className="th-base">Exam</th>
+                                        <th className="th-base">Course</th>
+                                        <th className="th-base">Date</th>
+                                        <th className="th-base">Time</th>
+                                        <th className="th-base">Place</th>
                                         <th className="th-base text-right">Actions</th>
                                     </tr>
                                 </thead>
@@ -145,8 +169,10 @@ const GradeExamsManagementPage: React.FC = () => {
                                     {exams.map(exam => (
                                         <tr key={exam.id}>
                                             <td className="td-base font-medium">{exam.title}</td>
-                                            <td className="td-base">{new Date(exam.examDate).toLocaleDateString()}</td>
-                                            <td className="td-base">{new Date(exam.registrationDeadline).toLocaleDateString()}</td>
+                                            <td className="td-base">{exam.course || 'Everyone'}</td>
+                                            <td className="td-base">{showDate(exam.date)}</td>
+                                            <td className="td-base">{exam.time ? String(exam.time).slice(0, 5) : '—'}</td>
+                                            <td className="td-base">{exam.location || '—'}</td>
                                             <td className="td-base text-right space-x-2">
                                                 <button onClick={() => setNotifyingExam(exam)} className="btn-send">Send</button>
                                                 <button onClick={() => setEditingExam(exam)} className="btn-secondary">Edit</button>

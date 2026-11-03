@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom';
 import type { User, Course } from '../../types';
 import { UserRole, ClassPreference, UserStatus } from '../../types';
-import { getAdminUsers, updateUserByAdmin, deleteUserByAdmin, addStudentByAdmin, sendNotification, getCourses, setBatchTeacher } from '../../api';
+import { getAdminUsers, updateUserByAdmin, deleteUserByAdmin, addStudentByAdmin, sendNotification, getCourses, setBatchTeacher, getBatches } from '../../api';
 import EditUserModal from '../../components/admin/EditUserModal';
 import AddTeacherModal from '../../components/admin/AddTeacherModal';
 import SendNotificationModal from '../../components/admin/SendNotificationModal';
@@ -35,6 +35,21 @@ const SortableHeader: React.FC<{ columnKey: keyof User, title: string, sortConfi
 const TeacherListPage: React.FC = () => {
     const { theme } = useTheme();
     const [allUsers, setAllUsers] = useState<User[]>([]);
+    // Students per teacher = everyone in the batches they teach.
+    const [studentsByTeacher, setStudentsByTeacher] = useState<Map<string, number>>(new Map());
+    useEffect(() => {
+        getBatches().then(bs => {
+            const sets = new Map<string, Set<string>>();
+            for (const b of bs) {
+                const t = b.teacherId == null ? '' : String(typeof b.teacherId === 'object' ? (b.teacherId as any).id : b.teacherId);
+                if (!t) continue;
+                const set = sets.get(t) || new Set<string>();
+                (b.studentIds || []).forEach(id => set.add(String(id)));
+                sets.set(t, set);
+            }
+            setStudentsByTeacher(new Map([...sets].map(([k, v]) => [k, v.size])));
+        }).catch(() => {});
+    }, []);
     const [courses, setCourses] = useState<Course[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -434,7 +449,7 @@ const TeacherListPage: React.FC = () => {
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
                                         {filteredAndSortedTeachers.length > 0 ? filteredAndSortedTeachers.map((user) => {
-                                            const assignedStudentCount = allUsers.filter(u => u.role === UserRole.Student && u.schedules?.some(s => s.teacherId === user.id)).length;
+                                            const assignedStudentCount = studentsByTeacher.get(String(user.id)) || 0;
                                             return (
                                             <tr key={user.id} className="hover:bg-gray-50">
                                                 <td className="p-4">

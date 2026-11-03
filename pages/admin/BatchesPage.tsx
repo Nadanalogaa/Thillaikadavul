@@ -1,371 +1,629 @@
-
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import type { Batch, Course, User } from '../../types';
-import { getBatches, getAdminCourses, getAdminUsers, deleteBatch, addBatch, updateBatch } from '../../api';
-import AdminPageHeader from '../../components/admin/AdminPageHeader';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
+import AdminPageHeader from '../../components/admin/AdminPageHeader';
+import Modal from '../../components/Modal';
+import { FormModalShell, Section, Field, FieldGrid, inputClass, selectClass } from '../../components/admin/FormModalShell';
 import { useTheme } from '../../contexts/ThemeContext';
-import EditBatchModal from '../../components/admin/EditBatchModal';
-import ViewBatchModal from '../../components/admin/ViewBatchModal';
-import AddStudentsToBatchModal from '../../components/admin/AddStudentsToBatchModal';
-import BatchTable from '../../components/admin/BatchTable';
-import { UsersIcon, UserAddIcon } from '../../components/icons';
-import Tooltip from '../../components/Tooltip';
+import {
+    AdminBatch, AdminStudent, BatchInput, NamedItem, TimeSlot, WEEK_DAYS,
+    listBatches, listStudents, listTeachers, listCourses, listLocations,
+    createBatch, updateBatchDetails, setBatchStudents, removeBatch, moveStudent, slotLines,
+} from '../../services/batchAdminApi';
+
+// Admin -> Batches. Grid or table of every batch with its teacher, class
+// times and student count up front; open one to see its students and move,
+// remove or add them. Membership is batches.student_ids (see batchAdminApi).
+
+type View = 'grid' | 'table';
+const VIEW_KEY = 'admin.batches.view';
+const readView = (): View => {
+    try { return localStorage.getItem(VIEW_KEY) === 'table' ? 'table' : 'grid'; } catch { return 'grid'; }
+};
+
+const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
+
+const Avatar: React.FC<{ name: string; photoUrl?: string; size?: number }> = ({ name, photoUrl, size = 36 }) => {
+    const [broken, setBroken] = useState(false);
+    const style = { width: size, height: size };
+    if (photoUrl && !broken) {
+        return <img src={photoUrl} alt="" style={style} onError={() => setBroken(true)} className="flex-shrink-0 rounded-full object-cover" />;
+    }
+    return (
+        <span style={style} className="flex flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">
+            {initials(name)}
+        </span>
+    );
+};
+
+const ModePill: React.FC<{ mode: string }> = ({ mode }) => {
+    if (!mode) return null;
+    const m = mode.toLowerCase();
+    const cls = m === 'online' ? 'bg-sky-100 text-sky-800' : m === 'hybrid' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800';
+    return <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${cls}`}>{mode}</span>;
+};
 
 const BatchesPage: React.FC = () => {
     const { theme } = useTheme();
-    const [batches, setBatches] = useState<Batch[]>([]);
-    const [courses, setCourses] = useState<Course[]>([]);
-    const [users, setUsers] = useState<User[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const dark = theme === 'dark';
+    const card = dark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
+    const muted = dark ? 'text-gray-400' : 'text-gray-500';
+    const strong = dark ? 'text-white' : 'text-gray-900';
+
+    const [batches, setBatches] = useState<AdminBatch[]>([]);
+    const [students, setStudents] = useState<AdminStudent[]>([]);
+    const [teachers, setTeachers] = useState<NamedItem[]>([]);
+    const [courses, setCourses] = useState<NamedItem[]>([]);
+    const [locations, setLocations] = useState<NamedItem[]>([]);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [editingBatch, setEditingBatch] = useState<Partial<Batch> | null>(null);
-    const [viewingBatch, setViewingBatch] = useState<Batch | null>(null);
-    const [addingStudentsToBatch, setAddingStudentsToBatch] = useState<Batch | null>(null);
-    
-    // View and Filter State
-    const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
-    const [searchQuery, setSearchQuery] = useState('');
+
+    const [view, setView] = useState<View>(readView);
+    const [search, setSearch] = useState('');
     const [courseFilter, setCourseFilter] = useState('');
     const [teacherFilter, setTeacherFilter] = useState('');
-    const [modeFilter, setModeFilter] = useState('');
-    const [studioFilter, setStudioFilter] = useState('');
+    const [openId, setOpenId] = useState<number | null>(null);
+    const [editing, setEditing] = useState<AdminBatch | 'new' | null>(null);
 
-    const fetchData = useCallback(async () => {
-        setIsLoading(true);
+    const load = useCallback(async () => {
+        setLoading(true);
         try {
-            const [fetchedBatches, fetchedCourses, fetchedUsers] = await Promise.all([
-                getBatches(),
-                getAdminCourses(),
-                getAdminUsers()
+            const [b, s, t, c, l] = await Promise.all([
+                listBatches(), listStudents(), listTeachers(), listCourses(), listLocations().catch(() => []),
             ]);
-            setBatches(fetchedBatches);
-            setCourses(fetchedCourses);
-            setUsers(fetchedUsers);
+            setBatches(b); setStudents(s); setTeachers(t); setCourses(c); setLocations(l);
             setError(null);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to fetch data.');
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Could not load batches.');
         } finally {
-            setIsLoading(false);
+            setLoading(false);
         }
     }, []);
+    useEffect(() => { load(); }, [load]);
 
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
-
-    const usersMap = useMemo(() => new Map(users.map(u => [u.id, u])), [users]);
-    const teachers = useMemo(() => users.filter(u => u.role === 'Teacher'), [users]);
-
-    const filteredBatches = useMemo(() => {
-        return batches.filter(batch => {
-            // Combined search for batch name and student names
-            if (searchQuery) {
-                const searchTerm = searchQuery.toLowerCase();
-                const isBatchNameMatch = batch.name.toLowerCase().includes(searchTerm);
-                
-                const hasMatchingStudent = (batch.schedule ?? []).some(s => 
-                    s.studentIds.some(id => {
-                        const student = usersMap.get(id);
-                        return student && student.name.toLowerCase().includes(searchTerm);
-                    })
-                );
-
-                if (!isBatchNameMatch && !hasMatchingStudent) {
-                    return false;
-                }
-            }
-            
-            if (courseFilter && batch.courseName !== courseFilter) {
-                return false;
-            }
-
-            if (teacherFilter) {
-                const teacherId = typeof batch.teacherId === 'string' ? batch.teacherId : (batch.teacherId as User)?.id;
-                if (teacherId !== teacherFilter) return false;
-            }
-
-            if (modeFilter && batch.mode !== modeFilter) {
-                return false;
-            }
-
-            if (studioFilter && batch.studio !== studioFilter) {
-                return false;
-            }
-
-            return true;
-        });
-    }, [batches, searchQuery, courseFilter, teacherFilter, modeFilter, studioFilter, usersMap]);
-
-    const batchesByCourse = useMemo(() => {
-        const grouped: { [courseName: string]: Batch[] } = {};
-        filteredBatches.forEach(batch => {
-            if (!grouped[batch.courseName]) {
-                grouped[batch.courseName] = [];
-            }
-            grouped[batch.courseName].push(batch);
-        });
-        return Object.keys(grouped).sort().reduce((acc, key) => {
-            acc[key] = grouped[key];
-            return acc;
-        }, {} as typeof grouped);
-    }, [filteredBatches]);
-
-    const handleAddNewBatch = () => setEditingBatch({});
-    const handleEditBatch = (batch: Batch) => setEditingBatch(batch);
-    const handleViewBatch = (batch: Batch) => setViewingBatch(batch);
-    
-    const handleDeleteBatch = async (batchId: string) => {
-        if (window.confirm('Are you sure you want to delete this batch? This will unenroll all students from it.')) {
-            try {
-                await deleteBatch(batchId);
-                setBatches(prev => prev.filter(b => b.id !== batchId));
-            } catch (err) {
-                alert(err instanceof Error ? err.message : 'Failed to delete batch.');
-            }
-        }
+    const chooseView = (v: View) => {
+        setView(v);
+        try { localStorage.setItem(VIEW_KEY, v); } catch { /* private mode */ }
     };
 
-    const handleSaveBatch = async (batchData: Partial<Batch>) => {
-        try {
-            const payload = { ...batchData };
-            // Ensure teacherId is a string ID, not a populated object, before sending to the server
-            if (payload.teacherId && typeof payload.teacherId === 'object') {
-                payload.teacherId = (payload.teacherId as Partial<User>).id;
-            }
+    const studentById = useMemo(() => new Map(students.map(s => [s.id, s])), [students]);
 
-            let successMessage = '';
-            if (payload.id) { // Editing
-                await updateBatch(payload.id, payload);
-                successMessage = `✅ Batch "${payload.name || 'Unnamed'}" updated successfully! 📧 Email notifications and in-app notifications sent to all assigned students, teachers, and admin.`;
-            } else { // Creating
-                await addBatch(payload);
-                successMessage = `✅ Batch "${payload.name || 'Unnamed'}" created successfully! 📧 Email notifications and in-app notifications will be sent when students are assigned.`;
-            }
+    const filtered = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        return batches
+            .filter(b => !courseFilter || String(b.courseId) === courseFilter)
+            .filter(b => !teacherFilter || String(b.teacherId) === teacherFilter)
+            .filter(b => {
+                if (!q) return true;
+                if (`${b.name} ${b.teacherName} ${b.courseName}`.toLowerCase().includes(q)) return true;
+                return b.studentIds.some(id => (studentById.get(id)?.name || '').toLowerCase().includes(q));
+            })
+            .sort((a, c) => a.courseName.localeCompare(c.courseName) || a.name.localeCompare(c.name, undefined, { numeric: true }));
+    }, [batches, search, courseFilter, teacherFilter, studentById]);
 
-            // Refetch all data to get the latest state with populated fields
-            await fetchData();
-
-            setEditingBatch(null);
-            setAddingStudentsToBatch(null);
-
-            // Show success message
-            alert(successMessage);
-        } catch (err) {
-            alert(err instanceof Error ? err.message : 'Failed to save batch.');
+    const grouped = useMemo(() => {
+        const map = new Map<string, AdminBatch[]>();
+        for (const b of filtered) {
+            const k = b.courseName || 'No course';
+            map.set(k, [...(map.get(k) || []), b]);
         }
+        return [...map.entries()];
+    }, [filtered]);
+
+    const totals = useMemo(() => {
+        const placed = new Set(batches.flatMap(b => b.studentIds));
+        return { batches: batches.length, placed: placed.size, unplaced: students.filter(s => !placed.has(s.id)).length };
+    }, [batches, students]);
+
+    const openBatch = batches.find(b => b.id === openId) || null;
+
+    const replaceBatch = (b: AdminBatch) => setBatches(prev => prev.map(x => (x.id === b.id ? { ...x, ...b } : x)));
+
+    // --- rendering helpers -------------------------------------------------
+    const Timing: React.FC<{ b: AdminBatch; compact?: boolean }> = ({ b, compact }) => {
+        const lines = slotLines(b.timeSlots);
+        if (!lines.length) return <span className="text-amber-600">Times not set</span>;
+        return (
+            <div className={compact ? 'space-y-0.5' : 'space-y-1'}>
+                {lines.map(l => <div key={l} className="whitespace-nowrap">{l}</div>)}
+            </div>
+        );
     };
-    
-    const renderCardView = () => (
-        <div className="space-y-12">
-            {Object.keys(batchesByCourse).length > 0 ? Object.entries(batchesByCourse).map(([courseName, courseBatches]) => (
-                <div key={courseName}>
-                    <h2 className="text-2xl font-semibold text-gray-800 mb-4">{courseName}</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                        {courseBatches.map(batch => {
-                            const totalStudents = new Set((batch.schedule ?? []).flatMap(s => s.studentIds)).size;
-                            let teacherName;
-                            if (batch.teacherId) {
-                                if (typeof batch.teacherId === 'object' && batch.teacherId.name) {
-                                    teacherName = batch.teacherId.name;
-                                } else if (typeof batch.teacherId === 'string') {
-                                    teacherName = usersMap.get(batch.teacherId)?.name;
-                                }
-                            }
-                            return (
-                                <div key={batch.id} className="bg-white rounded-lg shadow-md p-5 flex flex-col">
-                                    <div className="flex-grow">
-                                        <div className="flex justify-between items-start">
-                                            <h3 className="font-bold text-lg text-brand-primary">{batch.name}</h3>
-                                            {batch.mode && (
-                                                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${batch.mode === 'Online' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
-                                                    {batch.mode}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <p className="text-sm text-gray-500 mt-1">{batch.description}</p>
-                                        
-                                        <div className="flex justify-between items-center mt-4 text-sm">
-                                            <p><strong>Teacher:</strong> {teacherName || <span className="text-gray-400">Not Assigned</span>}</p>
-                                            <div className="flex items-center space-x-2">
-                                                <div className="flex items-center space-x-1.5 text-gray-600">
-                                                    <UsersIcon className="h-5 w-5" />
-                                                    <span className="font-medium">{totalStudents}</span>
-                                                </div>
-                                                <Tooltip content="Add Students" position="top">
-                                                    <button onClick={() => setAddingStudentsToBatch(batch)} className="text-gray-400 hover:text-green-600 transition-colors">
-                                                        <UserAddIcon className="h-5 w-5" />
-                                                    </button>
-                                                </Tooltip>
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="mt-4 text-sm">
-                                            <p><strong>Schedule:</strong></p>
-                                            <ul className="list-disc list-inside ml-4 mt-1 text-gray-600">
-                                                {(batch.schedule ?? []).length > 0 ? (batch.schedule ?? []).map(scheduleItem => {
-                                                    const studentsForSlot = (scheduleItem.studentIds ?? [])
-                                                        .map(id => usersMap.get(id))
-                                                        .filter((student): student is User => !!student)
-                                                        .map(student => student.name);
+    const count = (b: AdminBatch) => `${b.studentIds.length}${b.maxStudents ? ` / ${b.maxStudents}` : ''}`;
 
-                                                    const tooltipContent = (
-                                                        <div className="text-xs text-left max-w-xs">
-                                                            <p className="font-semibold mb-1">{scheduleItem.timing}</p>
-                                                            <hr className="my-1 border-gray-400"/>
-                                                            {studentsForSlot.length > 0 ? (
-                                                                <>
-                                                                    <p className="font-medium mb-1">Students:</p>
-                                                                    <ul className="list-disc list-inside pl-2 space-y-0.5">
-                                                                        {studentsForSlot.map(name => <li key={name}>{name}</li>)}
-                                                                    </ul>
-                                                                </>
-                                                            ) : (
-                                                                <p className="italic">No students scheduled for this time.</p>
-                                                            )}
-                                                        </div>
-                                                    );
-
-                                                    return (
-                                                        <Tooltip key={scheduleItem.timing} content={tooltipContent} position="right">
-                                                            <li>{scheduleItem.timing}</li>
-                                                        </Tooltip>
-                                                    );
-                                                }) : <li>Not scheduled</li>}
-                                            </ul>
-                                        </div>
+    const renderGrid = () => (
+        <div className="space-y-8">
+            {grouped.map(([course, list]) => (
+                <section key={course}>
+                    <h2 className={`mb-3 text-lg font-semibold ${strong}`}>{course} <span className={`text-sm font-normal ${muted}`}>· {list.length} {list.length === 1 ? 'batch' : 'batches'}</span></h2>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                        {list.map(b => (
+                            <button key={b.id} type="button" onClick={() => setOpenId(b.id)}
+                                className={`flex flex-col rounded-xl border p-4 text-left shadow-sm transition hover:shadow-md ${card}`}>
+                                <div className="flex items-start justify-between gap-2">
+                                    <h3 className={`font-semibold ${strong}`}>{b.name}</h3>
+                                    <ModePill mode={b.mode} />
+                                </div>
+                                {(b.locationName || b.studio) && (
+                                    <p className={`mt-0.5 text-xs ${muted}`}>{[b.locationName, b.studio].filter(Boolean).join(' · ')}</p>
+                                )}
+                                <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+                                    <div className={`col-span-3 flex items-center gap-2 rounded-lg px-3 py-2 ${dark ? 'bg-indigo-900/40' : 'bg-indigo-50'}`}>
+                                        <span className="text-xs font-medium uppercase tracking-wide text-indigo-500">Teacher</span>
+                                        <span className={`truncate font-semibold ${b.teacherName ? (dark ? 'text-indigo-200' : 'text-indigo-900') : 'text-amber-600'}`}>
+                                            {b.teacherName || 'Not assigned'}
+                                        </span>
                                     </div>
-                                    <div className="mt-6 pt-4 border-t border-gray-100 flex justify-end space-x-3">
-                                        <button onClick={() => handleViewBatch(batch)} className="text-sm font-medium text-blue-600 hover:text-blue-800">View</button>
-                                        <button onClick={() => handleEditBatch(batch)} className="text-sm font-medium text-brand-primary hover:text-brand-dark">Edit</button>
-                                        <button onClick={() => handleDeleteBatch(batch.id)} className="text-sm font-medium text-red-600 hover:text-red-800">Delete</button>
+                                    <div className={`col-span-2 rounded-lg px-3 py-2 ${dark ? 'bg-gray-700/60' : 'bg-gray-50'}`}>
+                                        <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Class times</div>
+                                        <div className={`mt-0.5 font-medium ${strong}`}><Timing b={b} compact /></div>
+                                    </div>
+                                    <div className={`rounded-lg px-3 py-2 text-center ${dark ? 'bg-emerald-900/40' : 'bg-emerald-50'}`}>
+                                        <div className="text-xs font-medium uppercase tracking-wide text-emerald-600">Students</div>
+                                        <div className={`mt-0.5 text-2xl font-bold ${dark ? 'text-emerald-200' : 'text-emerald-800'}`}>{count(b)}</div>
                                     </div>
                                 </div>
-                            );
-                        })}
+                            </button>
+                        ))}
                     </div>
-                </div>
-            )) : (
-                 <div className="text-center py-16 bg-white rounded-lg shadow-md">
-                    <h3 className="text-xl font-semibold text-gray-700">No Batches Found</h3>
-                    <p className="text-gray-500 mt-2">Get started by creating your first batch or adjust your filters.</p>
-                 </div>
-            )}
-         </div>
+                </section>
+            ))}
+        </div>
+    );
+
+    const renderTable = () => (
+        <div className={`overflow-x-auto rounded-xl border shadow-sm ${card}`}>
+            <table className="min-w-full text-sm">
+                <thead className={dark ? 'bg-gray-700 text-gray-300' : 'bg-gray-50 text-gray-600'}>
+                    <tr>
+                        {['Batch', 'Course', 'Teacher', 'Class times', 'Students', 'Mode', ''].map(h => (
+                            <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">{h}</th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody className={dark ? 'divide-y divide-gray-700' : 'divide-y divide-gray-100'}>
+                    {filtered.map(b => (
+                        <tr key={b.id} onClick={() => setOpenId(b.id)} className={`cursor-pointer ${dark ? 'hover:bg-gray-700/60' : 'hover:bg-indigo-50/40'}`}>
+                            <td className={`px-4 py-3 font-semibold ${strong}`}>{b.name}</td>
+                            <td className={`px-4 py-3 ${muted}`}>{b.courseName}</td>
+                            <td className="px-4 py-3">
+                                <span className={`rounded-md px-2 py-1 font-semibold ${b.teacherName ? (dark ? 'bg-indigo-900/50 text-indigo-200' : 'bg-indigo-50 text-indigo-900') : 'text-amber-600'}`}>
+                                    {b.teacherName || 'Not assigned'}
+                                </span>
+                            </td>
+                            <td className={`px-4 py-3 font-medium ${strong}`}><Timing b={b} compact /></td>
+                            <td className="px-4 py-3">
+                                <span className={`rounded-md px-2 py-1 text-base font-bold ${dark ? 'bg-emerald-900/50 text-emerald-200' : 'bg-emerald-50 text-emerald-800'}`}>{count(b)}</span>
+                            </td>
+                            <td className="px-4 py-3"><ModePill mode={b.mode} /></td>
+                            <td className="px-4 py-3 text-right">
+                                <button type="button" onClick={e => { e.stopPropagation(); setEditing(b); }} className="text-sm font-medium text-brand-primary hover:underline">Edit</button>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
     );
 
     return (
         <AdminLayout>
-            <AdminPageHeader
-                title="Batches"
-                subtitle="Organize students and teachers into scheduled batches."
-            />
+            <AdminPageHeader title="Batches" subtitle="Who teaches each batch, when it meets and who is in it." />
 
-            {/* Toolbar */}
-            <div className={`p-4 rounded-lg shadow-md mb-4 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
-                        <div className="flex justify-between items-center mb-4">
-                            {/* View Toggle */}
-                            <div className="flex items-center space-x-1 bg-gray-200 p-1 rounded-lg">
-                                <button onClick={() => setViewMode('card')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'card' ? 'bg-white text-brand-primary shadow-sm' : 'text-gray-600 hover:bg-gray-300/50'}`}>Card View</button>
-                                <button onClick={() => setViewMode('table')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'table' ? 'bg-white text-brand-primary shadow-sm' : 'text-gray-600 hover:bg-gray-300/50'}`}>Table View</button>
-                            </div>
-                            <button
-                                onClick={handleAddNewBatch}
-                                className="bg-brand-primary hover:bg-brand-dark text-white font-semibold px-4 py-2 rounded-md shadow-sm transition-colors"
-                            >
-                                + Create New Batch
+            <div className={`mb-4 rounded-xl border p-4 shadow-sm ${card}`}>
+                <div className="flex flex-wrap items-center gap-3">
+                    <div className={`flex rounded-lg p-1 ${dark ? 'bg-gray-700' : 'bg-gray-100'}`} role="tablist" aria-label="View">
+                        {(['grid', 'table'] as View[]).map(v => (
+                            <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => chooseView(v)}
+                                className={`rounded-md px-3 py-1.5 text-sm font-medium ${view === v ? 'bg-white text-brand-primary shadow-sm' : (dark ? 'text-gray-300' : 'text-gray-600')}`}>
+                                {v === 'grid' ? 'Grid' : 'Table'}
                             </button>
+                        ))}
+                    </div>
+                    <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search batch, teacher or student"
+                        className={`${inputClass} min-w-[12rem] flex-1`} />
+                    <select value={courseFilter} onChange={e => setCourseFilter(e.target.value)} className="form-select w-auto text-sm">
+                        <option value="">All courses</option>
+                        {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    <select value={teacherFilter} onChange={e => setTeacherFilter(e.target.value)} className="form-select w-auto text-sm">
+                        <option value="">All teachers</option>
+                        {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                    <button type="button" onClick={() => setEditing('new')}
+                        className="rounded-md bg-brand-primary px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark">+ New batch</button>
+                </div>
+                <div className={`mt-3 flex flex-wrap gap-4 text-sm ${muted}`}>
+                    <span><b className={strong}>{totals.batches}</b> batches</span>
+                    <span><b className={strong}>{totals.placed}</b> students placed</span>
+                    {totals.unplaced > 0 && <span className="text-amber-600"><b>{totals.unplaced}</b> students not in any batch</span>}
+                </div>
+            </div>
+
+            {loading && <p className={`py-10 text-center ${muted}`}>Loading batches…</p>}
+            {error && <p className="rounded-md bg-red-50 p-3 text-center text-red-700">{error}</p>}
+            {!loading && !error && filtered.length === 0 && (
+                <p className={`rounded-xl border py-12 text-center ${card} ${muted}`}>No batches match.</p>
+            )}
+            {!loading && !error && filtered.length > 0 && (view === 'grid' ? renderGrid() : renderTable())}
+
+            {openBatch && (
+                <BatchPanel
+                    batch={openBatch}
+                    batches={batches}
+                    students={students}
+                    studentById={studentById}
+                    onClose={() => setOpenId(null)}
+                    onEdit={() => setEditing(openBatch)}
+                    onChanged={async () => { setBatches(await listBatches()); }}
+                    onReplace={replaceBatch}
+                    onDeleted={() => { setOpenId(null); setBatches(prev => prev.filter(b => b.id !== openBatch.id)); }}
+                />
+            )}
+
+            {editing && (
+                <BatchForm
+                    batch={editing === 'new' ? null : editing}
+                    courses={courses}
+                    teachers={teachers}
+                    locations={locations}
+                    onClose={() => setEditing(null)}
+                    onSaved={async saved => {
+                        setEditing(null);
+                        setBatches(await listBatches());
+                        setOpenId(saved.id);
+                    }}
+                />
+            )}
+        </AdminLayout>
+    );
+};
+
+// --- One batch: its students, and moving them ----------------------------
+
+const BatchPanel: React.FC<{
+    batch: AdminBatch;
+    batches: AdminBatch[];
+    students: AdminStudent[];
+    studentById: Map<number, AdminStudent>;
+    onClose: () => void;
+    onEdit: () => void;
+    onChanged: () => Promise<void>;
+    onReplace: (b: AdminBatch) => void;
+    onDeleted: () => void;
+}> = ({ batch, batches, students, studentById, onClose, onEdit, onChanged, onReplace, onDeleted }) => {
+    const { theme } = useTheme();
+    const dark = theme === 'dark';
+    const muted = dark ? 'text-gray-400' : 'text-gray-500';
+    const strong = dark ? 'text-white' : 'text-gray-900';
+    const [busy, setBusy] = useState(false);
+    const [moving, setMoving] = useState<AdminStudent | null>(null);
+    const [adding, setAdding] = useState(false);
+    const [message, setMessage] = useState<string | null>(null);
+
+    const members = batch.studentIds
+        .map(id => studentById.get(id))
+        .filter((s): s is AdminStudent => !!s)
+        .sort((a, b) => a.name.localeCompare(b.name));
+    const missing = batch.studentIds.length - members.length;
+    const sameCourse = batches.filter(b => b.id !== batch.id && b.courseId === batch.courseId);
+    const gradeOf = (s: AdminStudent) => s.grades.find(g => g.course.toLowerCase() === batch.courseName.toLowerCase())?.grade || '';
+
+    const run = async (fn: () => Promise<unknown>, done: string) => {
+        setBusy(true); setMessage(null);
+        try { await fn(); await onChanged(); setMessage(done); } catch (e) { setMessage(e instanceof Error ? e.message : 'Something went wrong.'); }
+        finally { setBusy(false); }
+    };
+
+    const remove = (s: AdminStudent) => {
+        if (!window.confirm(`Remove ${s.name} from ${batch.name}? They stay enrolled in ${batch.courseName || 'the course'}.`)) return;
+        run(() => setBatchStudents(batch.id, batch.studentIds.filter(id => id !== s.id)).then(onReplace), `${s.name} removed from ${batch.name}.`);
+    };
+
+    const del = () => {
+        if (batch.studentIds.length > 0) { window.alert('Move or remove the students first, then delete the batch.'); return; }
+        if (!window.confirm(`Delete ${batch.name}? This cannot be undone.`)) return;
+        setBusy(true);
+        removeBatch(batch.id).then(onDeleted).catch(e => { setMessage(e.message); setBusy(false); });
+    };
+
+    return (
+        <Modal isOpen onClose={onClose} size="3xl">
+            <div className={`max-h-[85vh] overflow-y-auto ${dark ? 'bg-gray-900' : 'bg-white'}`}>
+                <div className={`sticky top-0 z-10 border-b px-5 py-4 ${dark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <h2 className={`text-lg font-semibold ${strong}`}>{batch.name}</h2>
+                            <p className={`text-sm ${muted}`}>{[batch.courseName, batch.mode, batch.locationName, batch.studio].filter(Boolean).join(' · ')}</p>
                         </div>
-                        
-                         {/* Filter Bar */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t">
-                             <div>
-                                <label className="form-label text-xs">
-                                    Search by Batch or Student Name
-                                </label>
-                                <input 
-                                    type="text" 
-                                    placeholder="e.g., Morning Bharatanatyam or Rajesh Kumar" 
-                                    value={searchQuery} 
-                                    onChange={e => setSearchQuery(e.target.value)} 
-                                    className="w-full form-input" 
-                                />
-                            </div>
-                            <div>
-                                <label className="form-label text-xs">Filter by Course</label>
-                                <select value={courseFilter} onChange={e => setCourseFilter(e.target.value)} className="w-full form-select">
-                                    <option value="">All Courses</option>
-                                    {courses.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="form-label text-xs">Filter by Teacher</label>
-                                <select value={teacherFilter} onChange={e => setTeacherFilter(e.target.value)} className="w-full form-select">
-                                    <option value="">All Teachers</option>
-                                    {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="form-label text-xs">Filter by Mode</label>
-                                <select value={modeFilter} onChange={e => setModeFilter(e.target.value)} className="w-full form-select">
-                                    <option value="">All Modes</option>
-                                    <option value="Online">Online</option>
-                                    <option value="Offline">Offline</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="form-label text-xs">Filter by Studio</label>
-                                <select value={studioFilter} onChange={e => setStudioFilter(e.target.value)} className="w-full form-select">
-                                    <option value="">All Studios</option>
-                                    <option value="Old Studio">Old Studio</option>
-                                    <option value="New Studio">New Studio</option>
-                                </select>
-                            </div>
+                        <div className="flex flex-shrink-0 gap-2">
+                            <button type="button" onClick={onEdit} className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Edit</button>
+                            <button type="button" onClick={del} disabled={busy} className="rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50">Delete</button>
+                            <button type="button" onClick={onClose} aria-label="Close" className="rounded-md px-2 text-xl leading-none text-gray-400 hover:text-gray-600">×</button>
                         </div>
                     </div>
+                    <div className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
+                        <div className={`rounded-lg px-3 py-2 ${dark ? 'bg-indigo-900/40' : 'bg-indigo-50'}`}>
+                            <div className="text-xs font-medium uppercase tracking-wide text-indigo-500">Teacher</div>
+                            <div className={`font-semibold ${batch.teacherName ? (dark ? 'text-indigo-200' : 'text-indigo-900') : 'text-amber-600'}`}>{batch.teacherName || 'Not assigned'}</div>
+                        </div>
+                        <div className={`rounded-lg px-3 py-2 ${dark ? 'bg-gray-700/60' : 'bg-gray-50'}`}>
+                            <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Class times</div>
+                            <div className={`font-medium ${strong}`}>{slotLines(batch.timeSlots).join(', ') || 'Not set'}</div>
+                        </div>
+                        <div className={`rounded-lg px-3 py-2 ${dark ? 'bg-emerald-900/40' : 'bg-emerald-50'}`}>
+                            <div className="text-xs font-medium uppercase tracking-wide text-emerald-600">Students</div>
+                            <div className={`text-xl font-bold ${dark ? 'text-emerald-200' : 'text-emerald-800'}`}>{batch.studentIds.length}{batch.maxStudents ? ` / ${batch.maxStudents}` : ''}</div>
+                        </div>
+                    </div>
+                </div>
 
+                <div className="px-5 py-4">
+                    {message && <p className={`mb-3 rounded-md px-3 py-2 text-sm ${dark ? 'bg-gray-800 text-gray-200' : 'bg-gray-100 text-gray-700'}`}>{message}</p>}
+                    <div className="mb-2 flex items-center justify-between">
+                        <h3 className={`text-sm font-semibold uppercase tracking-wide ${muted}`}>Students</h3>
+                        <button type="button" onClick={() => setAdding(true)} disabled={busy}
+                            className="rounded-md bg-brand-primary px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-dark">+ Add students</button>
+                    </div>
+                    {members.length === 0 && <p className={`py-6 text-center text-sm ${muted}`}>No students in this batch yet.</p>}
+                    <ul className={dark ? 'divide-y divide-gray-700' : 'divide-y divide-gray-100'}>
+                        {members.map(s => (
+                            <li key={s.id} className="flex items-center gap-3 py-2.5">
+                                <Avatar name={s.name} photoUrl={s.photoUrl} />
+                                <div className="min-w-0 flex-1">
+                                    <div className={`truncate font-medium ${strong}`}>{s.name} <span className={`text-xs font-normal ${muted}`}>{s.userId}</span></div>
+                                    <div className={`truncate text-xs ${muted}`}>
+                                        {[s.parentName && `Parent: ${s.parentName}`, s.phone, gradeOf(s)].filter(Boolean).join(' · ')}
+                                    </div>
+                                </div>
+                                <button type="button" onClick={() => setMoving(s)} disabled={busy || sameCourse.length === 0}
+                                    title={sameCourse.length === 0 ? `No other ${batch.courseName} batch to move to` : undefined}
+                                    className="rounded-md border border-indigo-200 px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-40">Move</button>
+                                <button type="button" onClick={() => remove(s)} disabled={busy}
+                                    className="rounded-md px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50">Remove</button>
+                            </li>
+                        ))}
+                    </ul>
+                    {missing > 0 && <p className={`mt-2 text-xs ${muted}`}>{missing} id(s) in this batch belong to deleted students.</p>}
+                </div>
+            </div>
 
-                    {isLoading && <p className="text-center text-gray-500 py-8">Loading batches...</p>}
-                    {error && <p className="text-center text-red-500 bg-red-100 p-3 rounded-md">{error}</p>}
+            {moving && (
+                <MoveDialog
+                    student={moving}
+                    from={batch}
+                    options={sameCourse}
+                    onClose={() => setMoving(null)}
+                    onMove={to => {
+                        const s = moving;
+                        setMoving(null);
+                        run(() => moveStudent(s.id, batch.id, to.id), `${s.name} moved to ${to.name}.`);
+                    }}
+                />
+            )}
+            {adding && (
+                <AddStudentsDialog
+                    batch={batch}
+                    batches={batches}
+                    students={students}
+                    onClose={() => setAdding(false)}
+                    onAdd={ids => {
+                        setAdding(false);
+                        run(() => setBatchStudents(batch.id, [...batch.studentIds, ...ids]).then(onReplace),
+                            `${ids.length} student${ids.length === 1 ? '' : 's'} added to ${batch.name}.`);
+                    }}
+                />
+            )}
+        </Modal>
+    );
+};
 
-                    {!isLoading && !error && (
-                        viewMode === 'card' ? renderCardView() : 
-                        <BatchTable 
-                            batches={filteredBatches}
-                            usersMap={usersMap}
-                            onEdit={handleEditBatch}
-                            onDelete={handleDeleteBatch}
-                            onView={handleViewBatch}
-                            onAddStudents={setAddingStudentsToBatch}
-                        />
-                    )}
+const MoveDialog: React.FC<{
+    student: AdminStudent; from: AdminBatch; options: AdminBatch[];
+    onClose: () => void; onMove: (to: AdminBatch) => void;
+}> = ({ student, from, options, onClose, onMove }) => {
+    const [to, setTo] = useState<number | null>(null);
+    const target = options.find(o => o.id === to) || null;
+    return (
+        <Modal isOpen onClose={onClose} size="lg">
+            <div className="bg-white p-5">
+                <h3 className="text-lg font-semibold text-gray-900">Move {student.name}</h3>
+                <p className="mt-1 text-sm text-gray-500">From <b>{from.name}</b> to another {from.courseName || ''} batch. Grade and fees stay the same.</p>
+                <div className="mt-4 max-h-80 space-y-2 overflow-y-auto">
+                    {options.map(o => (
+                        <label key={o.id} className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 ${to === o.id ? 'border-brand-primary bg-indigo-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                            <input type="radio" name="to" className="mt-1" checked={to === o.id} onChange={() => setTo(o.id)} />
+                            <div className="min-w-0 text-sm">
+                                <div className="font-semibold text-gray-900">{o.name}</div>
+                                <div className="text-gray-600">{o.teacherName || 'No teacher'} · {slotLines(o.timeSlots).join(', ') || 'Times not set'}</div>
+                                <div className="text-xs text-gray-500">{o.studentIds.length} students{o.maxStudents ? ` of ${o.maxStudents}` : ''}{o.mode ? ` · ${o.mode}` : ''}</div>
+                            </div>
+                        </label>
+                    ))}
+                </div>
+                <div className="mt-4 flex justify-end gap-2">
+                    <button type="button" onClick={onClose} className="rounded-md border border-gray-300 px-3 py-1.5 text-sm">Cancel</button>
+                    <button type="button" disabled={!target} onClick={() => target && onMove(target)}
+                        className="rounded-md bg-brand-primary px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-50">
+                        {target ? `Move to ${target.name}` : 'Choose a batch'}
+                    </button>
+                </div>
+            </div>
+        </Modal>
+    );
+};
 
-            <EditBatchModal 
-                isOpen={!!editingBatch}
-                onClose={() => setEditingBatch(null)}
-                batch={editingBatch}
-                courses={courses}
-                users={users}
-                onSave={handleSaveBatch}
-                allBatches={batches}
-            />
+const AddStudentsDialog: React.FC<{
+    batch: AdminBatch; batches: AdminBatch[]; students: AdminStudent[];
+    onClose: () => void; onAdd: (ids: number[]) => void;
+}> = ({ batch, batches, students, onClose, onAdd }) => {
+    const [q, setQ] = useState('');
+    const [scope, setScope] = useState<'unplaced' | 'course' | 'all'>('unplaced');
+    const [picked, setPicked] = useState<Set<number>>(new Set());
+    const course = batch.courseName.toLowerCase();
+    // Students already in some batch of this course.
+    const inCourseBatch = useMemo(() => new Set(
+        batches.filter(b => b.courseId === batch.courseId).flatMap(b => b.studentIds)), [batches, batch.courseId]);
+    const takesCourse = (s: AdminStudent) => s.courses.some(c => c.toLowerCase() === course) || s.grades.some(g => g.course.toLowerCase() === course);
+    const list = students
+        .filter(s => !batch.studentIds.includes(s.id))
+        .filter(s => scope === 'all' || takesCourse(s))
+        .filter(s => scope !== 'unplaced' || !inCourseBatch.has(s.id))
+        .filter(s => !q.trim() || `${s.name} ${s.userId} ${s.parentName} ${s.phone}`.toLowerCase().includes(q.trim().toLowerCase()))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    const toggle = (id: number) => setPicked(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    return (
+        <Modal isOpen onClose={onClose} size="2xl">
+            <div className="bg-white p-5">
+                <h3 className="text-lg font-semibold text-gray-900">Add students to {batch.name}</h3>
+                <div className="mt-3 flex flex-wrap gap-2">
+                    {([['unplaced', `${batch.courseName || 'Course'} students without a batch`], ['course', `All ${batch.courseName || 'course'} students`], ['all', 'Everyone']] as const).map(([k, label]) => (
+                        <button key={k} type="button" onClick={() => setScope(k)}
+                            className={`rounded-full px-3 py-1 text-xs font-medium ${scope === k ? 'bg-brand-primary text-white' : 'bg-gray-100 text-gray-700'}`}>{label}</button>
+                    ))}
+                </div>
+                <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search name, ID, parent or phone" className={`${inputClass} mt-3`} />
+                <div className="mt-3 max-h-80 divide-y divide-gray-100 overflow-y-auto rounded-lg border border-gray-200">
+                    {list.length === 0 && <p className="p-4 text-center text-sm text-gray-500">No students to show.</p>}
+                    {list.map(s => (
+                        <label key={s.id} className="flex cursor-pointer items-center gap-3 px-3 py-2 hover:bg-gray-50">
+                            <input type="checkbox" checked={picked.has(s.id)} onChange={() => toggle(s.id)} />
+                            <Avatar name={s.name} photoUrl={s.photoUrl} size={30} />
+                            <div className="min-w-0 text-sm">
+                                <div className="truncate font-medium text-gray-900">{s.name} <span className="text-xs text-gray-500">{s.userId}</span></div>
+                                <div className="truncate text-xs text-gray-500">{[s.parentName && `Parent: ${s.parentName}`, s.courses.join(', '), inCourseBatch.has(s.id) ? 'already in another batch of this course' : ''].filter(Boolean).join(' · ')}</div>
+                            </div>
+                        </label>
+                    ))}
+                </div>
+                <div className="mt-4 flex justify-end gap-2">
+                    <button type="button" onClick={onClose} className="rounded-md border border-gray-300 px-3 py-1.5 text-sm">Cancel</button>
+                    <button type="button" disabled={picked.size === 0} onClick={() => onAdd([...picked])}
+                        className="rounded-md bg-brand-primary px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-50">
+                        Add {picked.size || ''} student{picked.size === 1 ? '' : 's'}
+                    </button>
+                </div>
+            </div>
+        </Modal>
+    );
+};
 
-            <ViewBatchModal
-                isOpen={!!viewingBatch}
-                onClose={() => setViewingBatch(null)}
-                batch={viewingBatch}
-                usersMap={usersMap}
-            />
+// --- Create / edit a batch ------------------------------------------------
 
-            <AddStudentsToBatchModal
-                isOpen={!!addingStudentsToBatch}
-                onClose={() => setAddingStudentsToBatch(null)}
-                batch={addingStudentsToBatch}
-                allUsers={users}
-                allBatches={batches}
-                onSave={handleSaveBatch}
-            />
-        </AdminLayout>
+const BatchForm: React.FC<{
+    batch: AdminBatch | null;
+    courses: NamedItem[]; teachers: NamedItem[]; locations: NamedItem[];
+    onClose: () => void; onSaved: (b: AdminBatch) => void;
+}> = ({ batch, courses, teachers, locations, onClose, onSaved }) => {
+    const [name, setName] = useState(batch?.name || '');
+    const [courseId, setCourseId] = useState(batch?.courseId ? String(batch.courseId) : '');
+    const [teacherId, setTeacherId] = useState(batch?.teacherId ? String(batch.teacherId) : '');
+    const [mode, setMode] = useState(batch?.mode || 'Offline');
+    const [locationId, setLocationId] = useState(batch?.locationId ? String(batch.locationId) : '');
+    const [studio, setStudio] = useState(batch?.studio || '');
+    const [max, setMax] = useState(batch?.maxStudents ? String(batch.maxStudents) : '');
+    const [slots, setSlots] = useState<Record<string, TimeSlot>>(() =>
+        Object.fromEntries((batch?.timeSlots || []).map(s => [s.day, s])));
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const toggleDay = (day: string) => setSlots(prev => {
+        const n = { ...prev };
+        if (n[day]) delete n[day];
+        else {
+            const any = Object.values(prev)[0];
+            n[day] = { day, start_time: any?.start_time || '17:00', end_time: any?.end_time || '18:00' };
+        }
+        return n;
+    });
+    const setTime = (day: string, key: 'start_time' | 'end_time', v: string) =>
+        setSlots(prev => ({ ...prev, [day]: { ...prev[day], [key]: v } }));
+
+    const submit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!name.trim()) { setError('Give the batch a name.'); return; }
+        if (!courseId) { setError('Choose the course.'); return; }
+        const timeSlots = WEEK_DAYS.filter(d => slots[d]).map(d => slots[d]);
+        if (timeSlots.some(s => s.start_time && s.end_time && s.end_time <= s.start_time)) {
+            setError('Each class must end after it starts.'); return;
+        }
+        const input: BatchInput = {
+            name, courseId: Number(courseId), teacherId: teacherId ? Number(teacherId) : null,
+            timeSlots, mode, locationId: locationId ? Number(locationId) : null, studio,
+            maxStudents: max ? Number(max) : null,
+        };
+        setSaving(true); setError(null);
+        try {
+            onSaved(batch ? await updateBatchDetails(batch.id, input) : await createBatch(input));
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Could not save the batch.');
+            setSaving(false);
+        }
+    };
+
+    return (
+        <FormModalShell isOpen onClose={onClose} onSubmit={submit} isSubmitting={saving}
+            title={batch ? `Edit ${batch.name}` : 'New batch'}
+            subtitle="Students are added and moved from the batch itself."
+            submitLabel={batch ? 'Save changes' : 'Create batch'}>
+            {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+            <Section title="Batch">
+                <FieldGrid>
+                    <Field label="Name (shown to families)" span={3} htmlFor="b-name">
+                        <input id="b-name" value={name} onChange={e => setName(e.target.value)} className={inputClass} placeholder="Batch 1 · Gurupriya" />
+                    </Field>
+                    <Field label="Course" span={3} htmlFor="b-course">
+                        <select id="b-course" value={courseId} onChange={e => setCourseId(e.target.value)} className={selectClass}>
+                            <option value="">Choose…</option>
+                            {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="Teacher" span={3} htmlFor="b-teacher">
+                        <select id="b-teacher" value={teacherId} onChange={e => setTeacherId(e.target.value)} className={selectClass}>
+                            <option value="">Not assigned</option>
+                            {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="Mode" span={3} htmlFor="b-mode">
+                        <select id="b-mode" value={mode} onChange={e => setMode(e.target.value)} className={selectClass}>
+                            {['Offline', 'Online', 'Hybrid'].map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="Branch" span={2} htmlFor="b-loc">
+                        <select id="b-loc" value={locationId} onChange={e => setLocationId(e.target.value)} className={selectClass}>
+                            <option value="">—</option>
+                            {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="Studio / room" span={2} htmlFor="b-studio">
+                        <input id="b-studio" value={studio} onChange={e => setStudio(e.target.value)} className={inputClass} />
+                    </Field>
+                    <Field label="Most students" span={2} htmlFor="b-max">
+                        <input id="b-max" type="number" min={1} value={max} onChange={e => setMax(e.target.value)} className={inputClass} />
+                    </Field>
+                </FieldGrid>
+            </Section>
+            <Section title="Class times" description="Tick the days the batch meets and set each day's time.">
+                <div className="space-y-2">
+                    {WEEK_DAYS.map(day => {
+                        const s = slots[day];
+                        return (
+                            <div key={day} className="flex flex-wrap items-center gap-3">
+                                <label className="flex w-36 items-center gap-2 text-sm font-medium">
+                                    <input type="checkbox" checked={!!s} onChange={() => toggleDay(day)} /> {day}
+                                </label>
+                                {s && (
+                                    <>
+                                        <input type="time" value={s.start_time || ''} onChange={e => setTime(day, 'start_time', e.target.value)} className={`${inputClass} w-32`} aria-label={`${day} start`} />
+                                        <span className="text-sm text-gray-500">to</span>
+                                        <input type="time" value={s.end_time || ''} onChange={e => setTime(day, 'end_time', e.target.value)} className={`${inputClass} w-32`} aria-label={`${day} end`} />
+                                    </>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </Section>
+        </FormModalShell>
     );
 };
 

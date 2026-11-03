@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import type { User, Document, Course, Batch, CourseTimingSlot } from '../../types';
 import { UserRole, ClassPreference, Sex, EmploymentType, Grade, UserStatus } from '../../types';
 import { GRADES } from '../../constants';
-import { getAdminUsers, getCourses, getBatches as getAdminBatches } from '../../api';
+import { getAdminUsers, getCourses, getBatches as getAdminBatches, batchTimingLines } from '../../api';
 import DocumentManager from './DocumentManager';
 import TabButton from './TabButton';
 import StudentAssignmentManager from './StudentAssignmentManager';
@@ -148,7 +148,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, user, on
         // If a new batch is selected (and it's not the same or 'unassigned')
         if (newBatchId && newBatchId !== 'unassigned' && newBatchId !== oldBatchId) {
             const selectedBatch = allBatches.find(b => b.id === newBatchId);
-            if (selectedBatch && selectedBatch.schedule.length > 0) {
+            if (selectedBatch && (selectedBatch.schedule || []).length > 0) {
                  // Default to selecting all timings for the new batch
                 const allTimings = new Set(selectedBatch.schedule.map(s => s.timing));
                 newTimingSelections.set(courseName, allTimings);
@@ -378,19 +378,19 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, user, on
 
     const renderStudentBatchSchedule = () => {
         const findStudentBatchForCourse = (studentId: string, courseName: string): Batch | undefined => {
-            return allBatches.find(batch => 
-                batch.courseName === courseName && 
-                batch.schedule.some(s => s.studentIds.includes(studentId))
+            // Membership is the batch's student list (the old per-timing
+            // `schedule` is empty since the register import).
+            return allBatches.find(batch =>
+                batch.courseName === courseName &&
+                (batch.studentIds || []).map(String).includes(String(studentId))
             );
         };
 
         const getStudentFullSchedule = (studentId: string, courseToExclude?: string): Set<string> => {
             const schedule = new Set<string>();
             allBatches.forEach(batch => {
-                if (batch.courseName !== courseToExclude) {
-                    batch.schedule.forEach(s => {
-                        if(s.studentIds.includes(studentId)) schedule.add(s.timing);
-                    });
+                if (batch.courseName !== courseToExclude && (batch.studentIds || []).map(String).includes(String(studentId))) {
+                    batchTimingLines(batch).forEach(t => schedule.add(t));
                 }
             });
             return schedule;
@@ -475,16 +475,17 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, user, on
                                         : ''
                                 ).filter(Boolean)
                             );
-                            const matchingBatches = availableBatchesForCourse.filter(b => b.schedule.some(s => preferredTimingsSet.has(s.timing)));
+                            const matchingBatches = availableBatchesForCourse.filter(b => batchTimingLines(b).some(t => preferredTimingsSet.has(t)));
                             const otherBatches = availableBatchesForCourse.filter(b => !matchingBatches.some(matching => matching.id === b.id));
                             const hasNoMatchingBatches = matchingBatches.length === 0 && preferredTimings && preferredTimings.length > 0;
 
                             const renderOption = (batch: Batch) => {
-                                const hasConflict = batch.schedule.some(s => studentSchedule.has(s.timing));
-                                const scheduleTimings = batch.schedule.map(s => `${s.timing.split(' ')[0].substring(0, 3)} ${s.timing.split(' ').slice(1).join(' ')}`).join(', ');
-                                const teacherName = teachers.find(t => t.id === batch.teacherId)?.name || 'N/A';
-                                const isPreferred = batch.schedule.some(s => preferredTimingsSet.has(s.timing));
-                                const optionText = `${batch.name} (${scheduleTimings || 'No timings'})`;
+                                const lines = batchTimingLines(batch);
+                                const hasConflict = lines.some(t => studentSchedule.has(t));
+                                const scheduleTimings = lines.join(', ');
+                                const teacherName = batch.teacherName || 'No teacher';
+                                const isPreferred = lines.some(t => preferredTimingsSet.has(t));
+                                const optionText = `${batch.name} · ${teacherName} (${scheduleTimings || 'No timings'})`;
 
                                 return (
                                     <option key={batch.id} value={batch.id} disabled={hasConflict && batch.id !== currentBatch?.id} title={`Teacher: ${teacherName}`}>

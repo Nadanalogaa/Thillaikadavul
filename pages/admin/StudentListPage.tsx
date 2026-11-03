@@ -14,6 +14,8 @@ import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useTheme } from '../../contexts/ThemeContext';
 import { displayEmail } from '../../utils/displayEmail';
+import { placeStudent } from '../../services/batchAdminApi';
+import { batchTimingLines } from '../../api';
 
 type SortDirection = 'ascending' | 'descending';
 type SortConfig = { key: keyof User; direction: SortDirection } | null;
@@ -126,17 +128,16 @@ const StudentListPage: React.FC = () => {
         const map = new Map<string, { batchName: string, courseName: string, timing: string, teacherId?: string }[]>();
         students.forEach(student => {
             const enrollments: { batchName: string, courseName: string, timing: string, teacherId?: string }[] = [];
+            // Membership is the batch's student list; times come from its slots.
             batches.forEach(batch => {
-                batch.schedule.forEach(scheduleItem => {
-                    if (scheduleItem.studentIds.includes(student.id)) {
-                        enrollments.push({
-                            batchName: batch.name,
-                            courseName: batch.courseName,
-                            timing: scheduleItem.timing,
-                            teacherId: typeof batch.teacherId === 'string' ? batch.teacherId : (batch.teacherId as User)?.id,
-                        });
-                    }
-                });
+                if ((batch.studentIds || []).map(String).includes(String(student.id))) {
+                    enrollments.push({
+                        batchName: batch.name,
+                        courseName: batch.courseName,
+                        timing: batchTimingLines(batch).join(', '),
+                        teacherId: batch.teacherId != null ? String(typeof batch.teacherId === 'object' ? (batch.teacherId as User).id : batch.teacherId) : undefined,
+                    });
+                }
             });
             if (enrollments.length > 0) {
                 map.set(student.id, enrollments);
@@ -188,7 +189,7 @@ const StudentListPage: React.FC = () => {
             if (batchFilter) {
                 const targetBatch = batches.find(b => b.id === batchFilter);
                 if (!targetBatch) return false; // Should not happen if filter is valid
-                const isStudentInBatch = targetBatch.schedule.some(s => s.studentIds.includes(student.id));
+                const isStudentInBatch = (targetBatch.studentIds || []).map(String).includes(String(student.id));
                 if (!isStudentInBatch) return false;
             }
 
@@ -304,52 +305,15 @@ const StudentListPage: React.FC = () => {
 
         if (window.confirm(confirmMsg)) {
             try {
-                const updatedUserPromise = updateUserByAdmin(user.id, user);
-    
-                const batchUpdatePromises: Promise<Batch>[] = [];
-                const updatedBatchesMap = new Map<string, Batch>();
-    
-                batchChanges.forEach((change) => {
-                    const { oldBatchId, newBatchId, selectedTimings } = change;
-                    
-                    // Un-enroll from old batch
-                    if (oldBatchId && oldBatchId !== newBatchId) {
-                        const existingOldBatch = updatedBatchesMap.get(oldBatchId) || freshBatches.find(b => b.id === oldBatchId);
-                        if (existingOldBatch) {
-                            const oldBatch: Batch = JSON.parse(JSON.stringify(existingOldBatch));
-                            oldBatch.schedule.forEach(s => {
-                                s.studentIds = s.studentIds.filter(id => id !== user.id);
-                            });
-                            updatedBatchesMap.set(oldBatchId, oldBatch);
-                        }
-                    }
-                    
-                    // Enroll in new batch with selected timings
-                    if (newBatchId && newBatchId !== 'unassigned' && newBatchId !== oldBatchId) {
-                        const existingNewBatch = updatedBatchesMap.get(newBatchId) || freshBatches.find(b => b.id === newBatchId);
-                        if (existingNewBatch) {
-                            const newBatch: Batch = JSON.parse(JSON.stringify(existingNewBatch));
-                            newBatch.schedule.forEach(s => {
-                                const shouldEnroll = selectedTimings && selectedTimings.has(s.timing);
-                                if (shouldEnroll && !s.studentIds.includes(user.id)) {
-                                    s.studentIds.push(user.id);
-                                }
-                            });
-                            updatedBatchesMap.set(newBatchId, newBatch);
-                        }
-                    }
-                });
-                
-                updatedBatchesMap.forEach((batchToUpdate, batchId) => {
-                    const payload = { ...batchToUpdate };
-                    // Ensure teacherId is a string ID, not a populated object, before sending to the server
-                    if (payload.teacherId && typeof payload.teacherId === 'object') {
-                        payload.teacherId = (payload.teacherId as Partial<User>).id;
-                    }
-                    batchUpdatePromises.push(updateBatch(batchId, payload));
-                });
-    
-                await Promise.all([updatedUserPromise, ...batchUpdatePromises]);
+                await updateUserByAdmin(user.id, user);
+                // Batch changes go through the batch's own student list, one
+                // batch per course. (The old copy rebuilt batches from the
+                // retired `schedule` field and emptied both batches.)
+                for (const { oldBatchId, newBatchId } of batchChanges.values()) {
+                    const next = newBatchId && newBatchId !== 'unassigned' ? Number(newBatchId) : null;
+                    if (String(next ?? '') === String(oldBatchId ?? '')) continue;
+                    await placeStudent(Number(user.id), next, oldBatchId ? Number(oldBatchId) : null);
+                }
 
                 setEditingUser(null);
                 await fetchData(); // Refetch all data to ensure UI is up to date

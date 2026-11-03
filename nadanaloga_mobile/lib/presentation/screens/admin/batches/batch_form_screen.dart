@@ -13,6 +13,7 @@ import '../../../../di/injection_container.dart';
 import '../../../bloc/batch/batch_bloc.dart';
 import '../../../bloc/batch/batch_event.dart';
 import '../../../bloc/batch/batch_state.dart';
+import '../../home/class_schedule.dart';
 
 class BatchFormScreen extends StatefulWidget {
   final int? batchId;
@@ -40,6 +41,11 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
   List<LocationModel> _locations = [];
   List<UserModel> _teachers = [];
   bool _loading = true;
+
+  // Names for values the pick lists don't contain (e.g. a teacher who has
+  // since left), so editing shows them and saving keeps them.
+  String? _savedTeacherName;
+  String? _savedCourseName;
 
   static const _weekdays = [
     'Monday',
@@ -98,13 +104,19 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
             _courseId = batch.courseId;
             _teacherId = batch.teacherId;
             _locationId = batch.locationId;
-            _mode = batch.mode ?? 'Hybrid';
-            _studio = _studios.contains(batch.studio) ? batch.studio : null;
+            _mode = const ['Online', 'Offline', 'Hybrid'].firstWhere(
+                (m) => m.toLowerCase() == (batch.mode ?? '').trim().toLowerCase(),
+                orElse: () => 'Hybrid');
+            _studio = (batch.studio ?? '').isNotEmpty ? batch.studio : null;
+            _savedTeacherName = batch.teacherName;
+            _savedCourseName = batch.courseName;
             _slots.clear();
             if (batch.timeSlots.isNotEmpty) {
               for (final ts in batch.timeSlots) {
+                final day = _weekdayName(ts.day);
+                if (day == null) continue;
                 _slots.add(_TimeSlot(
-                  day: ts.day,
+                  day: day,
                   start: ts.startTime != null ? _parseTime(ts.startTime!) : null,
                   end: ts.endTime != null ? _parseTime(ts.endTime!) : null,
                 ));
@@ -114,7 +126,9 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
               final s = batch.startTime != null ? _parseTime(batch.startTime!) : null;
               final e = batch.endTime != null ? _parseTime(batch.endTime!) : null;
               for (final d in batch.days) {
-                _slots.add(_TimeSlot(day: d, start: s, end: e));
+                final day = _weekdayName(d);
+                if (day == null) continue;
+                _slots.add(_TimeSlot(day: day, start: s, end: e));
               }
             }
           }
@@ -124,18 +138,16 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
     if (mounted) setState(() => _loading = false);
   }
 
-  TimeOfDay? _parseTime(String time24) {
-    // Postgres TIME columns come back as "HH:MM:SS"; the form sends "HH:MM".
-    // Accept both (and ignore any seconds component).
-    final parts = time24.split(':');
-    if (parts.length >= 2) {
-      final hour = int.tryParse(parts[0]);
-      final minute = int.tryParse(parts[1]);
-      if (hour != null && minute != null) {
-        return TimeOfDay(hour: hour, minute: minute);
-      }
-    }
-    return null;
+  /// "Mon", "monday", "Monday" → "Monday" (the form's day list).
+  String? _weekdayName(String day) {
+    final wd = ClassSchedule.weekdayOf(day);
+    return wd == null ? null : _weekdays[wd - 1];
+  }
+
+  TimeOfDay? _parseTime(String time) {
+    // "17:00", "17:00:00" (Postgres TIME) or "5:00 PM".
+    final m = ClassSchedule.minutesOf(time);
+    return m == null ? null : TimeOfDay(hour: m ~/ 60, minute: m % 60);
   }
 
   @override
@@ -196,6 +208,7 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
 
   Widget _slotRow(int index, _TimeSlot slot) {
     return Card(
+      key: ObjectKey(slot),
       margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
@@ -204,7 +217,7 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
             Expanded(
               flex: 4,
               child: DropdownButtonFormField<String>(
-                value: slot.day,
+                initialValue: slot.day,
                 isDense: true,
                 decoration: const InputDecoration(border: InputBorder.none),
                 items: _weekdays
@@ -267,8 +280,9 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
       'max_students': _maxStudentsController.text.trim().isEmpty
           ? null
           : int.tryParse(_maxStudentsController.text.trim()),
-      // Intentionally NOT sending `schedule` — the web stores student
-      // assignments there; omitting it lets the backend preserve it.
+      // Never send `schedule` or `student_ids` from this form: the server
+      // merges, so leaving them out keeps the batch's students as they are.
+      // Membership is changed only from the batch screen.
       'time_slots': timeSlots,
       // Keep days + a representative start/end for backward-compatible display.
       'days': _slots.map((s) => s.day).toList(),
@@ -323,15 +337,22 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
 
                       // Course
                       DropdownButtonFormField<int>(
-                        value: _courseId,
+                        initialValue: _courseId,
                         decoration: const InputDecoration(
                           labelText: 'Course *',
                           prefixIcon: Icon(Icons.menu_book),
                         ),
-                        items: _courses
-                            .map((c) => DropdownMenuItem(
-                                value: c.id, child: Text(c.name)))
-                            .toList(),
+                        isExpanded: true,
+                        items: [
+                          ..._courses.map((c) => DropdownMenuItem(
+                              value: c.id, child: Text(c.name))),
+                          if (_courseId != null &&
+                              !_courses.any((c) => c.id == _courseId))
+                            DropdownMenuItem(
+                                value: _courseId,
+                                child: Text(_savedCourseName ??
+                                    'Course #$_courseId')),
+                        ],
                         onChanged: (v) => setState(() => _courseId = v),
                         validator: (v) => v == null ? 'Select a course' : null,
                       ),
@@ -339,22 +360,29 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
 
                       // Teacher
                       DropdownButtonFormField<int>(
-                        value: _teacherId,
+                        initialValue: _teacherId,
                         decoration: const InputDecoration(
                           labelText: 'Teacher',
                           prefixIcon: Icon(Icons.person),
                         ),
-                        items: _teachers
-                            .map((t) => DropdownMenuItem(
-                                value: t.id, child: Text(t.name)))
-                            .toList(),
+                        isExpanded: true,
+                        items: [
+                          ..._teachers.map((t) => DropdownMenuItem(
+                              value: t.id, child: Text(t.name))),
+                          if (_teacherId != null &&
+                              !_teachers.any((t) => t.id == _teacherId))
+                            DropdownMenuItem(
+                                value: _teacherId,
+                                child: Text(_savedTeacherName ??
+                                    'Teacher #$_teacherId')),
+                        ],
                         onChanged: (v) => setState(() => _teacherId = v),
                       ),
                       const SizedBox(height: 16),
 
                       // Mode
                       DropdownButtonFormField<String>(
-                        value: _mode,
+                        initialValue: _mode,
                         decoration: const InputDecoration(
                           labelText: 'Mode',
                           prefixIcon: Icon(Icons.computer),
@@ -373,15 +401,21 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
                       // Location
                       if (_mode != 'Online' && _locations.isNotEmpty) ...[
                         DropdownButtonFormField<int>(
-                          value: _locationId,
+                          initialValue: _locationId,
                           decoration: const InputDecoration(
                             labelText: 'Location',
                             prefixIcon: Icon(Icons.location_on),
                           ),
-                          items: _locations
-                              .map((l) => DropdownMenuItem(
-                                  value: l.id, child: Text(l.name)))
-                              .toList(),
+                          isExpanded: true,
+                          items: [
+                            ..._locations.map((l) => DropdownMenuItem(
+                                value: l.id, child: Text(l.name))),
+                            if (_locationId != null &&
+                                !_locations.any((l) => l.id == _locationId))
+                              DropdownMenuItem(
+                                  value: _locationId,
+                                  child: Text('Location #$_locationId')),
+                          ],
                           onChanged: (v) => setState(() => _locationId = v),
                         ),
                         const SizedBox(height: 16),
@@ -400,15 +434,15 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
 
                       // Studio
                       DropdownButtonFormField<String>(
-                        value: _studio,
+                        initialValue: _studio,
                         decoration: const InputDecoration(
                           labelText: 'Studio',
                           prefixIcon: Icon(Icons.home_work_outlined),
                         ),
-                        items: _studios
-                            .map((s) =>
-                                DropdownMenuItem(value: s, child: Text(s)))
-                            .toList(),
+                        items: [
+                          for (final s in {..._studios, if (_studio != null) _studio!})
+                            DropdownMenuItem(value: s, child: Text(s)),
+                        ],
                         onChanged: (v) => setState(() => _studio = v),
                       ),
                       const SizedBox(height: 16),
@@ -417,7 +451,7 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Class Days & Timings *',
+                          const Text('Class Days & Timings *',
                               style: AppTextStyles.labelLarge),
                           TextButton.icon(
                             onPressed: _addSlot,

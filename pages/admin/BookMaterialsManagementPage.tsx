@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { BookMaterial, Course } from '../../types';
 import { BookMaterialType } from '../../types';
-import { getAdminBookMaterials, addBookMaterial, updateBookMaterial, deleteBookMaterial, getAdminCourses } from '../../api';
+import { getAdminBookMaterials, addBookMaterial, updateBookMaterial, deleteBookMaterial, getAdminCourses, uploadMaterialFile } from '../../api';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -17,25 +17,30 @@ const BookMaterialForm: React.FC<{ material?: Partial<BookMaterial>, courses: Co
             id: material?.id,
             title: material?.title || '',
             description: material?.description || '',
-            courseId: material?.courseId || '',
+            // Materials store the course by name; match it back to the list.
+            courseId: material?.courseId || courses.find(c => c.name === material?.courseName)?.id || '',
+            courseName: material?.courseName || '',
             type: material?.type || BookMaterialType.YouTube,
             url: material?.url || '',
             data: material?.data,
         });
-    }, [material]);
+    }, [material, courses]);
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setFormData(prev => ({ 
-                    ...prev,
-                    data: reader.result as string,
-                    url: file.name // Store filename in url for display
-                }));
-            };
-            reader.readAsDataURL(file);
+    // Upload the file to the server right away and keep its stored path.
+    // (It used to keep the file in the browser and save only its name, so
+    // families got a broken link.)
+    const [uploading, setUploading] = useState(false);
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        setUploading(true);
+        try {
+            const up = await uploadMaterialFile(file);
+            setFormData(prev => ({ ...prev, url: up.url, type: BookMaterialType.PDF, data: undefined }));
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Upload failed.');
+        } finally {
+            setUploading(false);
         }
     };
 
@@ -92,7 +97,7 @@ const BookMaterialForm: React.FC<{ material?: Partial<BookMaterial>, courses: Co
             )}
            
             <div className="pt-4 flex justify-end">
-                <button type="submit" disabled={isLoading} className="btn-primary">
+                <button type="submit" disabled={isLoading || uploading} className="btn-primary">
                     {isLoading ? 'Saving...' : 'Save Material'}
                 </button>
             </div>

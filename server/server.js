@@ -121,6 +121,21 @@ const uploadPaymentProof = multer({
     limits: { fileSize: 5 * 1024 * 1024 } // 5MB max
 });
 
+// Study materials (Admin -> Book materials): PDFs and images, up to 20 MB.
+const MATERIALS_DIR = path.join(UPLOADS_DIR, 'materials');
+if (!fs.existsSync(MATERIALS_DIR)) fs.mkdirSync(MATERIALS_DIR, { recursive: true });
+const uploadMaterial = multer({
+    storage: multer.diskStorage({
+        destination: (req, file, cb) => cb(null, MATERIALS_DIR),
+        filename: (req, file, cb) => cb(null, `${uuidv4()}${path.extname(file.originalname).toLowerCase()}`),
+    }),
+    fileFilter: (req, file, cb) => {
+        const ok = ['.pdf', '.png', '.jpg', '.jpeg', '.webp'].includes(path.extname(file.originalname).toLowerCase());
+        cb(ok ? null : new Error('Only PDF or image files are allowed'), ok);
+    },
+    limits: { fileSize: 20 * 1024 * 1024 },
+});
+
 const PORT = process.env.PORT || 3000;
 
 // --- Main application startup ---
@@ -1172,20 +1187,48 @@ async function startServer() {
 
     // --- Email & Notification Helpers ---
     // Send email in background (fire-and-forget, never blocks response)
-    const sendEmailBackground = (to, name, subject, messageText) => {
-        if (!mailTransporter) {
-            console.log('[Email] Skipped (no transporter):', subject, 'to:', to);
+    // Every email the server sends goes through here. It is sent only when
+    // Admin -> Notification settings allows email for its event (passed as
+    // eventKey, or recognised from the subject). Exceptions: mail to the
+    // academy's own inbox, and eventKey 'essential' for mail the person asked
+    // for (password reset, deletion request, demo booking). Stand-in child
+    // addresses (...nadanaloga.local) are never mailed.
+    const recentEmails = new Map();
+    const sendEmailBackground = (to, name, subject, messageText, eventKey = null) => {
+        const addr = String(to || '').trim();
+        if (!addr.includes('@') || /\.nadanaloga\.local$/i.test(addr)) {
+            console.log('[Email] Skipped (no real address):', subject, 'to:', addr || '(none)');
             return;
         }
-        mailTransporter.sendMail({
-            from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
-            to,
-            subject,
-            html: createEmailTemplate(name, subject, messageText)
-        }).then(() => {
-            console.log(`📧 Email sent: "${subject}" to ${to}`);
-        }).catch(error => {
-            console.error(`[Email] Failed "${subject}" to ${to}:`, error.message);
+        if (!mailTransporter) {
+            console.log('[Email] Skipped (no transporter):', subject, 'to:', addr);
+            return;
+        }
+        // Siblings targeted together resolve to the same family address:
+        // send each message once.
+        const dedupeKey = `${addr.toLowerCase()}|${subject}`;
+        const now = Date.now();
+        for (const [k, t] of recentEmails) if (now - t > 10 * 60 * 1000) recentEmails.delete(k);
+        if (recentEmails.has(dedupeKey)) return;
+        recentEmails.set(dedupeKey, now);
+        (async () => {
+            const toAcademy = addr.toLowerCase() === String(ADMIN_NOTIFY_EMAIL).toLowerCase();
+            if (eventKey !== 'essential' && !toAcademy) {
+                const ch = await channelsFor(eventKey, subject);
+                if (!ch.email) {
+                    console.log(`[Email] Off in notification settings (${eventKey || eventKeyForTitle(subject) || 'no matching setting'}): "${subject}" to ${addr}`);
+                    return;
+                }
+            }
+            await mailTransporter.sendMail({
+                from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
+                to: addr,
+                subject,
+                html: createEmailTemplate(name, subject, messageText)
+            });
+            console.log(`📧 Email sent: "${subject}" to ${addr}`);
+        })().catch(error => {
+            console.error(`[Email] Failed "${subject}" to ${addr}:`, error.message);
         });
     };
 
@@ -1309,16 +1352,19 @@ async function startServer() {
     const eventKeyForTitle = (title) => {
         const t = String(title || '');
         if (/fees ready|new invoice/i.test(t)) return 'fees.invoice_ready';
-        if (/fee reminder/i.test(t)) return 'fees.reminder';
-        if (/payment received|receipt/i.test(t)) return 'fees.payment_received';
+        if (/fee reminder|fee payment reminder|payment overdue|fee overdue/i.test(t)) return 'fees.reminder';
+        if (/payment received|receipt|payment reversed/i.test(t)) return 'fees.payment_received';
         if (/proof not accepted/i.test(t)) return 'fees.proof_rejected';
         if (/batch allocation|enrollment confirmed/i.test(t)) return 'batch.allocation';
-        if (/batch removal|batch transfer/i.test(t)) return 'batch.transfer';
+        if (/batch removal|batch transfer|batch update|moved to/i.test(t)) return 'batch.transfer';
         if (/teacher changed/i.test(t)) return 'batch.teacher_changed';
         if (/enrollment updated|profile updated/i.test(t)) return 'profile.updated';
-        if (/new event/i.test(t)) return 'content.event';
-        if (/new notice/i.test(t)) return 'content.notice';
-        if (/new material|study material/i.test(t)) return 'content.material';
+        if (/new gradeexam/i.test(t)) return 'content.grade_exam';
+        if (/new bookmaterial/i.test(t)) return 'content.material';
+        if (/new event|event invitation|^event\b/i.test(t)) return 'content.event';
+        if (/new notice|^notice\b/i.test(t)) return 'content.notice';
+        if (/new material|study material|book material|^material\b/i.test(t)) return 'content.material';
+        if (/fee invoice/i.test(t)) return 'fees.invoice_ready';
         if (/grade exam|exam result/i.test(t)) return 'content.grade_exam';
         if (/new registration|new student/i.test(t)) return 'registration.new_student';
         if (/welcome/i.test(t)) return 'registration.welcome';
@@ -1326,9 +1372,14 @@ async function startServer() {
     };
 
     /** Channels allowed for an event. Unknown or unset events use every channel. */
+    // Something that matches no setting (course/location/fee-structure
+    // announcements, salary notes...) is not sent on any channel: the academy
+    // decides per event in Admin -> Notification settings, and asked that
+    // nothing reach families until it switches things on.
+    const UNKNOWN_EVENT_CHANNELS = { in_app: false, push: false, email: false };
     const channelsFor = async (eventKey, title) => {
         const key = eventKey || eventKeyForTitle(title);
-        if (!key) return ALL_CHANNELS;
+        if (!key) return UNKNOWN_EVENT_CHANNELS;
         const map = await loadNotificationSettings();
         return map.get(key) || ALL_CHANNELS;
     };
@@ -1354,34 +1405,38 @@ async function startServer() {
     };
 
     // Fetch users by IDs
+    // Rows for notifying people. `email` is the address to use: a child's
+    // stand-in login address is swapped for the family's real one.
     const getUsersByIds = async (ids) => {
         if (!ids || ids.length === 0) return [];
         const result = await pool.query(
-            'SELECT id, name, email FROM users WHERE id = ANY($1) AND is_deleted = false',
+            'SELECT id, name, email, parent_id, contact_number FROM users WHERE id = ANY($1) AND is_deleted = false',
             [ids]
         );
-        return result.rows;
+        return (await attachContactEmails(result.rows)).map(u => ({ id: u.id, name: u.name, email: u.contact_email || u.email }));
     };
 
     // Fetch all active students and teachers
     const getActiveUsers = async (roleFilter) => {
         if (roleFilter) {
             const result = await pool.query(
-                "SELECT id, name, email FROM users WHERE is_deleted = false AND status = 'active' AND LOWER(role) = LOWER($1)",
+                "SELECT id, name, email FROM users WHERE is_deleted = false AND LOWER(COALESCE(status, 'active')) = 'active' AND LOWER(role) = LOWER($1)",
                 [roleFilter]
             );
             return result.rows;
         }
+        // Everyone: children with a parent are reached through the parent
+        // (one message per family, and the parent's inbox shows it).
         const result = await pool.query(
-            "SELECT id, name, email FROM users WHERE is_deleted = false AND status = 'active' AND LOWER(role) != 'admin'"
+            "SELECT id, name, email, parent_id, contact_number FROM users WHERE is_deleted = false AND LOWER(COALESCE(status, 'active')) = 'active' AND LOWER(role) != 'admin' AND parent_id IS NULL"
         );
-        return result.rows;
+        return (await attachContactEmails(result.rows)).map(u => ({ id: u.id, name: u.name, email: u.contact_email || u.email }));
     };
 
     // Fetch all active admins (including super admins)
     const getActiveAdmins = async () => {
         const result = await pool.query(
-            "SELECT id, name, email FROM users WHERE is_deleted = false AND status = 'active' AND (LOWER(role) = 'admin' OR is_super_admin = true)"
+            "SELECT id, name, email FROM users WHERE is_deleted = false AND LOWER(COALESCE(status, 'active')) = 'active' AND (LOWER(role) = 'admin' OR is_super_admin = true)"
         );
         return result.rows;
     };
@@ -1952,18 +2007,18 @@ async function startServer() {
             // Note: type must be one of 'Info','Warning','Success','Error' due to DB CHECK constraint
             try {
                 // Notification for the new user
-                await pool.query(
-                    `INSERT INTO notifications (user_id, title, message, type) VALUES ($1, $2, $3, $4)`,
-                    [newUser.id, 'Welcome to Nadanaloga Academy!', `Registration successful for ${userData.name}. Your application is being reviewed by our admin team.`, 'Success']
-                );
+                // Through the dispatcher, so Admin -> Notification settings apply
+                // (an admin adding a family must not message them while it's off).
+                createNotificationForUser(newUser.id, 'Welcome to Nadanaloga Academy!',
+                    `Registration successful for ${userData.name}. Your application is being reviewed by our admin team.`,
+                    'Success', 'registration.welcome');
 
                 // Notification for admin(s)
                 const admins = await pool.query(`SELECT id FROM users WHERE role = 'Admin' AND is_deleted = false`);
                 for (const admin of admins.rows) {
-                    await pool.query(
-                        `INSERT INTO notifications (user_id, title, message, type) VALUES ($1, $2, $3, $4)`,
-                        [admin.id, 'New Student Registration', `New student ${userData.name} (${normalizedEmail}) has registered. Please review their application.`, 'Info']
-                    );
+                    createNotificationForUser(admin.id, 'New Student Registration',
+                        `New student ${userData.name} (${normalizedEmail}) has registered. Please review their application.`,
+                        'Info', 'registration.new_student');
                 }
             } catch (notifError) {
                 console.error('Error creating registration notifications:', notifError.message);
@@ -2219,7 +2274,7 @@ async function startServer() {
                     [account.id, codeHash, 'email', expiresAt]
                 );
                 sendEmailBackground(account.email, account.name || 'there', 'Nadanaloga Password Reset Code',
-                    `Your Nadanaloga password reset code is ${code}\n\nThis code expires in 10 minutes. If you did not request a password reset, please ignore this email.`);
+                    `Your Nadanaloga password reset code is ${code}\n\nThis code expires in 10 minutes. If you did not request a password reset, please ignore this email.`, 'essential');
                 return res.json({ success: true, message: 'A reset code has been sent to your email.', channel: 'email', emailHint: maskEmail(account.email) });
             }
             // Don't reveal whether the account exists.
@@ -2292,7 +2347,7 @@ async function startServer() {
                 sendEmailBackground(identifier, name || 'there', 'We received your deletion request - Nadanaloga',
                     `We have received your request to delete your Nadanaloga account.\n\n` +
                     `Our team will remove the account within 7 days and confirm by email. ` +
-                    `Payment records are kept only as long as the law requires.`);
+                    `Payment records are kept only as long as the law requires.`, 'essential');
             }
         } catch (mailErr) {
             console.error('[Account delete request] email error:', mailErr.message);
@@ -2348,6 +2403,33 @@ async function startServer() {
 
     // --- Email API Endpoints ---
     // Registration notification endpoint (doesn't require users table)
+    // These per-topic email endpoints were called straight from the browser,
+    // by anyone, regardless of Admin -> Notification settings. They now need
+    // an admin, never mail a stand-in child address, and send only when email
+    // is on for their event. (Registered first, so they run before the routes.)
+    const EMAIL_ROUTE_EVENTS = {
+        '/api/send-batch-allocation-email': 'batch.allocation',
+        '/api/send-grade-exam-email': 'content.grade_exam',
+        '/api/send-book-materials-email': 'content.material',
+        '/api/send-event-email': 'content.event',
+        '/api/send-notice-email': 'content.notice',
+        '/api/send-payment-email': 'fees.payment_received',
+        '/api/send-profile-update-email': 'profile.updated',
+    };
+    for (const [route, key] of Object.entries(EMAIL_ROUTE_EVENTS)) {
+        app.post(route, ensureAdmin, async (req, res, next) => {
+            const to = String((req.body && req.body.studentEmail) || '').trim();
+            if (!to.includes('@') || /\.nadanaloga\.local$/i.test(to)) {
+                return res.json({ success: true, skipped: 'no real email address' });
+            }
+            if (!(await channelsFor(key)).email) {
+                console.log(`[Email] Off in notification settings (${key}): ${route} to ${to}`);
+                return res.json({ success: true, skipped: 'email is off for this event in notification settings' });
+            }
+            next();
+        });
+    }
+
     app.post('/api/send-registration-emails', async (req, res) => {
         try {
             const { userName, userEmail, courses, contactNumber, fatherName, standard, schoolName, address, dateOfJoining, notes } = req.body;
@@ -2848,50 +2930,27 @@ Nadanaloga Academy Team`;
         }
     });
 
+    // General email endpoint. It used to send anything to anyone without a
+    // login (an open relay). Now: a signed-out visitor or a family can only
+    // reach the academy's own inbox (enquiry forms); an admin can mail a person,
+    // through the same settings gate as every other email (event_key or the
+    // subject decides which setting applies).
     app.post('/api/send-email', async (req, res) => {
-        try {
-            const { to, subject, body, recipientName } = req.body;
-
-            if (!to || !subject || !body) {
-                return res.status(400).json({ message: 'Missing required fields: to, subject, body' });
-            }
-
-            if (!mailTransporter) {
-                console.log('📧 Email in test mode - would send to:', to);
-                return res.status(200).json({
-                    success: true,
-                    message: 'Email sent successfully (test mode)',
-                    preview: `Subject: ${subject}\nTo: ${to}\nBody: ${body}`
-                });
-            }
-
-            const emailHtml = createEmailTemplate(recipientName || 'User', subject, body);
-
-            const mailOptions = {
-                from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
-                to: to,
-                subject: subject,
-                html: emailHtml
-            };
-
-            await mailTransporter.sendMail(mailOptions);
-            console.log(`📧 Email sent successfully to: ${to}`);
-
-            res.status(200).json({
-                success: true,
-                message: 'Email sent successfully'
-            });
-        } catch (error) {
-            console.error('Email sending error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to send email',
-                error: error.message
-            });
+        const { to, subject, body, recipientName, event_key } = req.body || {};
+        if (!subject || !body) {
+            return res.status(400).json({ message: 'Missing required fields: subject, body' });
         }
+        const me = req.session && req.session.user;
+        const isAdmin = !!me && String(me.role || '').toLowerCase() === 'admin';
+        if (!isAdmin) {
+            sendEmailBackground(ADMIN_NOTIFY_EMAIL, 'Admin', subject, `${body}\n\n(From the website${to ? `, for ${to}` : ''}.)`);
+            return res.json({ success: true });
+        }
+        if (!to) return res.status(400).json({ message: 'Missing required field: to' });
+        sendEmailBackground(to, recipientName || 'there', subject, body, event_key || null);
+        res.json({ success: true });
     });
 
-    // Enhanced registration endpoint with email notifications
     app.post('/api/register-with-email', async (req, res) => {
         try {
             console.log('[DEBUG] Registration request received:', req.body);
@@ -3345,7 +3404,10 @@ Please review and approve this registration in the admin panel.`;
                 // supply it too produced "multiple assignments to same column".
                 if (key !== 'id' && key !== 'created_at' && key !== 'updated_at' && columns.has(key)) {
                     updateFields.push(`${key} = $${paramCount}`);
-                    values.push(userData[key]);
+                    // Status is stored lowercase ('active', 'on hold'...); the
+                    // website sends 'Active', which billing and lists then missed.
+                    values.push(key === 'status' && typeof userData[key] === 'string'
+                        ? userData[key].trim().toLowerCase() : userData[key]);
                     paramCount++;
                 }
             });
@@ -3392,8 +3454,9 @@ Please review and approve this registration in the admin panel.`;
     app.get('/api/users/trashed/all', ensureAdmin, async (req, res) => {
         try {
             const result = await pool.query('SELECT * FROM users WHERE is_deleted = true ORDER BY updated_at DESC');
-            const users = result.rows.map(parseUserData);
-            res.json(users);
+            // Soft delete stamps updated_at; there is no deleted_at column.
+            const users = result.rows.map(r => ({ ...parseUserData(r), deleted_at: r.updated_at }));
+            res.json(await attachContactEmails(users));
         } catch (error) {
             console.error('Error fetching trashed users:', error);
             res.status(500).json({ message: 'Server error fetching trashed users.' });
@@ -4568,30 +4631,53 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // Transfer student between batches
+    // Move one student from a batch to another batch of the same course, in
+    // one transaction. Ids are compared as numbers (the app and website send
+    // strings or numbers; comparing raw values left the student in both).
+    // Grades and fees belong to the course, so they are unchanged.
     app.post('/api/batches/transfer', ensureAdmin, async (req, res) => {
+        const studentId = Number(req.body && req.body.studentId);
+        const fromBatchId = Number(req.body && req.body.fromBatchId);
+        const toBatchId = Number(req.body && req.body.toBatchId);
+        if (!studentId || !fromBatchId || !toBatchId) {
+            return res.status(400).json({ message: 'studentId, fromBatchId, and toBatchId are required.' });
+        }
+        if (fromBatchId === toBatchId) {
+            return res.status(400).json({ message: 'The student is already in that batch.' });
+        }
+        const client = await pool.connect();
         try {
-            const { studentId, fromBatchId, toBatchId } = req.body;
-            if (!studentId || !fromBatchId || !toBatchId) {
-                return res.status(400).json({ message: 'studentId, fromBatchId, and toBatchId are required.' });
+            await client.query('BEGIN');
+            const rows = (await client.query(
+                'SELECT id, course_id, student_ids FROM batches WHERE id = ANY($1::int[]) FOR UPDATE',
+                [[fromBatchId, toBatchId]])).rows;
+            const from = rows.find(r => r.id === fromBatchId);
+            const to = rows.find(r => r.id === toBatchId);
+            if (!from) { await client.query('ROLLBACK'); return res.status(404).json({ message: 'Source batch not found.' }); }
+            if (!to) { await client.query('ROLLBACK'); return res.status(404).json({ message: 'Destination batch not found.' }); }
+            const fromIds = (from.student_ids || []).map(Number);
+            if (!fromIds.includes(studentId)) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ message: 'That student is not in the source batch.' });
             }
-
-            // Remove student from source batch
-            const fromBatch = await pool.query('SELECT student_ids FROM batches WHERE id = $1', [fromBatchId]);
-            if (fromBatch.rows.length === 0) {
-                return res.status(404).json({ message: 'Source batch not found.' });
+            if (from.course_id && to.course_id && Number(from.course_id) !== Number(to.course_id)) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ message: 'Both batches must be for the same course. To change course, edit the student instead.' });
             }
-            const fromIds = (fromBatch.rows[0].student_ids || []).filter(id => id !== studentId);
-            await pool.query('UPDATE batches SET student_ids = $1, updated_at = NOW() WHERE id = $2', [fromIds, fromBatchId]);
-
-            // Add student to destination batch
-            const toBatch = await pool.query('SELECT student_ids FROM batches WHERE id = $1', [toBatchId]);
-            if (toBatch.rows.length === 0) {
-                return res.status(404).json({ message: 'Destination batch not found.' });
-            }
-            const toIds = [...(toBatch.rows[0].student_ids || [])];
-            if (!toIds.includes(studentId)) toIds.push(studentId);
-            await pool.query('UPDATE batches SET student_ids = $1, updated_at = NOW() WHERE id = $2', [toIds, toBatchId]);
-
+            const toIds = (to.student_ids || []).map(Number);
+            await client.query('UPDATE batches SET student_ids = $1, updated_at = NOW() WHERE id = $2',
+                [fromIds.filter(id => id !== studentId), fromBatchId]);
+            await client.query('UPDATE batches SET student_ids = $1, updated_at = NOW() WHERE id = $2',
+                [toIds.includes(studentId) ? toIds : [...toIds, studentId], toBatchId]);
+            await client.query('COMMIT');
+        } catch (error) {
+            await client.query('ROLLBACK').catch(() => {});
+            client.release();
+            console.error('Error transferring student:', error);
+            return res.status(500).json({ message: 'Server error transferring student.' });
+        }
+        client.release();
+        try {
             // Return both updated batches
             const [updatedFrom, updatedTo] = await Promise.all([
                 pool.query('SELECT * FROM batches WHERE id = $1', [fromBatchId]),
@@ -4688,6 +4774,17 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // --- File Upload API Endpoint ---
+    // A material's file. Returns the path to store as book_materials.file_url
+    // (relative, so it works on the website and in the app).
+    app.post('/api/upload/material', ensureAdmin, (req, res) => {
+        uploadMaterial.single('file')(req, res, (err) => {
+            if (err) return res.status(400).json({ message: err.message || 'Upload failed.' });
+            if (!req.file) return res.status(400).json({ message: 'No file uploaded.' });
+            const isPdf = path.extname(req.file.originalname).toLowerCase() === '.pdf';
+            res.json({ url: `/uploads/materials/${req.file.filename}`, file_type: isPdf ? 'PDF' : 'Image', name: req.file.originalname });
+        });
+    });
+
     app.post('/api/upload/icon', ensureAdmin, upload.single('icon'), async (req, res) => {
         try {
             if (!req.file) {
@@ -5053,7 +5150,12 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.post('/api/notifications', ensureAuthenticated, async (req, res) => {
+    // A message an admin writes and sends to chosen people (app: Admin -> Send
+    // notification; website: Students/Teachers list -> Send). Admin only: it
+    // used to accept any signed-in user, so a family could post into anyone's
+    // inbox. Being a deliberate message, it is not subject to the per-event
+    // settings. With ?email=1 the family's real address is emailed too.
+    app.post('/api/notifications', ensureAdmin, async (req, res) => {
         try {
             const notifications = req.body;
             if (!Array.isArray(notifications)) {
@@ -5079,6 +5181,17 @@ Please review and approve this registration in the admin panel.`;
             // Send push notifications for each (fire-and-forget)
             for (const n of notifications) {
                 sendPushNotification(n.user_id, n.title, n.message);
+            }
+            if (String(req.query.email || '') === '1') {
+                const ids = [...new Set(notifications.map(n => Number(n.user_id)).filter(Boolean))];
+                const people = await attachContactEmails((await pool.query(
+                    'SELECT id, name, email, parent_id, contact_number FROM users WHERE id = ANY($1::int[]) AND is_deleted = false',
+                    [ids])).rows);
+                const byId = new Map(people.map(p => [p.id, p]));
+                for (const n of notifications) {
+                    const p = byId.get(Number(n.user_id));
+                    if (p && p.contact_email) sendEmailBackground(p.contact_email, p.name, n.title, n.message, 'essential');
+                }
             }
 
             res.status(201).json({ success: true, message: 'Notifications created' });
@@ -5357,7 +5470,7 @@ Please review and approve this registration in the admin panel.`;
 
     // --- Student Discount API Endpoints ---
     // GET all discounts
-    app.get('/api/student-discounts', async (req, res) => {
+    app.get('/api/student-discounts', ensureAdmin, async (req, res) => {
         try {
             const { student_id, course_id, batch_id, discount_type } = req.query;
             let query = 'SELECT * FROM student_discounts WHERE is_active = TRUE';
@@ -5505,7 +5618,7 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // GET student's applicable discount for a course/batch
-    app.get('/api/student-discounts/calculate/:student_id', async (req, res) => {
+    app.get('/api/student-discounts/calculate/:student_id', ensureAuthenticated, async (req, res) => {
         try {
             const { student_id } = req.params;
             const { course_id, batch_id } = req.query;
@@ -5556,7 +5669,8 @@ Please review and approve this registration in the admin panel.`;
     // or when the academy cancels a class (a cancelled class owes a make-up).
 
     const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const todayIso = () => new Date().toISOString().slice(0, 10);
+    // Today in India. toISOString() is UTC, which until 05:30 IST is yesterday.
+    const todayIso = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
     const isAdminUser = (req) => String(req.session.user?.role || '').toLowerCase() === 'admin';
 
     // Batches running on a given date, for the signed-in teacher (or all, for admins).
@@ -5574,7 +5688,16 @@ Please review and approve this registration in the admin panel.`;
              ORDER BY b.start_time NULLS LAST, b.batch_name`,
             params
         );
-        return result.rows;
+        // A batch can meet at different times on different days (time_slots);
+        // use this day's slot, not the batch-wide start/end time.
+        const rows = result.rows.map(b => {
+            let slots = b.time_slots;
+            if (typeof slots === 'string') { try { slots = JSON.parse(slots); } catch { slots = []; } }
+            const slot = Array.isArray(slots) ? slots.find(s => s && s.day === dayName) : null;
+            return slot ? { ...b, start_time: slot.start_time || b.start_time, end_time: slot.end_time || b.end_time } : b;
+        });
+        return rows.sort((a, c) => String(a.start_time || '99').localeCompare(String(c.start_time || '99'))
+            || String(a.batch_name).localeCompare(String(c.batch_name), undefined, { numeric: true }));
     };
 
     const sessionFor = async (batchId, dateIso) => (await pool.query(
@@ -6051,7 +6174,7 @@ Please review and approve this registration in the admin panel.`;
                         `Student: ${who}\nCourse: ${course || 'Not specified'}\n` +
                         `Preferred: ${when || 'To be confirmed'}\n${location ? `Location: ${location}\n` : ''}` +
                         `\nOur team will contact you shortly to confirm the schedule. See you soon!`;
-                    sendEmailBackground(email, parent_name || who, 'Demo Class Booking Received - Nadanaloga', confMsg);
+                    sendEmailBackground(email, parent_name || who, 'Demo Class Booking Received - Nadanaloga', confMsg, 'essential');
                 }
                 const adminMsg = `A new demo class booking was received:\n\n` +
                     `Student: ${student_name || 'N/A'}\nParent: ${parent_name || 'N/A'}\n` +
@@ -6102,7 +6225,7 @@ Please review and approve this registration in the admin panel.`;
                         };
                         const msg = statusMessages[status] || `Your demo booking status has been updated to: ${status}.`;
                         const name = booking.student_name || booking.parent_name || 'Student';
-                        sendEmailBackground(booking.email, name, `Demo Class - ${status.charAt(0).toUpperCase() + status.slice(1)}`, msg + '\n\nBest regards,\nNadanaloga Academy Team');
+                        sendEmailBackground(booking.email, name, `Demo Class - ${status.charAt(0).toUpperCase() + status.slice(1)}`, msg + '\n\nBest regards,\nNadanaloga Academy Team', 'essential');
                     } catch (e) {
                         console.error('[DemoBooking] Error sending email:', e.message);
                     }
@@ -6193,7 +6316,10 @@ Please review and approve this registration in the admin panel.`;
         try {
             const { isPublic } = req.query;
             let query = 'SELECT * FROM events WHERE is_active = true';
-            if (isPublic === 'true') {
+            // Signed-out visitors (the public website) only ever see public
+            // events; private and family-targeted ones need a login.
+            const signedIn = !!(req.session && req.session.user);
+            if (isPublic === 'true' || req.query.public === 'true' || !signedIn) {
                 query += ' AND is_public = true';
             }
             query += ' ORDER BY event_date DESC';
@@ -6207,11 +6333,11 @@ Please review and approve this registration in the admin panel.`;
 
     app.post('/api/events', ensureAdmin, async (req, res) => {
         try {
-            const { title, description, event_date, event_time, location, is_public, recipient_ids, image_url } = req.body;
+            const { title, description, event_date, event_time, location, is_public, recipient_ids, image_url, is_active } = req.body;
             const result = await pool.query(
-                `INSERT INTO events (title, description, event_date, event_time, location, is_public, recipient_ids, image_url)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-                [title, description, event_date, event_time, location, is_public || false, recipient_ids || [], image_url]
+                `INSERT INTO events (title, description, event_date, event_time, location, is_public, recipient_ids, image_url, is_active)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+                [title, description, event_date, event_time, location, is_public || false, recipient_ids || [], image_url, is_active !== false]
             );
             res.status(201).json(result.rows[0]);
 
@@ -6237,17 +6363,29 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
+    // UPDATE only the columns the client actually sent. The edit forms send a
+    // subset of fields, and a full "SET every column" turned the rest to NULL
+    // (a notice's recipients, an event's image, a material's file link, a
+    // location's is_active...). Returns the updated row, or null if not found.
+    const updateSentColumns = async (table, id, body, columns) => {
+        const sets = [];
+        const vals = [];
+        for (const col of columns) {
+            if (body[col] !== undefined) { vals.push(body[col]); sets.push(`${col} = $${vals.length}`); }
+        }
+        vals.push(id);
+        const sql = sets.length
+            ? `UPDATE ${table} SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${vals.length} RETURNING *`
+            : `SELECT * FROM ${table} WHERE id = $1`;
+        const r = await pool.query(sql, sets.length ? vals : [id]);
+        return r.rows[0] || null;
+    };
+
     app.put('/api/events/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
-            const { title, description, event_date, event_time, location, is_public, recipient_ids, image_url } = req.body;
-            const result = await pool.query(
-                `UPDATE events SET
-                    title = $1, description = $2, event_date = $3, event_time = $4,
-                    location = $5, is_public = $6, recipient_ids = $7, image_url = $8, updated_at = NOW()
-                 WHERE id = $9 RETURNING *`,
-                [title, description, event_date, event_time, location, is_public, recipient_ids, image_url, id]
-            );
+            const row = await updateSentColumns('events', id, req.body || {}, ['title', 'description', 'event_date', 'event_time', 'location', 'is_public', 'recipient_ids', 'image_url', 'is_active']);
+            const result = { rows: row ? [row] : [] };
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: 'Event not found' });
             }
@@ -6318,14 +6456,8 @@ Please review and approve this registration in the admin panel.`;
     app.put('/api/grade-exams/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
-            const { exam_name, course, exam_date, exam_time, location, syllabus, recipient_ids } = req.body;
-            const result = await pool.query(
-                `UPDATE grade_exams SET
-                    exam_name = $1, course = $2, exam_date = $3, exam_time = $4,
-                    location = $5, syllabus = $6, recipient_ids = $7, updated_at = NOW()
-                 WHERE id = $8 RETURNING *`,
-                [exam_name, course, exam_date, exam_time, location, syllabus, recipient_ids, id]
-            );
+            const row = await updateSentColumns('grade_exams', id, req.body || {}, ['exam_name', 'course', 'exam_date', 'exam_time', 'location', 'syllabus', 'recipient_ids']);
+            const result = { rows: row ? [row] : [] };
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: 'Grade exam not found' });
             }
@@ -6396,13 +6528,8 @@ Please review and approve this registration in the admin panel.`;
     app.put('/api/book-materials/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
-            const { title, description, course, file_url, file_type, recipient_ids } = req.body;
-            const result = await pool.query(
-                `UPDATE book_materials SET
-                    title = $1, description = $2, course = $3, file_url = $4, file_type = $5, recipient_ids = $6, updated_at = NOW()
-                 WHERE id = $7 RETURNING *`,
-                [title, description, course, file_url, file_type, recipient_ids, id]
-            );
+            const row = await updateSentColumns('book_materials', id, req.body || {}, ['title', 'description', 'course', 'file_url', 'file_type', 'recipient_ids']);
+            const result = { rows: row ? [row] : [] };
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: 'Book material not found' });
             }
@@ -6479,13 +6606,8 @@ Please review and approve this registration in the admin panel.`;
     app.put('/api/notices/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
-            const { title, content, priority, expiry_date, recipient_ids } = req.body;
-            const result = await pool.query(
-                `UPDATE notices SET
-                    title = $1, content = $2, priority = $3, expiry_date = $4, recipient_ids = $5, updated_at = NOW()
-                 WHERE id = $6 RETURNING *`,
-                [title, content, priority, expiry_date, recipient_ids, id]
-            );
+            const row = await updateSentColumns('notices', id, req.body || {}, ['title', 'content', 'priority', 'expiry_date', 'recipient_ids', 'is_active']);
+            const result = { rows: row ? [row] : [] };
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: 'Notice not found' });
             }
@@ -6511,7 +6633,9 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // --- Event Response API Endpoints ---
-    app.get('/api/event-responses/:eventId', async (req, res) => {
+    // Who answered an event: admin only (it lists names). Families use the
+    // /user/:userId route for their own answer.
+    app.get('/api/event-responses/:eventId', ensureAdmin, async (req, res) => {
         try {
             const { eventId } = req.params;
             const result = await pool.query(
@@ -6526,7 +6650,7 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // Counts per response plus who answered what (events page summary).
-    app.get('/api/event-responses/:eventId/stats', async (req, res) => {
+    app.get('/api/event-responses/:eventId/stats', ensureAdmin, async (req, res) => {
         try {
             const { eventId } = req.params;
             const result = await pool.query(
@@ -6557,7 +6681,14 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.get('/api/event-responses/:eventId/user/:userId', async (req, res) => {
+    app.get('/api/event-responses/:eventId/user/:userId', ensureAuthenticated, async (req, res) => {
+        const me = req.session.user;
+        if (String(me.role || '').toLowerCase() !== 'admin') {
+            const { memberIds } = await householdFor(req);
+            if (![Number(me.id), ...memberIds.map(Number)].includes(Number(req.params.userId))) {
+                return res.status(403).json({ message: 'Not allowed.' });
+            }
+        }
         try {
             const { eventId, userId } = req.params;
             const result = await pool.query(
@@ -6574,9 +6705,16 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.post('/api/event-responses', async (req, res) => {
+    app.post('/api/event-responses', ensureAuthenticated, async (req, res) => {
         try {
-            const { event_id, user_id, response, response_message } = req.body;
+            const { event_id, response, response_message } = req.body;
+            // Answer for yourself or someone in your household, not anyone.
+            const me = req.session.user;
+            let user_id = Number(req.body.user_id || me.id);
+            if (String(me.role || '').toLowerCase() !== 'admin') {
+                const { memberIds } = await householdFor(req);
+                if (![Number(me.id), ...memberIds.map(Number)].includes(user_id)) user_id = Number(me.id);
+            }
             const result = await pool.query(
                 `INSERT INTO event_responses (event_id, user_id, response, response_message)
                  VALUES ($1, $2, $3, $4)
@@ -6665,14 +6803,8 @@ Please review and approve this registration in the admin panel.`;
     app.put('/api/locations/:id', ensureSuperAdmin, async (req, res) => {
         try {
             const { id } = req.params;
-            const { name, address, city, state, postal_code, country, phone, email, is_active } = req.body;
-            const result = await pool.query(
-                `UPDATE locations SET
-                    name = $1, address = $2, city = $3, state = $4, postal_code = $5,
-                    country = $6, phone = $7, email = $8, is_active = $9, updated_at = NOW()
-                 WHERE id = $10 RETURNING *`,
-                [name, address, city, state, postal_code, country, phone, email, is_active, id]
-            );
+            const row = await updateSentColumns('locations', id, req.body || {}, ['name', 'address', 'city', 'state', 'postal_code', 'country', 'phone', 'email', 'is_active']);
+            const result = { rows: row ? [row] : [] };
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: 'Location not found' });
             }
@@ -7263,11 +7395,12 @@ Please review and approve this registration in the admin panel.`;
             const { status, format } = req.query;
             const params = [];
             let where = "WHERE LOWER(u.role) = 'student' AND u.is_deleted = false";
-            if (status) { params.push(status); where += ` AND u.status = $${params.length}`; }
+            if (status) { params.push(String(status).toLowerCase()); where += ` AND LOWER(u.status) = $${params.length}`; }
             const result = await pool.query(
-                `SELECT u.name AS student, u.email, u.contact_number AS phone, u.courses,
+                `SELECT u.id, u.parent_id, u.name AS student, u.email, u.contact_number AS phone, u.courses,
+                        u.father_name AS parent,
                         COALESCE(string_agg(DISTINCT c.name || ' - ' || g.name, ', '), '') AS grades,
-                        to_char(u.created_at, 'YYYY-MM-DD') AS joined, u.status
+                        to_char(COALESCE(u.date_of_joining, u.created_at), 'YYYY-MM-DD') AS joined, u.status
                  FROM users u
                  LEFT JOIN student_course_grades scg ON scg.student_id = u.id
                  LEFT JOIN courses c ON scg.course_id = c.id
@@ -7275,12 +7408,15 @@ Please review and approve this registration in the admin panel.`;
                  ${where}
                  GROUP BY u.id ORDER BY u.name`, params
             );
-            const rows = result.rows.map((r) => ({
+            // Children carry a stand-in login address; show the family's real one.
+            const withEmail = await attachContactEmails(result.rows.map(r => ({ ...r, contact_number: r.phone })));
+            const rows = withEmail.map(({ id, parent_id, contact_number, contact_email, ...r }) => ({
                 ...r,
+                email: contact_email || '',
                 courses: Array.isArray(safeJsonArray(r.courses)) ? safeJsonArray(r.courses).join(', ') : '',
             }));
             const columns = [
-                { key: 'student', label: 'Student' }, { key: 'email', label: 'Email' },
+                { key: 'student', label: 'Student' }, { key: 'parent', label: 'Parent' }, { key: 'email', label: 'Email' },
                 { key: 'phone', label: 'Phone' }, { key: 'courses', label: 'Courses' },
                 { key: 'grades', label: 'Grades' }, { key: 'joined', label: 'Joined' },
                 { key: 'status', label: 'Status' },

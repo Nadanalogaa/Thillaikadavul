@@ -13,7 +13,12 @@ import type { Batch } from '../../types';
 // correcting a day, seeing the month, and giving back classes the academy
 // cancelled.
 
-const todayIso = () => new Date().toISOString().slice(0, 10);
+// Local date (the admin is in India). toISOString() is UTC: before 05:30 it
+// was still yesterday.
+const todayIso = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 const monthIso = () => todayIso().slice(0, 7);
 
 const formatDate = (iso: string) => {

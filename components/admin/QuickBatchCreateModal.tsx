@@ -5,6 +5,7 @@ import type { Batch, Course, User, BatchSchedule } from '../../types';
 import { UserRole, ClassPreference } from '../../types';
 import { WEEKDAYS, TIME_SLOTS } from '../../constants';
 import { addBatch } from '../../api';
+import { batchTimingLines } from '../../api';
 
 interface QuickBatchCreateModalProps {
     isOpen: boolean;
@@ -56,7 +57,7 @@ const QuickBatchCreateModal: React.FC<QuickBatchCreateModalProps> = ({ isOpen, o
             allBatches.forEach(b => {
                 const batchTeacherId = typeof b.teacherId === 'string' ? b.teacherId : (b.teacherId as User)?.id;
                 if (batchTeacherId === teacher.id) {
-                    (b.schedule || []).forEach(s => teacherSchedule.add(s.timing));
+                    batchTimingLines(b).forEach(t => teacherSchedule.add(t));
                 }
             });
 

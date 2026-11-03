@@ -6,14 +6,16 @@ import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_text_styles.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../data/models/batch_model.dart';
-import '../../../../data/models/course_model.dart';
 import '../../../../di/injection_container.dart';
 import '../../../bloc/batch/batch_bloc.dart';
 import '../../../bloc/batch/batch_event.dart';
 import '../../../bloc/batch/batch_state.dart';
+import '../../../widgets/batch_views.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/empty_state_widget.dart';
 
+/// Every batch, as cards grouped by course or as one table. Teacher, class
+/// times and student count are the highlighted facts on both.
 class BatchListScreen extends StatefulWidget {
   const BatchListScreen({super.key});
 
@@ -22,17 +24,27 @@ class BatchListScreen extends StatefulWidget {
 }
 
 class _BatchListScreenState extends State<BatchListScreen> {
-  List<CourseModel> _courses = [];
-  bool _loadingCourses = true;
-  Set<int?> _expandedCourses = {};
   final _searchController = TextEditingController();
   String _search = '';
-  String? _studioFilter; // null = any, else studio name
+
+  /// Selected course; null = all courses. Batches without a course use -1.
+  int? _courseFilter;
+
+  /// Last batches shown, kept while the bloc reloads or reports an error so
+  /// the screen doesn't blank out.
+  List<BatchModel>? _cache;
+
+  /// Student id → name, so the search can find a batch by a student in it.
+  Map<int, String> _studentNames = const {};
+
+  static const _noCourse = -1;
 
   @override
   void initState() {
     super.initState();
-    _loadCourses();
+    final state = context.read<BatchBloc>().state;
+    if (state is BatchLoaded) _cache = state.batches;
+    _loadStudentNames();
   }
 
   @override
@@ -41,120 +53,194 @@ class _BatchListScreenState extends State<BatchListScreen> {
     super.dispose();
   }
 
-  List<BatchModel> _applyFilters(List<BatchModel> batches) {
-    final q = _search.trim().toLowerCase();
-    return batches.where((b) {
-      if (_studioFilter != null && (b.studio ?? '') != _studioFilter) {
-        return false;
-      }
-      if (q.isEmpty) return true;
-      final studio = (b.studio ?? '').toLowerCase();
-      return b.batchName.toLowerCase().contains(q) || studio.contains(q);
-    }).toList();
-  }
-
-  Future<void> _loadCourses() async {
+  Future<void> _loadStudentNames() async {
     try {
-      final apiClient = sl<ApiClient>();
-      final response = await apiClient.getCourses();
-      if (response.statusCode == 200 && response.data is List) {
-        if (!mounted) return;
-        setState(() {
-          _courses = (response.data as List)
-              .map((c) => CourseModel.fromJson(c))
-              .toList();
-          _loadingCourses = false;
-          // Expand all courses by default
-          _expandedCourses = _courses.map<int?>((c) => c.id).toSet();
-        });
+      final r = await sl<ApiClient>().getUsers(role: 'Student');
+      if (r.statusCode == 200 && r.data is List && mounted) {
+        final names = <int, String>{};
+        for (final u in (r.data as List).whereType<Map>()) {
+          final id = u['id'];
+          final name = u['name'];
+          if (id is int && name is String) names[id] = name;
+        }
+        setState(() => _studentNames = names);
       }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _loadingCourses = false);
-    }
-  }
-
-  Map<int?, List<BatchModel>> _groupBatchesByCourse(List<BatchModel> batches) {
-    final Map<int?, List<BatchModel>> grouped = {};
-    for (final batch in batches) {
-      grouped.putIfAbsent(batch.courseId, () => []).add(batch);
-    }
-    return grouped;
-  }
-
-  String _getCourseName(int? courseId) {
-    if (courseId == null) return 'Uncategorized';
-    try {
-      return _courses.firstWhere((c) => c.id == courseId).name;
     } catch (_) {
-      return 'Unknown Course';
+      // Search still works on batch and teacher names.
     }
   }
 
-  Widget _buildSummary(int batchCount, int studentCount) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.75)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          _summaryStat(Icons.group_work, '$batchCount', 'Batches'),
-          Container(
-            width: 1,
-            height: 34,
-            color: Colors.white24,
-            margin: const EdgeInsets.symmetric(horizontal: 16),
+  Future<void> _refresh() async {
+    final bloc = context.read<BatchBloc>();
+    bloc.add(LoadBatches());
+    await bloc.stream
+        .firstWhere((s) => s is BatchLoaded || s is BatchError)
+        .timeout(const Duration(seconds: 20), onTimeout: () => BatchInitial());
+  }
+
+  int _courseKey(BatchModel b) => b.courseId ?? _noCourse;
+
+  String _courseName(BatchModel b) =>
+      (b.courseName ?? '').trim().isNotEmpty ? b.courseName!.trim() : 'No course';
+
+  List<BatchModel> _filtered(List<BatchModel> all) {
+    final q = _search.trim().toLowerCase();
+    final list = all.where((b) {
+      if (_courseFilter != null && _courseKey(b) != _courseFilter) return false;
+      if (q.isEmpty) return true;
+      bool has(String? s) => (s ?? '').toLowerCase().contains(q);
+      if (has(b.batchName) ||
+          has(b.teacherName) ||
+          has(b.courseName) ||
+          has(b.studio)) {
+        return true;
+      }
+      return b.studentIds.any((id) => has(_studentNames[id]));
+    }).toList();
+    list.sort((a, b) {
+      final c = _courseName(a).toLowerCase().compareTo(_courseName(b).toLowerCase());
+      if (c != 0) return c;
+      return a.batchName.toLowerCase().compareTo(b.batchName.toLowerCase());
+    });
+    return list;
+  }
+
+  Future<void> _openBatch(BatchModel b) async {
+    await context.push('/admin/batches/${b.id}');
+    // The detail screen may have moved, added or removed students.
+    if (mounted) context.read<BatchBloc>().add(LoadBatches());
+  }
+
+  Future<void> _addBatch() async {
+    final created = await context.push<bool>('/admin/batches/add');
+    if (created == true && mounted) {
+      context.read<BatchBloc>().add(LoadBatches());
+    }
+  }
+
+  Future<void> _editBatch(BatchModel b) async {
+    final saved = await context.push<bool>('/admin/batches/${b.id}/edit');
+    if (saved == true && mounted) {
+      context.read<BatchBloc>().add(LoadBatches());
+    }
+  }
+
+  Future<void> _deleteBatch(BatchModel b) async {
+    final count = batchStudentCount(b);
+    final confirmed = await ConfirmDialog.show(
+      context,
+      title: 'Delete batch',
+      message: count > 0
+          ? 'Delete "${b.batchName}"? Its $count ${count == 1 ? 'student' : 'students'} will no longer be in any batch for this class.'
+          : 'Delete "${b.batchName}"?',
+      confirmLabel: 'Delete',
+      confirmColor: AppColors.error,
+    );
+    if (confirmed == true && mounted) {
+      context.read<BatchBloc>().add(DeleteBatch(b.id));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Batches'),
+        automaticallyImplyLeading: Navigator.of(context).canPop(),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 12),
+            child: Center(child: BatchViewToggle()),
           ),
-          _summaryStat(Icons.people, '$studentCount', 'Students'),
         ],
       ),
-    );
-  }
-
-  Widget _summaryStat(IconData icon, String value, String label) {
-    return Expanded(
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.white, size: 26),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      body: BlocConsumer<BatchBloc, BatchState>(
+        listener: (context, state) {
+          if (state is BatchLoaded) {
+            setState(() => _cache = state.batches);
+          } else if (state is BatchOperationSuccess) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(state.message)));
+          } else if (state is BatchError && _cache != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: AppColors.error),
+            );
+          }
+        },
+        builder: (context, state) {
+          final batches = state is BatchLoaded ? state.batches : _cache;
+          if (batches == null) {
+            if (state is BatchError) {
+              return EmptyStateWidget(
+                icon: Icons.cloud_off_outlined,
+                title: 'Could not load batches',
+                subtitle: state.message,
+                actionLabel: 'Retry',
+                onAction: () => context.read<BatchBloc>().add(LoadBatches()),
+              );
+            }
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (batches.isEmpty) {
+            return EmptyStateWidget(
+              icon: Icons.group_work_outlined,
+              title: 'No batches yet',
+              subtitle: 'Create your first batch.',
+              actionLabel: 'Create Batch',
+              onAction: _addBatch,
+            );
+          }
+          return Column(
             children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+              if (state is BatchLoading) const LinearProgressIndicator(minHeight: 2),
+              _buildFilters(batches),
+              Expanded(
+                child: ValueListenableBuilder<BatchViewMode>(
+                  valueListenable: BatchViewPreference.mode,
+                  builder: (context, mode, _) =>
+                      _buildBody(batches, _filtered(batches), mode),
                 ),
               ),
-              Text(
-                label,
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
-              ),
             ],
-          ),
-        ],
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _addBatch,
+        icon: const Icon(Icons.add),
+        label: const Text('New batch'),
       ),
     );
   }
 
-  Widget _buildFilterBar(List<String> studios) {
+  Widget _buildFilters(List<BatchModel> all) {
+    final courses = <int, String>{};
+    final counts = <int, int>{};
+    for (final b in all) {
+      courses[_courseKey(b)] = _courseName(b);
+      counts[_courseKey(b)] = (counts[_courseKey(b)] ?? 0) + 1;
+    }
+    final keys = courses.keys.toList()
+      ..sort((a, b) {
+        if (a == _noCourse) return 1;
+        if (b == _noCourse) return -1;
+        return courses[a]!.toLowerCase().compareTo(courses[b]!.toLowerCase());
+      });
+    if (_courseFilter != null && !courses.containsKey(_courseFilter)) {
+      _courseFilter = null;
+    }
+
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
           child: TextField(
             controller: _searchController,
+            textInputAction: TextInputAction.search,
             decoration: InputDecoration(
-              hintText: 'Search batch or studio...',
+              hintText: 'Search batch, teacher or student',
               prefixIcon: const Icon(Icons.search),
               suffixIcon: _search.isNotEmpty
                   ? IconButton(
@@ -165,25 +251,32 @@ class _BatchListScreenState extends State<BatchListScreen> {
                       },
                     )
                   : null,
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12)),
-              contentPadding: const EdgeInsets.symmetric(vertical: 0),
+              isDense: true,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             ),
             onChanged: (v) => setState(() => _search = v),
           ),
         ),
-        if (studios.isNotEmpty)
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Row(
+        if (keys.length > 1)
+          SizedBox(
+            height: 44,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               children: [
-                _batchFilterChip('All studios', _studioFilter == null,
-                    () => setState(() => _studioFilter = null)),
-                for (final s in studios) ...[
+                ChoiceChip(
+                  label: Text('All courses (${all.length})'),
+                  selected: _courseFilter == null,
+                  onSelected: (_) => setState(() => _courseFilter = null),
+                ),
+                for (final k in keys) ...[
                   const SizedBox(width: 8),
-                  _batchFilterChip(s, _studioFilter == s,
-                      () => setState(() => _studioFilter = s)),
+                  ChoiceChip(
+                    label: Text('${courses[k]} (${counts[k]})'),
+                    selected: _courseFilter == k,
+                    onSelected: (_) => setState(
+                        () => _courseFilter = _courseFilter == k ? null : k),
+                  ),
                 ],
               ],
             ),
@@ -192,440 +285,158 @@ class _BatchListScreenState extends State<BatchListScreen> {
     );
   }
 
-  Widget _batchFilterChip(String label, bool selected, VoidCallback onTap) {
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onTap(),
-    );
-  }
+  Widget _buildBody(
+      List<BatchModel> all, List<BatchModel> list, BatchViewMode mode) {
+    final children = <Widget>[_summary(list)];
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Batches'),
-        automaticallyImplyLeading: Navigator.of(context).canPop(),
-        actions: [
-          IconButton(
-            icon: Icon(_expandedCourses.length == _courses.length
-                ? Icons.unfold_less
-                : Icons.unfold_more),
-            onPressed: () {
-              setState(() {
-                if (_expandedCourses.length == _courses.length) {
-                  _expandedCourses.clear();
-                } else {
-                  _expandedCourses = _courses.map<int?>((c) => c.id).toSet();
-                }
-              });
-            },
-            tooltip: _expandedCourses.length == _courses.length
-                ? 'Collapse All'
-                : 'Expand All',
-          ),
-        ],
-      ),
-      body: BlocConsumer<BatchBloc, BatchState>(
-        listener: (context, state) {
-          if (state is BatchOperationSuccess) {
-            ScaffoldMessenger.of(context)
-                .showSnackBar(SnackBar(content: Text(state.message)));
-          } else if (state is BatchError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                  content: Text(state.message),
-                  backgroundColor: AppColors.error),
-            );
-          }
-        },
-        builder: (context, state) {
-          if (state is BatchLoading || _loadingCourses) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (state is BatchLoaded) {
-            final allBatches = state.batches;
-            final studios = allBatches
-                .map((b) => b.studio)
-                .where((s) => s != null && s.isNotEmpty)
-                .cast<String>()
-                .toSet()
-                .toList()
-              ..sort();
-            if (allBatches.isEmpty) {
-              return EmptyStateWidget(
-                icon: Icons.group_work_outlined,
-                title: 'No batches yet',
-                subtitle: 'Create your first batch.',
-                actionLabel: 'Create Batch',
-                onAction: () async {
-                  final created = await context.push<bool>('/admin/batches/add');
-                  if (created == true && context.mounted) {
-                    context.read<BatchBloc>().add(LoadBatches());
-                  }
-                },
-              );
-            }
-
-            final filtered = _applyFilters(allBatches);
-            final groupedBatches = _groupBatchesByCourse(filtered);
-            final sortedCourseIds = groupedBatches.keys.toList()
-              ..sort((a, b) {
-                final nameA = _getCourseName(a);
-                final nameB = _getCourseName(b);
-                // Put uncategorized last
-                if (a == null) return 1;
-                if (b == null) return -1;
-                return nameA.compareTo(nameB);
-              });
-
-            final totalStudents = <int>{
-              for (final b in allBatches) ...b.allStudentIds,
-            }.length;
-
-            return Column(
-              children: [
-                _buildSummary(allBatches.length, totalStudents),
-                _buildFilterBar(studios),
-                Expanded(
-                  child: filtered.isEmpty
-                      ? const EmptyStateWidget(
-                          icon: Icons.search_off,
-                          title: 'No matching batches',
-                          subtitle: 'Try a different search or filter.',
-                        )
-                      : RefreshIndicator(
-              onRefresh: () async {
-                context.read<BatchBloc>().add(LoadBatches());
-                await _loadCourses();
-              },
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: sortedCourseIds.length,
-                itemBuilder: (context, index) {
-                  final courseId = sortedCourseIds[index];
-                  final batches = groupedBatches[courseId]!;
-                  final courseName = _getCourseName(courseId);
-                  final isExpanded = _expandedCourses.contains(courseId);
-
-                  return _CourseSection(
-                    courseName: courseName,
-                    batchCount: batches.length,
-                    batches: batches,
-                    isExpanded: isExpanded,
-                    onToggle: () {
-                      setState(() {
-                        if (isExpanded) {
-                          _expandedCourses.remove(courseId);
-                        } else {
-                          _expandedCourses.add(courseId);
-                        }
-                      });
-                    },
-                    onBatchDeleted: () {
-                      context.read<BatchBloc>().add(LoadBatches());
-                    },
-                  );
-                },
-              ),
+    if (list.isEmpty) {
+      children.add(const Padding(
+        padding: EdgeInsets.only(top: 24),
+        child: EmptyStateWidget(
+          icon: Icons.search_off,
+          title: 'No matching batches',
+          subtitle: 'Try a different search or course.',
+        ),
+      ));
+    } else if (mode == BatchViewMode.table) {
+      children.add(BatchTable(batches: list, onTap: _openBatch));
+    } else {
+      // Grid: one section per course, in list order (already sorted).
+      final groups = <int, List<BatchModel>>{};
+      for (final b in list) {
+        groups.putIfAbsent(_courseKey(b), () => []).add(b);
+      }
+      for (final entry in groups.entries) {
+        children.add(_courseHeader(_courseName(entry.value.first), entry.value));
+        children.add(BatchCardGrid(children: [
+          for (final b in entry.value)
+            BatchGridCard(
+              batch: b,
+              onTap: () => _openBatch(b),
+              trailing: _cardMenu(b),
             ),
-                ),
-              ],
-            );
-          }
-          return const SizedBox.shrink();
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final created = await context.push<bool>('/admin/batches/add');
-          if (created == true && context.mounted) {
-            context.read<BatchBloc>().add(LoadBatches());
-          }
-        },
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
-}
-
-class _CourseSection extends StatelessWidget {
-  final String courseName;
-  final int batchCount;
-  final List<BatchModel> batches;
-  final bool isExpanded;
-  final VoidCallback onToggle;
-  final VoidCallback onBatchDeleted;
-
-  const _CourseSection({
-    required this.courseName,
-    required this.batchCount,
-    required this.batches,
-    required this.isExpanded,
-    required this.onToggle,
-    required this.onBatchDeleted,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Column(
-        children: [
-          // Course Header
-          InkWell(
-            onTap: onToggle,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.primary.withValues(alpha: 0.08),
-                    AppColors.primary.withValues(alpha: 0.02),
-                  ],
-                ),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.school,
-                      color: AppColors.primary,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          courseName,
-                          style: AppTextStyles.h4.copyWith(fontSize: 16),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '$batchCount ${batchCount == 1 ? 'batch' : 'batches'}',
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    isExpanded ? Icons.expand_less : Icons.expand_more,
-                    color: AppColors.primary,
-                    size: 28,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Batches Grid
-          if (isExpanded)
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 0.78,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                ),
-                itemCount: batches.length,
-                itemBuilder: (context, index) {
-                  return _BatchGridCard(
-                    batch: batches[index],
-                    onDeleted: onBatchDeleted,
-                  );
-                },
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BatchGridCard extends StatelessWidget {
-  final BatchModel batch;
-  final VoidCallback onDeleted;
-
-  const _BatchGridCard({
-    required this.batch,
-    required this.onDeleted,
-  });
-
-  Color _modeColor(String mode) {
-    switch (mode.toLowerCase()) {
-      case 'online':
-        return AppColors.info;
-      case 'offline':
-        return AppColors.success;
-      case 'hybrid':
-        return AppColors.warning;
-      default:
-        return AppColors.textSecondary;
+        ]));
+        children.add(const SizedBox(height: 20));
+      }
     }
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        _loadStudentNames();
+        await _refresh();
+      },
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
+        children: children,
+      ),
+    );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      child: InkWell(
-        onTap: () => context.push('/admin/batches/${batch.id}'),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _summary(List<BatchModel> list) {
+    final students = <int>{for (final b in list) ...b.studentIds}.length;
+    final noTeacher = list.where((b) => !batchHasTeacher(b)).length;
+    Widget stat(IconData icon, String value, String label, Color color) {
+      return Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
             children: [
-              // Header with icon and menu
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.group_work,
-                      color: AppColors.primary,
-                      size: 18,
-                    ),
-                  ),
-                  const Spacer(),
-                  PopupMenuButton<String>(
-                    padding: EdgeInsets.zero,
-                    iconSize: 18,
-                    onSelected: (value) async {
-                      if (value == 'delete') {
-                        final confirmed = await ConfirmDialog.show(
-                          context,
-                          title: 'Delete Batch',
-                          message: 'Delete "${batch.batchName}"?',
-                          confirmLabel: 'Delete',
-                          confirmColor: AppColors.error,
-                        );
-                        if (confirmed == true && context.mounted) {
-                          context.read<BatchBloc>().add(DeleteBatch(batch.id));
-                          onDeleted();
-                        }
-                      }
-                    },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Text(
-                          'Delete',
-                          style: TextStyle(color: AppColors.error),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              // Batch name
-              Text(
-                batch.batchName,
-                style: AppTextStyles.labelLarge.copyWith(fontSize: 13),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const Spacer(),
-              // Student count
-              Row(
-                children: [
-                  const Icon(Icons.people, size: 13, color: AppColors.textSecondary),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${batch.allStudentIds.length}',
-                    style: AppTextStyles.caption.copyWith(fontSize: 11),
-                  ),
-                  if (batch.maxStudents != null)
-                    Text(
-                      '/${batch.maxStudents}',
-                      style: AppTextStyles.caption.copyWith(fontSize: 11),
-                    ),
-                ],
-              ),
-              // Schedule
-              if (batch.formattedSlots.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Row(
+              Icon(icon, size: 20, color: color),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.schedule, size: 13, color: AppColors.textSecondary),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        batch.formattedSlots,
-                        style: AppTextStyles.caption.copyWith(
-                          fontSize: 10,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w500,
-                        ),
+                    Text(value,
+                        style: AppTextStyles.h4.copyWith(
+                            color: color,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 17,
+                            height: 1.1)),
+                    Text(label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
+                        style: AppTextStyles.caption.copyWith(fontSize: 11)),
                   ],
                 ),
-              ],
-              if (batch.studio != null && batch.studio!.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.home_work_outlined,
-                        size: 13, color: AppColors.textSecondary),
-                    const SizedBox(width: 4),
-                    Text(batch.studio!,
-                        style: AppTextStyles.caption.copyWith(fontSize: 10)),
-                  ],
-                ),
-              ],
-              // Mode badge
-              if (batch.mode != null) ...[
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: _modeColor(batch.mode!).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    batch.mode!,
-                    style: AppTextStyles.caption.copyWith(
-                      color: _modeColor(batch.mode!),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 10,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ],
           ),
         ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 14),
+      child: Row(
+        children: [
+          stat(Icons.group_work_rounded, '${list.length}', 'Batches',
+              AppColors.primary),
+          const SizedBox(width: 8),
+          stat(Icons.people_alt_rounded, '$students', 'Students',
+              BatchPalette.students),
+          const SizedBox(width: 8),
+          stat(
+              Icons.person_off_outlined,
+              '$noTeacher',
+              'No teacher',
+              noTeacher > 0 ? BatchPalette.unassigned : BatchPalette.teacher),
+        ],
       ),
+    );
+  }
+
+  Widget _courseHeader(String name, List<BatchModel> batches) {
+    final students = <int>{for (final b in batches) ...b.studentIds}.length;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 22,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.h4
+                    .copyWith(fontSize: 17, fontWeight: FontWeight.w700)),
+          ),
+          Text(
+            '${batches.length} ${batches.length == 1 ? 'batch' : 'batches'} · $students students',
+            style: AppTextStyles.caption,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _cardMenu(BatchModel b) {
+    return PopupMenuButton<String>(
+      tooltip: 'More',
+      icon: const Icon(Icons.more_vert, size: 20),
+      onSelected: (v) {
+        if (v == 'edit') _editBatch(b);
+        if (v == 'delete') _deleteBatch(b);
+      },
+      itemBuilder: (_) => const [
+        PopupMenuItem(value: 'edit', child: Text('Edit batch')),
+        PopupMenuItem(
+          value: 'delete',
+          child: Text('Delete', style: TextStyle(color: AppColors.error)),
+        ),
+      ],
     );
   }
 }

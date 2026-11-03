@@ -2,102 +2,250 @@ import 'package:flutter/material.dart';
 
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_text_styles.dart';
-import '../../../../core/network/api_client.dart';
 import '../../../../data/models/batch_model.dart';
-import '../../../../di/injection_container.dart';
+import '../../../widgets/batch_views.dart';
+import '../../home/class_schedule.dart';
 
-class TransferStudentSheet extends StatefulWidget {
+/// Pick the batch to move a student to. Shows only the other batches of the
+/// same course, each with its teacher, class times and how full it is.
+/// Pops with the chosen [BatchModel]; the caller confirms and moves.
+class TransferStudentSheet extends StatelessWidget {
   final String studentName;
-  final int currentBatchId;
-  final int? courseId;
+  final BatchModel fromBatch;
+
+  /// Other batches of the same course.
+  final List<BatchModel> candidates;
 
   const TransferStudentSheet({
     super.key,
     required this.studentName,
-    required this.currentBatchId,
-    this.courseId,
+    required this.fromBatch,
+    required this.candidates,
   });
 
-  @override
-  State<TransferStudentSheet> createState() => _TransferStudentSheetState();
-}
-
-class _TransferStudentSheetState extends State<TransferStudentSheet> {
-  List<BatchModel> _batches = [];
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadBatches();
-  }
-
-  Future<void> _loadBatches() async {
-    try {
-      final response = await sl<ApiClient>().getBatches();
-      if (response.statusCode == 200) {
-        final all = (response.data as List)
-            .map((j) => BatchModel.fromJson(j))
-            .toList();
-        _batches = all.where((b) =>
-            b.id != widget.currentBatchId &&
-            (widget.courseId == null || b.courseId == widget.courseId)
-        ).toList();
-      }
-    } catch (_) {}
-    if (mounted) setState(() => _loading = false);
+  static Future<BatchModel?> show(
+    BuildContext context, {
+    required String studentName,
+    required BatchModel fromBatch,
+    required List<BatchModel> candidates,
+  }) {
+    return showModalBottomSheet<BatchModel>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (_) => TransferStudentSheet(
+        studentName: studentName,
+        fromBatch: fromBatch,
+        candidates: candidates,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
+    final sorted = [...candidates]
+      ..sort((a, b) =>
+          a.batchName.toLowerCase().compareTo(b.batchName.toLowerCase()));
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.85),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Transfer ${widget.studentName}', style: AppTextStyles.h3),
-          const SizedBox(height: 4),
-          Text(
-            'Select destination batch:',
-            style: AppTextStyles.bodyMedium
-                .copyWith(color: AppColors.textSecondary),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+            child: Text('Move $studentName',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.h3),
           ),
-          const SizedBox(height: 16),
-          if (_loading)
-            const Center(child: CircularProgressIndicator())
-          else if (_batches.isEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Text(
+              'From ${fromBatch.batchName} to another '
+              '${fromBatch.courseName ?? 'course'} batch:',
+              style: AppTextStyles.bodyMedium
+                  .copyWith(color: AppColors.textSecondary),
+            ),
+          ),
+          if (sorted.isEmpty)
             Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               child: Center(
                 child: Text(
-                  'No other batches available',
+                  'There is no other ${fromBatch.courseName ?? ''} batch. '
+                  'Create one first.',
+                  textAlign: TextAlign.center,
                   style: AppTextStyles.bodyMedium
                       .copyWith(color: AppColors.textSecondary),
                 ),
               ),
             )
           else
-            ...List.generate(_batches.length, (index) {
-              final batch = _batches[index];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  leading: const Icon(Icons.group_work,
-                      color: AppColors.primary),
-                  title: Text(batch.batchName,
-                      style: AppTextStyles.labelLarge),
-                  subtitle: Text(
-                    '${batch.allStudentIds.length} students${batch.mode != null ? ' · ${batch.mode}' : ''}',
-                    style: AppTextStyles.caption,
-                  ),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () => Navigator.pop(context, batch.id),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                itemCount: sorted.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (context, i) => _BatchOption(
+                  batch: sorted[i],
+                  onTap: () => Navigator.pop(context, sorted[i]),
                 ),
-              );
-            }),
-          const SizedBox(height: 16),
+              ),
+            ),
         ],
+      ),
+    );
+  }
+}
+
+class _BatchOption extends StatelessWidget {
+  final BatchModel batch;
+  final VoidCallback onTap;
+
+  const _BatchOption({required this.batch, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final count = batchStudentCount(batch);
+    final max = batch.maxStudents;
+    final full = max != null && max > 0 && count >= max;
+    final hasTeacher = batchHasTeacher(batch);
+    final timings = ClassSchedule.timingLines(batch);
+    final countColor = full ? AppColors.error : BatchPalette.students;
+
+    return Material(
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: AppColors.divider),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(batch.batchName,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.labelLarge.copyWith(
+                                  fontWeight: FontWeight.w700, fontSize: 15)),
+                        ),
+                        if ((batch.mode ?? '').isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          BatchPill(
+                              label: batch.mode!,
+                              color: BatchPalette.mode(batch.mode)),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(
+                            hasTeacher
+                                ? Icons.person_rounded
+                                : Icons.warning_amber_rounded,
+                            size: 15,
+                            color: hasTeacher
+                                ? BatchPalette.teacher
+                                : BatchPalette.unassigned),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            batchTeacherLabel(batch),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: hasTeacher
+                                  ? BatchPalette.teacher
+                                  : const Color(0xFFB45309),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.only(top: 2),
+                          child: Icon(Icons.schedule_rounded,
+                              size: 15, color: BatchPalette.times),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            timings.isEmpty
+                                ? 'Timings not set'
+                                : timings.join('\n'),
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: BatchPalette.times,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: countColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        Text.rich(TextSpan(children: [
+                          TextSpan(
+                            text: '$count',
+                            style: TextStyle(
+                              fontFamily: AppTextStyles.fontFamily,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: countColor,
+                            ),
+                          ),
+                          if (max != null && max > 0)
+                            TextSpan(
+                              text: '/$max',
+                              style: AppTextStyles.caption.copyWith(
+                                  color: countColor,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                        ])),
+                        Text(full ? 'full' : 'students',
+                            style: AppTextStyles.caption
+                                .copyWith(fontSize: 10, color: countColor)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

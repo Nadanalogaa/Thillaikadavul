@@ -5,7 +5,7 @@ import ModalHeader from '../ModalHeader';
 import TabButton from './TabButton';
 import type { User, Batch, Course, Event, GradeExam, BookMaterial, Notice } from '../../types';
 import { UserRole } from '../../types';
-import { getAdminUsers, getBatches, getAdminCourses, sendContentNotification, sendBookMaterial, sendEvent, sendGradeExam, sendNotice } from '../../api';
+import { getAdminUsers, getBatches, getAdminCourses, sendBookMaterial, sendEvent, sendGradeExam, sendNotice } from '../../api';
 import { WhatsAppIcon } from '../icons';
 
 type ContentItem = Event | GradeExam | BookMaterial | Notice;
@@ -112,7 +112,7 @@ const SendContentNotificationModal: React.FC<SendContentNotificationModalProps> 
             case 'group':
                 selectedBatchIds.forEach(batchId => {
                     const batch = allBatches.find(b => b.id === batchId);
-                    batch?.schedule.forEach(s => s.studentIds.forEach(id => finalIds.add(id)));
+                    (batch?.studentIds || []).forEach(id => finalIds.add(String(id)));
                 });
                 selectedCourseIds.forEach(courseId => {
                     const course = allCourses.find(c => c.id === courseId);
@@ -212,17 +212,10 @@ const SendContentNotificationModal: React.FC<SendContentNotificationModalProps> 
                     console.warn(`Unknown content type: ${contentType}`);
             }
             
-            const response = await sendContentNotification({
-                contentId: contentItem.id,
-                contentType,
-                userIds: finalUserIds,
-                subject,
-                message,
-                sendWhatsApp,
-                sendEmail: sendEmail
-            });
+            // The share call above saves the recipients and notifies them through the
+            // server, on the channels on in Admin -> Notification settings.
             
-            setSuccess(`${contentType} shared successfully with ${finalUserIds.length} recipients! ${sendEmail ? 'Email notifications sent.' : ''}`);
+            setSuccess(`${contentType} shared with ${finalUserIds.length} recipients. They are notified on the channels switched on in Notification settings.`);
             setTimeout(() => {
                 onClose();
             }, 3000);

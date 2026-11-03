@@ -442,6 +442,8 @@ export interface Notice {
   courseName?: string; // For compatibility with UI components
   issuedAt: string; // ISO string
   recipientIds?: string[];
+  priority?: string; // 'normal' | 'medium' | 'high'
+  expiryDate?: string | null; // YYYY-MM-DD; hidden from families after it
 }
 
 // --- Fees: roster, cash collection, receipts ---

@@ -8,6 +8,8 @@ import WizardTabs from '../../components/WizardTabs';
 import { InvoiceStatus } from '../../types';
 import EditUserModal from '../../components/admin/EditUserModal';
 import { displayEmail } from '../../utils/displayEmail';
+import { placeStudent } from '../../services/batchAdminApi';
+import { batchTimingLines } from '../../api';
 
 interface StudentProfileViewPageProps {
     studentId: string;
@@ -20,7 +22,10 @@ const InfoField: React.FC<{ label: string; value?: string | number | null; class
     </div>
 );
 
-const getStatusBadgeClass = (status: InvoiceStatus) => {
+const getStatusBadgeClass = (status: InvoiceStatus | string) => {
+    // Bills are stored lowercase ('paid'); compare on the enum's spelling.
+    const s = String(status || '').toLowerCase();
+    status = (s.charAt(0).toUpperCase() + s.slice(1)) as InvoiceStatus;
     switch (status) {
         case InvoiceStatus.Paid:
             return 'bg-green-100 text-green-800';
@@ -64,7 +69,8 @@ const StudentProfileViewPage: React.FC<StudentProfileViewPageProps> = ({ student
             setStudent(fetchedStudent);
             setCourses(fetchedCourses);
             setBatches(fetchedBatches);
-            setInvoices(allInvoices.filter(inv => inv.student?.id === studentId));
+            // Invoices carry a flat student_id (no nested student object).
+            setInvoices(allInvoices.filter(inv => String(inv.studentId ?? inv.student?.id) === String(studentId)));
             setStudentGrades(sGrades || []);
             setAllGrades(gGrades || []);
             setError(null);
@@ -123,49 +129,15 @@ const StudentProfileViewPage: React.FC<StudentProfileViewPageProps> = ({ student
 
         if (window.confirm(confirmMsg)) {
             try {
-                const updatedUserPromise = updateUserByAdmin(user.id, user);
-    
-                const batchUpdatePromises: Promise<Batch>[] = [];
-                const updatedBatchesMap = new Map<string, Batch>();
-    
-                batchChanges.forEach((change) => {
-                    const { oldBatchId, newBatchId, selectedTimings } = change;
-                    
-                    if (oldBatchId && oldBatchId !== newBatchId) {
-                        const existingOldBatch = updatedBatchesMap.get(oldBatchId) || freshBatches.find(b => b.id === oldBatchId);
-                        if (existingOldBatch) {
-                            const oldBatch: Batch = JSON.parse(JSON.stringify(existingOldBatch));
-                            oldBatch.schedule.forEach(s => {
-                                s.studentIds = s.studentIds.filter(id => id !== user.id);
-                            });
-                            updatedBatchesMap.set(oldBatchId, oldBatch);
-                        }
-                    }
-                    
-                    if (newBatchId && newBatchId !== 'unassigned' && newBatchId !== oldBatchId) {
-                        const existingNewBatch = updatedBatchesMap.get(newBatchId) || freshBatches.find(b => b.id === newBatchId);
-                        if (existingNewBatch) {
-                            const newBatch: Batch = JSON.parse(JSON.stringify(existingNewBatch));
-                            newBatch.schedule.forEach(s => {
-                                const shouldEnroll = selectedTimings && selectedTimings.has(s.timing);
-                                if (shouldEnroll && !s.studentIds.includes(user.id)) {
-                                    s.studentIds.push(user.id);
-                                }
-                            });
-                            updatedBatchesMap.set(newBatchId, newBatch);
-                        }
-                    }
-                });
-                
-                updatedBatchesMap.forEach((batchToUpdate, batchId) => {
-                    const payload = { ...batchToUpdate };
-                    if (payload.teacherId && typeof payload.teacherId === 'object') {
-                        payload.teacherId = (payload.teacherId as Partial<User>).id;
-                    }
-                    batchUpdatePromises.push(updateBatch(batchId, payload));
-                });
-    
-                await Promise.all([updatedUserPromise, ...batchUpdatePromises]);
+                await updateUserByAdmin(user.id, user);
+                // Batch changes go through the batch's own student list, one
+                // batch per course. (The old copy rebuilt batches from the
+                // retired `schedule` field and emptied both batches.)
+                for (const { oldBatchId, newBatchId } of batchChanges.values()) {
+                    const next = newBatchId && newBatchId !== 'unassigned' ? Number(newBatchId) : null;
+                    if (String(next ?? '') === String(oldBatchId ?? '')) continue;
+                    await placeStudent(Number(user.id), next, oldBatchId ? Number(oldBatchId) : null);
+                }
                 
                 setIsEditModalOpen(false);
                 await fetchData();
@@ -179,13 +151,12 @@ const StudentProfileViewPage: React.FC<StudentProfileViewPageProps> = ({ student
         if (!student) return [];
         
         return batches.map(batch => {
-            const enrollmentsInBatch = batch.schedule.filter(s => s.studentIds.includes(student.id));
-            if (enrollmentsInBatch.length > 0) {
+            if ((batch.studentIds || []).map(String).includes(String(student.id))) {
                 return {
                     batchName: batch.name,
                     courseName: batch.courseName,
-                    timings: enrollmentsInBatch.map(e => e.timing),
-                    teacher: typeof batch.teacherId === 'object' ? batch.teacherId as User : null,
+                    timings: batchTimingLines(batch),
+                    teacher: batch.teacherName ? ({ id: String(batch.teacherId ?? ''), name: batch.teacherName } as User) : null,
                     mode: batch.mode,
                 };
             }

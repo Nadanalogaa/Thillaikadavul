@@ -16,10 +16,12 @@ const NoticeForm: React.FC<{ notice?: Partial<Notice>, onSave: (notice: Partial<
             id: notice?.id,
             title: notice?.title || '',
             content: notice?.content || '',
+            priority: notice?.priority || 'normal',
+            expiryDate: notice?.expiryDate ? String(notice.expiryDate).slice(0, 10) : '',
         });
     }, [notice]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
@@ -37,6 +39,21 @@ const NoticeForm: React.FC<{ notice?: Partial<Notice>, onSave: (notice: Partial<
             <div>
                 <label className="form-label">Content</label>
                 <textarea name="content" value={formData.content} onChange={handleChange} required rows={5} className="form-textarea w-full" />
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                    <label className="form-label">Priority</label>
+                    <select name="priority" value={formData.priority || 'normal'} onChange={handleChange} className="form-select w-full">
+                        <option value="normal">Normal</option>
+                        <option value="medium">Important</option>
+                        <option value="high">Urgent</option>
+                    </select>
+                </div>
+                <div>
+                    <label className="form-label">Show until (optional)</label>
+                    <input name="expiryDate" type="date" value={formData.expiryDate || ''} onChange={handleChange} className="form-input w-full" />
+                    <p className="mt-1 text-xs text-gray-500">Families stop seeing it after this day.</p>
+                </div>
             </div>
             <div className="pt-4 flex justify-end">
                 <button type="submit" disabled={isLoading} className="btn-primary">
@@ -119,7 +136,9 @@ const NoticesManagementPage: React.FC = () => {
                                 <thead className="bg-gray-50">
                                     <tr>
                                         <th className="th-base">Title</th>
-                                        <th className="th-base">Issued At</th>
+                                        <th className="th-base">Priority</th>
+                                        <th className="th-base">Posted</th>
+                                        <th className="th-base">Show until</th>
                                         <th className="th-base text-right">Actions</th>
                                     </tr>
                                 </thead>
@@ -127,7 +146,9 @@ const NoticesManagementPage: React.FC = () => {
                                     {notices.map(notice => (
                                         <tr key={notice.id}>
                                             <td className="td-base font-medium">{notice.title}</td>
-                                            <td className="td-base">{new Date(notice.issuedAt).toLocaleString()}</td>
+                                            <td className="td-base capitalize">{notice.priority === 'high' ? 'Urgent' : notice.priority === 'medium' ? 'Important' : 'Normal'}</td>
+                                            <td className="td-base">{notice.issuedAt ? new Date(notice.issuedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</td>
+                                            <td className="td-base">{notice.expiryDate ? new Date(String(notice.expiryDate).slice(0, 10) + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Always'}</td>
                                             <td className="td-base text-right space-x-2">
                                                 <button onClick={() => setNotifyingNotice(notice)} className="btn-send">Send</button>
                                                 <button onClick={() => setEditingNotice(notice)} className="btn-secondary">Edit</button>

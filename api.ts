@@ -825,6 +825,14 @@ export const getAdminStats = async (): Promise<DashboardStats> => {
   }
 };
 
+const statusLabel = (v: any): any => {
+  const t = String(v || 'active').trim().toLowerCase();
+  if (t === 'inactive') return 'Inactive';
+  if (t === 'on hold' || t === 'onhold' || t === 'on_hold') return 'On Hold';
+  if (t === 'graduated') return 'Graduated';
+  return 'Active';
+};
+
 export const getAdminUsers = async (): Promise<User[]> => {
   try {
     const response = await fetch('/api/users', {
@@ -864,7 +872,10 @@ export const getAdminUsers = async (): Promise<User[]> => {
       courses: user.courses || [],
       courseExpertise: user.course_expertise || [],
       courseGrades: user.course_grades || [],
-      batchNames: user.batch_names || []
+      batchNames: user.batch_names || [],
+      // Stored lowercase ('active', 'on hold'); shown as the UserStatus labels.
+      // Unmapped, every edit saved 'Active' over an on-hold student.
+      status: statusLabel(user.status),
     }));
   } catch (error) {
     console.error('Error in getAdminUsers:', error);
@@ -1278,7 +1289,23 @@ export const deleteUserByAdmin = async (userId: string): Promise<void> => {
     throw error;
   }
 };
-export const sendNotification = async (userIds: string[], subject: string, message: string): Promise<{success: boolean}> => ({ success: true });
+// Admin's own message to chosen students/teachers (Students / Teachers list ->
+// Send). It used to report success without sending anything. The server
+// stores it in each person's in-app inbox (a parent sees their child's),
+// pushes it to their phone, and emails the family's real address.
+export const sendNotification = async (userIds: string[], subject: string, message: string): Promise<{success: boolean}> => {
+  const response = await fetch('/api/notifications?email=1', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(userIds.map(id => ({ user_id: Number(id), title: subject, message, type: 'Info' }))),
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.message || 'Could not send the message.');
+  }
+  return { success: true };
+};
 export const getAdminCourses = async (): Promise<Course[]> => getCourses();
 export const addCourseByAdmin = async (courseData: Omit<Course, 'id'>): Promise<Course> => {
   try {
@@ -1831,13 +1858,24 @@ export const addBatch = async (batchData: Partial<Batch>): Promise<Batch> => {
     }
     const uniqueStudentIds = [...new Set(allStudentIds)].map(id => parseInt(id, 10)).filter(id => !isNaN(id));
 
+    // Class times: per-day slots, or the same start/end on each chosen day.
+    // Without days/time_slots a batch never showed up in Attendance.
+    const days = batchData.days || (batchData.timeSlots || []).map(s => s.day);
+    const timeSlots = (batchData.timeSlots && batchData.timeSlots.length)
+      ? batchData.timeSlots
+      : days.map(day => ({ day, start_time: batchData.startTime, end_time: batchData.endTime }));
     const insertData: any = {
       batch_name: batchData.name,
-      schedule: batchData.schedule || [],
+      schedule: [],
       max_students: batchData.capacity,
       mode: batchData.mode,
-      student_ids: uniqueStudentIds,
-      studio: batchData.studio || null
+      student_ids: (batchData.studentIds || []).map(Number).filter(n => !isNaN(n)).concat(uniqueStudentIds),
+      studio: batchData.studio || null,
+      days,
+      time_slots: timeSlots,
+      start_time: batchData.startTime || timeSlots[0]?.start_time || null,
+      end_time: batchData.endTime || timeSlots[0]?.end_time || null,
+      location_id: batchData.locationId || null,
     };
 
     // Only add course_id if courseId is provided and not empty
@@ -1876,14 +1914,17 @@ export const addBatch = async (batchData: Partial<Batch>): Promise<Batch> => {
 
     return {
       id: String(data.id),
-      name: data.name,
+      name: data.batch_name || data.name,
       description: data.description,
       courseId: data.course_id,
-      courseName: '',
+      courseName: batchData.courseName || '',
       teacherId: data.teacher_id,
-      schedule: data.schedule || [],
-      capacity: data.capacity,
-      enrolled: 0,
+      schedule: [],
+      studentIds: (data.student_ids || []).map((x: any) => String(x)),
+      days: data.days || [],
+      timeSlots: Array.isArray(data.time_slots) ? data.time_slots : [],
+      capacity: data.max_students,
+      enrolled: (data.student_ids || []).length,
       mode: data.mode,
       locationId: data.location_id,
       startDate: data.start_date,
@@ -2052,9 +2093,13 @@ export const updateBatch = async (batchId: string, batchData: Partial<Batch>): P
         description: batchData.description,
         course_id: batchData.courseId,
         teacher_id: batchData.teacherId,
-        schedule: batchData.schedule,
         max_students: batchData.capacity,
-        student_ids: uniqueStudentIds,
+        // Membership only when the caller gave it explicitly. This used to be
+        // rebuilt from the retired `schedule` (always empty) and every save
+        // removed all the batch's students.
+        student_ids: batchData.studentIds ? batchData.studentIds.map(Number).filter(n => !isNaN(n)) : undefined,
+        days: batchData.days,
+        time_slots: batchData.timeSlots,
         mode: batchData.mode,
         location_id: batchData.locationId,
         start_date: batchData.startDate,
@@ -2673,6 +2718,7 @@ export const getTrashedUsers = async (): Promise<User[]> => {
       classPreference: user.class_preference,
       photoUrl: user.photo_url,
       contactEmail: user.contact_email,
+      deletedAt: user.deleted_at || user.updated_at,
       dob: user.dob ? new Date(user.dob) : undefined,
       sex: user.sex,
       contactNumber: user.contact_number,
@@ -2789,88 +2835,25 @@ export const deleteUserPermanently = async (userId: string): Promise<void> => {
 };
 
 // Location functions
+// Branches as stored. No made-up placeholders: an empty list stays empty
+// (it used to invent "Main Center"/"Branch 1" with ids that could not be
+// edited, and tried to create them on every visitor's page load).
 export const getPublicLocations = async (): Promise<Location[]> => {
   try {
-    // Use Express API instead of Supabase
-    const response = await fetch('/api/locations');
-
-    if (!response.ok) {
-      console.error('Error fetching locations:', response.statusText);
-      // If API fails, try to initialize basic locations
-      return await initializeBasicLocations();
-    }
-
+    const response = await fetch('/api/locations', { credentials: 'include' });
+    if (!response.ok) return [];
     const data = await response.json();
-
-    // If no locations in database, initialize basic ones
-    if (!data || data.length === 0) {
-      return await initializeBasicLocations();
-    }
-
-    return data.map(location => ({
+    return (data || []).map((location: any) => ({
       id: String(location.id),
       name: location.name,
       address: location.address
     }));
-
   } catch (error) {
     console.error('Error in getPublicLocations:', error);
-    return await initializeBasicLocations();
+    return [];
   }
 };
 
-// Helper function to initialize basic locations in database
-const initializeBasicLocations = async (): Promise<Location[]> => {
-  const basicLocations = [
-    {
-      name: 'Main Center',
-      address: 'Enter your main location address',
-      is_active: true,
-      created_at: new Date().toISOString()
-    },
-    {
-      name: 'Branch 1', 
-      address: 'Enter branch location address',
-      is_active: true,
-      created_at: new Date().toISOString()
-    }
-  ];
-
-  try {
-    const response = await fetch('/api/locations', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ locations: basicLocations })
-    });
-
-    if (!response.ok) {
-      console.error('Error initializing locations');
-      // Return basic locations with generated IDs as fallback
-      return basicLocations.map((location, index) => ({
-        id: `loc-${index + 1}`,
-        name: location.name,
-        address: location.address
-      }));
-    }
-
-    const data = await response.json();
-    return data.map(location => ({
-      id: String(location.id),
-      name: location.name,
-      address: location.address
-    }));
-
-  } catch (error) {
-    console.error('Error in initializeBasicLocations:', error);
-    // Return basic locations with generated IDs as fallback
-    return basicLocations.map((location, index) => ({
-      id: `loc-${index + 1}`,
-      name: location.name,
-      address: location.address
-    }));
-  }
-};
 
 export const getLocations = async (): Promise<Location[]> => getPublicLocations();
 
@@ -3046,9 +3029,15 @@ export const addEvent = async (event: Omit<Event, 'id'>): Promise<Event> => {
         event_date: event.date instanceof Date ? event.date.toISOString().split('T')[0] : new Date(event.date).toISOString().split('T')[0],
         event_time: event.time,
         location: event.location,
-        is_public: event.isActive !== undefined ? event.isActive : true,
-        recipient_ids: event.targetAudience || [],
-        image_url: event.images && event.images.length > 0 ? event.images[0] : null
+        // "Active" is is_active; public (shown on the website) stays on by
+        // default. recipient_ids is a list of user ids — the audience labels
+        // that used to go here ("Student") made every create fail.
+        is_public: (event as any).isPublic !== undefined ? (event as any).isPublic : true,
+        is_active: event.isActive !== false,
+        recipient_ids: ((event as any).recipientIds || []).map(Number).filter((n: number) => !isNaN(n)),
+        image_url: event.images && event.images.length > 0
+          ? (typeof event.images[0] === 'string' ? event.images[0] : (event.images[0] as any).url || null)
+          : null
       })
     });
 
@@ -3135,6 +3124,12 @@ export const updateEvent = async (id: string, event: Partial<Event>): Promise<Ev
     if (event.time) updateData.event_time = event.time;
     if (event.location) updateData.location = event.location;
     if (event.isPublic !== undefined) updateData.is_public = event.isPublic;
+    if ((event as any).isActive !== undefined) updateData.is_active = (event as any).isActive;
+    if (event.description !== undefined) updateData.description = event.description;
+    if (event.images && event.images.length > 0) {
+      const first: any = event.images[0];
+      updateData.image_url = typeof first === 'string' ? first : first.url || null;
+    }
 
     const response = await fetch(`/api/events/${id}`, {
       method: 'PUT',
@@ -3237,8 +3232,8 @@ export const addGradeExam = async (exam: Omit<GradeExam, 'id'>): Promise<GradeEx
         })(),
         exam_time: exam.time || null,
         location: exam.location || '',
-        syllabus: exam.syllabusUrl || '',
-        recipient_ids: exam.recipientIds || []
+        syllabus: exam.description || exam.syllabusUrl || '',
+        recipient_ids: (exam.recipientIds || []).map(Number).filter(n => !isNaN(n))
       })
     });
 
@@ -3311,52 +3306,38 @@ export const addGradeExam = async (exam: Omit<GradeExam, 'id'>): Promise<GradeEx
 };
 
 export const updateGradeExam = async (id: string, exam: Partial<GradeExam>): Promise<GradeExam> => {
-  try {
-    const updateData: any = {};
-    if (exam.title) updateData.title = exam.title;
-    if (exam.description) updateData.description = exam.description;
-    if (exam.date) updateData.date = exam.date instanceof Date ? exam.date.toISOString() : new Date(exam.date).toISOString();
-    if (exam.time) updateData.time = exam.time;
-    if (exam.duration) updateData.duration = exam.duration;
-    if (exam.course) updateData.course = exam.course;
-    if (exam.grade) updateData.grade = exam.grade;
-    if (exam.syllabusUrl) updateData.syllabus_url = exam.syllabusUrl;
-    if (exam.registrationFee !== undefined) updateData.registration_fee = exam.registrationFee;
-    if (exam.registrationDeadline) updateData.registration_deadline = exam.registrationDeadline instanceof Date ? exam.registrationDeadline.toISOString() : new Date(exam.registrationDeadline).toISOString();
-    if (exam.isOpen !== undefined) updateData.is_open = exam.isOpen;
-
-    const response = await fetch(`/api/grade-exams/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(updateData)
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Failed to update grade exam: ${errorData.error || response.statusText}`);
-    }
-
-    const data = await response.json();
-    return {
-      id: String(data.id),
-      title: data.title,
-      description: data.description,
-      date: new Date(data.date),
-      time: data.time,
-      duration: data.duration,
-      course: data.course,
-      grade: data.grade,
-      syllabusUrl: data.syllabus_url,
-      registrationFee: data.registration_fee,
-      registrationDeadline: data.registration_deadline ? new Date(data.registration_deadline) : undefined,
-      isOpen: data.is_open,
-      createdAt: new Date(data.created_at)
-    };
-  } catch (error) {
-    console.error('Error in updateGradeExam:', error);
-    throw error;
+  // Server columns: exam_name / course / exam_date / exam_time / location / syllabus.
+  const body: any = {};
+  if (exam.title !== undefined) body.exam_name = exam.title;
+  if (exam.course !== undefined) body.course = exam.course;
+  if (exam.date !== undefined) {
+    const d = exam.date instanceof Date ? exam.date : new Date(exam.date as any);
+    body.exam_date = isNaN(d.getTime()) ? null : d.toISOString().split('T')[0];
   }
+  if (exam.time !== undefined) body.exam_time = exam.time || null;
+  if (exam.location !== undefined) body.location = exam.location;
+  if (exam.description !== undefined) body.syllabus = exam.description;
+  const response = await fetch(`/api/grade-exams/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to update grade exam (${response.status})`);
+  }
+  const data = await response.json();
+  return {
+    id: String(data.id),
+    title: data.exam_name,
+    description: data.syllabus || '',
+    date: new Date(data.exam_date),
+    time: data.exam_time,
+    course: data.course,
+    location: data.location,
+    recipientIds: (data.recipient_ids || []).map((x: any) => String(x)),
+  } as GradeExam;
 };
 
 export const deleteGradeExam = async (id: string): Promise<void> => {
@@ -3374,6 +3355,16 @@ export const deleteGradeExam = async (id: string): Promise<void> => {
     console.error('Error in deleteGradeExam:', error);
     throw error;
   }
+};
+
+/** Upload a material's file (PDF or image); returns the stored path. */
+export const uploadMaterialFile = async (file: File): Promise<{ url: string; file_type: string }> => {
+  const form = new FormData();
+  form.append('file', file);
+  const response = await fetch('/api/upload/material', { method: 'POST', credentials: 'include', body: form });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || 'Upload failed.');
+  return data;
 };
 
 export const getBookMaterials = async (): Promise<BookMaterial[]> => {
@@ -3394,11 +3385,12 @@ export const getBookMaterials = async (): Promise<BookMaterial[]> => {
       title: material.title,
       description: material.description,
       courseId: material.course_id,
+      // Columns are course / file_type / file_url.
       courseName: material.course_name ?? material.course,
-      type: material.type,
-      url: material.url,
-      fileUrl: material.url, // Add fileUrl for compatibility
-      linkUrl: material.url, // Add linkUrl for compatibility
+      type: material.file_type ?? material.type,
+      url: material.file_url ?? material.url,
+      fileUrl: material.file_url ?? material.url,
+      linkUrl: material.file_url ?? material.url,
       data: material.data,
       recipientIds: material.recipient_ids || [],
       uploadedAt: material.created_at // Add uploadedAt for compatibility
@@ -3445,9 +3437,9 @@ export const addBookMaterial = async (material: Omit<BookMaterial, 'id'>): Promi
       title: data.title,
       description: data.description,
       courseId: data.course_id,
-      courseName: data.course_name,
-      type: data.type,
-      url: data.url,
+      courseName: data.course_name ?? data.course,
+      type: data.file_type ?? data.type,
+      url: data.file_url ?? data.url,
       data: data.data,
       recipientIds: data.recipient_ids || []
     };
@@ -3483,11 +3475,10 @@ export const updateBookMaterial = async (id: string, material: Partial<BookMater
     const updateData: any = {};
     if (material.title !== undefined) updateData.title = material.title;
     if (material.description !== undefined) updateData.description = material.description;
-    if (material.courseId !== undefined) updateData.course_id = material.courseId;
-    if (material.courseName !== undefined) updateData.course_name = material.courseName;
-    if (material.type !== undefined) updateData.type = material.type;
-    if (material.url !== undefined) updateData.url = material.url;
-    if (material.data !== undefined) updateData.data = material.data;
+    // Server columns: course (name) / file_type / file_url.
+    if (material.courseName !== undefined) updateData.course = material.courseName || null;
+    if (material.type !== undefined) updateData.file_type = material.type;
+    if (material.url !== undefined) updateData.file_url = material.url;
     if (material.recipientIds !== undefined) updateData.recipient_ids = material.recipientIds;
 
     const response = await fetch(`/api/book-materials/${id}`, {
@@ -3508,9 +3499,9 @@ export const updateBookMaterial = async (id: string, material: Partial<BookMater
       title: data.title,
       description: data.description,
       courseId: data.course_id,
-      courseName: data.course_name,
-      type: data.type,
-      url: data.url,
+      courseName: data.course_name ?? data.course,
+      type: data.file_type ?? data.type,
+      url: data.file_url ?? data.url,
       data: data.data,
       recipientIds: data.recipient_ids || []
     };
@@ -3538,58 +3529,34 @@ export const deleteBookMaterial = async (id: string): Promise<void> => {
 };
 
 // Send book material to specific recipients (students, groups, or batches)
-export const sendBookMaterial = async (materialId: string, recipientIds: string[]): Promise<void> => {
-  try {
-    console.log('Sending book material to recipients:', materialId, recipientIds);
-
-    const response = await fetch(`/api/book-materials/${materialId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
-        recipient_ids: recipientIds
-      })
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Failed to send book material: ${errorData.error || response.statusText}`);
-    }
-
-    const data = await response.json();
-    console.log('Book material sent successfully to recipients:', data);
-  } catch (error) {
-    console.error('Error in sendBookMaterial:', error);
-    throw error;
+// Admin -> Send on an event / notice / exam / material. Saves who it is for
+// and notifies them through the server (respecting Notification settings).
+// It used to PUT only recipient_ids to the edit route, which blanked the
+// other columns and failed.
+const shareContent = async (contentType: 'Event' | 'Notice' | 'GradeExam' | 'BookMaterial', id: string, recipientIds: string[]): Promise<void> => {
+  const response = await fetch('/api/share-content', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      content_id: Number(id),
+      content_type: contentType,
+      recipient_ids: recipientIds.map(Number).filter(n => !isNaN(n)),
+      send_email: true,
+    }),
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.message || `Could not send (${response.status}).`);
   }
 };
+
+export const sendBookMaterial = async (materialId: string, recipientIds: string[]): Promise<void> =>
+  shareContent('BookMaterial', materialId, recipientIds);
 
 // Send event to specific recipients
-export const sendEvent = async (eventId: string, recipientIds: string[]): Promise<void> => {
-  try {
-    console.log('Sending event to recipients:', eventId, recipientIds);
-
-    const response = await fetch(`/api/events/${eventId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
-        recipient_ids: recipientIds
-      })
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Failed to send event: ${errorData.error || response.statusText}`);
-    }
-
-    const data = await response.json();
-    console.log('Event sent successfully to recipients:', data);
-  } catch (error) {
-    console.error('Error in sendEvent:', error);
-    throw error;
-  }
-};
+export const sendEvent = async (eventId: string, recipientIds: string[]): Promise<void> =>
+  shareContent('Event', eventId, recipientIds);
 
 // Get events for a specific student with notification status
 export const getStudentEvents = async (studentId: string): Promise<Event[]> => {
@@ -3732,58 +3699,12 @@ export const uploadEventImage = async (eventId: string, file: File, caption?: st
 };
 
 // Send grade exam to specific recipients
-export const sendGradeExam = async (examId: string, recipientIds: string[]): Promise<void> => {
-  try {
-    console.log('Sending grade exam to recipients:', examId, recipientIds);
-
-    const response = await fetch(`/api/grade-exams/${examId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
-        recipient_ids: recipientIds
-      })
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Failed to send grade exam: ${errorData.error || response.statusText}`);
-    }
-
-    const data = await response.json();
-    console.log('Grade exam sent successfully to recipients:', data);
-  } catch (error) {
-    console.error('Error in sendGradeExam:', error);
-    throw error;
-  }
-};
+export const sendGradeExam = async (examId: string, recipientIds: string[]): Promise<void> =>
+  shareContent('GradeExam', examId, recipientIds);
 
 // Send notice to specific recipients
-export const sendNotice = async (noticeId: string, recipientIds: string[]): Promise<void> => {
-  try {
-    console.log('Sending notice to recipients:', noticeId, recipientIds);
-
-    const response = await fetch(`/api/notices/${noticeId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
-        recipient_ids: recipientIds
-      })
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Failed to send notice: ${errorData.error || response.statusText}`);
-    }
-
-    const data = await response.json();
-    console.log('Notice sent successfully to recipients:', data);
-  } catch (error) {
-    console.error('Error in sendNotice:', error);
-    throw error;
-  }
-};
+export const sendNotice = async (noticeId: string, recipientIds: string[]): Promise<void> =>
+  shareContent('Notice', noticeId, recipientIds);
 
 export const getNotices = async (limit?: number): Promise<Notice[]> => {
   try {
@@ -3808,7 +3729,9 @@ export const getNotices = async (limit?: number): Promise<Notice[]> => {
       courseName: null, // Default course name for UI compatibility
       recipientIds: (notice.recipient_ids || []).map((x: any) => String(x)),
       // There is no issued_at column; the notice was issued when it was created.
-      issuedAt: notice.issued_at ?? notice.created_at
+      issuedAt: notice.issued_at ?? notice.created_at,
+      priority: notice.priority || 'normal',
+      expiryDate: notice.expiry_date ? String(notice.expiry_date).slice(0, 10) : null,
     }));
   } catch (error) {
     console.error('Error in getNotices:', error);
@@ -3826,9 +3749,9 @@ export const addNotice = async (notice: Omit<Notice, 'id'>): Promise<Notice> => 
       body: JSON.stringify({
         title: notice.title,
         content: notice.content,
-        priority: 'normal',
-        expiry_date: null,
-        recipient_ids: []
+        priority: notice.priority || 'normal',
+        expiry_date: notice.expiryDate || null,
+        recipient_ids: (notice.recipientIds || []).map(Number).filter(n => !isNaN(n))
       })
     });
 
@@ -3890,7 +3813,8 @@ export const updateNotice = async (id: string, notice: Partial<Notice>): Promise
     const updateData: any = {};
     if (notice.title !== undefined) updateData.title = notice.title;
     if (notice.content !== undefined) updateData.content = notice.content;
-    if (notice.issuedAt !== undefined) updateData.issued_at = notice.issuedAt;
+    if (notice.priority !== undefined) updateData.priority = notice.priority;
+    if (notice.expiryDate !== undefined) updateData.expiry_date = notice.expiryDate || null;
 
     const response = await fetch(`/api/notices/${id}`, {
       method: 'PUT',
@@ -3936,112 +3860,6 @@ export const deleteNotice = async (id: string): Promise<void> => {
 };
 
 // Enhanced content notification with email support and database notifications
-export const sendContentNotification = async (payload: {
-  contentId: string;
-  contentType: string;
-  userIds: string[];
-  subject: string;
-  message: string;
-  sendWhatsApp?: boolean;
-  sendEmail?: boolean;
-}): Promise<{ success: boolean; message: string }> => {
-  try {
-    console.log('Sending content notifications:', payload);
-
-    // Create notifications in database for each recipient
-    const notifications = payload.userIds.map(userId => ({
-      user_id: userId,
-      recipient_id: userId, // For compatibility with both column names
-      title: payload.subject,
-      message: payload.message,
-      type: 'Info' as const,
-      is_read: false
-    }));
-
-    const response = await fetch('/api/notifications', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ notifications })
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Failed to create notifications: ${errorData.error || response.statusText}`);
-    }
-
-    // Send email notifications if requested
-    if (payload.sendEmail) {
-      await sendEmailNotifications(payload.userIds, payload.subject, payload.message);
-    }
-
-    console.log(`Successfully sent ${payload.contentType} notifications to ${payload.userIds.length} recipients`);
-    return {
-      success: true,
-      message: `${payload.contentType} shared with ${payload.userIds.length} recipients`
-    };
-  } catch (error) {
-    console.error('Error in sendContentNotification:', error);
-    throw error;
-  }
-};
-
-// Send email notifications to recipients via backend API
-const sendEmailNotifications = async (userIds: string[], subject: string, message: string): Promise<void> => {
-  try {
-    // Get user emails via API
-    const usersResponse = await fetch(`/api/users?ids=${userIds.join(',')}`, {
-      method: 'GET',
-      credentials: 'include'
-    });
-
-    if (!usersResponse.ok) {
-      console.error('Error fetching user emails');
-      return;
-    }
-
-    const users = await usersResponse.json();
-    if (!users || users.length === 0) {
-      console.log('No users found for email notifications');
-      return;
-    }
-
-    // Send email to each user via backend SMTP
-    const emailPromises = users.map(async (user) => {
-      try {
-        const response = await fetch('/api/send-email', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            to: user.email,
-            subject: subject,
-            body: message,
-            recipientName: user.name
-          })
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to send email');
-        }
-
-        console.log(`📧 Email sent successfully to: ${user.email} (${user.name})`);
-        return await response.json();
-      } catch (emailError) {
-        console.error(`Failed to send email to ${user.email}:`, emailError);
-        return null;
-      }
-    });
-
-    await Promise.all(emailPromises);
-    console.log(`Email notifications sent to ${users.length} recipients`);
-  } catch (error) {
-    console.error('Error sending email notifications:', error);
-  }
-};
 
 // Get notifications for a specific user (compatible with existing schema)
 export const getUserNotifications = async (userId: string): Promise<any[]> => {

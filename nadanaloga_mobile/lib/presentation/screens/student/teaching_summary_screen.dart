@@ -6,6 +6,7 @@ import '../../../core/network/api_client.dart';
 import '../../../data/models/batch_model.dart';
 import '../attendance/batch_students_screen.dart';
 import '../../../di/injection_container.dart';
+import '../../widgets/batch_views.dart';
 
 /// A teacher's teaching at a glance: the batches she takes, their timings and
 /// how many students are in each. Pushed from the household home when the
@@ -72,7 +73,10 @@ class _TeachingSummaryBodyState extends State<TeachingSummaryBody> {
             .map((b) => BatchModel.fromJson(Map<String, dynamic>.from(b)))
             .toList();
         setState(() {
-          _batches = all.where((b) => b.teacherId == widget.teacherId).toList();
+          _batches = all.where((b) => b.teacherId == widget.teacherId).toList()
+            ..sort((a, b) => a.batchName
+                .toLowerCase()
+                .compareTo(b.batchName.toLowerCase()));
         });
       } else {
         setState(() => _error = 'Could not load batches.');
@@ -82,32 +86,6 @@ class _TeachingSummaryBodyState extends State<TeachingSummaryBody> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  /// Human-readable timings, preferring per-day slots, then schedule strings,
-  /// then the batch-level days + time range.
-  List<String> _timings(BatchModel b) {
-    if (b.timeSlots.isNotEmpty) {
-      return b.timeSlots.map((s) {
-        final range = [s.startTime, s.endTime]
-            .where((t) => t != null && t.isNotEmpty)
-            .join('–');
-        return range.isEmpty ? s.day : '${s.day} $range';
-      }).toList();
-    }
-    final fromSchedule = b.schedule
-        .map((s) => s.timing)
-        .whereType<String>()
-        .where((t) => t.isNotEmpty)
-        .toList();
-    if (fromSchedule.isNotEmpty) return fromSchedule;
-    if (b.days.isNotEmpty) {
-      final range = [b.startTime, b.endTime]
-          .where((t) => t != null && t.isNotEmpty)
-          .join('–');
-      return ['${b.days.join(', ')}${range.isEmpty ? '' : ' $range'}'];
-    }
-    return const ['Timings not set'];
   }
 
   @override
@@ -127,19 +105,29 @@ class _TeachingSummaryBodyState extends State<TeachingSummaryBody> {
       );
     }
     final totalStudents =
-        _batches.expand((b) => b.allStudentIds).toSet().length;
+        _batches.expand((b) => b.studentIds).toSet().length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
+        Row(
           children: [
-            _chip(Icons.group_work_outlined,
-                '${_batches.length} ${_batches.length == 1 ? 'batch' : 'batches'}'),
-            _chip(Icons.people_outline,
-                '$totalStudents ${totalStudents == 1 ? 'student' : 'students'}'),
+            Expanded(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _chip(Icons.group_work_outlined,
+                      '${_batches.length} ${_batches.length == 1 ? 'batch' : 'batches'}'),
+                  _chip(Icons.people_outline,
+                      '$totalStudents ${totalStudents == 1 ? 'student' : 'students'}'),
+                ],
+              ),
+            ),
+            if (_batches.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              const BatchViewToggle(color: AppColors.teacherAccent),
+            ],
           ],
         ),
         const SizedBox(height: 14),
@@ -160,9 +148,32 @@ class _TeachingSummaryBodyState extends State<TeachingSummaryBody> {
             ),
           )
         else
-          for (final b in _batches) _batchCard(b),
+          ValueListenableBuilder<BatchViewMode>(
+            valueListenable: BatchViewPreference.mode,
+            builder: (context, mode, _) => mode == BatchViewMode.table
+                ? BatchTable(
+                    batches: _batches,
+                    showTeacher: false,
+                    onTap: _openBatch,
+                  )
+                : BatchCardGrid(children: [
+                    for (final b in _batches)
+                      BatchGridCard(
+                        batch: b,
+                        showTeacher: false,
+                        onTap: () => _openBatch(b),
+                      ),
+                  ]),
+          ),
       ],
     );
+  }
+
+  /// The students in this batch: names, parents, phone numbers.
+  void _openBatch(BatchModel b) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => BatchStudentsScreen(batchId: b.id, batchName: b.batchName),
+    ));
   }
 
   Widget _chip(IconData icon, String label) {
@@ -181,76 +192,6 @@ class _TeachingSummaryBodyState extends State<TeachingSummaryBody> {
               style: AppTextStyles.labelLarge
                   .copyWith(color: AppColors.teacherAccent)),
         ],
-      ),
-    );
-  }
-
-  Widget _batchCard(BatchModel b) {
-    final count = b.allStudentIds.length;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side:
-            BorderSide(color: AppColors.teacherAccent.withValues(alpha: 0.15)),
-      ),
-      // Tap for the students in this batch: names, parents, phone numbers.
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: () => Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) =>
-              BatchStudentsScreen(batchId: b.id, batchName: b.batchName),
-        )),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(b.batchName, style: AppTextStyles.labelLarge),
-                        if (b.mode != null && b.mode!.isNotEmpty)
-                          Text(b.mode!,
-                              style: AppTextStyles.caption
-                                  .copyWith(color: AppColors.textSecondary)),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.teacherAccent.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '$count ${count == 1 ? 'student' : 'students'}',
-                      style: AppTextStyles.caption
-                          .copyWith(color: AppColors.teacherAccent),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              for (final t in _timings(b))
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.schedule,
-                          size: 16, color: AppColors.textSecondary),
-                      const SizedBox(width: 6),
-                      Expanded(child: Text(t, style: AppTextStyles.bodyMedium)),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-        ),
       ),
     );
   }
