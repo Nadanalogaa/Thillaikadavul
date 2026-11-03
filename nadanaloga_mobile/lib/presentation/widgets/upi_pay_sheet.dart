@@ -169,6 +169,13 @@ class _UpiPaySheetState extends State<_UpiPaySheet> {
               icon: const Icon(Icons.apps),
               label: const Text('Other UPI app (BHIM, bank app…)'),
             ),
+            const SizedBox(height: 6),
+            Text(
+              'If Google Pay says “money not debited” or “limit exceeded”, nothing was charged — '
+              'tap Google Pay again, or use PhonePe, or pay to the UPI ID below.',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+            ),
             if (_hint != null) ...[
               const SizedBox(height: 8),
               Text(_hint!,

@@ -15,6 +15,7 @@ import '../../bloc/auth/auth_state.dart';
 import '../student/events_list_screen.dart';
 import '../student/grade_exams_list_screen.dart';
 import '../student/household_fees_screen.dart';
+import '../student/upi_payment_flow.dart';
 import '../student/notices_list_screen.dart';
 import '../student/teaching_summary_screen.dart';
 import 'class_schedule.dart';
@@ -105,6 +106,21 @@ class _HomeDashboardState extends State<HomeDashboard> {
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const HouseholdFeesScreen()),
     );
+    if (mounted) _load();
+  }
+
+  /// Home "Pay": straight to paying. While online payment is off that is the
+  /// UPI sheet for every bill the family can pay (then the screenshot);
+  /// with online payment on, the Fees screen holds the checkout.
+  Future<void> _payNow() async {
+    final d = _data;
+    final fees = d?.fees;
+    final bills = payableBills(fees);
+    if (fees == null || fees['online_payments_enabled'] == true || bills.isEmpty) {
+      await _openFees();
+      return;
+    }
+    await payBillsByUpi(context, fees, bills);
     if (mounted) _load();
   }
 
@@ -461,7 +477,8 @@ class _HomeDashboardState extends State<HomeDashboard> {
             children: [
               Expanded(
                 child: FilledButton(
-                  onPressed: _openFees,
+                  // Pay goes straight to paying; Details opens the bill list.
+                  onPressed: d.allVerifying ? null : _payNow,
                   style: FilledButton.styleFrom(
                     backgroundColor: widget.accent,
                     minimumSize: const Size.fromHeight(46),
@@ -470,7 +487,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
                   ),
                   child: Text(d.allVerifying
                       ? 'Being verified'
-                      : 'Pay ${FeeFormat.rupees(d.totalDue - d.totalVerifying)}'),
+                      : 'Pay ${FeeFormat.rupees(billsTotal(payableBills(d.fees)))}'),
                 ),
               ),
               const SizedBox(width: 10),

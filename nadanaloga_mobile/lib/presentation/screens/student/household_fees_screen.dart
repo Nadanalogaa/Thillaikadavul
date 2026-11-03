@@ -11,7 +11,7 @@ import '../../../core/utils/fee_format.dart';
 import '../../../di/injection_container.dart';
 import '../../widgets/receipt_sheet.dart';
 import 'student_payment_proof_screen.dart';
-import '../../widgets/upi_pay_sheet.dart';
+import 'upi_payment_flow.dart';
 
 /// Household fees drilldown: this month's total → per student → each invoice,
 /// with "Pay" on any pending invoice of any student in the household. The
@@ -92,75 +92,17 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
     if (mounted) _load();
   }
 
-  /// Pay by UPI app, then upload the screenshot (online payment is off).
+  /// Pay one bill by UPI app, then upload the screenshot (online payment is off).
   Future<void> _payByUpi(Map<String, dynamic> inv, int id, double amount) async {
-    final upi = _fees?['upi'] is Map ? Map<String, dynamic>.from(_fees!['upi'] as Map) : const <String, dynamic>{};
-    final upiId = '${upi['id'] ?? ''}'.trim();
-    if (upiId.isEmpty) {
-      _uploadReceipt(id);
-      return;
-    }
-    final upload = await showUpiPaySheet(
-      context,
-      upiId: upiId,
-      payeeName: '${upi['name'] ?? 'Nadanaloga'}',
-      amount: amount,
-      note: 'NDA bill $id',
-      forWhat: '${inv['course_name'] ?? 'Fee'} · ${inv['billing_period'] ?? ''}',
-    );
-    if (upload && mounted) await _uploadReceipt(id);
+    await payBillsByUpi(context, _fees, [inv]);
+    if (mounted) _load();
   }
 
-  /// Every bill the family can pay now: unpaid and not already waiting for
-  /// the academy to check a screenshot.
-  List<Map<String, dynamic>> get _payable {
-    final out = <Map<String, dynamic>>[];
-    for (final s in (_fees?['students'] as List? ?? const [])) {
-      if (s is! Map) continue;
-      for (final inv in (s['invoices'] as List? ?? const [])) {
-        if (inv is! Map) continue;
-        final status = '${inv['status'] ?? ''}'.toLowerCase();
-        final proof = '${inv['proof_status'] ?? ''}'.toLowerCase();
-        if (status != 'paid' && proof != 'submitted') {
-          out.add({...Map<String, dynamic>.from(inv), 'student_name': s['student_name']});
-        }
-      }
-    }
-    return out;
-  }
+  List<Map<String, dynamic>> get _payable => payableBills(_fees);
 
   /// One UPI payment and one screenshot for every payable bill.
   Future<void> _payAll() async {
-    final bills = _payable;
-    if (bills.isEmpty) return;
-    final ids = bills.map((b) => b['id'] is int ? b['id'] as int : int.tryParse('${b['id']}') ?? 0).where((i) => i > 0).toList();
-    final total = bills.fold<double>(0, (t, b) => t + ((b['amount'] as num?)?.toDouble() ?? 0));
-    final upi = _fees?['upi'] is Map ? Map<String, dynamic>.from(_fees!['upi'] as Map) : const <String, dynamic>{};
-    final note = ids.length <= 4 ? 'NDA bills ${ids.join('+')}' : 'NDA ${ids.length} bills ${ids.first}';
-    final lines = [
-      for (final b in bills)
-        '${b['student_name'] ?? ''} · ${b['course_name'] ?? 'Fee'} · ${b['billing_period'] ?? ''} · ${FeeFormat.rupees((b['amount'] as num?)?.toDouble() ?? 0)}',
-    ];
-    final upiId = '${upi['id'] ?? ''}'.trim();
-    final upload = upiId.isEmpty
-        ? true
-        : await showUpiPaySheet(
-            context,
-            upiId: upiId,
-            payeeName: '${upi['name'] ?? 'Nadanaloga'}',
-            amount: total,
-            note: note,
-            forWhat: '${ids.length} bills',
-          );
-    if (!upload || !mounted) return;
-    await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => StudentPaymentProofScreen(
-        invoiceId: ids.first,
-        groupInvoiceIds: ids,
-        groupLines: lines,
-        groupTotal: total,
-      ),
-    ));
+    await payBillsByUpi(context, _fees, _payable);
     if (mounted) _load();
   }
 
