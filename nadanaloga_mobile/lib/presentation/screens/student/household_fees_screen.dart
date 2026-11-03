@@ -105,10 +105,63 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
       upiId: upiId,
       payeeName: '${upi['name'] ?? 'Nadanaloga'}',
       amount: amount,
-      invoiceId: id,
+      note: 'NDA bill $id',
       forWhat: '${inv['course_name'] ?? 'Fee'} · ${inv['billing_period'] ?? ''}',
     );
     if (upload && mounted) await _uploadReceipt(id);
+  }
+
+  /// Every bill the family can pay now: unpaid and not already waiting for
+  /// the academy to check a screenshot.
+  List<Map<String, dynamic>> get _payable {
+    final out = <Map<String, dynamic>>[];
+    for (final s in (_fees?['students'] as List? ?? const [])) {
+      if (s is! Map) continue;
+      for (final inv in (s['invoices'] as List? ?? const [])) {
+        if (inv is! Map) continue;
+        final status = '${inv['status'] ?? ''}'.toLowerCase();
+        final proof = '${inv['proof_status'] ?? ''}'.toLowerCase();
+        if (status != 'paid' && proof != 'submitted') {
+          out.add({...Map<String, dynamic>.from(inv), 'student_name': s['student_name']});
+        }
+      }
+    }
+    return out;
+  }
+
+  /// One UPI payment and one screenshot for every payable bill.
+  Future<void> _payAll() async {
+    final bills = _payable;
+    if (bills.isEmpty) return;
+    final ids = bills.map((b) => b['id'] is int ? b['id'] as int : int.tryParse('${b['id']}') ?? 0).where((i) => i > 0).toList();
+    final total = bills.fold<double>(0, (t, b) => t + ((b['amount'] as num?)?.toDouble() ?? 0));
+    final upi = _fees?['upi'] is Map ? Map<String, dynamic>.from(_fees!['upi'] as Map) : const <String, dynamic>{};
+    final note = ids.length <= 4 ? 'NDA bills ${ids.join('+')}' : 'NDA ${ids.length} bills ${ids.first}';
+    final lines = [
+      for (final b in bills)
+        '${b['student_name'] ?? ''} · ${b['course_name'] ?? 'Fee'} · ${b['billing_period'] ?? ''} · ${FeeFormat.rupees((b['amount'] as num?)?.toDouble() ?? 0)}',
+    ];
+    final upiId = '${upi['id'] ?? ''}'.trim();
+    final upload = upiId.isEmpty
+        ? true
+        : await showUpiPaySheet(
+            context,
+            upiId: upiId,
+            payeeName: '${upi['name'] ?? 'Nadanaloga'}',
+            amount: total,
+            note: note,
+            forWhat: '${ids.length} bills',
+          );
+    if (!upload || !mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => StudentPaymentProofScreen(
+        invoiceId: ids.first,
+        groupInvoiceIds: ids,
+        groupLines: lines,
+        groupTotal: total,
+      ),
+    ));
+    if (mounted) _load();
   }
 
   Future<void> _pay(int invoiceId) async {
@@ -262,6 +315,18 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
                       : '${FeeFormat.rupees(verifying)} being verified',
                   style: AppTextStyles.caption
                       .copyWith(color: AppColors.info)),
+            if (!_onlinePayments && _payable.length > 1) ...[
+              const SizedBox(height: 10),
+              FilledButton.icon(
+                onPressed: _payAll,
+                icon: const Icon(Icons.payments_outlined, size: 18),
+                label: Text('Pay all ${FeeFormat.rupees(_payable.fold<double>(0, (t, b) => t + ((b['amount'] as num?)?.toDouble() ?? 0)))} (${_payable.length} bills)'),
+                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(44)),
+              ),
+              const SizedBox(height: 4),
+              Text('One payment and one screenshot for all of them, or pay each bill below.',
+                  style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+            ],
             if (!allPaid && paid > 0)
               Text('${FeeFormat.rupees(paid)} already paid this month',
                   style: AppTextStyles.caption

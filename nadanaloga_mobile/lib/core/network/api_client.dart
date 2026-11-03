@@ -577,6 +577,26 @@ class ApiClient {
     );
   }
 
+  /// One screenshot paying several bills (Fees -> Pay all). The academy
+  /// approves or rejects them together.
+  Future<Response> submitPaymentProofs({
+    required List<int> invoiceIds,
+    required Uint8List proofBytes,
+    required String proofFilename,
+    String? transactionId,
+    String? paymentDate,
+  }) {
+    final formData = FormData.fromMap({
+      'proof': MultipartFile.fromBytes(proofBytes, filename: proofFilename),
+      'invoice_ids': invoiceIds.join(','),
+      if (transactionId != null && transactionId.isNotEmpty) 'transaction_id': transactionId,
+      if (paymentDate != null && paymentDate.isNotEmpty) 'payment_date': paymentDate,
+    });
+    return _dio.post('${ApiEndpoints.apiPrefix}/payment-proofs',
+        data: formData,
+        options: Options(contentType: 'multipart/form-data', validateStatus: (_) => true));
+  }
+
   Future<Response> getInvoicePaymentProof(int invoiceId) {
     return _dio.get(ApiEndpoints.invoicePaymentProof(invoiceId));
   }

@@ -20,7 +20,7 @@ Future<bool> showUpiPaySheet(
   required String upiId,
   required String payeeName,
   required double amount,
-  required int invoiceId,
+  required String note,
   required String forWhat,
 }) async {
   final result = await showModalBottomSheet<bool>(
@@ -31,7 +31,7 @@ Future<bool> showUpiPaySheet(
       upiId: upiId,
       payeeName: payeeName,
       amount: amount,
-      invoiceId: invoiceId,
+      note: note,
       forWhat: forWhat,
     ),
   );
@@ -59,14 +59,15 @@ class _UpiPaySheet extends StatefulWidget {
   final String upiId;
   final String payeeName;
   final double amount;
-  final int invoiceId;
+  /// Payment note the family's app shows, e.g. "NDA bill 683".
+  final String note;
   final String forWhat;
 
   const _UpiPaySheet({
     required this.upiId,
     required this.payeeName,
     required this.amount,
-    required this.invoiceId,
+    required this.note,
     required this.forWhat,
   });
 
@@ -80,7 +81,7 @@ class _UpiPaySheetState extends State<_UpiPaySheet> {
   String? _hint;
   bool _hintIsError = false;
 
-  String get _note => 'NDA bill ${widget.invoiceId}';
+  String get _note => widget.note;
 
   String get _query {
     final p = {

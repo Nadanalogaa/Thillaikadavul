@@ -12,8 +12,20 @@ import '../../../di/injection_container.dart';
 
 class StudentPaymentProofScreen extends StatefulWidget {
   final int invoiceId;
+  /// "Pay all": one screenshot for these bills (lines shown, total paid).
+  final List<int>? groupInvoiceIds;
+  final List<String>? groupLines;
+  final double? groupTotal;
 
-  const StudentPaymentProofScreen({super.key, required this.invoiceId});
+  const StudentPaymentProofScreen({
+    super.key,
+    required this.invoiceId,
+    this.groupInvoiceIds,
+    this.groupLines,
+    this.groupTotal,
+  });
+
+  bool get isGroup => (groupInvoiceIds?.length ?? 0) > 1;
 
   @override
   State<StudentPaymentProofScreen> createState() =>
@@ -32,7 +44,11 @@ class _StudentPaymentProofScreenState extends State<StudentPaymentProofScreen> {
   @override
   void initState() {
     super.initState();
-    _loadInvoice();
+    if (widget.isGroup) {
+      _loading = false;
+    } else {
+      _loadInvoice();
+    }
   }
 
   @override
@@ -68,13 +84,22 @@ class _StudentPaymentProofScreenState extends State<StudentPaymentProofScreen> {
   }
 
   Future<void> _submitProof() async {
-    if (_proofFile == null || _invoice == null) return;
+    if (_proofFile == null || (_invoice == null && !widget.isGroup)) return;
 
     setState(() => _submitting = true);
     try {
       final paymentDate =
           _paymentDate?.toIso8601String().split('T').first ?? '';
-      final response = await sl<ApiClient>().submitInvoicePaymentProof(
+      final txn = _transactionController.text.trim();
+      final response = widget.isGroup
+          ? await sl<ApiClient>().submitPaymentProofs(
+              invoiceIds: widget.groupInvoiceIds!,
+              proofBytes: await _proofFile!.readAsBytes(),
+              proofFilename: _proofFile!.name,
+              transactionId: txn.isEmpty ? null : txn,
+              paymentDate: paymentDate.isEmpty ? null : paymentDate,
+            )
+          : await sl<ApiClient>().submitInvoicePaymentProof(
         invoiceId: _invoice!.id,
         proofBytes: await _proofFile!.readAsBytes(),
         proofFilename: _proofFile!.name,
@@ -117,7 +142,7 @@ class _StudentPaymentProofScreenState extends State<StudentPaymentProofScreen> {
   }
 
   Future<void> _shareProof() async {
-    if (_proofFile == null || _invoice == null) return;
+    if (_proofFile == null || _invoice == null) return; // single bill only
     final text =
         'Payment proof for Invoice #${_invoice!.id}\nAmount: ₹${(_invoice!.amount ?? 0).toStringAsFixed(0)}\nCourse: ${_invoice!.courseName ?? 'N/A'}\nDate: ${_paymentDate?.toIso8601String().split('T').first ?? 'N/A'}\nTxn ID: ${_transactionController.text.trim().isEmpty ? 'N/A' : _transactionController.text.trim()}';
 
@@ -146,14 +171,37 @@ class _StudentPaymentProofScreenState extends State<StudentPaymentProofScreen> {
       appBar: AppBar(title: const Text('Submit Payment Proof')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _invoice == null
+          : (_invoice == null && !widget.isGroup)
               ? const Center(child: Text('Invoice not found'))
               : SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _InvoiceSummaryCard(invoice: _invoice!),
+                      if (widget.isGroup)
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Paying ${widget.groupInvoiceIds!.length} bills together',
+                                    style: AppTextStyles.labelLarge),
+                                const SizedBox(height: 6),
+                                for (final l in widget.groupLines ?? const <String>[])
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 2),
+                                    child: Text(l, style: AppTextStyles.bodyMedium),
+                                  ),
+                                const Divider(),
+                                Text('Total ₹${(widget.groupTotal ?? 0).toStringAsFixed(0)}',
+                                    style: AppTextStyles.h4),
+                              ],
+                            ),
+                          ),
+                        )
+                      else
+                        _InvoiceSummaryCard(invoice: _invoice!),
                       const SizedBox(height: 16),
                       OutlinedButton.icon(
                         onPressed: _pickImage,
@@ -225,7 +273,7 @@ class _StudentPaymentProofScreenState extends State<StudentPaymentProofScreen> {
                             : const Text('Submit Proof'),
                       ),
                       const SizedBox(height: 12),
-                      if (_submitted)
+                      if (_submitted && !widget.isGroup)
                         OutlinedButton.icon(
                           onPressed: _shareProof,
                           icon: const Icon(Icons.share),

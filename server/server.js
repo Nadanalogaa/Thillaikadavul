@@ -701,6 +701,9 @@ async function startServer() {
                 for (const [col, type] of ledgerCols) {
                     await client.query(`ALTER TABLE invoice_payments ADD COLUMN IF NOT EXISTS ${col} ${type}`);
                 }
+                // One screenshot can pay several bills (a family's "Pay all"):
+                // its rows share a proof_group and are approved together.
+                await client.query(`ALTER TABLE invoice_payments ADD COLUMN IF NOT EXISTS proof_group VARCHAR(40)`);
                 await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS prorated_from DATE`);
                 await client.query(`CREATE SEQUENCE IF NOT EXISTS payment_receipt_seq START 1`);
                 console.log('[DB] ✓ Fee ledger columns + receipt sequence ready');
@@ -1392,6 +1395,9 @@ async function startServer() {
     // nothing reach families until it switches things on.
     const UNKNOWN_EVENT_CHANNELS = { in_app: false, push: false, email: false };
     const channelsFor = async (eventKey, title) => {
+        // Alerts meant for the academy's own admins are not family
+        // notifications; the settings page does not govern them.
+        if (eventKey === 'admin') return { in_app: true, push: true, email: false };
         const key = eventKey || eventKeyForTitle(title);
         if (!key) return UNKNOWN_EVENT_CHANNELS;
         const map = await loadNotificationSettings();
@@ -7076,11 +7082,13 @@ Please review and approve this registration in the admin panel.`;
     // existingPaymentId: approve an uploaded proof in place instead of inserting.
     const recordPayments = async ({
         invoiceIds, method, transactionId = null, collectedBy = null, notes = null,
-        existingPaymentId = null, notify = true,
+        existingPaymentId = null, existingByInvoice = null, notify = true,
     }) => {
         const ids = [...new Set((invoiceIds || []).map(Number).filter(Number.isInteger))];
         if (ids.length === 0) throw ledgerError(400, 'No bills selected.');
         if (existingPaymentId && ids.length !== 1) throw ledgerError(400, 'A proof covers exactly one bill.');
+        // existingByInvoice: { invoiceId: paymentId } — a family's one screenshot
+        // for several bills; each submitted row is approved under one receipt.
         const client = await pool.connect();
         const lines = [];
         let receiptNumber;
@@ -7102,13 +7110,14 @@ Please review and approve this registration in the admin panel.`;
                 `SELECT 'NDA-R-' || lpad(nextval('payment_receipt_seq')::text, 6, '0') AS r`
             )).rows[0].r;
             for (const r of inv.rows) {
-                if (existingPaymentId) {
+                const proofRowId = existingPaymentId || (existingByInvoice && existingByInvoice[r.id]) || null;
+                if (proofRowId) {
                     const upd = await client.query(
                         `UPDATE invoice_payments
                          SET status = 'approved', approved_at = NOW(), paid_at = NOW(), receipt_number = $1,
                              collected_by = $2, collected_by_name = $3, notes = COALESCE($4, notes), updated_at = NOW()
                          WHERE id = $5 AND invoice_id = $6 AND status = 'submitted' RETURNING id`,
-                        [receiptNumber, collectedBy?.id || null, collectedBy?.name || null, notes, existingPaymentId, r.id]
+                        [receiptNumber, collectedBy?.id || null, collectedBy?.name || null, notes, proofRowId, r.id]
                     );
                     if (upd.rows.length === 0) throw ledgerError(409, 'This payment proof was already processed.');
                 } else {
@@ -7739,6 +7748,92 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // --- Invoice Payment Proof API Endpoints ---
+    // One screenshot for several bills ("Pay all" in the app). Each bill gets
+    // a 'submitted' row sharing the screenshot and a proof_group; the admin
+    // approves or rejects them together. Bills must be unpaid, in the
+    // family's household, and not already waiting for a decision.
+    app.post('/api/payment-proofs', ensureAuthenticated, uploadPaymentProof.single('proof'), async (req, res) => {
+        try {
+            if (!req.file) return res.status(400).json({ message: 'Payment screenshot is required.' });
+            const ids = [...new Set(String(req.body.invoice_ids || '').split(',').map(Number).filter(Number.isInteger))];
+            if (ids.length === 0) return res.status(400).json({ message: 'No bills selected.' });
+            const user = req.session.user;
+            const isAdmin = String(user.role || '').toLowerCase() === 'admin' || user.is_super_admin === true;
+            const { studentIds } = await householdFor(req);
+            const inv = (await pool.query(
+                `SELECT i.*, (SELECT status FROM invoice_payments WHERE invoice_id = i.id ORDER BY id DESC LIMIT 1) AS last_proof
+                   FROM invoices i WHERE i.id = ANY($1::int[])`, [ids])).rows;
+            if (inv.length !== ids.length) return res.status(404).json({ message: 'One or more bills were not found.' });
+            for (const i of inv) {
+                if (!isAdmin && !studentIds.map(Number).includes(Number(i.student_id))) {
+                    return res.status(403).json({ message: 'You can only pay bills of your own family.' });
+                }
+                if (String(i.status).toLowerCase() === 'paid') return res.status(409).json({ message: `Bill #${i.id} is already paid.` });
+                if (i.last_proof === 'submitted') return res.status(409).json({ message: `Bill #${i.id} already has a screenshot waiting to be checked.` });
+            }
+            const proofUrl = `/uploads/payments/${req.file.filename}`;
+            const group = ids.length > 1 ? uuidv4() : null;
+            const { transaction_id, payment_date } = req.body;
+            const rows = [];
+            for (const i of inv) {
+                rows.push((await pool.query(
+                    `INSERT INTO invoice_payments (invoice_id, student_id, amount, payment_method, transaction_id, payment_date, proof_url, status, proof_group)
+                     VALUES ($1, $2, $3, 'UPI', $4, $5, $6, 'submitted', $7) RETURNING *`,
+                    [i.id, i.student_id, i.amount, transaction_id || null, payment_date || null, proofUrl, group])).rows[0]);
+            }
+            const total = inv.reduce((s, i) => s + Number(i.amount || 0), 0);
+            res.status(201).json({ success: true, payments: rows, total });
+            (async () => {
+                const admins = await getActiveAdmins();
+                for (const a of admins) {
+                    createNotificationForUser(a.id, 'Payment Awaiting Verification',
+                        `${user.name || 'A family'} sent a payment screenshot for ${inv.length} bill${inv.length === 1 ? '' : 's'} (${inr(total)}). Please verify it under Fees.`,
+                        'Info', 'admin');
+                }
+            })().catch(e => console.error('[PaymentProofs] notify failed:', e.message));
+        } catch (error) {
+            console.error('Error submitting payment proofs:', error);
+            res.status(500).json({ message: 'Server error submitting the screenshot.' });
+        }
+    });
+
+    // Screenshots waiting for the academy, one entry per screenshot (a group
+    // of bills or a single bill), with the family and every bill it covers.
+    app.get('/api/payment-proofs/pending', ensureAdmin, async (req, res) => {
+        try {
+            const rows = (await pool.query(
+                `SELECT ip.id, ip.invoice_id, ip.amount, ip.transaction_id, ip.payment_date, ip.proof_url,
+                        ip.submitted_at, ip.proof_group, i.course_name, i.billing_period, i.status AS invoice_status,
+                        u.id AS student_id, u.name AS student_name, u.user_id, u.contact_number, u.parent_id,
+                        p.name AS parent_name
+                   FROM invoice_payments ip
+                   JOIN invoices i ON i.id = ip.invoice_id
+                   LEFT JOIN users u ON u.id = ip.student_id
+                   LEFT JOIN users p ON p.id = u.parent_id
+                  WHERE ip.status = 'submitted'
+                  ORDER BY ip.submitted_at DESC, ip.id`)).rows;
+            const groups = new Map();
+            for (const r of rows) {
+                const key = r.proof_group || `p${r.id}`;
+                if (!groups.has(key)) {
+                    groups.set(key, {
+                        key, payment_id: r.id, proof_url: r.proof_url, transaction_id: r.transaction_id,
+                        payment_date: r.payment_date, submitted_at: r.submitted_at,
+                        family: r.parent_name || r.student_name, phone: r.contact_number, total: 0, bills: [],
+                    });
+                }
+                const g = groups.get(key);
+                g.total += Number(r.amount || 0);
+                g.bills.push({ invoice_id: r.invoice_id, student_id: r.student_id, student_name: r.student_name,
+                    user_id: r.user_id, course_name: r.course_name, billing_period: r.billing_period, amount: Number(r.amount || 0) });
+            }
+            res.json([...groups.values()]);
+        } catch (error) {
+            console.error('Error listing pending payment proofs:', error);
+            res.status(500).json({ message: 'Server error listing payment screenshots.' });
+        }
+    });
+
     app.post('/api/invoices/:id/payment-proof', ensureAuthenticated, uploadPaymentProof.single('proof'), async (req, res) => {
         try {
             const { id } = req.params;
@@ -7788,7 +7883,7 @@ Please review and approve this registration in the admin panel.`;
                             admin.id,
                             'Payment Awaiting Verification',
                             `${displayName} submitted payment proof for Invoice #${id}. Please verify and approve.`,
-                            'Info'
+                            'Info', 'admin'
                         );
                     }
                     console.log(`[InvoicePayment] Notified ${admins.length} admins for invoice #${id}`);
@@ -7866,15 +7961,22 @@ Please review and approve this registration in the admin panel.`;
             const payment = (await pool.query('SELECT * FROM invoice_payments WHERE id = $1', [id])).rows[0];
             if (!payment) return res.status(404).json({ message: 'Invoice payment not found' });
 
+            // A screenshot that paid several bills is decided as one.
+            const group = payment.proof_group
+                ? (await pool.query(`SELECT * FROM invoice_payments WHERE proof_group = $1 AND status = 'submitted' ORDER BY id`,
+                    [payment.proof_group])).rows
+                : [payment];
             if (status === 'approved') {
                 // Approving a proof goes through the ledger like every other payment:
                 // receipt number, approving admin, bill marked paid, family notified,
                 // and it refuses if the bill was already paid some other way.
+                const rows = group.length ? group : [payment];
                 const receipt = await recordPayments({
-                    invoiceIds: [payment.invoice_id], method: payment.payment_method || 'UPI',
+                    invoiceIds: rows.map(r => r.invoice_id), method: payment.payment_method || 'UPI',
                     transactionId: payment.transaction_id || null,
                     collectedBy: { id: req.session.user.id, name: req.session.user.name },
-                    notes: notes || null, existingPaymentId: payment.id,
+                    notes: notes || null,
+                    existingByInvoice: Object.fromEntries(rows.map(r => [r.invoice_id, r.id])),
                 });
                 const updated = (await pool.query('SELECT * FROM invoice_payments WHERE id = $1', [id])).rows[0];
                 return res.json({ ...updated, receipt_number: receipt.receiptNumber });
@@ -7884,11 +7986,13 @@ Please review and approve this registration in the admin panel.`;
                     message: 'This payment is already approved. To undo it, reverse its receipt instead.',
                 });
             }
+            const groupIds = (group.length ? group : [payment]).map(r => r.id);
+            if (!groupIds.includes(payment.id)) groupIds.push(payment.id);
             const result = await pool.query(
-                `UPDATE invoice_payments SET status = $1, notes = $2, updated_at = NOW() WHERE id = $3 RETURNING *`,
-                [status, notes || null, id]
+                `UPDATE invoice_payments SET status = $1, notes = $2, updated_at = NOW() WHERE id = ANY($3::int[]) RETURNING *`,
+                [status, notes || null, groupIds]
             );
-            res.json(result.rows[0]);
+            res.json(result.rows.find(r => r.id === payment.id) || result.rows[0]);
 
             if (status === 'rejected' && payment.student_id) {
                 (async () => {
@@ -7896,7 +8000,7 @@ Please review and approve this registration in the admin panel.`;
                         const c = await resolveFeeContact(payment.student_id);
                         if (c) {
                             createNotificationForUser(c.userId, 'Payment proof not accepted',
-                                'Your payment proof could not be verified. Please contact the office or pay again.', 'Warning');
+                                `Your payment screenshot could not be verified${notes ? `: ${notes}` : ''}. Please pay or upload again.`, 'Warning');
                         }
                     } catch (e) {
                         console.error('[InvoicePayment] Error notifying rejection:', e.message);

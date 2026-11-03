@@ -6,6 +6,7 @@ import AdminLayout from '../../components/admin/AdminLayout';
 import TabButton from '../../components/admin/TabButton';
 import { useTheme } from '../../contexts/ThemeContext';
 import FeesRosterPanel from '../../components/admin/fees/FeesRosterPanel';
+import PaymentsToVerifyPanel from '../../components/admin/fees/PaymentsToVerifyPanel';
 import { Link } from 'react-router-dom';
 
 type ActiveTab = 'fees' | 'grades';
@@ -17,6 +18,8 @@ const FeeManagementPage: React.FC = () => {
     const [grades, setGrades] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [message, setMessage] = useState<string | null>(null);
+    // Bumped after a payment is approved so the roster reloads.
+    const [rosterKey, setRosterKey] = useState(0);
 
     const loadGrades = useCallback(async () => {
         setLoading(true);
@@ -68,7 +71,12 @@ const FeeManagementPage: React.FC = () => {
                 </nav>
             </div>
 
-            {activeTab === 'fees' && <FeesRosterPanel />}
+            {activeTab === 'fees' && (
+                <>
+                    <PaymentsToVerifyPanel onChanged={() => setRosterKey(k => k + 1)} />
+                    <FeesRosterPanel key={rosterKey} />
+                </>
+            )}
 
             {activeTab === 'grades' && (
                 loading ? (
