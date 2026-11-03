@@ -23,6 +23,7 @@ Future<bool> showUpiPaySheet(
   required String note,
   required String forWhat,
   Map<String, String> extra = const {},
+  bool prefillAmount = true,
 }) async {
   final result = await showModalBottomSheet<bool>(
     context: context,
@@ -35,6 +36,7 @@ Future<bool> showUpiPaySheet(
       note: note,
       forWhat: forWhat,
       extra: extra,
+      prefillAmount: prefillAmount,
     ),
   );
   return result == true;
@@ -67,9 +69,14 @@ class _UpiPaySheet extends StatefulWidget {
   /// Extra link parameters from the server, e.g. merchant code `mc` and
   /// reference `tr` that a bank merchant ID needs.
   final Map<String, String> extra;
+  /// False for a bank's static merchant ID: the link carries no amount or
+  /// note (Google Pay rejects an unsigned merchant link with an amount),
+  /// and the family types the amount shown here.
+  final bool prefillAmount;
 
   const _UpiPaySheet({
     this.extra = const {},
+    this.prefillAmount = true,
     required this.upiId,
     required this.payeeName,
     required this.amount,
@@ -93,10 +100,10 @@ class _UpiPaySheetState extends State<_UpiPaySheet> {
     final p = {
       'pa': widget.upiId,
       'pn': widget.payeeName,
-      'am': widget.amount.toStringAsFixed(2),
-      'cu': 'INR',
-      'tn': _note,
       ...widget.extra,
+      if (widget.prefillAmount) 'am': widget.amount.toStringAsFixed(2),
+      'cu': 'INR',
+      if (widget.prefillAmount) 'tn': _note,
     };
     return p.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&');
   }
@@ -148,6 +155,29 @@ class _UpiPaySheetState extends State<_UpiPaySheet> {
                 style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
             const SizedBox(height: 16),
 
+            if (!widget.prefillAmount) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.edit_note, color: AppColors.warning),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'In your UPI app, enter ${FeeFormat.rupees(widget.amount)} as the amount'
+                        ' and "$_note" as the note.',
+                        style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             Text('1. Choose your UPI app', style: AppTextStyles.labelLarge),
             const SizedBox(height: 8),
             GridView.count(

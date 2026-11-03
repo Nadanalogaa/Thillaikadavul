@@ -15,6 +15,7 @@ const BLANK: AppVersionSettings = {
   upi_payee_name: '',
   upi_merchant_code: '',
   upi_txn_ref: '',
+  upi_prefill_amount: 'no',
 };
 
 const AppUpdatePage: React.FC = () => {
@@ -159,6 +160,13 @@ const AppUpdatePage: React.FC = () => {
             <label className={label} htmlFor="upitr">QR reference (from the bank's QR)</label>
             <input id="upitr" value={form.upi_txn_ref || ''} onChange={e => set('upi_txn_ref', e.target.value.trim())}
               placeholder="STQD…" className="form-input w-full text-sm" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={label} htmlFor="upiprefill">Fill in the amount in the UPI app</label>
+            <select id="upiprefill" value={form.upi_prefill_amount || 'no'} onChange={e => set('upi_prefill_amount', e.target.value)} className="form-select w-full text-sm">
+              <option value="no">No — the family types the amount (works with a bank's merchant QR)</option>
+              <option value="yes">Yes — amount filled in (only if the bank provides signed links)</option>
+            </select>
           </div>
         </div>
       </section>

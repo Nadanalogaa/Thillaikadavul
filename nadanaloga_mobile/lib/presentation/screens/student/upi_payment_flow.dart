@@ -66,6 +66,8 @@ Future<void> payBillsByUpi(
       extra: upi['extra'] is Map
           ? (upi['extra'] as Map).map((k, v) => MapEntry('$k', '$v'))
           : const <String, String>{},
+      // Off by default for a bank merchant ID (see the server's upi_prefill_amount).
+      prefillAmount: upi['prefill_amount'] == true,
     );
     if (!upload || !context.mounted) return;
   }

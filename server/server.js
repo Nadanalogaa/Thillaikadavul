@@ -3890,12 +3890,14 @@ Please review and approve this registration in the admin panel.`;
                     const st = await readAppSettings({
                         upi_id: APP_VERSION_KEYS.upi_id, upi_payee_name: APP_VERSION_KEYS.upi_payee_name,
                         upi_merchant_code: APP_VERSION_KEYS.upi_merchant_code, upi_txn_ref: APP_VERSION_KEYS.upi_txn_ref,
+                        upi_prefill_amount: APP_VERSION_KEYS.upi_prefill_amount,
                     });
                     // Extra link parameters the app appends as-is (merchant code, reference).
                     const extra = {};
                     if (String(st.upi_merchant_code || '').trim()) extra.mc = String(st.upi_merchant_code).trim();
                     if (String(st.upi_txn_ref || '').trim()) extra.tr = String(st.upi_txn_ref).trim();
-                    return { id: st.upi_id, name: st.upi_payee_name, extra };
+                    return { id: st.upi_id, name: st.upi_payee_name, extra,
+                        prefill_amount: String(st.upi_prefill_amount || '').toLowerCase() === 'yes' };
                 })(),
             });
         } catch (error) {
@@ -5080,6 +5082,11 @@ Please review and approve this registration in the admin panel.`;
         // fails with "receiver's UPI ID not available".
         upi_merchant_code: '8211',
         upi_txn_ref: 'STQD346925817398850995',
+        // 'yes' = the link fills in the amount and note. Off for a bank's
+        // static merchant ID: Google Pay rejects an unsigned merchant link
+        // with an amount, while the same link without one (exactly what the
+        // bank's QR holds) goes through and the family types the amount.
+        upi_prefill_amount: 'no',
     };
 
     const readAppSettings = async (keys) => {

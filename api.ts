@@ -4268,6 +4268,8 @@ export interface AppVersionSettings {
   /** From the bank's merchant QR: merchant category code and reference. */
   upi_merchant_code?: string;
   upi_txn_ref?: string;
+  /** 'yes' fills the amount into the UPI app; 'no' (default) the family types it. */
+  upi_prefill_amount?: string;
 }
 
 export const getAppSettings = async (): Promise<AppVersionSettings> => {
