@@ -6,7 +6,6 @@ import { generateMonthlyInvoicesApi, getBatches, getCourses, getFeesRoster, send
 import { useTheme } from '../../../contexts/ThemeContext';
 import CollectCashModal from './CollectCashModal';
 import ReceiptModal from './ReceiptModal';
-import AddBillModal from './AddBillModal';
 import ProofReviewModal from './ProofReviewModal';
 import { STATUS_LABEL, StatusBadge, formatDateTime, formatDayMonth, formatRupees, recentBillingPeriods } from './feeUi';
 
@@ -77,7 +76,6 @@ const FeesRosterPanel: React.FC = () => {
     // Admin records a UPI payment whose screenshot came on WhatsApp.
     const [upiFor, setUpiFor] = useState<{ student_id: number; name: string } | null>(null);
     const [receiptNo, setReceiptNo] = useState<string | null>(null);
-    const [addBillFor, setAddBillFor] = useState<{ student_id: number; name: string } | null>(null);
 
     useEffect(() => {
         (async () => {
@@ -560,12 +558,6 @@ const FeesRosterPanel: React.FC = () => {
                                                     })}
                                                 </ul>
                                             )}
-                                            <div className="mt-3">
-                                                <button type="button" onClick={() => setAddBillFor({ student_id: row.student_id, name: row.name })}
-                                                    className={secondaryBtn}>
-                                                    + Add a bill
-                                                </button>
-                                            </div>
                                         </div>
                                     )}
                                 </li>
@@ -612,11 +604,6 @@ const FeesRosterPanel: React.FC = () => {
                 student={upiFor}
                 onClose={recorded => { setUpiFor(null); if (recorded) load(); }}
                 onViewReceipt={no => { setUpiFor(null); load(); setReceiptNo(no); }}
-            />
-            <AddBillModal
-                student={addBillFor}
-                period={roster?.period || period}
-                onClose={created => { setAddBillFor(null); if (created) load(); }}
             />
             <ReceiptModal
                 receiptNumber={receiptNo}

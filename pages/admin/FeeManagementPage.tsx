@@ -7,9 +7,10 @@ import TabButton from '../../components/admin/TabButton';
 import { useTheme } from '../../contexts/ThemeContext';
 import FeesRosterPanel from '../../components/admin/fees/FeesRosterPanel';
 import PaymentsToVerifyPanel from '../../components/admin/fees/PaymentsToVerifyPanel';
+import ExtraBillsPanel from '../../components/admin/fees/ExtraBillsPanel';
 import { Link } from 'react-router-dom';
 
-type ActiveTab = 'fees' | 'grades';
+type ActiveTab = 'fees' | 'grades' | 'extra';
 
 const FeeManagementPage: React.FC = () => {
     const { theme } = useTheme();
@@ -68,6 +69,7 @@ const FeeManagementPage: React.FC = () => {
                 <nav className="-mb-px flex space-x-6" aria-label="Tabs">
                     <TabButton isActive={activeTab === 'fees'} onClick={() => setActiveTab('fees')}>Fees</TabButton>
                     <TabButton isActive={activeTab === 'grades'} onClick={() => setActiveTab('grades')}>Grades &amp; Fees</TabButton>
+                    <TabButton isActive={activeTab === 'extra'} onClick={() => setActiveTab('extra')}>Extra bills</TabButton>
                 </nav>
             </div>
 
@@ -77,6 +79,8 @@ const FeeManagementPage: React.FC = () => {
                     <FeesRosterPanel key={rosterKey} />
                 </>
             )}
+
+            {activeTab === 'extra' && <ExtraBillsPanel />}
 
             {activeTab === 'grades' && (
                 loading ? (

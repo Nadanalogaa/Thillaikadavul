@@ -707,6 +707,32 @@ async function startServer() {
                 await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS prorated_from DATE`);
                 await client.query(`CREATE SEQUENCE IF NOT EXISTS payment_receipt_seq START 1`);
                 console.log('[DB] ✓ Fee ledger columns + receipt sequence ready');
+                // Extra bills (costumes, grade-exam fees, events, books, uniforms…):
+                // one record per bill the academy raises, either assigned to a set
+                // of students or offered for families to order. Each student's
+                // part is an ordinary invoice linked by charge_id, so it is paid
+                // through the same ledger (cash, screenshot, UPI) as monthly fees.
+                await client.query(`
+                    CREATE TABLE IF NOT EXISTS fee_charges (
+                        id SERIAL PRIMARY KEY,
+                        title TEXT NOT NULL,
+                        category VARCHAR(40) NOT NULL DEFAULT 'Other',
+                        description TEXT,
+                        amount NUMERIC(10,2) NOT NULL,
+                        due_date DATE,
+                        mode VARCHAR(20) NOT NULL DEFAULT 'assigned',
+                        audience JSONB NOT NULL DEFAULT '{"type":"all"}',
+                        options JSONB NOT NULL DEFAULT '[]',
+                        status VARCHAR(20) NOT NULL DEFAULT 'open',
+                        created_by INTEGER,
+                        created_by_name TEXT,
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ DEFAULT NOW()
+                    )`);
+                await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS charge_id INTEGER`);
+                await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS charge_option TEXT`);
+                await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS quantity INTEGER`);
+                await client.query(`CREATE INDEX IF NOT EXISTS idx_invoices_charge ON invoices (charge_id) WHERE charge_id IS NOT NULL`);
             } catch (error) {
                 console.error('[DB] ✗ Fee ledger columns failed:', error.message);
             }
@@ -3852,12 +3878,16 @@ Please review and approve this registration in the admin panel.`;
                 });
             }
             let totalGenerated = 0, totalPaid = 0, totalDue = 0, totalVerifying = 0, earliestDue = null;
+            // Unpaid bills outside this month: extra bills (costumes, uniforms…)
+            // and anything left from earlier months.
+            let otherDue = 0, otherBills = 0;
             for (const inv of invRes.rows) {
                 const s = byStudent.get(inv.student_id);
                 if (!s) continue;
                 const amt = Number(inv.amount || 0);
                 const status = String(inv.status || '').toLowerCase();
                 s.invoices.push({ ...inv, amount: amt, status });
+                if (inv.billing_period !== period && status !== 'paid') { otherDue += amt; otherBills += 1; }
                 if (inv.billing_period === period) {
                     s.month_generated += amt; totalGenerated += amt;
                     if (status === 'paid') { s.month_paid += amt; totalPaid += amt; }
@@ -3877,6 +3907,8 @@ Please review and approve this registration in the admin panel.`;
                 total_paid: totalPaid,
                 total_due: totalDue,
                 total_verifying: totalVerifying,
+                other_due: otherDue,
+                other_bills: otherBills,
                 has_bill: totalGenerated > 0,
                 all_paid: totalGenerated > 0 && totalDue === 0,
                 due_date: earliestDue,
@@ -4070,6 +4102,263 @@ Please review and approve this registration in the admin panel.`;
 
     // Everything a family still owes (any month) — what "Collect cash" shows, so
     // one handover can settle several children / months at once.
+    // ------------------------------------------------------------------
+    // Extra bills (fee_charges). See the table comment in the migrations.
+    // ------------------------------------------------------------------
+    const CHARGE_CATEGORIES = ['Costume', 'Grade exam fee', 'Event', 'Book materials', 'Uniform', 'Other'];
+
+    /** Active students an audience covers: all, course, batch, grade or students. */
+    const audienceStudentIds = async (aud) => {
+        const type = String(aud && aud.type || 'all');
+        const ids = (Array.isArray(aud && aud.ids) ? aud.ids : []).map(Number).filter(Number.isInteger);
+        const active = `LOWER(TRIM(u.role)) = 'student' AND u.is_deleted = false AND (u.status IS NULL OR LOWER(u.status) = 'active')`;
+        let rows;
+        if (type === 'all') {
+            rows = (await pool.query(`SELECT u.id FROM users u WHERE ${active}`)).rows;
+        } else if (!ids.length) {
+            rows = [];
+        } else if (type === 'course') {
+            // A grade in the course, or the course on the student's list.
+            rows = (await pool.query(
+                `SELECT DISTINCT u.id FROM users u
+                  WHERE ${active} AND (
+                        EXISTS (SELECT 1 FROM student_course_grades g WHERE g.student_id = u.id AND g.course_id = ANY($1::int[]))
+                     OR EXISTS (SELECT 1 FROM courses c WHERE c.id = ANY($1::int[]) AND u.courses ILIKE '%' || c.name || '%'))`,
+                [ids])).rows;
+        } else if (type === 'batch') {
+            rows = (await pool.query(
+                `SELECT DISTINCT u.id FROM users u
+                   JOIN batches b ON u.id = ANY(b.student_ids) AND b.id = ANY($1::int[])
+                  WHERE ${active}`, [ids])).rows;
+        } else if (type === 'grade') {
+            rows = (await pool.query(
+                `SELECT DISTINCT u.id FROM users u
+                   JOIN student_course_grades g ON g.student_id = u.id AND g.grade_id = ANY($1::int[])
+                  WHERE ${active}`, [ids])).rows;
+        } else if (type === 'students') {
+            rows = (await pool.query(`SELECT u.id FROM users u WHERE ${active} AND u.id = ANY($1::int[])`, [ids])).rows;
+        } else {
+            rows = [];
+        }
+        return [...new Set(rows.map(r => r.id))];
+    };
+
+    /** "All students" / "Course: Bharatham" / "3 students" — for lists. */
+    const describeAudience = async (aud) => {
+        const type = String(aud && aud.type || 'all');
+        const ids = (Array.isArray(aud && aud.ids) ? aud.ids : []).map(Number);
+        if (type === 'all') return 'All students';
+        const q = {
+            course: ['SELECT name FROM courses WHERE id = ANY($1::int[]) ORDER BY name', 'Course'],
+            batch: ['SELECT batch_name AS name FROM batches WHERE id = ANY($1::int[]) ORDER BY batch_name', 'Batch'],
+            grade: [`SELECT c.name || ' · ' || g.name AS name FROM grades g LEFT JOIN courses c ON c.id = g.course_id WHERE g.id = ANY($1::int[]) ORDER BY 1`, 'Grade'],
+            students: ['SELECT name FROM users WHERE id = ANY($1::int[]) ORDER BY name', 'Students'],
+        }[type];
+        if (!q) return type;
+        const names = (await pool.query(q[0], [ids])).rows.map(r => r.name);
+        if (type === 'students' && names.length > 3) return `${names.length} students`;
+        return `${q[1]}: ${names.join(', ') || '—'}`;
+    };
+
+    const chargeView = async (c) => {
+        const stats = (await pool.query(
+            `SELECT COUNT(*)::int AS bills,
+                    COUNT(*) FILTER (WHERE LOWER(status) = 'paid')::int AS paid,
+                    COALESCE(SUM(amount) FILTER (WHERE LOWER(status) = 'paid'), 0) AS paid_amount,
+                    COALESCE(SUM(amount) FILTER (WHERE LOWER(status) <> 'paid'), 0) AS due_amount
+               FROM invoices WHERE charge_id = $1`, [c.id])).rows[0];
+        return {
+            ...c,
+            amount: Number(c.amount),
+            options: Array.isArray(c.options) ? c.options : [],
+            audience_label: await describeAudience(c.audience),
+            bills: stats.bills, paid: stats.paid,
+            paid_amount: Number(stats.paid_amount), due_amount: Number(stats.due_amount),
+        };
+    };
+
+    // Tell each family once about new bills (follows the "fees ready" setting).
+    const notifyNewBills = async (studentIds, title, amountFor) => {
+        const byContact = new Map();
+        for (const sid of studentIds) {
+            const c = await resolveFeeContact(sid);
+            if (!c) continue;
+            if (!byContact.has(c.userId)) byContact.set(c.userId, { c, total: 0 });
+            byContact.get(c.userId).total += amountFor(sid);
+        }
+        for (const { c, total } of byContact.values()) {
+            createNotificationForUser(c.userId, 'New invoice', `${title}: ${inr(total)} to pay in the app.`, 'Info', 'fees.invoice_ready');
+            if (c.email) sendEmailBackground(c.email, c.emailName, `New bill - ${title}`,
+                `A new bill has been added for your family.\n\n${title}: ${inr(total)}\n\nYou can pay it in the Nadanaloga app under Fees.`, 'fees.invoice_ready');
+        }
+    };
+
+    app.get('/api/fee-charges', ensureAdmin, async (req, res) => {
+        try {
+            const rows = (await pool.query('SELECT * FROM fee_charges ORDER BY created_at DESC, id DESC')).rows;
+            res.json({ categories: CHARGE_CATEGORIES, charges: await Promise.all(rows.map(chargeView)) });
+        } catch (error) {
+            console.error('Error listing extra bills:', error);
+            res.status(500).json({ message: 'Server error listing extra bills.' });
+        }
+    });
+
+    // Create an extra bill. mode 'assigned' bills every student in the audience
+    // now; 'orderable' offers it (e.g. a uniform in sizes) for families to order.
+    app.post('/api/fee-charges', ensureAdmin, async (req, res) => {
+        try {
+            const b = req.body || {};
+            const title = String(b.title || '').trim();
+            const amount = Number(b.amount);
+            const mode = b.mode === 'orderable' ? 'orderable' : 'assigned';
+            const category = CHARGE_CATEGORIES.includes(b.category) ? b.category : 'Other';
+            const audience = { type: String(b.audience && b.audience.type || 'all'), ids: (b.audience && Array.isArray(b.audience.ids) ? b.audience.ids : []).map(Number).filter(Number.isInteger) };
+            const options = (Array.isArray(b.options) ? b.options : [])
+                .map(o => ({ label: String(o.label || '').trim(), amount: o.amount === '' || o.amount == null ? null : Number(o.amount) }))
+                .filter(o => o.label);
+            if (!title) return res.status(400).json({ message: 'Give the bill a title.' });
+            if (!(amount > 0)) return res.status(400).json({ message: 'The amount must be more than zero.' });
+            if (!['all', 'course', 'batch', 'grade', 'students'].includes(audience.type)) return res.status(400).json({ message: 'Choose who the bill is for.' });
+            if (audience.type !== 'all' && audience.ids.length === 0) return res.status(400).json({ message: 'Pick at least one course, batch, grade or student.' });
+            const studentIds = await audienceStudentIds(audience);
+            if (studentIds.length === 0) return res.status(400).json({ message: 'No active students match that choice.' });
+
+            const client = await pool.connect();
+            let charge;
+            try {
+                await client.query('BEGIN');
+                charge = (await client.query(
+                    `INSERT INTO fee_charges (title, category, description, amount, due_date, mode, audience, options, created_by, created_by_name)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+                    [title, category, b.description || null, amount, b.due_date || null, mode,
+                     JSON.stringify(audience), JSON.stringify(options), req.session.user.id, req.session.user.name])).rows[0];
+                if (mode === 'assigned') {
+                    for (const sid of studentIds) {
+                        await client.query(
+                            `INSERT INTO invoices (student_id, course_name, amount, original_amount, currency, issue_date, due_date, billing_period, status, charge_id)
+                             VALUES ($1, $2, $3, $3, 'INR', (NOW() AT TIME ZONE 'Asia/Kolkata')::date, $4, $5, 'pending', $6)`,
+                            [sid, title, amount, b.due_date || null, category, charge.id]);
+                    }
+                }
+                await client.query('COMMIT');
+            } catch (e) {
+                await client.query('ROLLBACK').catch(() => {});
+                throw e;
+            } finally {
+                client.release();
+            }
+            res.status(201).json({ charge: await chargeView(charge), students: studentIds.length });
+            if (mode === 'assigned') notifyNewBills(studentIds, title, () => amount).catch(e => console.error('[Charges] notify failed:', e.message));
+        } catch (error) {
+            console.error('Error creating extra bill:', error);
+            res.status(500).json({ message: 'Server error creating the bill.' });
+        }
+    });
+
+    // One extra bill: who it is for and who has paid / ordered.
+    app.get('/api/fee-charges/:id', ensureAdmin, async (req, res) => {
+        try {
+            const c = (await pool.query('SELECT * FROM fee_charges WHERE id = $1', [req.params.id])).rows[0];
+            if (!c) return res.status(404).json({ message: 'Bill not found.' });
+            const bills = (await pool.query(
+                `SELECT i.id, i.student_id, i.amount, LOWER(i.status) AS status, i.due_date, i.charge_option, i.quantity, i.created_at,
+                        u.name AS student_name, u.user_id, u.contact_number AS phone, p.name AS parent_name,
+                        lp.receipt_number, lp.payment_method, lp.paid_at
+                   FROM invoices i
+                   JOIN users u ON u.id = i.student_id
+                   LEFT JOIN users p ON p.id = u.parent_id
+                   LEFT JOIN LATERAL (SELECT receipt_number, payment_method, paid_at FROM invoice_payments
+                                       WHERE invoice_id = i.id AND status = 'approved' ORDER BY id DESC LIMIT 1) lp ON true
+                  WHERE i.charge_id = $1
+                  ORDER BY (LOWER(i.status) = 'paid'), u.name`, [c.id])).rows;
+            res.json({ charge: await chargeView(c), bills: bills.map(x => ({ ...x, amount: Number(x.amount) })) });
+        } catch (error) {
+            console.error('Error loading extra bill:', error);
+            res.status(500).json({ message: 'Server error loading the bill.' });
+        }
+    });
+
+    // Close an extra bill: no more orders, and every UNPAID bill from it is
+    // withdrawn. Paid ones (and their receipts) stay.
+    app.post('/api/fee-charges/:id/close', ensureAdmin, async (req, res) => {
+        try {
+            const c = (await pool.query(`UPDATE fee_charges SET status = 'closed', updated_at = NOW() WHERE id = $1 RETURNING *`, [req.params.id])).rows[0];
+            if (!c) return res.status(404).json({ message: 'Bill not found.' });
+            const removed = await pool.query(
+                `DELETE FROM invoices i WHERE i.charge_id = $1 AND LOWER(i.status) <> 'paid'
+                   AND NOT EXISTS (SELECT 1 FROM invoice_payments p WHERE p.invoice_id = i.id AND p.status = 'approved')`, [c.id]);
+            res.json({ charge: await chargeView(c), withdrawn: removed.rowCount });
+        } catch (error) {
+            console.error('Error closing extra bill:', error);
+            res.status(500).json({ message: 'Server error closing the bill.' });
+        }
+    });
+
+    // Family: items it can order (uniforms, books…), per student in the household.
+    app.get('/api/fee-charges-orderable', ensureAuthenticated, async (req, res) => {
+        try {
+            const { studentIds, nameById } = await householdFor(req);
+            const charges = (await pool.query(`SELECT * FROM fee_charges WHERE mode = 'orderable' AND status = 'open' ORDER BY created_at DESC`)).rows;
+            const out = [];
+            for (const c of charges) {
+                const eligible = new Set(await audienceStudentIds(c.audience));
+                const students = studentIds.filter(sid => eligible.has(Number(sid)));
+                if (!students.length) continue;
+                const orders = (await pool.query(
+                    `SELECT id, student_id, charge_option, quantity, amount, LOWER(status) AS status FROM invoices
+                      WHERE charge_id = $1 AND student_id = ANY($2::int[]) ORDER BY id`, [c.id, students])).rows;
+                out.push({
+                    id: c.id, title: c.title, category: c.category, description: c.description,
+                    amount: Number(c.amount), due_date: c.due_date, options: Array.isArray(c.options) ? c.options : [],
+                    students: students.map(sid => ({ id: sid, name: nameById[sid] || 'Student' })),
+                    orders: orders.map(o => ({ ...o, amount: Number(o.amount), student_name: nameById[o.student_id] || '' })),
+                });
+            }
+            res.json(out);
+        } catch (error) {
+            console.error('Error listing orderable items:', error);
+            res.status(500).json({ message: 'Server error listing items.' });
+        }
+    });
+
+    // Family orders an item for one of its students: creates that student's bill.
+    app.post('/api/fee-charges/:id/order', ensureAuthenticated, async (req, res) => {
+        try {
+            const c = (await pool.query(`SELECT * FROM fee_charges WHERE id = $1`, [req.params.id])).rows[0];
+            if (!c || c.mode !== 'orderable' || c.status !== 'open') return res.status(404).json({ message: 'This item is not available to order.' });
+            const sid = Number(req.body && req.body.student_id);
+            const { studentIds } = await householdFor(req);
+            const isAdmin = String(req.session.user.role || '').toLowerCase() === 'admin';
+            if (!isAdmin && !studentIds.map(Number).includes(sid)) return res.status(403).json({ message: 'You can only order for your own family.' });
+            if (!(await audienceStudentIds(c.audience)).includes(sid)) return res.status(400).json({ message: 'This item is not offered for that student.' });
+            const options = Array.isArray(c.options) ? c.options : [];
+            let option = null;
+            if (options.length) {
+                option = options.find(o => o.label === String(req.body.option || ''));
+                if (!option) return res.status(400).json({ message: 'Choose a size / option.' });
+            }
+            const qty = Math.max(1, Math.min(20, parseInt(req.body.quantity, 10) || 1));
+            const unit = option && option.amount != null && Number(option.amount) > 0 ? Number(option.amount) : Number(c.amount);
+            const total = unit * qty;
+            const label = `${c.title}${option ? ` — ${option.label}` : ''}${qty > 1 ? ` × ${qty}` : ''}`;
+            const inv = (await pool.query(
+                `INSERT INTO invoices (student_id, course_name, amount, original_amount, currency, issue_date, due_date, billing_period, status, charge_id, charge_option, quantity)
+                 VALUES ($1, $2, $3, $3, 'INR', (NOW() AT TIME ZONE 'Asia/Kolkata')::date, $4, $5, 'pending', $6, $7, $8) RETURNING *`,
+                [sid, label, total, c.due_date, c.category, c.id, option ? option.label : null, qty])).rows[0];
+            res.status(201).json({ ...inv, amount: Number(inv.amount) });
+            (async () => {
+                const admins = await getActiveAdmins();
+                const who = (await pool.query('SELECT name FROM users WHERE id = $1', [sid])).rows[0];
+                for (const a of admins) {
+                    createNotificationForUser(a.id, 'New order', `${who ? who.name : 'A student'} ordered ${label} (${inr(total)}).`, 'Info', 'admin');
+                }
+            })().catch(e => console.error('[Charges] order notify failed:', e.message));
+        } catch (error) {
+            console.error('Error ordering item:', error);
+            res.status(500).json({ message: 'Server error placing the order.' });
+        }
+    });
+
     app.get('/api/fees/family-due', ensureAdmin, async (req, res) => {
         try {
             const studentId = Number(req.query.student_id);

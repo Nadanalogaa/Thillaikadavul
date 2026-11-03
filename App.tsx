@@ -320,7 +320,8 @@ function App() {
             <Route 
               path="/dashboard/student" 
               element={
-                <UserProtectedRoute allowedRoles={[UserRole.Student]}>
+                // The household home: students, parents, and a teacher who is also a parent.
+                <UserProtectedRoute allowedRoles={[UserRole.Student, UserRole.Parent, UserRole.Teacher]}>
                   <StudentDashboardPage user={currentUser!} onLogout={handleLogout} onUpdate={setCurrentUser} />
                 </UserProtectedRoute>
               }

@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Users, ArrowRight, BookOpen, Calendar } from 'lucide-react';
 import type { User } from '../../types';
 import { useTheme } from '../../contexts/ThemeContext';
+import { getHouseholdFees } from '../../api';
+import FamilyExtraBills from '../../components/student/FamilyExtraBills';
 
 interface ParentDashboardProps {
   user: User;
@@ -13,6 +15,11 @@ const ParentDashboard: React.FC<ParentDashboardProps> = ({ user }) => {
   const navigate = useNavigate();
   const { theme } = useTheme();
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  // Extra bills (costumes, uniforms…) and items to order for the children.
+  const [other, setOther] = useState<{ due: number; bills: number } | null>(null);
+  useEffect(() => {
+    getHouseholdFees().then(f => f && setOther({ due: f.other_due || 0, bills: f.other_bills || 0 })).catch(() => {});
+  }, []);
 
   // Get students array from user object (populated by login API)
   const students = (user as any).students || [];
@@ -51,6 +58,11 @@ const ParentDashboard: React.FC<ParentDashboardProps> = ({ user }) => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {other && (
+          <div className="max-w-2xl mx-auto mb-8">
+            <FamilyExtraBills otherDue={other.due} otherBills={other.bills} dark={theme === 'dark'} payLink={null} />
+          </div>
+        )}
         <div className="text-center mb-12">
           <motion.div
             initial={{ opacity: 0, y: -20 }}

@@ -150,6 +150,9 @@ export interface HouseholdFees {
   total_generated: number;
   total_paid: number;
   total_due: number;
+  /** Unpaid bills outside this month: extra bills (costumes, uniforms…) and older months. */
+  other_due?: number;
+  other_bills?: number;
   has_bill: boolean;
   all_paid: boolean;
   due_date: string | null;

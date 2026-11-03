@@ -22,6 +22,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import type { User, Event, Notice, CourseTimingSlot, StudentEnrollment, Household, HouseholdFees, Batch } from '../../types';
+import FamilyExtraBills from '../../components/student/FamilyExtraBills';
 import { getFamilyStudents, getEvents, getNotices, getCourses, getStudentEnrollmentsForFamily, getHousehold, getHouseholdFees, getBatches } from '../../api';
 import type { Course } from '../../types';
 import UnifiedNotificationBell from '../../components/UnifiedNotificationBell';
@@ -284,6 +285,7 @@ const StudentDashboardHomePage: React.FC = () => {
                         </div>
                       );
                     })()}
+                    {fees && <FamilyExtraBills otherDue={fees.other_due || 0} otherBills={fees.other_bills || 0} dark={theme === 'dark'} />}
                   </section>
                 )}
 
