@@ -317,6 +317,11 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
         children: [
           _header(b),
+          if (b.monthlyFee != null) ...[
+            const SizedBox(height: 10),
+            Text('Batch fee ₹${b.monthlyFee!.toStringAsFixed(0)}/month — everyone here pays this, whatever their grade.',
+                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.success, fontWeight: FontWeight.w600)),
+          ],
           const SizedBox(height: 20),
           Row(
             children: [

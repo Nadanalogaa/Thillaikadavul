@@ -29,6 +29,7 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _maxStudentsController = TextEditingController();
+  final _feeController = TextEditingController();
 
   int? _courseId;
   int? _teacherId;
@@ -101,6 +102,9 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
             _nameController.text = batch.batchName;
             _maxStudentsController.text =
                 batch.maxStudents?.toString() ?? '';
+            _feeController.text = batch.monthlyFee != null
+                ? batch.monthlyFee!.toStringAsFixed(0)
+                : '';
             _courseId = batch.courseId;
             _teacherId = batch.teacherId;
             _locationId = batch.locationId;
@@ -154,6 +158,7 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
   void dispose() {
     _nameController.dispose();
     _maxStudentsController.dispose();
+    _feeController.dispose();
     super.dispose();
   }
 
@@ -280,6 +285,10 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
       'max_students': _maxStudentsController.text.trim().isEmpty
           ? null
           : int.tryParse(_maxStudentsController.text.trim()),
+      // Empty = each student's grade fee.
+      'monthly_fee': (double.tryParse(_feeController.text.trim()) ?? 0) > 0
+          ? double.parse(_feeController.text.trim())
+          : null,
       // Never send `schedule` or `student_ids` from this form: the server
       // merges, so leaving them out keeps the batch's students as they are.
       // Membership is changed only from the batch screen.
@@ -427,6 +436,20 @@ class _BatchFormScreenState extends State<BatchFormScreen> {
                         decoration: const InputDecoration(
                           labelText: 'Max Students',
                           prefixIcon: Icon(Icons.people),
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Batch's own monthly fee (overrides the grade fee)
+                      TextFormField(
+                        controller: _feeController,
+                        decoration: const InputDecoration(
+                          labelText: 'Monthly fee for this batch (₹)',
+                          hintText: 'Empty = each student\'s grade fee',
+                          helperText: 'When set, everyone in this batch pays this, whatever their grade.',
+                          helperMaxLines: 2,
+                          prefixIcon: Icon(Icons.currency_rupee),
                         ),
                         keyboardType: TextInputType.number,
                       ),

@@ -353,6 +353,7 @@ const BatchPanel: React.FC<{
                         <div className={`rounded-lg px-3 py-2 ${dark ? 'bg-emerald-900/40' : 'bg-emerald-50'}`}>
                             <div className="text-xs font-medium uppercase tracking-wide text-emerald-600">Students</div>
                             <div className={`text-xl font-bold ${dark ? 'text-emerald-200' : 'text-emerald-800'}`}>{batch.studentIds.length}{batch.maxStudents ? ` / ${batch.maxStudents}` : ''}</div>
+                            {batch.monthlyFee && <div className={`text-xs font-semibold ${dark ? 'text-emerald-300' : 'text-emerald-700'}`}>Batch fee ₹{batch.monthlyFee.toLocaleString('en-IN')}/month</div>}
                         </div>
                     </div>
                 </div>
@@ -521,6 +522,7 @@ const BatchForm: React.FC<{
     const [locationId, setLocationId] = useState(batch?.locationId ? String(batch.locationId) : '');
     const [studio, setStudio] = useState(batch?.studio || '');
     const [max, setMax] = useState(batch?.maxStudents ? String(batch.maxStudents) : '');
+    const [fee, setFee] = useState(batch?.monthlyFee ? String(batch.monthlyFee) : '');
     const [slots, setSlots] = useState<Record<string, TimeSlot>>(() =>
         Object.fromEntries((batch?.timeSlots || []).map(s => [s.day, s])));
     const [saving, setSaving] = useState(false);
@@ -550,6 +552,7 @@ const BatchForm: React.FC<{
             name, courseId: Number(courseId), teacherId: teacherId ? Number(teacherId) : null,
             timeSlots, mode, locationId: locationId ? Number(locationId) : null, studio,
             maxStudents: max ? Number(max) : null,
+            monthlyFee: Number(fee) > 0 ? Number(fee) : null,
         };
         setSaving(true); setError(null);
         try {
@@ -599,6 +602,10 @@ const BatchForm: React.FC<{
                     </Field>
                     <Field label="Most students" span={2} htmlFor="b-max">
                         <input id="b-max" type="number" min={1} value={max} onChange={e => setMax(e.target.value)} className={inputClass} />
+                    </Field>
+                    <Field label="Monthly fee for this batch (₹)" span={3} htmlFor="b-fee">
+                        <input id="b-fee" type="number" min={1} value={fee} onChange={e => setFee(e.target.value)} className={inputClass} placeholder="Leave empty to use each student's grade fee" />
+                        <p className="mt-1 text-xs text-gray-500">When set, every student in this batch pays this amount, whatever their grade. From next month's bills.</p>
                     </Field>
                 </FieldGrid>
             </Section>

@@ -20,6 +20,8 @@ export interface AdminBatch {
     locationName: string;
     studio: string;
     maxStudents: number | null;
+    /** The batch's own monthly fee; null = each student's grade fee. */
+    monthlyFee: number | null;
 }
 
 export interface AdminStudent {
@@ -75,6 +77,7 @@ export const toAdminBatch = (b: any): AdminBatch => ({
     locationName: b.location_name || '',
     studio: b.studio || '',
     maxStudents: b.max_students ?? null,
+    monthlyFee: b.monthly_fee != null && Number(b.monthly_fee) > 0 ? Number(b.monthly_fee) : null,
 });
 
 export const listBatches = async (): Promise<AdminBatch[]> =>
@@ -110,6 +113,7 @@ export interface BatchInput {
     locationId: number | null;
     studio: string;
     maxStudents: number | null;
+    monthlyFee: number | null;
 }
 
 /** Fields for create/update. Membership is only sent when given. */
@@ -129,6 +133,7 @@ const body = (b: BatchInput, studentIds?: number[]) => {
         location_id: b.locationId,
         studio: b.studio || null,
         max_students: b.maxStudents,
+        monthly_fee: b.monthlyFee,
         ...(studentIds ? { student_ids: studentIds } : {}),
     };
 };

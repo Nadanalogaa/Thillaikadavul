@@ -515,6 +515,9 @@ async function startServer() {
             // Invoice course/grade/batch ids for clean course/batch/grade filtering.
             try {
                 await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS course_id INTEGER`);
+                // A batch can have its own monthly fee (e.g. an adults' batch at a flat
+                // ₹1,500 whatever the grade); empty = the grade's fee applies.
+                await client.query(`ALTER TABLE batches ADD COLUMN IF NOT EXISTS monthly_fee NUMERIC`);
                 await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS grade_id INTEGER`);
                 await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS batch_id INTEGER`);
                 await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS original_amount NUMERIC`);
@@ -1729,6 +1732,13 @@ async function startServer() {
         return best;
     };
 
+    // A student's monthly fee for a course: the batch's own fee when the
+    // student's batch in that course has one, else the grade's fee.
+    const BATCH_FEE_SQL = `(SELECT b.monthly_fee FROM batches b
+        WHERE b.course_id = scg.course_id AND scg.student_id = ANY(b.student_ids) AND b.monthly_fee > 0
+        ORDER BY b.id LIMIT 1)`;
+    const EFFECTIVE_FEE_SQL = `COALESCE(${BATCH_FEE_SQL}, g.monthly_fee)`;
+
     // Create this month's invoice for every active student, from their course +
     // grade + batch fee. Idempotent: one invoice per student+course+month.
     const generateMonthlyInvoices = async () => {
@@ -1742,7 +1752,7 @@ async function startServer() {
         // Grade-based fees: a student's grade in each course.
         const gradeMapRes = await pool.query(`
             SELECT scg.student_id, scg.course_id, scg.grade_id, c.name AS course_name,
-                   g.name AS grade_name, g.monthly_fee, scg.created_at AS enrolled_at
+                   g.name AS grade_name, ${EFFECTIVE_FEE_SQL} AS monthly_fee, scg.created_at AS enrolled_at
             FROM student_course_grades scg
             LEFT JOIN courses c ON scg.course_id = c.id
             LEFT JOIN grades g ON scg.grade_id = g.id
@@ -3268,7 +3278,7 @@ Please review and approve this registration in the admin panel.`;
             if (studentIds.length > 0) {
                 const gradeRows = await pool.query(
                     `SELECT scg.student_id, scg.course_id, c.name AS course_name, g.name AS grade_name,
-                            g.monthly_fee, g.currency,
+                            ${EFFECTIVE_FEE_SQL} AS monthly_fee, g.currency,
                             (SELECT sd.discount_percentage FROM student_discounts sd
                              WHERE sd.student_id = scg.student_id AND sd.course_id = scg.course_id AND sd.is_active = TRUE
                              ORDER BY CASE WHEN sd.discount_type = 'batch' THEN 1 ELSE 2 END, sd.discount_percentage DESC
@@ -3789,7 +3799,7 @@ Please review and approve this registration in the admin panel.`;
                 // the admin student list uses.
                 const gradeRows = await pool.query(
                     `SELECT scg.student_id, c.name AS course_name, g.name AS grade_name,
-                            g.monthly_fee, g.currency,
+                            ${EFFECTIVE_FEE_SQL} AS monthly_fee, g.currency,
                             (SELECT sd.discount_percentage FROM student_discounts sd
                              WHERE sd.student_id = scg.student_id AND sd.course_id = scg.course_id AND sd.is_active = TRUE
                              ORDER BY CASE WHEN sd.discount_type = 'batch' THEN 1 ELSE 2 END, sd.discount_percentage DESC
@@ -4004,7 +4014,7 @@ Please review and approve this registration in the admin panel.`;
 
             const gradesByStudent = new Map();
             for (const g of (await pool.query(`
-                SELECT scg.student_id, scg.course_id, c.name AS course_name, g.name AS grade_name, g.monthly_fee
+                SELECT scg.student_id, scg.course_id, c.name AS course_name, g.name AS grade_name, ${EFFECTIVE_FEE_SQL} AS monthly_fee
                 FROM student_course_grades scg
                 JOIN grades g ON g.id = scg.grade_id AND g.is_active = true
                 LEFT JOIN courses c ON c.id = scg.course_id`)).rows) {
@@ -4728,6 +4738,7 @@ Please review and approve this registration in the admin panel.`;
     // Helper function to parse JSON fields in batch data
     const parseBatchData = (batch) => ({
         ...batch,
+        monthly_fee: batch.monthly_fee != null ? Number(batch.monthly_fee) : null,
         // Tolerant: one row with a non-JSON schedule must not fail the whole list.
         schedule: (() => {
             if (typeof batch.schedule !== 'string') return batch.schedule || [];
@@ -4765,15 +4776,18 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
+    // Batch's own monthly fee: a positive amount, or null (= the grade's fee).
+    const batchFee = (v) => { const n = Number(v); return v !== null && v !== '' && Number.isFinite(n) && n > 0 ? n : null; };
+
     app.post('/api/batches', ensureAdmin, async (req, res) => {
         try {
             const batchData = req.body;
-            const { batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode, location_id, days, start_time, end_time, studio, time_slots } = batchData;
+            const { batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode, location_id, days, start_time, end_time, studio, time_slots, monthly_fee } = batchData;
 
             const result = await pool.query(
-                `INSERT INTO batches (batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode, location_id, days, start_time, end_time, studio, time_slots)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
-                [batch_name, course_id, teacher_id, JSON.stringify(schedule), start_date, end_date, max_students, student_ids || [], mode, location_id || null, days || [], start_time || null, end_time || null, studio || null, JSON.stringify(time_slots || [])]
+                `INSERT INTO batches (batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode, location_id, days, start_time, end_time, studio, time_slots, monthly_fee)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
+                [batch_name, course_id, teacher_id, JSON.stringify(schedule), start_date, end_date, max_students, student_ids || [], mode, location_id || null, days || [], start_time || null, end_time || null, studio || null, JSON.stringify(time_slots || []), batchFee(monthly_fee)]
             );
             res.status(201).json(parseBatchData(result.rows[0]));
 
@@ -4814,7 +4828,7 @@ Please review and approve this registration in the admin panel.`;
     app.put('/api/batches/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
-            const { batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode, location_id, days, start_time, end_time, studio, time_slots } = req.body;
+            const { batch_name, course_id, teacher_id, schedule, start_date, end_date, max_students, student_ids, mode, location_id, days, start_time, end_time, studio, time_slots, monthly_fee } = req.body;
 
             // Load the full existing batch so we can MERGE: a client (e.g. the mobile
             // app) that doesn't manage a field must not wipe it. Only fields the client
@@ -4841,7 +4855,7 @@ Please review and approve this registration in the admin panel.`;
                     batch_name = $1, course_id = $2, teacher_id = $3, schedule = $4,
                     start_date = $5, end_date = $6, max_students = $7, student_ids = $8, mode = $9,
                     location_id = $10, days = $11, start_time = $12, end_time = $13,
-                    studio = $14, time_slots = $15, updated_at = NOW()
+                    studio = $14, time_slots = $15, monthly_fee = $17, updated_at = NOW()
                  WHERE id = $16 RETURNING *`,
                 [
                     pick(batch_name, old.batch_name),
@@ -4860,6 +4874,7 @@ Please review and approve this registration in the admin panel.`;
                     studio !== undefined ? studio : (old.studio || null),
                     mergedTimeSlots,
                     id,
+                    monthly_fee !== undefined ? batchFee(monthly_fee) : old.monthly_fee,
                 ]
             );
             if (result.rows.length === 0) {
@@ -5768,7 +5783,8 @@ Please review and approve this registration in the admin panel.`;
             const { id } = req.params;
             const result = await pool.query(
                 `SELECT scg.id, scg.course_id, c.name AS course_name, scg.grade_id,
-                        g.name AS grade_name, g.monthly_fee, g.currency,
+                        g.name AS grade_name, ${EFFECTIVE_FEE_SQL} AS monthly_fee, g.currency,
+                        ${BATCH_FEE_SQL} AS batch_fee,
                         (SELECT sd.discount_percentage FROM student_discounts sd
                          WHERE sd.student_id = scg.student_id AND sd.course_id = scg.course_id AND sd.is_active = TRUE
                          ORDER BY CASE WHEN sd.discount_type = 'batch' THEN 1 ELSE 2 END, sd.discount_percentage DESC

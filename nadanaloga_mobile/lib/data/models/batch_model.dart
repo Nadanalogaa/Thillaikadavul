@@ -52,6 +52,8 @@ class BatchModel {
   final String? startDate;
   final String? endDate;
   final int? maxStudents;
+  /// The batch's own monthly fee; null = each student's grade fee.
+  final double? monthlyFee;
   final List<int> studentIds;
   final String? mode;
   final int? locationId;
@@ -76,6 +78,7 @@ class BatchModel {
     this.startDate,
     this.endDate,
     this.maxStudents,
+    this.monthlyFee,
     this.studentIds = const [],
     this.mode,
     this.locationId,
@@ -91,6 +94,11 @@ class BatchModel {
     this.locationName,
   });
 
+  static double? _positiveOrNull(dynamic v) {
+    final n = v is num ? v.toDouble() : double.tryParse('${v ?? ''}');
+    return n != null && n > 0 ? n : null;
+  }
+
   factory BatchModel.fromJson(Map<String, dynamic> json) {
     return BatchModel(
       id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
@@ -101,6 +109,7 @@ class BatchModel {
       startDate: json['start_date'] as String?,
       endDate: json['end_date'] as String?,
       maxStudents: json['max_students'] as int?,
+      monthlyFee: _positiveOrNull(json['monthly_fee']),
       studentIds: _parseIntList(json['student_ids']),
       mode: json['mode'] as String?,
       locationId: json['location_id'] as int?,
