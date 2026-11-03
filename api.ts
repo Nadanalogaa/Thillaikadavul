@@ -4274,6 +4274,9 @@ export interface AppVersionSettings {
   upi_qr_text?: string;
   /** 'yes' shows the open-in-Google-Pay/PhonePe buttons (needs a merchant ID that accepts app links). */
   upi_app_links?: string;
+  /** UPI ID/name the open-in-app buttons use when different from the QR's (empty = same). */
+  upi_button_id?: string;
+  upi_button_name?: string;
 }
 
 export const getAppSettings = async (): Promise<AppVersionSettings> => {

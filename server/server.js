@@ -3893,6 +3893,8 @@ Please review and approve this registration in the admin panel.`;
                         upi_prefill_amount: APP_VERSION_KEYS.upi_prefill_amount,
                         upi_qr_text: APP_VERSION_KEYS.upi_qr_text,
                         upi_app_links: APP_VERSION_KEYS.upi_app_links,
+                        upi_button_id: APP_VERSION_KEYS.upi_button_id,
+                        upi_button_name: APP_VERSION_KEYS.upi_button_name,
                     });
                     // Extra link parameters the app appends as-is (merchant code, reference).
                     const extra = {};
@@ -3901,7 +3903,12 @@ Please review and approve this registration in the admin panel.`;
                     return { id: st.upi_id, name: st.upi_payee_name, extra,
                         prefill_amount: String(st.upi_prefill_amount || '').toLowerCase() === 'yes',
                         qr_text: String(st.upi_qr_text || '').trim(),
-                        app_links: String(st.upi_app_links || '').toLowerCase() === 'yes' };
+                        app_links: String(st.upi_app_links || '').toLowerCase() === 'yes',
+                        // A separate ID for the buttons: a plain person-to-person
+                        // link with the amount and note filled in.
+                        button: String(st.upi_button_id || '').trim()
+                            ? { id: String(st.upi_button_id).trim(), name: String(st.upi_button_name || st.upi_payee_name || '').trim() }
+                            : null };
                 })(),
             });
         } catch (error) {
@@ -5101,6 +5108,12 @@ Please review and approve this registration in the admin panel.`;
         // merchant ID refuses payments started from a link until HDFC enables
         // app/intent payments, so families then use the QR.
         upi_app_links: 'yes',
+        // The open-in-app buttons may use a different UPI ID from the QR:
+        // the HDFC counter merchant ID refuses payments started from app
+        // links, while the owner's personal Google Pay ID accepts them (Google
+        // Pay sometimes asks to retry). Empty = use upi_id for the buttons too.
+        upi_button_id: 'thendralmadhan-1@okhdfcbank',
+        upi_button_name: 'NADANALOGA NATYALAYA',
     };
 
     const readAppSettings = async (keys) => {

@@ -29,6 +29,8 @@ Future<bool> showUpiPaySheet(
   bool prefillAmount = true,
   String? qrText,
   bool appLinks = true,
+  String? buttonUpiId,
+  String? buttonPayeeName,
 }) async {
   final result = await showModalBottomSheet<bool>(
     context: context,
@@ -44,6 +46,8 @@ Future<bool> showUpiPaySheet(
       prefillAmount: prefillAmount,
       qrText: qrText,
       appLinks: appLinks,
+      buttonUpiId: buttonUpiId,
+      buttonPayeeName: buttonPayeeName,
     ),
   );
   return result == true;
@@ -85,8 +89,14 @@ class _UpiPaySheet extends StatefulWidget {
   /// Show the open-in-app buttons. Off for a counter merchant ID, which only
   /// accepts payments made by scanning its QR.
   final bool appLinks;
+  /// The UPI ID the app buttons pay when it differs from the QR's (e.g. a
+  /// personal ID that accepts app links while the bank counter ID does not).
+  final String? buttonUpiId;
+  final String? buttonPayeeName;
 
   const _UpiPaySheet({
+    this.buttonUpiId,
+    this.buttonPayeeName,
     this.extra = const {},
     this.prefillAmount = true,
     this.qrText,
@@ -123,6 +133,22 @@ class _UpiPaySheetState extends State<_UpiPaySheet> {
   }
 
   String get _upiLink => 'upi://pay?$_query';
+
+  bool get _separateButtonId => (widget.buttonUpiId ?? '').trim().isNotEmpty;
+
+  /// What the app buttons open: a plain link to the buttons' own ID with the
+  /// amount and note filled in, or the same as the QR's link.
+  String get _buttonQuery {
+    if (!_separateButtonId) return _query;
+    final p = {
+      'pa': widget.buttonUpiId!.trim(),
+      'pn': (widget.buttonPayeeName ?? '').trim().isNotEmpty ? widget.buttonPayeeName!.trim() : widget.payeeName,
+      'am': widget.amount.toStringAsFixed(2),
+      'cu': 'INR',
+      'tn': _note,
+    };
+    return p.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&');
+  }
 
   // iPhone (the web app) uses the apps' iOS links; Android uses theirs.
   bool get _isIos => defaultTargetPlatform == TargetPlatform.iOS;
@@ -275,7 +301,7 @@ class _UpiPaySheetState extends State<_UpiPaySheet> {
               children: [
                 for (final a in _apps)
                   OutlinedButton.icon(
-                    onPressed: () => _open('${_isIos ? a.ios : a.android}$_query', a.label),
+                    onPressed: () => _open('${_isIos ? a.ios : a.android}$_buttonQuery', a.label),
                     icon: Icon(a.icon, color: a.color),
                     label: Text(a.label, overflow: TextOverflow.ellipsis),
                     style: OutlinedButton.styleFrom(
@@ -287,7 +313,7 @@ class _UpiPaySheetState extends State<_UpiPaySheet> {
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
-              onPressed: () => _open(_upiLink, 'a UPI app'),
+              onPressed: () => _open('upi://pay?$_buttonQuery', 'a UPI app'),
               icon: const Icon(Icons.apps),
               label: const Text('Other UPI app (BHIM, bank app…)'),
             ),

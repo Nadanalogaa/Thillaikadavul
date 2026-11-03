@@ -18,6 +18,8 @@ const BLANK: AppVersionSettings = {
   upi_prefill_amount: 'no',
   upi_qr_text: '',
   upi_app_links: 'no',
+  upi_button_id: '',
+  upi_button_name: '',
 };
 
 const AppUpdatePage: React.FC = () => {
@@ -176,6 +178,17 @@ const AppUpdatePage: React.FC = () => {
               <option value="no">Off — families scan the academy QR (HDFC SmartHub Vyapar and other counter QRs)</option>
               <option value="yes">On — only if the bank enabled payments from app links for this ID</option>
             </select>
+          </div>
+          <div>
+            <label className={label} htmlFor="upibtn">UPI ID for the app buttons (optional)</label>
+            <input id="upibtn" value={form.upi_button_id || ''} onChange={e => set('upi_button_id', e.target.value.trim())}
+              placeholder="Same as above if empty" className="form-input w-full text-sm" />
+            <p className="mt-1 text-xs text-gray-500">Use an ID that accepts payments opened from apps (a personal Google Pay ID does; a bank counter QR ID may not).</p>
+          </div>
+          <div>
+            <label className={label} htmlFor="upibtnname">Name for the app buttons' ID</label>
+            <input id="upibtnname" value={form.upi_button_name || ''} onChange={e => set('upi_button_name', e.target.value)}
+              placeholder="NADANALOGA NATYALAYA" className="form-input w-full text-sm" />
           </div>
           <div className="sm:col-span-2">
             <label className={label} htmlFor="upiqr">Bank QR text (exactly as in the bank's QR)</label>

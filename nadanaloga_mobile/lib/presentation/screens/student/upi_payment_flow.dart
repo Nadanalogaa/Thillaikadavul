@@ -71,6 +71,8 @@ Future<void> payBillsByUpi(
       qrText: upi['qr_text'] is String ? upi['qr_text'] as String : null,
       // Missing (older server) means the buttons, as before.
       appLinks: upi['app_links'] != false,
+      buttonUpiId: upi['button'] is Map ? '${(upi['button'] as Map)['id'] ?? ''}' : null,
+      buttonPayeeName: upi['button'] is Map ? '${(upi['button'] as Map)['name'] ?? ''}' : null,
     );
     if (!upload || !context.mounted) return;
   }
