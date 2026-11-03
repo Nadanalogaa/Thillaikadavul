@@ -1341,7 +1341,8 @@ async function startServer() {
         { key: 'content.grade_exam',       group: 'Academy news', label: 'Grade exam' },
     ];
     const NOTIFICATION_EVENT_KEYS = new Set(NOTIFICATION_EVENTS.map(e => e.key));
-    const ALL_CHANNELS = { in_app: true, push: true, email: true };
+    // An event with no saved setting: in the app and as a push, not by email.
+    const DEFAULT_CHANNELS = { in_app: true, push: true, email: false };
 
     // Cached because this is consulted on every notification. Cleared on save.
     let notificationSettings = null;
@@ -1394,7 +1395,7 @@ async function startServer() {
         const key = eventKey || eventKeyForTitle(title);
         if (!key) return UNKNOWN_EVENT_CHANNELS;
         const map = await loadNotificationSettings();
-        return map.get(key) || ALL_CHANNELS;
+        return map.get(key) || DEFAULT_CHANNELS;
     };
 
     /** Whether this event may be emailed. Call before sending mail. */
@@ -1657,10 +1658,10 @@ async function startServer() {
                 : `Fee of ${amount}${forWhom} (${inv.course_name || 'classes'}) is due by ${dueStr}. Please pay and upload the receipt in the app.`;
 
             try {
-                createNotificationForUser(recipientId, title, shortMsg, overdue ? 'Warning' : 'Info');
+                createNotificationForUser(recipientId, title, shortMsg, overdue ? 'Warning' : 'Info', 'fees.reminder');
                 if (recipientEmail) {
                     const body = `Dear ${recipientName},\n\n${shortMsg}\n\n📋 Invoice #${inv.id}\n📚 Course: ${inv.course_name || 'Not specified'}\n💰 Amount: ${amount}\n📅 Due: ${dueStr}\n\nYou can pay via UPI (GPay / PhonePe / CRED) and upload the payment receipt in the app. We'll confirm once verified.\n\nBest regards,\nNadanaloga Academy Team`;
-                    sendEmailBackground(recipientEmail, recipientName, `${title} - Invoice #${inv.id}`, body);
+                    sendEmailBackground(recipientEmail, recipientName, `${title} - Invoice #${inv.id}`, body, 'fees.reminder');
                 }
                 await pool.query('UPDATE invoices SET last_reminder_date = $1 WHERE id = $2', [todayStr, inv.id]);
                 sent++;
@@ -2496,8 +2497,12 @@ Welcome to the Nadanaloga family!`;
                     html: createEmailTemplate(userName, 'Welcome to Nadanaloga Academy!', welcomeMessage)
                 };
 
-                await mailTransporter.sendMail(userMailOptions);
-                console.log(`📧 Welcome email sent to: ${userEmail}`);
+                // Follows the "Welcome" email switch in Notification settings, and
+                // never mails a stand-in child address.
+                if ((await channelsFor('registration.welcome')).email && !/\.nadanaloga\.local$/i.test(String(userEmail || ''))) {
+                    await mailTransporter.sendMail(userMailOptions);
+                    console.log(`📧 Welcome email sent to: ${userEmail}`);
+                }
                 emailsSent++;
             } catch (emailError) {
                 console.error('Error sending welcome email:', emailError.message);
@@ -3089,8 +3094,12 @@ Welcome to the Nadanaloga family!`;
                         html: createEmailTemplate(userData.name, 'Welcome to Nadanaloga Academy!', welcomeMessage)
                     };
 
-                    await mailTransporter.sendMail(userMailOptions);
-                    console.log(`📧 Welcome email sent to: ${normalizedEmail}`);
+                    // Follows the "Welcome" email switch in Notification settings, and
+                    // never mails a stand-in child address.
+                    if ((await channelsFor('registration.welcome')).email && !/\.nadanaloga\.local$/i.test(String(normalizedEmail || ''))) {
+                        await mailTransporter.sendMail(userMailOptions);
+                        console.log(`📧 Welcome email sent to: ${normalizedEmail}`);
+                    }
                 } catch (emailError) {
                     console.error('Error sending welcome email:', emailError);
                 }
@@ -4776,13 +4785,14 @@ Please review and approve this registration in the admin panel.`;
             (async () => {
                 try {
                     const users = await getUsersByIds(recipient_ids);
+                    const eventKey = { Event: 'content.event', Notice: 'content.notice', BookMaterial: 'content.material', GradeExam: 'content.grade_exam' }[content_type];
                     for (const user of users) {
                         createNotificationForUser(user.id, `New ${content_type}`,
-                            `New ${content_type.toLowerCase()}: "${contentTitle}".`, 'Info');
+                            `New ${content_type.toLowerCase()}: "${contentTitle}".`, 'Info', eventKey);
                         if (send_email) {
                             sendEmailBackground(user.email, user.name,
                                 `${content_type}: ${contentTitle}`,
-                                `A new ${content_type.toLowerCase()} "${contentTitle}" has been shared with you. Please log in to your portal for details.`);
+                                `A new ${content_type.toLowerCase()} "${contentTitle}" has been shared with you. Please log in to your portal for details.`, eventKey);
                         }
                     }
                     console.log(`[ShareContent] Shared ${content_type} "${contentTitle}" with ${users.length} users`);
@@ -5067,7 +5077,8 @@ Please review and approve this registration in the admin panel.`;
             res.json({
                 events: NOTIFICATION_EVENTS.map(e => ({
                     ...e,
-                    channels: map.get(e.key) || ALL_CHANNELS,
+                    channels: map.get(e.key) || DEFAULT_CHANNELS,
+                    defaults: DEFAULT_CHANNELS,
                 })),
             });
         } catch (error) {
@@ -6983,8 +6994,8 @@ Please review and approve this registration in the admin panel.`;
                     + `You can see this payment anytime in the Nadanaloga app under Fees.\n\n`
                     + `Regards,\nNadanaloga Fine Arts Academy`;
             }
-            createNotificationForUser(contact.userId, title, message, kind === 'reversed' ? 'Warning' : 'Success');
-            if (contact.email) sendEmailBackground(contact.email, contact.emailName, subject, body);
+            createNotificationForUser(contact.userId, title, message, kind === 'reversed' ? 'Warning' : 'Success', 'fees.payment_received');
+            if (contact.email) sendEmailBackground(contact.email, contact.emailName, subject, body, 'fees.payment_received');
         }
     };
 

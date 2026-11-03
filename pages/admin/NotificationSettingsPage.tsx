@@ -7,6 +7,9 @@ import {
 
 // Admin → Notifications. One row per thing the academy tells people about,
 // with the channels it may use. All three off means that event notifies nobody.
+// The academy's default is in the app + push, no email.
+
+const DEFAULT = { in_app: true, push: true, email: false };
 
 const CHANNELS = [
   { key: 'in_app' as const, label: 'In-app', hint: 'Shows in the notifications bell' },
@@ -44,8 +47,15 @@ const NotificationSettingsPage: React.FC = () => {
     setSaved(false);
   };
 
+  // Row button: on = the default (app + push, no email), off = nothing.
   const setAll = (key: string, on: boolean) =>
-    update(key, { in_app: on, push: on, email: on });
+    update(key, on ? DEFAULT : { in_app: false, push: false, email: false });
+
+  const useDefaults = () => {
+    setEvents(prev => prev.map(e => ({ ...e, channels: { ...DEFAULT } })));
+    setDirty(true);
+    setSaved(false);
+  };
 
   const silent = (e: NotificationEventSetting) =>
     !e.channels.in_app && !e.channels.push && !e.channels.email;
@@ -73,11 +83,20 @@ const NotificationSettingsPage: React.FC = () => {
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Notifications</h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Choose how each kind of update reaches families and staff. Turn every channel off to
-            stop that notification entirely.
+            stop that notification entirely. Default: in the app and as a push, no email.
+            Changes reach families only after you press Save.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {saved && <span className="text-sm font-medium text-green-600">Saved</span>}
+          <button
+            type="button"
+            onClick={useDefaults}
+            className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+            title="In-app and Push on, Email off, for every activity"
+          >
+            Use defaults: App + Push, no email
+          </button>
           <button
             type="button"
             onClick={handleSave}
@@ -127,7 +146,7 @@ const NotificationSettingsPage: React.FC = () => {
                       onClick={() => setAll(e.key, silent(e))}
                       className="mt-1 text-xs font-medium text-brand-primary hover:underline"
                     >
-                      {silent(e) ? 'Turn all on' : 'Turn all off'}
+                      {silent(e) ? 'Turn on (App + Push)' : 'Turn all off'}
                     </button>
                   </div>
 
