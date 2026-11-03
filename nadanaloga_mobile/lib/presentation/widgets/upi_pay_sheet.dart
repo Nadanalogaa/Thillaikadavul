@@ -22,6 +22,7 @@ Future<bool> showUpiPaySheet(
   required double amount,
   required String note,
   required String forWhat,
+  Map<String, String> extra = const {},
 }) async {
   final result = await showModalBottomSheet<bool>(
     context: context,
@@ -33,6 +34,7 @@ Future<bool> showUpiPaySheet(
       amount: amount,
       note: note,
       forWhat: forWhat,
+      extra: extra,
     ),
   );
   return result == true;
@@ -62,8 +64,12 @@ class _UpiPaySheet extends StatefulWidget {
   /// Payment note the family's app shows, e.g. "NDA bill 683".
   final String note;
   final String forWhat;
+  /// Extra link parameters from the server, e.g. merchant code `mc` and
+  /// reference `tr` that a bank merchant ID needs.
+  final Map<String, String> extra;
 
   const _UpiPaySheet({
+    this.extra = const {},
     required this.upiId,
     required this.payeeName,
     required this.amount,
@@ -90,6 +96,7 @@ class _UpiPaySheetState extends State<_UpiPaySheet> {
       'am': widget.amount.toStringAsFixed(2),
       'cu': 'INR',
       'tn': _note,
+      ...widget.extra,
     };
     return p.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&');
   }

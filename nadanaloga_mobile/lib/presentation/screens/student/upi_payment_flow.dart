@@ -63,6 +63,9 @@ Future<void> payBillsByUpi(
       amount: total,
       note: note,
       forWhat: forWhat,
+      extra: upi['extra'] is Map
+          ? (upi['extra'] as Map).map((k, v) => MapEntry('$k', '$v'))
+          : const <String, String>{},
     );
     if (!upload || !context.mounted) return;
   }

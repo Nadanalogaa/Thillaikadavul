@@ -3887,8 +3887,15 @@ Please review and approve this registration in the admin panel.`;
                 online_payments_enabled: razorpayConfigured(),
                 // Pay-by-UPI details (Admin -> App update).
                 upi: await (async () => {
-                    const st = await readAppSettings({ upi_id: APP_VERSION_KEYS.upi_id, upi_payee_name: APP_VERSION_KEYS.upi_payee_name });
-                    return { id: st.upi_id, name: st.upi_payee_name };
+                    const st = await readAppSettings({
+                        upi_id: APP_VERSION_KEYS.upi_id, upi_payee_name: APP_VERSION_KEYS.upi_payee_name,
+                        upi_merchant_code: APP_VERSION_KEYS.upi_merchant_code, upi_txn_ref: APP_VERSION_KEYS.upi_txn_ref,
+                    });
+                    // Extra link parameters the app appends as-is (merchant code, reference).
+                    const extra = {};
+                    if (String(st.upi_merchant_code || '').trim()) extra.mc = String(st.upi_merchant_code).trim();
+                    if (String(st.upi_txn_ref || '').trim()) extra.tr = String(st.upi_txn_ref).trim();
+                    return { id: st.upi_id, name: st.upi_payee_name, extra };
                 })(),
             });
         } catch (error) {
@@ -5068,6 +5075,11 @@ Please review and approve this registration in the admin panel.`;
         // pre-filled payments to it, unlike the earlier personal ID).
         upi_id: 'Vyapar.170154547897@hdfcbank',
         upi_payee_name: 'TAMIL THENDRAL B',
+        // Merchant fields from the bank's own QR (Bharat QR): without them UPI
+        // apps treat the payment as person-to-person, and a merchant-only ID
+        // fails with "receiver's UPI ID not available".
+        upi_merchant_code: '8211',
+        upi_txn_ref: 'STQD346925817398850995',
     };
 
     const readAppSettings = async (keys) => {

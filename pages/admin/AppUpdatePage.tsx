@@ -13,6 +13,8 @@ const BLANK: AppVersionSettings = {
   update_message: '',
   upi_id: '',
   upi_payee_name: '',
+  upi_merchant_code: '',
+  upi_txn_ref: '',
 };
 
 const AppUpdatePage: React.FC = () => {
@@ -134,6 +136,8 @@ const AppUpdatePage: React.FC = () => {
         <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
           Families tap Pay on a bill and their UPI app opens with this ID, the amount and the bill
           number filled in. They then upload the screenshot, and you approve it under Fees.
+          For a bank merchant ID (e.g. HDFC SmartHub Vyapar), also fill the merchant code and QR
+          reference — without them UPI apps say the receiver's ID is not available.
         </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
@@ -145,6 +149,16 @@ const AppUpdatePage: React.FC = () => {
             <label className={label} htmlFor="upiname">Payee name (as the bank shows it)</label>
             <input id="upiname" value={form.upi_payee_name || ''} onChange={e => set('upi_payee_name', e.target.value)}
               placeholder="NADANALOGA NATYALAYA" className="form-input w-full text-sm" />
+          </div>
+          <div>
+            <label className={label} htmlFor="upimc">Merchant code (from the bank's QR)</label>
+            <input id="upimc" value={form.upi_merchant_code || ''} onChange={e => set('upi_merchant_code', e.target.value.trim())}
+              placeholder="8211" className="form-input w-full text-sm" />
+          </div>
+          <div>
+            <label className={label} htmlFor="upitr">QR reference (from the bank's QR)</label>
+            <input id="upitr" value={form.upi_txn_ref || ''} onChange={e => set('upi_txn_ref', e.target.value.trim())}
+              placeholder="STQD…" className="form-input w-full text-sm" />
           </div>
         </div>
       </section>

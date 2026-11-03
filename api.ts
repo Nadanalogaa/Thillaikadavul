@@ -4265,6 +4265,9 @@ export interface AppVersionSettings {
   /** UPI ID and payee name families pay fees to (shown in the app's Pay sheet). */
   upi_id?: string;
   upi_payee_name?: string;
+  /** From the bank's merchant QR: merchant category code and reference. */
+  upi_merchant_code?: string;
+  upi_txn_ref?: string;
 }
 
 export const getAppSettings = async (): Promise<AppVersionSettings> => {
