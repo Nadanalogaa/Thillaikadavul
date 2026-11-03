@@ -22,6 +22,8 @@ export interface AdminBatch {
     maxStudents: number | null;
     /** The batch's own monthly fee; null = each student's grade fee. */
     monthlyFee: number | null;
+    /** On save: this month's unpaid bills re-priced to the batch fee. */
+    repricedBills?: number;
 }
 
 export interface AdminStudent {
@@ -78,6 +80,7 @@ export const toAdminBatch = (b: any): AdminBatch => ({
     studio: b.studio || '',
     maxStudents: b.max_students ?? null,
     monthlyFee: b.monthly_fee != null && Number(b.monthly_fee) > 0 ? Number(b.monthly_fee) : null,
+    repricedBills: Number(b.repriced_bills || 0),
 });
 
 export const listBatches = async (): Promise<AdminBatch[]> =>

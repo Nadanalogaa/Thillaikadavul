@@ -271,6 +271,9 @@ const BatchesPage: React.FC = () => {
                         setEditing(null);
                         setBatches(await listBatches());
                         setOpenId(saved.id);
+                        if (saved.repricedBills) {
+                            window.alert(`${saved.repricedBills} unpaid bill${saved.repricedBills === 1 ? '' : 's'} for this month updated to the new fee.`);
+                        }
                     }}
                 />
             )}

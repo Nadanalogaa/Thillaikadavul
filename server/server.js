@@ -4780,6 +4780,50 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
+    // After a batch's fee changes, re-price THIS month's bills of its students
+    // for that course that nobody has paid or sent a screenshot for yet: the
+    // batch fee (or, if it was cleared, the grade fee), the same pro-rata and
+    // discount as when the bill was made. Paid / being-verified bills stay.
+    const repriceBatchMonth = async (batch) => {
+        if (!batch || !batch.course_id) return 0;
+        const ids = (Array.isArray(batch.student_ids) ? batch.student_ids : []).map(Number).filter(Boolean);
+        if (!ids.length) return 0;
+        const now = new Date();
+        const period = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
+        const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        const rows = (await pool.query(
+            `SELECT i.id, i.amount, i.prorated_from, i.discount_percentage, g.monthly_fee AS grade_fee
+               FROM invoices i
+               LEFT JOIN student_course_grades scg ON scg.student_id = i.student_id AND scg.course_id = i.course_id
+               LEFT JOIN grades g ON g.id = scg.grade_id
+              WHERE i.billing_period = $1 AND i.course_id = $2 AND i.student_id = ANY($3::int[])
+                AND LOWER(COALESCE(i.status, '')) <> 'paid'
+                AND NOT EXISTS (SELECT 1 FROM invoice_payments p WHERE p.invoice_id = i.id AND p.status IN ('approved', 'submitted'))`,
+            [period, batch.course_id, ids])).rows;
+        let changed = 0;
+        for (const r of rows) {
+            const monthly = Number(batch.monthly_fee) > 0 ? Number(batch.monthly_fee) : Number(r.grade_fee || 0);
+            if (!(monthly > 0)) continue;
+            let factor = 1;
+            if (r.prorated_from) {
+                const day = r.prorated_from instanceof Date
+                    ? r.prorated_from.getDate() : Number(String(r.prorated_from).slice(8, 10));
+                factor = (daysInMonth - day + 1) / daysInMonth;
+            }
+            const base = Math.round(monthly * factor);
+            const pct = r.discount_percentage != null ? Number(r.discount_percentage) : 0;
+            const off = pct > 0 ? Math.round((base * pct) / 100) : null;
+            const final = base - (off || 0);
+            if (final === Number(r.amount)) continue;
+            await pool.query(
+                `UPDATE invoices SET amount = $1, original_amount = $2, discount_amount = $3, batch_id = $4 WHERE id = $5`,
+                [final, base, off, batch.id, r.id]);
+            changed++;
+        }
+        if (changed) console.log(`[Batch fee] ${batch.batch_name}: re-priced ${changed} unpaid ${period} bill(s).`);
+        return changed;
+    };
+
     // Batch's own monthly fee: a positive amount, or null (= the grade's fee).
     const batchFee = (v) => { const n = Number(v); return v !== null && v !== '' && Number.isFinite(n) && n > 0 ? n : null; };
 
@@ -4884,7 +4928,13 @@ Please review and approve this registration in the admin panel.`;
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: 'Batch not found' });
             }
-            res.json(parseBatchData(result.rows[0]));
+            // Saving the batch fee also re-prices this month's unpaid bills
+            // (a no-op for bills already at that amount).
+            let repriced = 0;
+            if (monthly_fee !== undefined) {
+                repriced = await repriceBatchMonth(result.rows[0]).catch(e => { console.error('[Batch fee] re-price failed:', e.message); return 0; });
+            }
+            res.json({ ...parseBatchData(result.rows[0]), repriced_bills: repriced });
 
             // Send emails to newly added students only (fire-and-forget)
             console.log(`[Batch Update] Batch: ${batch_name}, Old students: ${JSON.stringify(oldStudentIds)}, New students: ${JSON.stringify(student_ids)}`);
