@@ -643,6 +643,25 @@ class ApiClient {
         data: {'invoice_ids': invoiceIds});
   }
 
+  /// The parent paid by UPI outside the app (screenshot came on WhatsApp):
+  /// attach it and mark the bills paid — one receipt, like cash.
+  Future<Response> recordUpiPayment({
+    required List<int> invoiceIds,
+    Uint8List? proofBytes,
+    String? proofFilename,
+    String? transactionId,
+  }) {
+    final formData = FormData.fromMap({
+      'invoice_ids': invoiceIds.join(','),
+      if (transactionId != null && transactionId.isNotEmpty) 'transaction_id': transactionId,
+      if (proofBytes != null)
+        'proof': MultipartFile.fromBytes(proofBytes, filename: proofFilename ?? 'screenshot.jpg'),
+    });
+    return _dio.post('${ApiEndpoints.apiPrefix}/fees/record-upi',
+        data: formData,
+        options: Options(contentType: 'multipart/form-data', validateStatus: (_) => true));
+  }
+
   Future<Response> getReceipt(String receiptNumber) {
     return _dio.get(ApiEndpoints.receipt(receiptNumber));
   }

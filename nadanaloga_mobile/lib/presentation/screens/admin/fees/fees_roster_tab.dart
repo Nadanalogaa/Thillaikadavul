@@ -15,6 +15,7 @@ import '../../../../data/models/fee_roster_model.dart';
 import '../../../../di/injection_container.dart';
 import '../../../widgets/receipt_sheet.dart';
 import 'collect_cash_sheet.dart';
+import 'proof_review_sheet.dart';
 
 Color feeStatusColor(String status) {
   switch (status) {
@@ -26,6 +27,8 @@ Color feeStatusColor(String status) {
       return AppColors.warning;
     case FeeStatus.pending:
       return AppColors.primary;
+    case FeeStatus.screenshot:
+      return AppColors.warning;
     default:
       return AppColors.textSecondary;
   }
@@ -67,6 +70,7 @@ class FeesRosterTabState extends State<FeesRosterTab> {
 
   static const _chips = <(String, String)>[
     ('', 'All'),
+    (FeeStatus.screenshot, 'Screenshot to verify'),
     (FeeStatus.overdue, 'Overdue'),
     (FeeStatus.pending, 'Pending'),
     (FeeStatus.partlyPaid, 'Partly paid'),
@@ -259,6 +263,19 @@ class FeesRosterTabState extends State<FeesRosterTab> {
     if (changed && mounted) reload();
   }
 
+  /// The parent paid by UPI and sent the screenshot on WhatsApp.
+  Future<void> _recordUpi(FeeRosterRow row) async {
+    final changed = await showCollectCashSheet(context,
+        studentId: row.studentId, studentName: row.name, upi: true);
+    if (changed && mounted) reload();
+  }
+
+  /// A screenshot the family uploaded in the app: approve or reject.
+  Future<void> _verify(FeeRosterRow row) async {
+    final changed = await showProofReviewSheet(context, row);
+    if (changed && mounted) reload();
+  }
+
   Future<void> _openReceipt(String receiptNumber) async {
     final reversed =
         await showReceiptSheet(context, receiptNumber, canReverse: true);
@@ -379,6 +396,14 @@ class FeesRosterTabState extends State<FeesRosterTab> {
           onCollect: () {
             Navigator.pop(sheetContext);
             _collect(row);
+          },
+          onUpi: () {
+            Navigator.pop(sheetContext);
+            _recordUpi(row);
+          },
+          onVerify: () {
+            Navigator.pop(sheetContext);
+            _verify(row);
           },
           onSetGrade: () {
             Navigator.pop(sheetContext);
@@ -710,6 +735,8 @@ class FeesRosterTabState extends State<FeesRosterTab> {
                     row.unpaidBills.isEmpty ? null : () => _toggleSelected(row),
                 onDial: row.phone == null ? null : () => _dial(row.phone!),
                 onCollect: () => _collect(row),
+                onUpi: () => _recordUpi(row),
+                onVerify: () => _verify(row),
                 onReceipt: () => _onReceiptAction(row),
                 onSetGrade: () => _setGrade(row),
               );
@@ -849,10 +876,14 @@ class _StudentFeeCard extends StatelessWidget {
   final VoidCallback? onLongPress;
   final VoidCallback? onDial;
   final VoidCallback onCollect;
+  final VoidCallback onUpi;
+  final VoidCallback onVerify;
   final VoidCallback onReceipt;
   final VoidCallback onSetGrade;
 
   const _StudentFeeCard({
+    required this.onUpi,
+    required this.onVerify,
     required this.row,
     required this.selectionMode,
     required this.selected,
@@ -916,6 +947,19 @@ class _StudentFeeCard extends StatelessWidget {
                                 fontWeight: FontWeight.w600, fontSize: 15),
                           ),
                         ),
+                        if (row.screenshot) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: AppColors.warning.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text('Screenshot sent',
+                                style: AppTextStyles.caption.copyWith(
+                                    fontSize: 10, color: AppColors.warning, fontWeight: FontWeight.w700)),
+                          ),
+                        ],
                         if (row.inactive) ...[
                           const SizedBox(width: 6),
                           Container(
@@ -1013,13 +1057,41 @@ class _StudentFeeCard extends StatelessWidget {
       case FeeStatus.pending:
       case FeeStatus.overdue:
       case FeeStatus.partlyPaid:
-        return FilledButton(
-          onPressed: onCollect,
-          style: FilledButton.styleFrom(
-            minimumSize: const Size(0, 40),
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-          ),
-          child: const Text('Collect cash'),
+        // A screenshot waiting comes first; otherwise cash, with the
+        // WhatsApp-screenshot option one tap away.
+        if (row.screenshot) {
+          return FilledButton(
+            onPressed: onVerify,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.warning,
+              minimumSize: const Size(0, 40),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+            ),
+            child: const Text('Verify'),
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FilledButton(
+              onPressed: onCollect,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 40),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+              ),
+              child: const Text('Collect cash'),
+            ),
+            TextButton(
+              onPressed: onUpi,
+              style: TextButton.styleFrom(
+                minimumSize: const Size(0, 32),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                visualDensity: VisualDensity.compact,
+              ),
+              child: const Text('UPI screenshot'),
+            ),
+          ],
         );
       case FeeStatus.paid:
         return TextButton.icon(
@@ -1056,6 +1128,8 @@ class _BillsSheet extends StatelessWidget {
   final String period;
   final void Function(String receiptNumber) onReceipt;
   final VoidCallback onCollect;
+  final VoidCallback onUpi;
+  final VoidCallback onVerify;
   final VoidCallback onSetGrade;
 
   const _BillsSheet({
@@ -1063,6 +1137,8 @@ class _BillsSheet extends StatelessWidget {
     required this.period,
     required this.onReceipt,
     required this.onCollect,
+    required this.onUpi,
+    required this.onVerify,
     required this.onSetGrade,
   });
 
@@ -1137,12 +1213,31 @@ class _BillsSheet extends StatelessWidget {
           ],
           if (row.hasUnpaid) ...[
             const SizedBox(height: 16),
+            if (row.screenshot) ...[
+              FilledButton.icon(
+                onPressed: onVerify,
+                style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.warning,
+                    minimumSize: const Size.fromHeight(48)),
+                icon: const Icon(Icons.fact_check_outlined),
+                label: const Text('Verify the screenshot'),
+              ),
+              const SizedBox(height: 8),
+            ],
             FilledButton.icon(
               onPressed: onCollect,
               style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(48)),
               icon: const Icon(Icons.payments_outlined),
               label: const Text('Collect cash'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: onUpi,
+              style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48)),
+              icon: const Icon(Icons.image_outlined),
+              label: const Text('UPI screenshot (from WhatsApp)'),
             ),
           ] else if (row.status == FeeStatus.notSetUp) ...[
             const SizedBox(height: 16),

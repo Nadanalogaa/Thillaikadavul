@@ -1,5 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_text_styles.dart';
@@ -18,6 +21,9 @@ Future<bool> showCollectCashSheet(
   BuildContext context, {
   required int studentId,
   required String studentName,
+  /// The parent paid by UPI and sent the screenshot (e.g. on WhatsApp): the
+  /// admin attaches it and marks the bills paid instead of collecting cash.
+  bool upi = false,
 }) async {
   var changed = false;
   await showModalBottomSheet<void>(
@@ -32,6 +38,7 @@ Future<bool> showCollectCashSheet(
     builder: (_) => CollectCashSheet(
       studentId: studentId,
       studentName: studentName,
+      upi: upi,
       onChanged: () => changed = true,
     ),
   );
@@ -42,12 +49,14 @@ class CollectCashSheet extends StatefulWidget {
   final int studentId;
   final String studentName;
   final VoidCallback? onChanged;
+  final bool upi;
 
   const CollectCashSheet({
     super.key,
     required this.studentId,
     required this.studentName,
     this.onChanged,
+    this.upi = false,
   });
 
   @override
@@ -63,6 +72,25 @@ class _CollectCashSheetState extends State<CollectCashSheet> {
   bool _submitting = false;
   String? _submitError;
   Map<String, dynamic>? _result; // collect-cash success payload
+  // UPI mode: the screenshot the parent sent, and the UTR.
+  Uint8List? _shotBytes;
+  String? _shotName;
+  final _utr = TextEditingController();
+
+  bool get _upi => widget.upi;
+
+  @override
+  void dispose() {
+    _utr.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickShot() async {
+    final img = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (img == null) return;
+    final bytes = await img.readAsBytes();
+    if (mounted) setState(() { _shotBytes = bytes; _shotName = img.name; });
+  }
 
   @override
   void initState() {
@@ -118,7 +146,14 @@ class _CollectCashSheetState extends State<CollectCashSheet> {
       _submitError = null;
     });
     try {
-      final r = await _api.collectCash(_checked.toList());
+      final r = _upi
+          ? await _api.recordUpiPayment(
+              invoiceIds: _checked.toList(),
+              proofBytes: _shotBytes,
+              proofFilename: _shotName,
+              transactionId: _utr.text.trim(),
+            )
+          : await _api.collectCash(_checked.toList());
       if (!mounted) return;
       final code = r.statusCode ?? 0;
       if (code >= 200 && code < 300 && r.data is Map) {
@@ -126,7 +161,7 @@ class _CollectCashSheetState extends State<CollectCashSheet> {
         setState(() => _result = Map<String, dynamic>.from(r.data as Map));
       } else {
         setState(() => _submitError =
-            feeErrorMessage(r.data, 'Could not record the cash payment.'));
+            feeErrorMessage(r.data, _upi ? 'Could not record the UPI payment.' : 'Could not record the cash payment.'));
         if (code == 409) {
           // Someone else already settled a bill — show fresh dues.
           widget.onChanged?.call();
@@ -218,7 +253,7 @@ class _CollectCashSheetState extends State<CollectCashSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _header('Collect cash', subtitle: widget.studentName),
+          _header(_upi ? 'Record UPI payment' : 'Collect cash', subtitle: widget.studentName),
           if (_submitError != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -227,7 +262,9 @@ class _CollectCashSheetState extends State<CollectCashSheet> {
           _message(
             icon: Icons.check_circle_outline,
             color: AppColors.success,
-            text: 'Nothing to collect — every bill for this family is paid.',
+            text: _upi
+                ? 'Nothing to mark paid — every bill for this family is paid.'
+                : 'Nothing to collect — every bill for this family is paid.',
             action: FilledButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Close'),
@@ -246,7 +283,7 @@ class _CollectCashSheetState extends State<CollectCashSheet> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _header(
-          'Collect cash',
+          _upi ? 'Record UPI payment' : 'Collect cash',
           subtitle:
               '${widget.studentName}\'s family · ${due.bills.length} unpaid ${due.bills.length == 1 ? 'bill' : 'bills'}',
         ),
@@ -319,7 +356,7 @@ class _CollectCashSheetState extends State<CollectCashSheet> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Expanded(
-                    child: Text('Total cash',
+                    child: Text(_upi ? 'Total (UPI)' : 'Total cash',
                         style: AppTextStyles.bodyMedium
                             .copyWith(color: AppColors.textSecondary)),
                   ),
@@ -331,6 +368,38 @@ class _CollectCashSheetState extends State<CollectCashSheet> {
               ),
               const SizedBox(height: 4),
               Text(caption, style: AppTextStyles.caption),
+              if (_upi) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    if (_shotBytes != null) ...[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Image.memory(_shotBytes!, width: 48, height: 64, fit: BoxFit.cover),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _submitting ? null : _pickShot,
+                        icon: const Icon(Icons.image_outlined),
+                        label: Text(_shotBytes == null ? 'Attach screenshot (WhatsApp)' : 'Change screenshot'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _utr,
+                  decoration: const InputDecoration(
+                    labelText: 'UPI reference / UTR (optional)',
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text('Check the amount reached the bank before marking paid.',
+                    style: AppTextStyles.caption),
+              ],
               if (_submitError != null) _errorText(_submitError!),
               const SizedBox(height: 12),
               FilledButton.icon(
@@ -347,10 +416,12 @@ class _CollectCashSheetState extends State<CollectCashSheet> {
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white),
                       )
-                    : const Icon(Icons.payments_outlined),
+                    : Icon(_upi ? Icons.verified_outlined : Icons.payments_outlined),
                 label: Text(_checked.isEmpty
-                    ? 'Select a bill to collect'
-                    : 'Collect ${FeeFormat.rupees(total)} in cash'),
+                    ? (_upi ? 'Select the bills it covers' : 'Select a bill to collect')
+                    : _upi
+                        ? 'Mark ${FeeFormat.rupees(total)} paid (UPI)'
+                        : 'Collect ${FeeFormat.rupees(total)} in cash'),
               ),
             ],
           ),
@@ -389,7 +460,7 @@ class _CollectCashSheetState extends State<CollectCashSheet> {
         children: [
           const Icon(Icons.check_circle, size: 72, color: AppColors.success),
           const SizedBox(height: 8),
-          Text('Cash collected',
+          Text(_upi ? 'UPI payment recorded' : 'Cash collected',
               textAlign: TextAlign.center,
               style: AppTextStyles.bodyMedium
                   .copyWith(color: AppColors.textSecondary)),

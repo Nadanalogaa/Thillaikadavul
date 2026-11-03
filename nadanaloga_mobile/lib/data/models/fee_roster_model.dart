@@ -41,6 +41,8 @@ class FeeStatus {
   static const partlyPaid = 'partly_paid';
   static const noBill = 'no_bill';
   static const notSetUp = 'not_set_up';
+  /// Filter only: students with a payment screenshot waiting.
+  static const screenshot = 'screenshot';
 
   static String label(String status) {
     switch (status) {
@@ -56,6 +58,8 @@ class FeeStatus {
         return 'No bill';
       case notSetUp:
         return 'Not set up';
+      case screenshot:
+        return 'Screenshot to verify';
       default:
         return status;
     }
@@ -125,8 +129,20 @@ class FeeRosterBill {
   final String? paymentMethod;
   final String? paidAt;
   final String? collectedByName;
+  /// The family's latest payment screenshot for this unpaid bill:
+  /// 'submitted' (waiting to be checked) or 'rejected'.
+  final String? proofStatus;
+  final int? proofPaymentId;
+  final String? proofUrl;
+  final String? proofTxn;
+  final String? proofSubmittedAt;
 
   const FeeRosterBill({
+    this.proofStatus,
+    this.proofPaymentId,
+    this.proofUrl,
+    this.proofTxn,
+    this.proofSubmittedAt,
     required this.id,
     required this.courseName,
     required this.amount,
@@ -154,9 +170,15 @@ class FeeRosterBill {
         paymentMethod: _str(j['payment_method']),
         paidAt: _str(j['paid_at']),
         collectedByName: _str(j['collected_by_name']),
+        proofStatus: _str(j['proof_status']),
+        proofPaymentId: j['proof_payment_id'] == null ? null : _int(j['proof_payment_id']),
+        proofUrl: _str(j['proof_url']),
+        proofTxn: _str(j['proof_txn']),
+        proofSubmittedAt: _str(j['proof_submitted_at']),
       );
 
   bool get isPaid => status == FeeStatus.paid;
+  bool get screenshotWaiting => !isPaid && proofStatus == 'submitted';
 
   /// True when a discount brought the amount below the original.
   bool get isDiscounted =>
@@ -180,8 +202,11 @@ class FeeRosterRow {
   final double due;
   final String? dueDate;
   final List<FeeRosterBill> bills;
+  /// A payment screenshot is waiting for the academy to check it.
+  final bool screenshot;
 
   const FeeRosterRow({
+    this.screenshot = false,
     required this.studentId,
     required this.name,
     this.userId,
@@ -215,6 +240,7 @@ class FeeRosterRow {
         due: _num(j['due']),
         dueDate: _str(j['due_date']),
         bills: _maps(j['bills']).map(FeeRosterBill.fromJson).toList(),
+        screenshot: j['screenshot'] == true,
       );
 
   List<FeeRosterBill> get unpaidBills => bills.where((b) => !b.isPaid).toList();
