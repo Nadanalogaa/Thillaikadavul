@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -16,10 +17,13 @@ class StudentPaymentProofScreen extends StatefulWidget {
   final List<int>? groupInvoiceIds;
   final List<String>? groupLines;
   final double? groupTotal;
+  /// The academy's UPI ID, shown so the family knows where to pay.
+  final String? payToUpiId;
 
   const StudentPaymentProofScreen({
     super.key,
     required this.invoiceId,
+    this.payToUpiId,
     this.groupInvoiceIds,
     this.groupLines,
     this.groupTotal,
@@ -202,6 +206,41 @@ class _StudentPaymentProofScreenState extends State<StudentPaymentProofScreen> {
                         )
                       else
                         _InvoiceSummaryCard(invoice: _invoice!),
+                      if ((widget.payToUpiId ?? '').isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.divider),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Pay the academy by UPI, cash at the office, or the academy QR. UPI ID:',
+                                        style: AppTextStyles.caption),
+                                    SelectableText(widget.payToUpiId!,
+                                        style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: 'Copy UPI ID',
+                                icon: const Icon(Icons.copy),
+                                onPressed: () {
+                                  Clipboard.setData(ClipboardData(text: widget.payToUpiId!));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('UPI ID copied')));
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 16),
                       OutlinedButton.icon(
                         onPressed: _pickImage,

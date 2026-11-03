@@ -4277,6 +4277,8 @@ export interface AppVersionSettings {
   /** UPI ID/name the open-in-app buttons use when different from the QR's (empty = same). */
   upi_button_id?: string;
   upi_button_name?: string;
+  /** 'upload' (app button = upload screenshot) or 'upi' (Pay sheet with UPI apps). */
+  fee_pay_mode?: string;
 }
 
 export const getAppSettings = async (): Promise<AppVersionSettings> => {

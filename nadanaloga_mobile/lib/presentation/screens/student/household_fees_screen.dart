@@ -262,11 +262,15 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
               FilledButton.icon(
                 onPressed: _payAll,
                 icon: const Icon(Icons.payments_outlined, size: 18),
-                label: Text('Pay all ${FeeFormat.rupees(_payable.fold<double>(0, (t, b) => t + ((b['amount'] as num?)?.toDouble() ?? 0)))} (${_payable.length} bills)'),
+                label: Text(uploadOnly(_fees)
+                    ? 'Upload one screenshot for all ${FeeFormat.rupees(billsTotal(_payable))}'
+                    : 'Pay all ${FeeFormat.rupees(billsTotal(_payable))} (${_payable.length} bills)'),
                 style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(44)),
               ),
               const SizedBox(height: 4),
-              Text('One payment and one screenshot for all of them, or pay each bill below.',
+              Text(uploadOnly(_fees)
+                      ? 'Paid them together? Upload one screenshot for all ${_payable.length} bills, or each bill below.'
+                      : 'One payment and one screenshot for all of them, or pay each bill below.',
                   style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
             ],
             if (!allPaid && paid > 0)
@@ -408,7 +412,9 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
                     onPressed: id == 0 ? null : () => _payByUpi(inv, id, amount),
                     style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 14)),
-                    child: Text(rejected ? 'Pay again' : 'Pay'),
+                    child: Text(uploadOnly(_fees)
+                        ? (rejected ? 'Upload again' : 'Upload screenshot')
+                        : (rejected ? 'Pay again' : 'Pay')),
                   ),
               ],
             ],

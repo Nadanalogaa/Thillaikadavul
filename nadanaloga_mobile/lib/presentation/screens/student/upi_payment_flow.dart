@@ -27,6 +27,19 @@ List<Map<String, dynamic>> payableBills(Map<String, dynamic>? fees) {
   return out;
 }
 
+/// 'upload' (default): the bill button goes straight to the screenshot
+/// upload. 'upi': the Pay sheet (UPI apps, academy QR) first.
+bool uploadOnly(Map<String, dynamic>? fees) {
+  final upi = fees?['upi'];
+  return !(upi is Map && upi['mode'] == 'upi');
+}
+
+/// The academy UPI ID to show families where to pay (the QR's ID).
+String academyUpiId(Map<String, dynamic>? fees) {
+  final upi = fees?['upi'];
+  return upi is Map ? '${upi['id'] ?? ''}'.trim() : '';
+}
+
 double billsTotal(List<Map<String, dynamic>> bills) =>
     bills.fold<double>(0, (t, b) => t + ((b['amount'] as num?)?.toDouble() ?? 0));
 
@@ -47,7 +60,7 @@ Future<void> payBillsByUpi(
   final single = ids.length == 1;
   final first = bills.first;
 
-  if (upiId.isNotEmpty) {
+  if (upiId.isNotEmpty && !uploadOnly(fees)) {
     final note = single
         ? 'NDA bill ${ids.first}'
         : ids.length <= 4
@@ -79,9 +92,10 @@ Future<void> payBillsByUpi(
 
   await Navigator.of(context).push(MaterialPageRoute(
     builder: (_) => single
-        ? StudentPaymentProofScreen(invoiceId: ids.first)
+        ? StudentPaymentProofScreen(invoiceId: ids.first, payToUpiId: upiId)
         : StudentPaymentProofScreen(
             invoiceId: ids.first,
+            payToUpiId: upiId,
             groupInvoiceIds: ids,
             groupLines: [
               for (final b in bills)

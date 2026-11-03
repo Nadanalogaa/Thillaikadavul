@@ -470,6 +470,13 @@ export interface FeeRosterBill {
   payment_method: string | null;
   paid_at: string | null;
   collected_by_name: string | null;
+  /** The family's latest payment screenshot for this unpaid bill. */
+  proof_status?: 'submitted' | 'rejected' | null;
+  proof_payment_id?: number | null;
+  proof_url?: string | null;
+  proof_txn?: string | null;
+  proof_submitted_at?: string | null;
+  proof_note?: string | null;
 }
 
 export interface FeeRosterRow {
@@ -487,6 +494,8 @@ export interface FeeRosterRow {
   due: number;
   due_date: string | null;
   bills: FeeRosterBill[];
+  /** A payment screenshot is waiting to be checked. */
+  screenshot?: boolean;
 }
 
 export interface FeeRosterSummary {
@@ -494,7 +503,7 @@ export interface FeeRosterSummary {
   billed: number;
   collected: number;
   outstanding: number;
-  counts: Record<FeeRosterStatus, number>;
+  counts: Record<FeeRosterStatus, number> & { screenshot?: number };
 }
 
 export interface FeeRoster {
@@ -506,7 +515,7 @@ export interface FeeRoster {
 
 export interface FeeRosterParams {
   period?: string;
-  status?: FeeRosterStatus | '';
+  status?: FeeRosterStatus | 'screenshot' | '';
   course_id?: string;
   batch_id?: string;
   search?: string;

@@ -487,7 +487,9 @@ class _HomeDashboardState extends State<HomeDashboard> {
                   ),
                   child: Text(d.allVerifying
                       ? 'Being verified'
-                      : 'Pay ${FeeFormat.rupees(billsTotal(payableBills(d.fees)))}'),
+                      : uploadOnly(d.fees)
+                          ? 'Upload payment screenshot · ${FeeFormat.rupees(billsTotal(payableBills(d.fees)))}'
+                          : 'Pay ${FeeFormat.rupees(billsTotal(payableBills(d.fees)))}'),
                 ),
               ),
               const SizedBox(width: 10),

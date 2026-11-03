@@ -20,6 +20,7 @@ const BLANK: AppVersionSettings = {
   upi_app_links: 'no',
   upi_button_id: '',
   upi_button_name: '',
+  fee_pay_mode: 'upload',
 };
 
 const AppUpdatePage: React.FC = () => {
@@ -144,6 +145,13 @@ const AppUpdatePage: React.FC = () => {
           For a bank merchant ID (e.g. HDFC SmartHub Vyapar), also fill the merchant code and QR
           reference — without them UPI apps say the receiver's ID is not available.
         </p>
+        <div className="mb-3">
+          <label className={label} htmlFor="paymode">What the bill button does in the app</label>
+          <select id="paymode" value={form.fee_pay_mode || 'upload'} onChange={e => set('fee_pay_mode', e.target.value)} className="form-select w-full text-sm">
+            <option value="upload">"Upload payment screenshot · ₹X" — families pay as they like, then upload</option>
+            <option value="upi">"Pay" — opens UPI apps / the academy QR, then upload</option>
+          </select>
+        </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className={label} htmlFor="upi">UPI ID</label>

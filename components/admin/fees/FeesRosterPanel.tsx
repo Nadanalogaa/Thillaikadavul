@@ -7,6 +7,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import CollectCashModal from './CollectCashModal';
 import ReceiptModal from './ReceiptModal';
 import AddBillModal from './AddBillModal';
+import ProofReviewModal from './ProofReviewModal';
 import { STATUS_LABEL, StatusBadge, formatDateTime, formatDayMonth, formatRupees, recentBillingPeriods } from './feeUi';
 
 interface ReminderLink {
@@ -18,8 +19,11 @@ interface ReminderLink {
     wa_link: string | null;
 }
 
-const CHIPS: { key: FeeRosterStatus | ''; label: string }[] = [
+type ChipKey = FeeRosterStatus | 'screenshot' | '';
+const CHIPS: { key: ChipKey; label: string }[] = [
     { key: '', label: 'All' },
+    // Families who uploaded a payment screenshot that is not checked yet.
+    { key: 'screenshot', label: 'Screenshot to verify' },
     { key: 'overdue', label: 'Overdue' },
     { key: 'pending', label: 'Pending' },
     { key: 'partly_paid', label: 'Partly paid' },
@@ -47,7 +51,8 @@ const FeesRosterPanel: React.FC = () => {
 
     // Filters
     const [period, setPeriod] = useState(periods[0]);
-    const [status, setStatus] = useState<FeeRosterStatus | ''>('');
+    const [status, setStatus] = useState<ChipKey>('');
+    const [reviewing, setReviewing] = useState<FeeRosterRow | null>(null);
     const [courseId, setCourseId] = useState('');
     const [batchId, setBatchId] = useState('');
     const [searchInput, setSearchInput] = useState('');
@@ -197,13 +202,26 @@ const FeesRosterPanel: React.FC = () => {
             case 'overdue':
             case 'partly_paid':
                 return (
-                    <button
-                        type="button"
-                        onClick={e => { stop(e); setCollectFor({ student_id: row.student_id, name: row.name }); }}
-                        className="w-32 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
-                    >
-                        Collect cash
-                    </button>
+                    <div className="flex w-36 flex-col gap-1.5">
+                        {row.screenshot && (
+                            <button
+                                type="button"
+                                onClick={e => { stop(e); setReviewing(row); }}
+                                className="rounded-lg bg-amber-500 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-600"
+                            >
+                                Verify screenshot
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={e => { stop(e); setCollectFor({ student_id: row.student_id, name: row.name }); }}
+                            className={row.screenshot
+                                ? `${secondaryBtn}`
+                                : 'rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700'}
+                        >
+                            Collect cash
+                        </button>
+                    </div>
                 );
             case 'paid': {
                 const receipt = row.bills.find(b => b.receipt_number)?.receipt_number;
@@ -272,7 +290,7 @@ const FeesRosterPanel: React.FC = () => {
             <div className="mt-4 flex flex-wrap gap-2">
                 {CHIPS.map(chip => {
                     const active = status === chip.key;
-                    const count = summary ? (chip.key === '' ? summary.students : summary.counts[chip.key] ?? 0) : null;
+                    const count = summary ? (chip.key === '' ? summary.students : (summary.counts as Record<string, number>)[chip.key] ?? 0) : null;
                     return (
                         <button
                             key={chip.key || 'all'}
@@ -445,6 +463,12 @@ const FeesRosterPanel: React.FC = () => {
                                             <div className="min-w-0">
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <span className={`font-medium ${strong}`}>{row.name}</span>
+                                                    {row.screenshot && (
+                                                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">Screenshot sent</span>
+                                                    )}
+                                                    {!row.screenshot && row.bills.some(b => b.proof_status === 'rejected') && (
+                                                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700">Screenshot rejected</span>
+                                                    )}
                                                     {row.inactive && (
                                                         <span className={`rounded border px-1.5 py-0.5 text-[11px] font-medium ${dark ? 'border-gray-600 text-gray-400' : 'border-gray-300 text-gray-500'}`}>
                                                             Inactive
@@ -561,6 +585,13 @@ const FeesRosterPanel: React.FC = () => {
                 </div>
             )}
 
+            {reviewing && (
+                <ProofReviewModal
+                    row={reviewing}
+                    onClose={() => setReviewing(null)}
+                    onDone={async msg => { setReviewing(null); setNotice({ kind: 'success', text: msg }); await load(); }}
+                />
+            )}
             <CollectCashModal
                 student={collectFor}
                 onClose={collected => { setCollectFor(null); if (collected) load(); }}

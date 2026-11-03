@@ -3895,6 +3895,7 @@ Please review and approve this registration in the admin panel.`;
                         upi_app_links: APP_VERSION_KEYS.upi_app_links,
                         upi_button_id: APP_VERSION_KEYS.upi_button_id,
                         upi_button_name: APP_VERSION_KEYS.upi_button_name,
+                        fee_pay_mode: APP_VERSION_KEYS.fee_pay_mode,
                     });
                     // Extra link parameters the app appends as-is (merchant code, reference).
                     const extra = {};
@@ -3906,6 +3907,7 @@ Please review and approve this registration in the admin panel.`;
                         app_links: String(st.upi_app_links || '').toLowerCase() === 'yes',
                         // A separate ID for the buttons: a plain person-to-person
                         // link with the amount and note filled in.
+                        mode: String(st.fee_pay_mode || 'upload').toLowerCase() === 'upi' ? 'upi' : 'upload',
                         button: String(st.upi_button_id || '').trim()
                             ? { id: String(st.upi_button_id).trim(), name: String(st.upi_button_name || st.upi_payee_name || '').trim() }
                             : null };
@@ -3936,12 +3938,19 @@ Please review and approve this registration in the admin panel.`;
             const invRows = (await pool.query(`
                 SELECT i.id, i.student_id, i.course_id, i.batch_id, i.course_name, i.amount, i.original_amount,
                        i.discount_percentage, i.status, i.due_date, i.issue_date, i.prorated_from,
-                       p.receipt_number, p.payment_method, p.paid_at, p.collected_by_name
+                       p.receipt_number, p.payment_method, p.paid_at, p.collected_by_name,
+                       lp.id AS proof_payment_id, lp.status AS proof_status, lp.proof_url, lp.transaction_id AS proof_txn,
+                       lp.submitted_at AS proof_submitted_at, lp.notes AS proof_note
                 FROM invoices i
                 LEFT JOIN LATERAL (
                     SELECT receipt_number, payment_method, paid_at, collected_by_name FROM invoice_payments
                     WHERE invoice_id = i.id AND status = 'approved' ORDER BY id DESC LIMIT 1
                 ) p ON true
+                -- The family's latest screenshot for this bill (waiting / rejected).
+                LEFT JOIN LATERAL (
+                    SELECT id, status, proof_url, transaction_id, submitted_at, notes FROM invoice_payments
+                    WHERE invoice_id = i.id AND proof_url IS NOT NULL ORDER BY id DESC LIMIT 1
+                ) lp ON true
                 WHERE i.billing_period = $1
                 ORDER BY i.id`, [period])).rows;
             const invByStudent = new Map();
@@ -4026,7 +4035,15 @@ Please review and approve this registration in the admin panel.`;
                         payment_method: i.payment_method || null,
                         paid_at: i.paid_at || null,
                         collected_by_name: i.collected_by_name || null,
+                        proof_status: !isPaid(i) && i.proof_status ? i.proof_status : null,
+                        proof_payment_id: i.proof_payment_id || null,
+                        proof_url: i.proof_url || null,
+                        proof_txn: i.proof_txn || null,
+                        proof_submitted_at: i.proof_submitted_at || null,
+                        proof_note: i.proof_note || null,
                     })),
+                    // A screenshot is waiting for the academy to check it.
+                    screenshot: inv.some(i => !isPaid(i) && i.proof_status === 'submitted'),
                 });
             }
             const count = (st) => rows.filter(r => r.status === st).length;
@@ -4038,9 +4055,13 @@ Please review and approve this registration in the admin panel.`;
                 counts: {
                     paid: count('paid'), pending: count('pending'), overdue: count('overdue'),
                     partly_paid: count('partly_paid'), no_bill: count('no_bill'), not_set_up: count('not_set_up'),
+                    screenshot: rows.filter(r => r.screenshot).length,
                 },
             };
-            res.json({ period, today: todayStr, summary, rows: statusFilter ? rows.filter(r => r.status === statusFilter) : rows });
+            const filtered = !statusFilter ? rows
+                : statusFilter === 'screenshot' ? rows.filter(r => r.screenshot)
+                : rows.filter(r => r.status === statusFilter);
+            res.json({ period, today: todayStr, summary, rows: filtered });
         } catch (error) {
             console.error('Error building fees roster:', error);
             res.status(500).json({ message: 'Server error loading fees.' });
@@ -5112,6 +5133,10 @@ Please review and approve this registration in the admin panel.`;
         // the HDFC counter merchant ID refuses payments started from app
         // links, while the owner's personal Google Pay ID accepts them (Google
         // Pay sometimes asks to retry). Empty = use upi_id for the buttons too.
+        // How families pay in the app: 'upload' = the bill button opens the
+        // screenshot upload directly ("Upload payment screenshot · ₹X");
+        // 'upi' = the Pay sheet with UPI app buttons and the QR first.
+        fee_pay_mode: 'upload',
         upi_button_id: 'thendralmadhan-1@okhdfcbank',
         upi_button_name: 'NADANALOGA NATYALAYA',
     };
