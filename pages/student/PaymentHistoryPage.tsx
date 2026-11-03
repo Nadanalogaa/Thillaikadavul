@@ -339,6 +339,11 @@ const PaymentHistoryPage: React.FC = () => {
                                                         <DollarSign className="w-4 h-4" />
                                                         <span>{invoice.amount} {invoice.currency}</span>
                                                     </div>
+                                                    {!!invoice.discountAmount && invoice.discountAmount > 0 && !!invoice.originalAmount && (
+                                                        <div className={`text-xs font-medium ${theme === 'dark' ? 'text-emerald-300' : 'text-emerald-700'}`}>
+                                                            ₹{invoice.originalAmount.toLocaleString('en-IN')} − {invoice.discountPercentage ? `${invoice.discountPercentage}% ` : ''}discount ₹{invoice.discountAmount.toLocaleString('en-IN')} = ₹{invoice.amount.toLocaleString('en-IN')}
+                                                        </div>
+                                                    )}
                                                     {invoice.status !== InvoiceStatus.Paid && (
                                                         <button
                                                             type="button"

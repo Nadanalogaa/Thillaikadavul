@@ -402,6 +402,17 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
     );
   }
 
+  /// "₹1,400 − 10% discount ₹140 = ₹1,260" for a discounted bill, else null.
+  String? _discountLine(Map<String, dynamic> inv, double amount) {
+    double? n(dynamic v) => v is num ? v.toDouble() : double.tryParse('${v ?? ''}');
+    final off = n(inv['discount_amount']) ?? 0;
+    final full = n(inv['original_amount']) ?? 0;
+    if (off <= 0 || full <= 0) return null;
+    final pct = n(inv['discount_percentage']) ?? 0;
+    final pctText = pct > 0 ? '${pct % 1 == 0 ? pct.toStringAsFixed(0) : pct.toString()}% ' : '';
+    return '${FeeFormat.rupees(full)} − ${pctText}discount ${FeeFormat.rupees(off)} = ${FeeFormat.rupees(amount)}';
+  }
+
   Widget _invoiceRow(Map<String, dynamic> inv) {
     final id =
         inv['id'] is int ? inv['id'] as int : int.tryParse('${inv['id']}') ?? 0;
@@ -455,6 +466,10 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
                     Text('${inv['billing_period'] ?? ''}',
                         style: AppTextStyles.caption
                             .copyWith(color: AppColors.textSecondary)),
+                    if (_discountLine(inv, amount) != null)
+                      Text(_discountLine(inv, amount)!,
+                          style: AppTextStyles.caption
+                              .copyWith(color: AppColors.success, fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),

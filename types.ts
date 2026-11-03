@@ -341,6 +341,10 @@ export interface Invoice {
     feeStructureId: string;
     courseName: string;
     amount: number;
+    // Before the discount, and the discount taken off (bills with a discount).
+    originalAmount?: number | null;
+    discountPercentage?: number | null;
+    discountAmount?: number | null;
     currency: string;
     issueDate: string;
     dueDate: string;

@@ -207,8 +207,9 @@ class MemberDetailScreen extends StatelessWidget {
                         style: AppTextStyles.labelLarge),
                     if (c.discountPercentage > 0)
                       Text(
-                          '${c.discountPercentage.toStringAsFixed(c.discountPercentage % 1 == 0 ? 0 : 1)}% off '
-                          '${FeeFormat.rupees(c.monthlyFee)}',
+                          '${FeeFormat.rupees(c.monthlyFee)} − '
+                          '${c.discountPercentage.toStringAsFixed(c.discountPercentage % 1 == 0 ? 0 : 1)}% discount '
+                          '${FeeFormat.rupees(c.monthlyFee - c.netAmount)} = ${FeeFormat.rupees(c.netAmount)}',
                           style: AppTextStyles.caption
                               .copyWith(color: AppColors.success)),
                   ],

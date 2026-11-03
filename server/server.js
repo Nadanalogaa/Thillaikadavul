@@ -3865,6 +3865,7 @@ Please review and approve this registration in the admin panel.`;
             const invRes = await pool.query(
                 `SELECT i.id, i.student_id, i.course_name, i.amount, i.currency, i.status, i.billing_period,
                         i.issue_date, i.due_date, i.payment_details, i.prorated_from,
+                        i.original_amount, i.discount_percentage, i.discount_amount,
                         p.receipt_number, p.payment_method, p.paid_at, p.collected_by_name,
                         lp.status AS proof_status, lp.notes AS proof_note, lp.submitted_at AS proof_submitted_at
                  FROM invoices i
@@ -3896,7 +3897,10 @@ Please review and approve this registration in the admin panel.`;
                 if (!s) continue;
                 const amt = Number(inv.amount || 0);
                 const status = String(inv.status || '').toLowerCase();
-                s.invoices.push({ ...inv, amount: amt, status });
+                const num = (v) => (v === null || v === undefined ? null : Number(v));
+                s.invoices.push({ ...inv, amount: amt, status,
+                    original_amount: num(inv.original_amount), discount_percentage: num(inv.discount_percentage),
+                    discount_amount: num(inv.discount_amount) });
                 if (inv.billing_period !== period && status !== 'paid') { otherDue += amt; otherBills += 1; }
                 if (inv.billing_period === period) {
                     s.month_generated += amt; totalGenerated += amt;
