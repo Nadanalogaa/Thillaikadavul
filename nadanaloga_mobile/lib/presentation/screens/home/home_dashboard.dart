@@ -13,28 +13,40 @@ import '../../../di/injection_container.dart';
 import '../../bloc/auth/auth_bloc.dart';
 import '../../bloc/auth/auth_event.dart';
 import '../../bloc/auth/auth_state.dart';
+import '../admin/insights/dashboard_widgets.dart';
+import '../attendance/student_attendance_screen.dart';
+import '../student/book_materials_list_screen.dart';
 import '../student/events_list_screen.dart';
 import '../student/grade_exams_list_screen.dart';
 import '../student/household_fees_screen.dart';
+import '../student/student_batches_screen.dart';
+import '../student/students_profile_screen.dart';
 import '../student/upi_payment_flow.dart';
 import '../student/notices_list_screen.dart';
 import '../student/teaching_summary_screen.dart';
 import 'class_schedule.dart';
+import 'dashboard_parts.dart';
 import 'home_data.dart';
+import 'home_summary.dart';
 import 'home_widgets.dart';
 import 'member_detail_screen.dart';
-import '../attendance/attendance_today_screen.dart';
+import 'teacher_home_sections.dart';
 
 /// The home dashboard for everyone who is not an admin: a household (one phone
 /// number) of students, and/or a teacher. Everything is shown at once, top to
-/// bottom — no member switching, no sideways scrolling.
+/// bottom — no member switching, no sideways paging between people.
 ///
+/// Family:
 ///   header      greeting · today's classes · fees due
 ///   fees        this month's bill for the whole family, one Pay button
-///   at a glance three fixed tiles (teaching or learning numbers)
-///   this week   the next classes across the family and the teaching timetable
-///   family      one row per person (courses, batch, fee status) → details
-///   coming up   events, exams and notices in one short list
+///   birthdays   a banner when a child's birthday is within a week
+///   teaching    (a teacher who is also a parent) today's classes, to mark
+///   children    per child: next class, attendance, what was taught last
+///   this week   the family's classes for the next 7 days
+///   coming up   exams, events, notices, new study materials
+///   shortcuts
+///
+/// Teacher (no students in the household): see [TeacherHomeSections].
 class HomeDashboard extends StatefulWidget {
   final Color accent;
   final String notificationsRoute;
@@ -64,17 +76,32 @@ class HomeDashboard extends StatefulWidget {
 class _HomeDashboardState extends State<HomeDashboard> {
   HomeData? _data;
   bool _loading = true;
-  bool _showAllClasses = false;
+
+  /// GET /api/home/summary and /api/teacher/summary. Loaded alongside the
+  /// household; each can fail on its own without hiding the fees.
+  FamilySummary? _family;
+  bool _familyFailed = false;
+  TeacherSummary? _teaching;
+  bool _teachingFailed = false;
 
   /// Signed-in user; "You teach" / teaching numbers only when this is the teacher.
   int? _viewerId;
+  String? _viewerRole;
 
   bool _viewerTeaches(HomeData d) =>
       d.teacher != null && d.teacher!.id == _viewerId;
 
+  bool get _isTeacherLogin =>
+      (_viewerRole ?? '').trim().toLowerCase() == 'teacher';
+
   @override
   void initState() {
     super.initState();
+    final auth = context.read<AuthBloc>().state;
+    if (auth is AuthAuthenticated) {
+      _viewerId = auth.user.id;
+      _viewerRole = auth.user.role;
+    }
     _load();
   }
 
@@ -86,10 +113,22 @@ class _HomeDashboardState extends State<HomeDashboard> {
 
   Future<void> _load() async {
     if (_data == null) setState(() => _loading = true);
-    final data = await HomeData.load(sl<ApiClient>());
+    final api = sl<ApiClient>();
+    final teacher = _isTeacherLogin;
+    final results = await Future.wait<Object?>([
+      HomeData.load(api),
+      FamilySummary.load(api),
+      if (teacher) TeacherSummary.load(api),
+    ]);
     if (!mounted) return;
     setState(() {
-      _data = data;
+      _data = results[0] as HomeData;
+      _family = results[1] as FamilySummary?;
+      _familyFailed = _family == null;
+      if (teacher) {
+        _teaching = results[2] as TeacherSummary?;
+        _teachingFailed = _teaching == null;
+      }
       _loading = false;
     });
   }
@@ -100,7 +139,9 @@ class _HomeDashboardState extends State<HomeDashboard> {
         d.members.isEmpty &&
         d.teacher == null &&
         d.fees == null &&
-        d.batches.isEmpty;
+        d.batches.isEmpty &&
+        _family == null &&
+        _teaching == null;
   }
 
   Future<void> _openFees() async {
@@ -135,6 +176,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
     final auth = context.watch<AuthBloc>().state;
     final user = auth is AuthAuthenticated ? auth.user : null;
     _viewerId = user?.id;
+    _viewerRole = user?.role;
     final top = MediaQuery.of(context).padding.top;
     final d = _data;
 
@@ -165,8 +207,10 @@ class _HomeDashboardState extends State<HomeDashboard> {
                         ..._skeleton()
                       else if (_failed)
                         _errorCard()
+                      else if (d!.students.isEmpty && d.teacher != null)
+                        ..._teacherSections(d)
                       else
-                        ..._sections(d!),
+                        ..._sections(d),
                     ],
                   ),
                 ),
@@ -178,13 +222,53 @@ class _HomeDashboardState extends State<HomeDashboard> {
     );
   }
 
+  // ------------------------------------------------------------- teacher ---
+
+  TeacherHomeSections? _teacherBuilder(HomeData d) {
+    final s = _teaching;
+    if (s == null || d.teacher == null) return null;
+    return TeacherHomeSections(
+      context: context,
+      s: s,
+      teacherId: d.teacher!.id,
+      teacherName: d.teacher!.name,
+      reload: _load,
+      notificationsRoute: widget.notificationsRoute,
+    );
+  }
+
+  List<Widget> _teacherSections(HomeData d) {
+    final b = _teacherBuilder(d);
+    if (b == null) {
+      // The summary could not load: keep the old batch list so the teacher
+      // can still reach her students, and offer a retry.
+      return [
+        SectionError(
+            text: "Couldn't load today's classes.", onRetry: _load),
+        const SizedBox(height: 4),
+        HomeSectionTitle('My batches',
+            action: d.teachingBatches.isEmpty ? null : 'See all',
+            onAction: () => _push(TeachingSummaryScreen(
+                teacherId: d.teacher!.id, teacherName: d.teacher!.name))),
+        ..._teachingBatchTiles(d),
+        const SizedBox(height: 12),
+      ];
+    }
+    return [...b.build(), const SizedBox(height: 16)];
+  }
+
+  // -------------------------------------------------------------- family ---
+
   List<Widget> _sections(HomeData d) {
-    final family = <HouseholdMember>[
-      if (d.teacher != null) d.teacher!,
-      ...d.students,
-    ];
+    final fam = _family;
+    final teaching = _viewerTeaches(d) ? _teacherBuilder(d) : null;
+    final birthdays = [
+      for (final c in fam?.children ?? const <ChildSummary>[])
+        if (c.birthday != null && c.birthday!.inDays <= 7) c,
+    ]..sort((a, b) => a.birthday!.inDays.compareTo(b.birthday!.inDays));
+
     return [
-      if (d.students.isNotEmpty) _feeCard(d) else _glance(d),
+      if (d.students.isNotEmpty) _feeCard(d),
       if (d.partial)
         Padding(
           padding: const EdgeInsets.only(top: 10),
@@ -194,26 +278,27 @@ class _HomeDashboardState extends State<HomeDashboard> {
             textAlign: TextAlign.center,
           ),
         ),
-      if (d.students.isNotEmpty) ...[
+      for (final c in birthdays)
+        Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: BirthdayBanner(
+            name: c.name,
+            inDays: c.birthday!.inDays,
+            turns: c.birthday!.turns,
+            date: c.birthday!.date,
+            onTap: () => _openMember(d, c.id),
+          ),
+        ),
+      if (teaching != null) ...teaching.build(compact: true),
+      if (_viewerTeaches(d) && teaching == null && _teachingFailed) ...[
         const SizedBox(height: 12),
-        _glance(d),
+        SectionError(text: "Couldn't load your teaching today.", onRetry: _load),
       ],
-      ..._classesSection(d),
-      if (family.length > 1) ...[
-        const HomeSectionTitle('Your family'),
-        for (final m in family) _memberTile(m, d),
-      ] else if (d.students.length == 1) ...[
-        const HomeSectionTitle('My courses'),
-        _memberTile(d.students.first, d),
-      ] else if (d.teacher != null) ...[
-        if (_viewerTeaches(d)) _markAttendanceCard(),
-        HomeSectionTitle('My batches',
-            action: d.teachingBatches.isEmpty ? null : 'See all',
-            onAction: () => _push(TeachingSummaryScreen(
-                teacherId: d.teacher!.id, teacherName: d.teacher!.name))),
-        ..._teachingBatchTiles(d),
-      ],
-      ..._comingUpSection(d),
+      ..._childrenSection(d),
+      ..._weekSection(d),
+      ..._comingUp(d),
+      const HomeSection('Shortcuts'),
+      QuickGrid(actions: _familyActions(d)),
       if (d.students.isNotEmpty)
         Padding(
           padding: const EdgeInsets.only(top: 20),
@@ -224,6 +309,438 @@ class _HomeDashboardState extends State<HomeDashboard> {
           ),
         ),
       const SizedBox(height: 12),
+    ];
+  }
+
+  Future<void> _openMember(HomeData d, int id) async {
+    HouseholdMember? m;
+    for (final s in d.students) {
+      if (s.id == id) m = s;
+    }
+    if (m == null) return;
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => MemberDetailScreen(member: m!, data: d, accent: widget.accent),
+    ));
+    if (mounted) _load();
+  }
+
+  String? _courseNameById(HomeData d, int? id) {
+    for (final c in d.courses) {
+      if (c.id == id) return c.name;
+    }
+    return null;
+  }
+
+  /// The Batches page (class days, times, teacher, place) for [students].
+  void _openBatches(HomeData d, List<HouseholdMember> students) {
+    _push(StudentBatchesScreen(
+      sections: [
+        for (final s in students)
+          BatchSection(name: s.name, batches: d.batchesOf(s.id)),
+      ],
+      isLoading: false,
+      onRefresh: () {},
+      courseNameOf: (id) => _courseNameById(d, id),
+    ));
+  }
+
+  void _openAttendanceOf(int id, String name) =>
+      _push(StudentAttendanceScreen(studentId: id, studentName: name));
+
+  /// One child opens straight away; with several, ask whose.
+  Future<void> _pickAttendance(HomeData d) async {
+    final students = d.students;
+    if (students.isEmpty) return;
+    if (students.length == 1) {
+      _openAttendanceOf(students.first.id, students.first.name);
+      return;
+    }
+    final chosen = await showModalBottomSheet<HouseholdMember>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Text('Whose attendance?', style: AppTextStyles.h4),
+            ),
+            for (final s in students)
+              ListTile(
+                leading: InitialsAvatar(s.name, size: 40, photoUrl: s.photoUrl),
+                title: Text(s.name),
+                subtitle: s.courseLabels.isEmpty
+                    ? null
+                    : Text(s.courseLabels.join(', ')),
+                onTap: () => Navigator.pop(sheet, s),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (chosen != null && mounted) _openAttendanceOf(chosen.id, chosen.name);
+  }
+
+  List<Widget> _childrenSection(HomeData d) {
+    final students = d.students;
+    final teacherTile = d.teacher != null && students.isNotEmpty;
+    if (students.isEmpty) return const [];
+    final title = students.length == 1 && !students.first.isChild
+        ? 'My classes'
+        : students.length == 1
+            ? '${greetingName(students.first.name)}\'s classes'
+            : 'Your children';
+    return [
+      HomeSection(title),
+      if (_family == null && _familyFailed) ...[
+        SectionError(
+            text: "Couldn't load classes and attendance.", onRetry: _load),
+        const SizedBox(height: 10),
+        for (final m in students) _memberTile(m, d),
+      ] else
+        for (var i = 0; i < students.length; i++)
+          Padding(
+            padding: EdgeInsets.only(top: i == 0 ? 0 : 12),
+            child: _childCard(d, students[i], _family?.child(students[i].id)),
+          ),
+      if (teacherTile) ...[
+        const SizedBox(height: 12),
+        _memberTile(d.teacher!, d),
+      ],
+    ];
+  }
+
+  Widget _childCard(HomeData d, HouseholdMember m, ChildSummary? c) {
+    final f = d.feesFor(m.id);
+    final Widget? pill = f.due > 0
+        ? StatusPill('${FeeFormat.rupees(f.due)} due', color: AppColors.warning)
+        : f.allPaid
+            ? const StatusPill('Paid',
+                color: AppColors.success, icon: Icons.check_rounded)
+            : null;
+    final courses = m.courseLabels.isNotEmpty ? m.courseLabels : (c?.courses ?? const []);
+    final hasBatch = d.batchesOf(m.id).isNotEmpty || (c?.batches.isNotEmpty ?? false);
+
+    return DashPanel(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Who: photo, name, courses, fee status → details.
+          InkWell(
+            onTap: () => _openMember(d, m.id),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 14, 8, 10),
+              child: Row(
+                children: [
+                  InitialsAvatar(m.name, photoUrl: m.photoUrl),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(m.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTextStyles.labelLarge
+                                      .copyWith(fontWeight: FontWeight.w700)),
+                            ),
+                            if (pill != null) ...[const SizedBox(width: 8), pill],
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          courses.isEmpty ? 'No courses yet' : courses.join(' · '),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.caption
+                              .copyWith(color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right, color: AppColors.textHint),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: c == null
+                ? const SkeletonBlock(110)
+                : c.nextClass != null
+                    ? NextClassHero(
+                        cls: c.nextClass!,
+                        onTap: () => _openBatches(d, [m]),
+                      )
+                    : _noClassBox(
+                        hasBatch
+                            ? 'No classes in the next 7 days'
+                            : 'Awaiting batch — class timings will show here once the academy assigns one',
+                        onTap: hasBatch ? () => _openBatches(d, [m]) : null),
+          ),
+          if (c != null) ...[
+            _attendanceRow(m, c),
+            if (c.lastNote != null) ...[
+              const Divider(height: 1, indent: 14, endIndent: 14, color: AppColors.divider),
+              _noteRow(m, c.lastNote!),
+            ],
+          ] else
+            const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+
+  Widget _noClassBox(String text, {VoidCallback? onTap}) {
+    return Material(
+      color: AppColors.background,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              const IconBubble(Icons.event_available_rounded, AppColors.textSecondary,
+                  size: 36),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(text,
+                    style: AppTextStyles.bodySmall
+                        .copyWith(color: AppColors.textSecondary)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _attendanceRow(HouseholdMember m, ChildSummary c) {
+    final useMonth = c.month.classes > 0 || c.last90.classes == 0;
+    final a = useMonth ? c.month : c.last90;
+    final none = a.classes == 0;
+    final color = attendanceColor(a.percentage);
+    final caption = [
+      none
+          ? 'No classes marked yet'
+          : 'Attended ${a.attended} of ${a.classes} ${a.classes == 1 ? 'class' : 'classes'}',
+      // Early in the month a single class swings the number; give the longer view.
+      if (useMonth && c.last90.classes > a.classes && c.last90.percentage != null)
+        '${c.last90.percentage}% over 90 days',
+    ].join(' · ');
+    return InkWell(
+      onTap: () => _openAttendanceOf(m.id, m.name),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+        child: Row(
+          children: [
+            PercentRing(percentage: none ? null : a.percentage, size: 54, stroke: 6),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          useMonth ? 'Attendance this month' : 'Attendance · 90 days',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.labelLarge,
+                        ),
+                      ),
+                      if (!none && a.percentage != null && a.percentage! < 70) ...[
+                        const SizedBox(width: 6),
+                        Icon(Icons.warning_amber_rounded, size: 16, color: color),
+                      ],
+                    ],
+                  ),
+                  Text(caption,
+                      style: AppTextStyles.caption
+                          .copyWith(color: AppColors.textSecondary)),
+                  if (c.recent.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    AttendanceDots(recent: c.recent),
+                  ],
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.textHint),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _noteRow(HouseholdMember m, ClassNote n) {
+    final missed = n.status == 'absent';
+    return InkWell(
+      onTap: () => _openAttendanceOf(m.id, m.name),
+      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 8, 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const IconBubble(Icons.menu_book_rounded, AppColors.info, size: 36),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        n.date == null
+                            ? 'What was taught'
+                            : 'What was taught on ${shortDay(n.date!)}',
+                        style: AppTextStyles.labelLarge,
+                      ),
+                      if (missed)
+                        const TagChip('Missed this class',
+                            color: AppColors.error, icon: Icons.close_rounded),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(n.note,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.bodySmall
+                          .copyWith(color: AppColors.textPrimary)),
+                  if (n.batchName.isNotEmpty)
+                    Text(n.batchName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.caption
+                            .copyWith(color: AppColors.textHint)),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.textHint),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _weekSection(HomeData d) {
+    final fam = _family;
+    if (fam == null || d.students.isEmpty) return const [];
+    final week = fam.week;
+    if (week.isEmpty) return const [];
+    return [
+      HomeSection('This week',
+          action: 'Timetable', onAction: () => _openBatches(d, d.students)),
+      WeekStrip(
+        classes: week,
+        showLearners: d.students.length > 1,
+        onTap: (_) => _openBatches(d, d.students),
+      ),
+    ];
+  }
+
+  List<Widget> _comingUp(HomeData d) {
+    final fam = _family;
+    if (fam == null) return _comingUpSection(d);
+    final firstStudentId = d.students.isEmpty ? null : d.students.first.id;
+    final rows = <Widget>[
+      for (final x in fam.exams.take(3))
+        InfoRow(
+          leading: x.date == null
+              ? const IconBubble(Icons.workspace_premium_rounded, AppColors.warning)
+              : DateBadge(x.date!, AppColors.warning, size: 42),
+          title: x.name,
+          subtitle: [
+            if (x.course != null) x.course!,
+            if (x.time != null) clock12(x.time),
+            if (x.location != null) x.location!,
+          ].join(' · '),
+          onTap: () => _push(GradeExamsListScreen(studentId: firstStudentId)),
+        ),
+      for (final e in fam.events.take(3))
+        InfoRow(
+          leading: e.date == null
+              ? const IconBubble(Icons.celebration_rounded, AppColors.courseDance)
+              : DateBadge(e.date!, AppColors.courseDance, size: 42),
+          title: e.title,
+          subtitle: [
+            'Event',
+            if (e.time != null) clock12(e.time),
+            if (e.location != null) e.location!,
+          ].join(' · '),
+          onTap: () => _push(const EventsListScreen()),
+        ),
+      for (final n in fam.notices.take(3))
+        InfoRow(
+          leading: IconBubble(Icons.campaign_rounded,
+              n.isHigh ? AppColors.error : AppColors.info, size: 42),
+          title: n.title,
+          subtitle: [
+            'Notice',
+            if (n.isHigh) 'Important',
+            if (n.createdAt != null) shortDay(n.createdAt!),
+          ].join(' · '),
+          onTap: () => _push(const NoticesListScreen()),
+        ),
+      if (fam.newMaterials > 0)
+        InfoRow(
+          leading: const IconBubble(Icons.auto_stories_rounded, AppColors.teacherAccent,
+              size: 42),
+          title:
+              '${fam.newMaterials} new study ${fam.newMaterials == 1 ? 'material' : 'materials'}',
+          subtitle: 'Added in the last 30 days',
+          onTap: () => _push(BookMaterialsListScreen(studentId: firstStudentId)),
+        ),
+    ];
+    return [
+      const HomeSection('Coming up'),
+      if (rows.isEmpty)
+        const CalmLine(
+          icon: Icons.celebration_outlined,
+          text: 'Nothing new. Exams, events and notices will show here.',
+        )
+      else
+        RowsPanel(rows: rows),
+    ];
+  }
+
+  List<HomeAction> _familyActions(HomeData d) {
+    final firstStudentId = d.students.isEmpty ? null : d.students.first.id;
+    final due = d.monthDue || d.otherDue > 0;
+    final materials = _family?.newMaterials ?? 0;
+    return [
+      HomeAction(Icons.account_balance_wallet_rounded, 'Fees', AppColors.success,
+          _openFees,
+          badge: due && !d.allVerifying ? '!' : null),
+      HomeAction(Icons.fact_check_rounded, 'Attendance', AppColors.teacherAccent,
+          () => _pickAttendance(d)),
+      HomeAction(Icons.calendar_month_rounded, 'Classes', AppColors.primary,
+          () => _openBatches(d, d.students)),
+      HomeAction(Icons.auto_stories_rounded, 'Materials', AppColors.courseVocal,
+          () => _push(BookMaterialsListScreen(studentId: firstStudentId)),
+          badge: materials > 0 ? '$materials' : null),
+      HomeAction(Icons.workspace_premium_rounded, 'Exams', AppColors.warning,
+          () => _push(GradeExamsListScreen(studentId: firstStudentId))),
+      HomeAction(Icons.celebration_rounded, 'Events', AppColors.courseDance,
+          () => _push(const EventsListScreen())),
+      HomeAction(Icons.campaign_rounded, 'Notices', AppColors.info,
+          () => _push(const NoticesListScreen())),
+      HomeAction(Icons.badge_rounded, 'Profiles', AppColors.studentAccent,
+          () => _push(const StudentsProfileScreen())),
     ];
   }
 
@@ -250,13 +767,28 @@ class _HomeDashboardState extends State<HomeDashboard> {
 
     String summary = '';
     if (d != null && !_failed) {
-      final today = d.upcomingClasses
-          .where((s) => ClassSchedule.dayLabel(s.start) == 'Today')
-          .length;
+      final teacherOnly = d.students.isEmpty && d.teacher != null;
+      final int today;
+      if (teacherOnly && _teaching != null) {
+        today = _teaching!.today.where((c) => c.state != 'cancelled').length;
+      } else if (_family != null) {
+        today = _family!.week
+                .where((c) => !c.cancelled && c.dayWord(now) == 'Today')
+                .length +
+            (_viewerTeaches(d) && _teaching != null
+                ? _teaching!.today.where((c) => c.state != 'cancelled').length
+                : 0);
+      } else {
+        today = d.upcomingClasses
+            .where((s) => ClassSchedule.dayLabel(s.start) == 'Today')
+            .length;
+      }
+      final toMark = _viewerTeaches(d) ? (_teaching?.unmarked.length ?? 0) : 0;
       final parts = <String>[
         today == 0
             ? 'No classes today'
             : '$today ${today == 1 ? 'class' : 'classes'} today',
+        if (toMark > 0) '$toMark to mark',
         if (d.students.isNotEmpty && (d.hasBill || d.otherDue > 0))
           d.monthDue
               ? (d.allVerifying
@@ -281,68 +813,89 @@ class _HomeDashboardState extends State<HomeDashboard> {
         ),
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: Text(
-                  InitialsAvatar.initials(fullName),
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 17),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(greeting,
-                        style: AppTextStyles.bodySmall
-                            .copyWith(color: Colors.white70)),
-                    Text(
-                      firstName.isEmpty ? 'Welcome' : firstName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.h3.copyWith(
-                          color: Colors.white, fontWeight: FontWeight.w700),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                tooltip: 'Notifications',
-                icon: const Icon(Icons.notifications_outlined,
-                    color: Colors.white),
-                onPressed: () => context.push(widget.notificationsRoute),
-              ),
-              if (widget.showLogout)
-                IconButton(
-                  tooltip: 'Log out',
-                  icon: const Icon(Icons.logout, color: Colors.white),
-                  onPressed: () =>
-                      context.read<AuthBloc>().add(AuthLogoutRequested()),
-                ),
-            ],
+          Positioned(
+            right: 24,
+            top: 40,
+            child: Icon(Icons.music_note_rounded,
+                size: 96, color: Colors.white.withValues(alpha: 0.07)),
           ),
-          const SizedBox(height: 18),
-          Text(dateLine,
-              style: AppTextStyles.bodySmall.copyWith(color: Colors.white70)),
-          const SizedBox(height: 2),
-          Text(
-            summary,
-            style: AppTextStyles.bodyLarge
-                .copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.35), width: 1.5),
+                    ),
+                    child: Text(
+                      InitialsAvatar.initials(fullName),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 17),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(greeting,
+                            style: AppTextStyles.bodySmall
+                                .copyWith(color: Colors.white70)),
+                        Text(
+                          firstName.isEmpty ? 'Welcome' : firstName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.h3.copyWith(
+                              color: Colors.white, fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Notifications',
+                    icon: const Icon(Icons.notifications_outlined,
+                        color: Colors.white),
+                    onPressed: () => context.push(widget.notificationsRoute),
+                  ),
+                  if (widget.showLogout)
+                    IconButton(
+                      tooltip: 'Log out',
+                      icon: const Icon(Icons.logout, color: Colors.white),
+                      onPressed: () =>
+                          context.read<AuthBloc>().add(AuthLogoutRequested()),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  const Icon(Icons.calendar_today_rounded,
+                      size: 13, color: Colors.white70),
+                  const SizedBox(width: 6),
+                  Text(dateLine,
+                      style:
+                          AppTextStyles.bodySmall.copyWith(color: Colors.white70)),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                summary,
+                style: AppTextStyles.bodyLarge
+                    .copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+            ],
           ),
         ],
       ),
@@ -548,234 +1101,6 @@ class _HomeDashboardState extends State<HomeDashboard> {
     }
     return Text('No bill',
         style: AppTextStyles.caption.copyWith(color: AppColors.textHint));
-  }
-
-  // ----------------------------------------------------------- at a glance ---
-
-  static String _count(int n, String one) => '$n ${n == 1 ? one : '${one}s'}';
-
-  static const _singular = {
-    'Courses': 'Course',
-    'Batches': 'Batch',
-    'Students': 'Student',
-  };
-
-  /// Teachers mark their own class from here, in class, on their phone.
-  Widget _markAttendanceCard() => Padding(
-        padding: const EdgeInsets.only(top: 4, bottom: 4),
-        child: Card(
-          margin: EdgeInsets.zero,
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: widget.accent.withValues(alpha: 0.15),
-              child: Icon(Icons.fact_check_outlined, color: widget.accent),
-            ),
-            title: Text('Mark attendance', style: AppTextStyles.labelLarge),
-            subtitle: Text("Today's classes and who turned up",
-                style: AppTextStyles.caption),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _push(const AttendanceTodayScreen()),
-          ),
-        ),
-      );
-
-  Widget _glance(HomeData d) {
-    final tiles = _viewerTeaches(d) || d.students.isEmpty
-        ? [
-            _Tile(Icons.groups_2_outlined, '${d.teachingBatches.length}',
-                'Batches', AppColors.teacherAccent, null),
-            _Tile(Icons.people_outline, '${d.studentsTaught}', 'Students',
-                AppColors.primary, () => _push(TeachingSummaryScreen(
-                    teacherId: d.teacher!.id, teacherName: d.teacher!.name))),
-            _Tile(
-                Icons.event_repeat_outlined,
-                '${ClassSchedule.weeklyClassCount(d.teachingBatches)}',
-                'Classes/week',
-                AppColors.studentAccent,
-                null),
-          ]
-        : [
-            _Tile(
-                Icons.menu_book_outlined,
-                '${d.students.fold<int>(0, (n, s) => n + s.courseLabels.length)}',
-                'Courses',
-                AppColors.studentAccent,
-                widget.onOpenCourses),
-            _Tile(Icons.groups_2_outlined, '${d.learningBatches.length}',
-                'Batches', AppColors.teacherAccent, widget.onOpenCourses),
-            _Tile(
-                Icons.event_repeat_outlined,
-                '${ClassSchedule.weeklyClassCount(d.learningBatches)}',
-                'Classes/week',
-                AppColors.primary,
-                null),
-          ];
-    return Row(
-      children: [
-        for (var i = 0; i < tiles.length; i++) ...[
-          if (i > 0) const SizedBox(width: 10),
-          Expanded(child: _tile(tiles[i])),
-        ],
-      ],
-    );
-  }
-
-  Widget _tile(_Tile t) {
-    return HomeCard(
-      onTap: t.onTap,
-      padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(t.icon, size: 22, color: t.color),
-          const SizedBox(height: 8),
-          Text(t.value,
-              style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w700)),
-          Text(t.value == '1' ? (_singular[t.label] ?? t.label) : t.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style:
-                  AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
-        ],
-      ),
-    );
-  }
-
-  // ------------------------------------------------------------- classes ---
-
-  List<Widget> _classesSection(HomeData d) {
-    final sessions = d.upcomingClasses;
-    final visible = _showAllClasses ? sessions : sessions.take(4).toList();
-    final hasBatches =
-        d.learningBatches.isNotEmpty || d.teachingBatches.isNotEmpty;
-
-    return [
-      HomeSectionTitle(
-        'This week',
-        action: sessions.length > 4
-            ? (_showAllClasses ? 'Show less' : 'See all ${sessions.length}')
-            : null,
-        onAction: () => setState(() => _showAllClasses = !_showAllClasses),
-      ),
-      if (sessions.isEmpty)
-        HomeEmptyLine(
-          icon: Icons.event_available_outlined,
-          text: hasBatches
-              ? 'No classes in the next 7 days.'
-              : d.students.isNotEmpty
-                  ? 'Awaiting batch. Class timings will show here once the academy assigns one.'
-                  : 'No batches assigned yet.',
-        )
-      else
-        HomeCard(
-          padding: EdgeInsets.zero,
-          child: Column(
-            children: [
-              for (var i = 0; i < visible.length; i++) ...[
-                if (i > 0)
-                  const Divider(
-                      height: 1, indent: 16, endIndent: 16, color: AppColors.divider),
-                _classRow(visible[i],
-                    isNext: i == 0,
-                    viewerTeaches: _viewerTeaches(d),
-                    // Label teaching vs. learning only when the family has both.
-                    mixed: d.students.isNotEmpty,
-                    teacherName: d.teacher?.name ?? ''),
-              ],
-            ],
-          ),
-        ),
-    ];
-  }
-
-  Widget _classRow(ClassSession s,
-      {required bool isNext,
-      required bool viewerTeaches,
-      required bool mixed,
-      required String teacherName}) {
-    final day = ClassSchedule.dayLabel(s.start);
-    final isToday = day == 'Today';
-    final color = s.courseName.isNotEmpty
-        ? AppColors.getCourseColor(s.courseName)
-        : widget.accent;
-    final teacherFirst = greetingName(teacherName);
-    final who = [
-      if (s.learners.isNotEmpty) s.learners.join(' & '),
-      if (s.teaching)
-        viewerTeaches
-            ? (mixed
-                ? 'You teach · ${_count(s.batch.allStudentIds.length, 'student')}'
-                : _count(s.batch.allStudentIds.length, 'student'))
-            : '$teacherFirst teaches',
-    ].join(' · ');
-    final subtitle = [
-      if (s.courseName.isNotEmpty &&
-          s.courseName.toLowerCase() != s.batch.batchName.toLowerCase())
-        s.courseName,
-      if (who.isNotEmpty) who,
-      if (s.batch.mode != null && s.batch.mode!.isNotEmpty) s.batch.mode!,
-    ].join(' · ');
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 78,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  day,
-                  style: AppTextStyles.caption.copyWith(
-                    color: isToday ? widget.accent : AppColors.textSecondary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  s.hasTime
-                      ? ClassSchedule.clock(s.start.hour * 60 + s.start.minute)
-                      : 'Time TBA',
-                  style: AppTextStyles.bodySmall.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            width: 4,
-            height: 38,
-            margin: const EdgeInsets.only(right: 12),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(s.batch.batchName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.labelLarge),
-                if (subtitle.isNotEmpty)
-                  Text(subtitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.caption
-                          .copyWith(color: AppColors.textSecondary)),
-              ],
-            ),
-          ),
-          if (isNext && isToday)
-            StatusPill('Next', color: widget.accent)
-          else if (s.teaching && viewerTeaches && mixed)
-            const StatusPill('Teaching', color: AppColors.teacherAccent),
-        ],
-      ),
-    );
   }
 
   // -------------------------------------------------------------- family ---
@@ -1055,6 +1380,10 @@ class _HomeDashboardState extends State<HomeDashboard> {
     );
   }
 
+  // ------------------------------------------------------------- helpers ---
+
+  static String _count(int n, String one) => '$n ${n == 1 ? one : '${one}s'}';
+
   List<Widget> _skeleton() {
     Widget block(double h) => Container(
           height: h,
@@ -1074,7 +1403,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
         children: [
           const Icon(Icons.cloud_off_outlined, size: 36, color: AppColors.textHint),
           const SizedBox(height: 8),
-          Text('Could not load your dashboard', style: AppTextStyles.labelLarge),
+          const Text('Could not load your dashboard', style: AppTextStyles.labelLarge),
           Text('Check your internet connection and try again.',
               textAlign: TextAlign.center,
               style:
@@ -1085,14 +1414,4 @@ class _HomeDashboardState extends State<HomeDashboard> {
       ),
     );
   }
-}
-
-class _Tile {
-  final IconData icon;
-  final String value;
-  final String label;
-  final Color color;
-  final VoidCallback? onTap;
-
-  const _Tile(this.icon, this.value, this.label, this.color, this.onTap);
 }

@@ -86,6 +86,9 @@ class ApiEndpoints {
   // Household (one phone number = one household): members + this month's bill.
   static const String household = '$apiPrefix/household';
   static const String householdFees = '$apiPrefix/household/fees';
+  // Home dashboards: next class, attendance, notes, birthdays, what's coming up.
+  static const String homeSummary = '$apiPrefix/home/summary';
+  static const String teacherSummary = '$apiPrefix/teacher/summary';
   static String report(String type) => '$apiPrefix/reports/$type';
   static String razorpayOrder(int id) => '$apiPrefix/invoices/$id/razorpay-order';
   static const String razorpayVerify = '$apiPrefix/razorpay/verify-payment';

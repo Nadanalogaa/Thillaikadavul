@@ -25,20 +25,33 @@ class HomeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: color ?? AppColors.surface,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
+    // Same soft lift as the admin dashboard's panels, so cards don't sit flat.
+    return DecoratedBox(
+      decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          width: double.infinity,
-          padding: padding,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: borderColor ?? AppColors.divider),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
-          child: child,
+        ],
+      ),
+      child: Material(
+        color: color ?? AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Container(
+            width: double.infinity,
+            padding: padding,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: borderColor ?? AppColors.divider),
+            ),
+            child: child,
+          ),
         ),
       ),
     );
@@ -131,8 +144,11 @@ class InitialsAvatar extends StatelessWidget {
   ];
 
   static String initials(String name) {
-    final parts =
-        name.trim().split(RegExp(r'[\s.]+')).where((p) => p.isNotEmpty).toList();
+    final parts = name
+        .trim()
+        .split(RegExp(r'[\s.]+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
     if (parts.isEmpty) return '?';
     if (parts.length == 1) return parts.first[0].toUpperCase();
     return (parts[0][0] + parts[1][0]).toUpperCase();
@@ -141,7 +157,8 @@ class InitialsAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = color ??
-        _palette[name.codeUnits.fold<int>(0, (a, b) => a + b) % _palette.length];
+        _palette[
+            name.codeUnits.fold<int>(0, (a, b) => a + b) % _palette.length];
     final photo = absoluteMediaUrl(photoUrl);
     if (photo != null) {
       return UserAvatar(
