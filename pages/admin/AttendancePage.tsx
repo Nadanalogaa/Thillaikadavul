@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import AdminLayout from '../../components/admin/AdminLayout';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
@@ -41,7 +41,11 @@ const STATUS_LABEL: Record<string, string> = {
 
 type Tab = 'day' | 'month' | 'makeups';
 
-const AttendancePage: React.FC = () => {
+const TeacherFrame: React.FC<{ children: React.ReactNode }> = ({ children }) => <div className="p-4 sm:p-6">{children}</div>;
+
+// Also the teacher's "Mark attendance" page (teacher): only her own classes,
+// the day view only, without the admin frame. ?batch=<id> opens that class.
+const AttendancePage: React.FC<{ teacher?: boolean }> = ({ teacher = false }) => {
     const { theme } = useTheme();
     const dark = theme === 'dark';
     const [tab, setTab] = useState<Tab>('day');
@@ -51,6 +55,7 @@ const AttendancePage: React.FC = () => {
         return q && /^\d{4}-\d{2}-\d{2}$/.test(q) ? q : todayIso();
     });
     const [classes, setClasses] = useState<AttendanceClass[]>([]);
+    const autoOpened = useRef(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -78,8 +83,15 @@ const AttendancePage: React.FC = () => {
         if (tab !== 'day') return;
         setLoading(true);
         setError('');
-        getAttendanceClasses(date)
-            .then(setClasses)
+        getAttendanceClasses(date, !teacher)
+            .then(list => {
+                setClasses(list);
+                const want = Number(new URLSearchParams(window.location.search).get('batch'));
+                if (want && !autoOpened.current && list.some(c => Number(c.batch_id) === want)) {
+                    autoOpened.current = true;
+                    openRoster(want);
+                }
+            })
             .catch(e => setError(e.message))
             .finally(() => setLoading(false));
     }, [tab, date]);
@@ -111,7 +123,7 @@ const AttendancePage: React.FC = () => {
                 classNote.trim()
             );
             setRoster(null);
-            setClasses(await getAttendanceClasses(date));
+            setClasses(await getAttendanceClasses(date, !teacher));
             alert(result.notified ? `Attendance saved. ${result.notified} parent(s) notified.` : 'Attendance saved.');
         } catch (e) {
             alert(e instanceof Error ? e.message : 'Could not save attendance');
@@ -126,7 +138,7 @@ const AttendancePage: React.FC = () => {
         try {
             await cancelClass(String(batchId), date, reason);
             setRoster(null);
-            setClasses(await getAttendanceClasses(date));
+            setClasses(await getAttendanceClasses(date, !teacher));
         } catch (e) {
             alert(e instanceof Error ? e.message : 'Could not cancel the class');
         }
@@ -151,7 +163,7 @@ const AttendancePage: React.FC = () => {
         try {
             await reinstateClass(row.id);
             setOwed(await getOwedMakeups());
-            setClasses(await getAttendanceClasses(date));
+            setClasses(await getAttendanceClasses(date, !teacher));
         } catch (e) {
             alert(e instanceof Error ? e.message : 'Could not undo the cancellation');
         }
@@ -199,11 +211,14 @@ const AttendancePage: React.FC = () => {
         return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${map[status] || map.not_marked}`}>{label[status] || status}</span>;
     };
 
+    const Frame = teacher ? TeacherFrame : AdminLayout;
     return (
-        <AdminLayout>
-            <AdminPageHeader title="Attendance" subtitle="Teachers mark their classes in the app; correct and review them here." />
+        <Frame>
+            {teacher
+                ? <div className="mb-4"><h1 className={`text-2xl font-bold ${strong}`}>Mark attendance</h1><p className={`text-sm ${muted}`}>Your classes for the day. Parents are told when their child is absent.</p></div>
+                : <AdminPageHeader title="Attendance" subtitle="Teachers mark their classes in the app; correct and review them here." />}
 
-            <div className={`mb-4 flex gap-4 border-b ${dark ? 'border-gray-700' : 'border-gray-200'}`}>
+            <div className={`mb-4 flex gap-4 border-b ${dark ? 'border-gray-700' : 'border-gray-200'} ${teacher ? 'hidden' : ''}`}>
                 {([['day', 'By day'], ['month', 'Monthly report'], ['makeups', 'Classes owed']] as [Tab, string][]).map(([id, label]) => (
                     <button
                         key={id}
@@ -422,7 +437,7 @@ const AttendancePage: React.FC = () => {
                     </div>
                 </div>
             )}
-        </AdminLayout>
+        </Frame>
     );
 };
 

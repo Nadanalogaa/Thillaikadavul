@@ -35,6 +35,7 @@ const Sidebar: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         { name: 'Your Courses', path: 'courses', icon: CoursesIcon },
         { name: 'Students', path: 'students', icon: StudentsIcon },
         { name: 'Batches', path: 'batches', icon: BatchesIcon },
+        { name: 'Attendance', path: 'attendance', icon: BatchesIcon },
         { name: 'Book Materials', path: 'book-materials', icon: BookMaterialsIcon },
         { name: 'Events', path: 'events', icon: EventsIcon },
         { name: 'Notice', path: 'notice', icon: NoticeIcon },

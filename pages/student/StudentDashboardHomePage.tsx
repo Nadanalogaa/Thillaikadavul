@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import type { User, Event, Notice, CourseTimingSlot, StudentEnrollment, Household, HouseholdFees, Batch } from '../../types';
 import FamilyExtraBills from '../../components/student/FamilyExtraBills';
+import { FamilyHomeSummary, QuickLinks, familyQuickLinks, useHomeSummary } from '../../components/home/HomeWidgets';
 import { getFamilyStudents, getEvents, getNotices, getCourses, getStudentEnrollmentsForFamily, getHousehold, getHouseholdFees, getBatches } from '../../api';
 import type { Course } from '../../types';
 import UnifiedNotificationBell from '../../components/UnifiedNotificationBell';
@@ -85,6 +86,8 @@ const StudentDashboardHomePage: React.FC = () => {
     const [teacherSelected, setTeacherSelected] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [activeIdx, setActiveIdx] = useState(0);
+    // Next class, attendance, class notes, exams and events for the family.
+    const home = useHomeSummary();
 
     useEffect(() => {
         const fetchData = async () => {
@@ -186,22 +189,22 @@ const StudentDashboardHomePage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-            {/* Header Section */}
-            <div className="px-6 py-5">
-                <div className="flex justify-between items-center">
-                    <div className="flex flex-col">
-                        <h1 className={`text-xl sm:text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} mb-1`}>
-                            Welcome back, {greetingName(guardianName)}!
-                        </h1>
-                        <p className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {dateString}
-                        </p>
-                    </div>
+            {/* Header */}
+            <div className="px-4 pt-4 sm:px-6">
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 p-5 text-white shadow-md sm:p-6">
+                    <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10" />
+                    <div className="absolute -bottom-12 right-24 h-32 w-32 rounded-full bg-white/10" />
+                    <p className="text-sm text-white/80">{dateString}</p>
+                    <h1 className="mt-1 text-2xl font-bold sm:text-3xl">Welcome back, {greetingName(guardianName)}!</h1>
+                    {home.data && home.data.students.length > 0 && (() => {
+                        const next = home.data.students.map(x => ({ x, c: x.next_class })).filter(o => o.c).sort((p, q) => (p.c!.date + p.c!.start_time).localeCompare(q.c!.date + q.c!.start_time))[0];
+                        return next ? <p className="mt-2 text-sm text-white/90">Next up: {next.x.name.split(' ')[0]}'s {next.c!.batch_name} · {next.c!.when === 'today' ? 'today' : next.c!.when === 'tomorrow' ? 'tomorrow' : next.c!.day} at {(() => { const [h, m] = next.c!.start_time.split(':').map(Number); return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`; })()}</p> : null;
+                    })()}
                 </div>
             </div>
 
             {/* Main Content */}
-            <div className="px-6 pb-6">
+            <div className="px-4 pb-6 pt-4 sm:px-6">
 
                 {/* Household: a card per member + this month's bill (Airtel-style) */}
                 {(household || fees) && (
@@ -290,83 +293,13 @@ const StudentDashboardHomePage: React.FC = () => {
                   </section>
                 )}
 
-                {/* Professional Stats Cards — student view only */}
+                {/* The selected child: next class, attendance, notes, week, what's coming */}
                 {!teacherSelected && (
-                <motion.section
-                    ref={statsRef}
-                    className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 mb-4 sm:mb-6"
-                >
-                    {[
-                        {
-                            title: "Active Students",
-                            value: family.length,
-                            linkTo: "family-profile",
-                            icon: Users,
-                            color: "text-blue-600 dark:text-blue-400",
-                            bg: "bg-blue-50 dark:bg-blue-900/20"
-                        },
-                        {
-                            title: "Total Courses", 
-                            value: studentCourses.length,
-                            linkTo: "courses",
-                            icon: BookOpen,
-                            color: "text-green-600 dark:text-green-400",
-                            bg: "bg-green-50 dark:bg-green-900/20"
-                        },
-                        {
-                            title: "Upcoming Events",
-                            value: upcomingEvents.length,
-                            linkTo: "events", 
-                            icon: Calendar,
-                            color: "text-purple-600 dark:text-purple-400",
-                            bg: "bg-purple-50 dark:bg-purple-900/20"
-                        },
-                        {
-                            title: "Recent Notices",
-                            value: recentNotices.length,
-                            linkTo: "notices",
-                            icon: Bell,
-                            color: "text-orange-600 dark:text-orange-400", 
-                            bg: "bg-orange-50 dark:bg-orange-900/20"
-                        }
-                    ].map((stat, index) => (
-                        <motion.div
-                            key={stat.title}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={statsInView ? { opacity: 1, y: 0 } : {}}
-                            transition={{ duration: 0.5, delay: index * 0.1 }}
-                            whileHover={{ scale: 1.02 }}
-                            className="group"
-                        >
-                            <Link
-                                to={stat.linkTo}
-                                className={`block p-3 sm:p-4 rounded-lg transition-all duration-300 border ${
-                                    theme === 'dark'
-                                        ? 'bg-gray-800/50 border-gray-700/50 hover:bg-gray-700/50 hover:border-gray-600'
-                                        : 'bg-white border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md'
-                                }`}
-                            >
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className={`text-[10px] sm:text-xs md:text-sm font-medium ${
-                                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                        }`}>
-                                            {stat.title}
-                                        </p>
-                                        <p className={`text-xl sm:text-2xl font-bold ${
-                                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                        }`}>
-                                            {stat.value}
-                                        </p>
-                                    </div>
-                                    <div className={`p-2 sm:p-3 rounded-lg ${stat.bg} group-hover:scale-110 transition-transform duration-300`}>
-                                        <stat.icon className={`w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 ${stat.color}`} />
-                                    </div>
-                                </div>
-                            </Link>
-                        </motion.div>
-                    ))}
-                </motion.section>
+                    <div className="mb-6 space-y-4">
+                        <FamilyHomeSummary summary={home.data} error={home.error} reload={home.load}
+                            studentId={currentStudent ? Number(currentStudent.id) : null} />
+                        <QuickLinks items={familyQuickLinks(home.data)} />
+                    </div>
                 )}
 
                 {/* Student Tabs Section */}
@@ -666,33 +599,6 @@ const StudentDashboardHomePage: React.FC = () => {
                                 })()}
                             </div>
 
-                            {/* Quick Actions */}
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-                                {[
-                                    { icon: Calendar, title: 'Events', caption: `${upcomingEvents.length} upcoming`, link: 'events', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20' },
-                                    { icon: BookOpen, title: 'Materials', caption: 'Books & notes', link: 'book-materials', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
-                                    { icon: Bell, title: 'Notices', caption: `${recentNotices.length} recent`, link: 'notices', color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-900/20' },
-                                    { icon: Award, title: 'Grades', caption: 'Exams & results', link: 'grade-exams', color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-50 dark:bg-purple-900/20' }
-                                ].map((item, idx) => (
-                                    <Link
-                                        key={idx}
-                                        to={item.link}
-                                        className={`flex items-center gap-3 p-3 sm:p-4 rounded-xl border transition-colors ${
-                                            theme === 'dark'
-                                                ? 'bg-gray-800 border-gray-700 hover:bg-gray-700/60'
-                                                : 'bg-white border-gray-200 hover:bg-gray-50'
-                                        }`}
-                                    >
-                                        <div className={`p-2 rounded-lg ${item.bg} shrink-0`}>
-                                            <item.icon className={`w-5 h-5 ${item.color}`} />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <h5 className={`font-semibold text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{item.title}</h5>
-                                            <p className={`text-xs truncate ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{item.caption}</p>
-                                        </div>
-                                    </Link>
-                                ))}
-                            </div>
                             </>
                             )}
                         </motion.div>

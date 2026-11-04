@@ -351,6 +351,7 @@ function App() {
               <Route path="courses" element={<TeacherCoursesPage />} />
               <Route path="students" element={<TeacherStudentsPage />} />
               <Route path="batches" element={<TeacherBatchesPage />} />
+              <Route path="attendance" element={<AttendancePage teacher />} />
               <Route path="book-materials" element={<TeacherBookMaterialsPage />} />
               <Route path="events" element={<TeacherEventsPage />} />
               <Route path="notice" element={<TeacherNoticesPage />} />

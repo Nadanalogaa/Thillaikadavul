@@ -6681,6 +6681,220 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
+    // --- Home dashboards (families and teachers) ---------------------------
+    // India date/time now, and helpers to walk a batch's weekly slots.
+    const istNow = () => {
+        const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit',
+            day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date()).map(x => [x.type, x.value]));
+        return { date: `${p.year}-${p.month}-${p.day}`, time: `${p.hour === '24' ? '00' : p.hour}:${p.minute}` };
+    };
+    const isoAddDays = (iso, n) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+    const isoWeekday = (iso) => WEEKDAY_NAMES[new Date(`${iso}T12:00:00Z`).getUTCDay()];
+    const batchSlots = (b) => {
+        let t = b.time_slots;
+        if (typeof t === 'string') { try { t = JSON.parse(t); } catch { t = []; } }
+        if (Array.isArray(t) && t.length) return t.filter(x => x && x.day);
+        return (Array.isArray(b.days) ? b.days : []).map(day => ({ day, start_time: b.start_time, end_time: b.end_time }));
+    };
+    const hhmm = (t) => (t ? String(t).slice(0, 5) : '');
+    // Classes of these batches from now over the next `days` days (cancelled ones flagged).
+    const upcomingClasses = async (batches, days = 7) => {
+        const { date: today, time } = istNow();
+        const ids = batches.map(b => Number(b.id));
+        const cancelled = ids.length ? new Set((await pool.query(
+            `SELECT batch_id, to_char(session_date, 'YYYY-MM-DD') AS d FROM class_sessions
+              WHERE batch_id = ANY($1::int[]) AND status = 'cancelled' AND session_date BETWEEN $2 AND $3`,
+            [ids, today, isoAddDays(today, days)])).rows.map(r => `${r.batch_id}:${r.d}`)) : new Set();
+        const out = [];
+        for (let i = 0; i <= days; i++) {
+            const date = isoAddDays(today, i);
+            const wd = isoWeekday(date);
+            for (const b of batches) for (const sl of batchSlots(b).filter(x => x.day === wd)) {
+                const start = hhmm(sl.start_time), end = hhmm(sl.end_time);
+                if (i === 0 && (end || start) && (end || start) <= time) continue; // already over
+                out.push({ date, day: wd, start_time: start, end_time: end, batch_id: Number(b.id), batch_name: b.batch_name,
+                    course_name: b.course_name || null, teacher_name: b.teacher_name || null, mode: b.mode || null,
+                    studio: b.studio || null, location_name: b.location_name || null,
+                    cancelled: cancelled.has(`${b.id}:${date}`), when: i === 0 ? 'today' : i === 1 ? 'tomorrow' : wd });
+            }
+        }
+        return out.sort((a, c) => a.date.localeCompare(c.date) || a.start_time.localeCompare(c.start_time));
+    };
+    const batchRowsWhere = async (where, params) => (await pool.query(
+        `SELECT b.*, c.name AS course_name, t.name AS teacher_name, l.name AS location_name
+           FROM batches b LEFT JOIN courses c ON c.id = b.course_id LEFT JOIN users t ON t.id = b.teacher_id
+           LEFT JOIN locations l ON l.id = b.location_id WHERE ${where} ORDER BY b.batch_name`, params)).rows;
+    const birthdayWithin = (dobIso, today, days = 7) => {
+        if (!dobIso) return null;
+        for (let i = 0; i < days; i++) {
+            const d = isoAddDays(today, i);
+            if (d.slice(5) === String(dobIso).slice(5, 10)) return { date: d, in_days: i, turns: Number(d.slice(0, 4)) - Number(String(dobIso).slice(0, 4)) };
+        }
+        return null;
+    };
+
+    // Family home: per child — next class, this week, attendance, the last
+    // class note, birthday — plus exams, events and notices for the family.
+    app.get('/api/home/summary', ensureAuthenticated, async (req, res) => {
+        try {
+            const { date: today, time } = istNow();
+            const { studentIds, nameById } = await householdFor(req);
+            const monthStart = `${today.slice(0, 7)}-01`;
+            const students = [];
+            for (const sid of studentIds.map(Number)) {
+                const batches = await batchRowsWhere(`$1 = ANY(COALESCE(b.student_ids, ARRAY[]::int[]))`, [sid]);
+                const week = await upcomingClasses(batches, 7);
+                const att = (await pool.query(
+                    `SELECT to_char(s.session_date, 'YYYY-MM-DD') AS date, a.status, b.batch_name
+                       FROM attendance a JOIN class_sessions s ON s.id = a.session_id JOIN batches b ON b.id = s.batch_id
+                      WHERE a.student_id = $1 AND s.status <> 'cancelled' AND s.session_date >= $2::date - 90
+                      ORDER BY s.session_date DESC`, [sid, today])).rows;
+                const rate = (rows) => {
+                    const ok = rows.filter(r => r.status === 'present' || r.status === 'late').length;
+                    return { classes: rows.length, attended: ok, percentage: rows.length ? Math.round((ok / rows.length) * 100) : null };
+                };
+                const note = batches.length ? (await pool.query(
+                    `SELECT to_char(s.session_date, 'YYYY-MM-DD') AS date, s.class_note AS note, b.batch_name,
+                            (SELECT a.status FROM attendance a WHERE a.session_id = s.id AND a.student_id = $2) AS status
+                       FROM class_sessions s JOIN batches b ON b.id = s.batch_id
+                      WHERE s.batch_id = ANY($1::int[]) AND COALESCE(TRIM(s.class_note), '') <> ''
+                      ORDER BY s.session_date DESC LIMIT 1`, [batches.map(b => Number(b.id)), sid])).rows[0] || null : null;
+                const u = (await pool.query(`SELECT to_char(dob, 'YYYY-MM-DD') AS dob, courses FROM users WHERE id = $1`, [sid])).rows[0] || {};
+                students.push({
+                    id: sid, name: nameById[sid] || 'Student',
+                    courses: safeJsonArray(u.courses),
+                    batches: batches.map(b => ({ id: Number(b.id), name: b.batch_name, course_name: b.course_name, teacher_name: b.teacher_name,
+                        mode: b.mode, studio: b.studio, location_name: b.location_name })),
+                    next_class: week.find(c => !c.cancelled) || null,
+                    week,
+                    attendance: { month: rate(att.filter(r => r.date >= monthStart)), last_90_days: rate(att), recent: att.slice(0, 6) },
+                    last_note: note,
+                    birthday: birthdayWithin(u.dob, today),
+                });
+            }
+            const in60 = isoAddDays(today, 60), in30 = isoAddDays(today, 30);
+            const exams = await forThisFamily(req, (await pool.query(
+                `SELECT id, exam_name, course, to_char(exam_date, 'YYYY-MM-DD') AS exam_date, exam_time, location, recipient_ids
+                   FROM grade_exams WHERE exam_date BETWEEN $1 AND $2 ORDER BY exam_date`, [today, in60])).rows, { courseKey: 'course' });
+            const events = await forThisFamily(req, (await pool.query(
+                `SELECT id, title, to_char(event_date, 'YYYY-MM-DD') AS event_date, event_time, location, image_url, recipient_ids
+                   FROM events WHERE is_active = true AND event_date BETWEEN $1 AND $2 ORDER BY event_date`, [today, in30])).rows);
+            const notices = (await forThisFamily(req, (await pool.query(
+                `SELECT id, title, priority, created_at, recipient_ids FROM notices
+                  WHERE is_active = true AND (expiry_date IS NULL OR expiry_date >= $1) ORDER BY created_at DESC LIMIT 20`, [today])).rows)).slice(0, 3);
+            const materials = await forThisFamily(req, (await pool.query(
+                `SELECT id, recipient_ids, course FROM book_materials WHERE created_at >= NOW() - INTERVAL '30 days'`)).rows, { courseKey: 'course' });
+            const strip = (r) => { const { recipient_ids, ...rest } = r; return rest; };
+            res.json({ today, now: time, students, exams: exams.map(strip), events: events.map(strip), notices: notices.map(strip),
+                new_materials: materials.length });
+        } catch (error) {
+            console.error('Error building home summary:', error);
+            res.status(500).json({ message: 'Server error loading your home page.' });
+        }
+    });
+
+    // Teacher home: today's classes and what to mark, the week ahead, my
+    // students, who is missing classes, birthdays, exams and events.
+    app.get('/api/teacher/summary', ensureAuthenticated, async (req, res) => {
+        try {
+            const me = req.session.user;
+            const { date: today, time } = istNow();
+            const batches = await batchRowsWhere(`b.teacher_id = $1`, [me.id]);
+            const ids = batches.map(b => Number(b.id));
+            const studentSet = new Set();
+            for (const b of batches) for (const s of (Array.isArray(b.student_ids) ? b.student_ids : [])) studentSet.add(Number(s));
+            const studentRows = studentSet.size ? (await pool.query(
+                `SELECT id, COALESCE(display_name, name) AS name, user_id, contact_number AS phone, father_name AS parent_name,
+                        to_char(dob, 'YYYY-MM-DD') AS dob FROM users
+                  WHERE id = ANY($1::int[]) AND is_deleted = false AND (status IS NULL OR LOWER(status) = 'active')`, [[...studentSet]])).rows : [];
+            const byId = new Map(studentRows.map(r => [Number(r.id), r]));
+            const person = (sid) => { const r = byId.get(Number(sid)); return r ? { student_id: Number(r.id), name: r.name, user_id: r.user_id, phone: r.phone, parent_name: r.parent_name } : null; };
+
+            // Sessions of my batches in the last 7 days and today.
+            const sess = ids.length ? (await pool.query(
+                `SELECT batch_id, to_char(session_date, 'YYYY-MM-DD') AS date, status, marked_at FROM class_sessions
+                  WHERE batch_id = ANY($1::int[]) AND session_date BETWEEN $2 AND $3`, [ids, isoAddDays(today, -7), today])).rows : [];
+            const sessOf = (bid, d) => sess.find(r => Number(r.batch_id) === Number(bid) && r.date === d);
+            const countIn = (b) => (Array.isArray(b.student_ids) ? b.student_ids : []).filter(x => byId.has(Number(x))).length;
+
+            const todayClasses = [];
+            for (const b of batches) for (const sl of batchSlots(b).filter(x => x.day === isoWeekday(today))) {
+                const start = hhmm(sl.start_time), end = hhmm(sl.end_time), sx = sessOf(b.id, today);
+                todayClasses.push({ batch_id: Number(b.id), batch_name: b.batch_name, course_name: b.course_name, start_time: start, end_time: end,
+                    students: countIn(b), studio: b.studio, location_name: b.location_name, mode: b.mode,
+                    state: sx && sx.status === 'cancelled' ? 'cancelled' : sx && sx.marked_at ? 'marked'
+                        : end && end <= time ? 'not_marked' : start && start <= time ? 'running' : 'upcoming' });
+            }
+            todayClasses.sort((a, c) => a.start_time.localeCompare(c.start_time));
+
+            const unmarked = [];
+            for (let i = 7; i >= 1; i--) {
+                const d = isoAddDays(today, -i);
+                for (const b of batches) {
+                    if (!countIn(b)) continue;
+                    if (b.created_at && new Date(b.created_at).toISOString().slice(0, 10) > d) continue;
+                    for (const sl of batchSlots(b).filter(x => x.day === isoWeekday(d))) {
+                        const sx = sessOf(b.id, d);
+                        if (sx && (sx.marked_at || sx.status === 'cancelled')) continue;
+                        unmarked.push({ batch_id: Number(b.id), batch_name: b.batch_name, course_name: b.course_name, date: d, start_time: hhmm(sl.start_time) });
+                    }
+                }
+            }
+            for (const c of todayClasses.filter(c => c.state === 'not_marked')) unmarked.push({ batch_id: c.batch_id, batch_name: c.batch_name, course_name: c.course_name, date: today, start_time: c.start_time });
+            unmarked.sort((a, c) => c.date.localeCompare(a.date) || a.start_time.localeCompare(c.start_time));
+
+            const week = (await upcomingClasses(batches, 7)).filter(c => c.date !== today);
+
+            // Attendance in my batches, last 30 days.
+            const marks = ids.length ? (await pool.query(
+                `SELECT a.student_id, s.batch_id, a.status FROM attendance a JOIN class_sessions s ON s.id = a.session_id
+                  WHERE s.batch_id = ANY($1::int[]) AND s.status <> 'cancelled' AND s.session_date >= $2::date - 30
+                  ORDER BY s.session_date DESC`, [ids, today])).rows : [];
+            const okCount = marks.filter(m => m.status === 'present' || m.status === 'late').length;
+            const groups = new Map();
+            for (const m of marks) { const k = `${m.student_id}:${m.batch_id}`; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(m); }
+            const low = [];
+            for (const list of groups.values()) {
+                const p = person(list[0].student_id);
+                if (!p || list.length < 3) continue;
+                const ok = list.filter(m => m.status === 'present' || m.status === 'late').length;
+                const pct = Math.round((ok / list.length) * 100);
+                let streak = 0; for (const m of list) { if (m.status === 'absent') streak++; else break; }
+                if (pct < 75 || streak >= 3) {
+                    const b = batches.find(x => Number(x.id) === Number(list[0].batch_id));
+                    low.push({ ...p, batch_id: Number(list[0].batch_id), batch_name: b ? b.batch_name : '', classes: list.length, attended: ok, percentage: pct, missed_in_a_row: streak });
+                }
+            }
+            low.sort((a, c) => a.percentage - c.percentage);
+
+            const birthdays = studentRows.map(r => ({ ...person(r.id), ...birthdayWithin(r.dob, today) })).filter(x => x.date)
+                .sort((a, c) => a.in_days - c.in_days);
+            const myCourses = [...new Set(batches.map(b => String(b.course_name || '').trim().toLowerCase()).filter(Boolean))];
+            const exams = (await pool.query(
+                `SELECT id, exam_name, course, to_char(exam_date, 'YYYY-MM-DD') AS exam_date, exam_time, location FROM grade_exams
+                  WHERE exam_date BETWEEN $1 AND $2 ORDER BY exam_date`, [today, isoAddDays(today, 60)])).rows
+                .filter(e => !e.course || myCourses.includes(String(e.course).trim().toLowerCase()));
+            const events = (await pool.query(
+                `SELECT id, title, to_char(event_date, 'YYYY-MM-DD') AS event_date, event_time, location FROM events
+                  WHERE is_active = true AND event_date BETWEEN $1 AND $2 ORDER BY event_date`, [today, isoAddDays(today, 30)])).rows;
+
+            res.json({
+                today, now: time,
+                counts: { batches: batches.length, students: studentRows.length, classes_this_week: week.length + todayClasses.length },
+                today_classes: todayClasses,
+                next_class: todayClasses.find(c => c.state === 'upcoming' || c.state === 'running') || week.find(c => !c.cancelled) || null,
+                unmarked, week,
+                attendance: { classes: marks.length, percentage: marks.length ? Math.round((okCount / marks.length) * 100) : null, low },
+                birthdays, exams, events,
+                batches: batches.map(b => ({ id: Number(b.id), name: b.batch_name, course_name: b.course_name, students: countIn(b),
+                    slots: batchSlots(b).map(x => ({ day: x.day, start_time: hhmm(x.start_time), end_time: hhmm(x.end_time) })) })),
+            });
+        } catch (error) {
+            console.error('Error building teacher summary:', error);
+            res.status(500).json({ message: 'Server error loading your home page.' });
+        }
+    });
+
     // Admin dashboard: what needs attention. Low attendance (last N days),
     // fees still to collect this month, and students not placed in a batch
     // for a course they take. Each list is what the dashboard opens on click.
