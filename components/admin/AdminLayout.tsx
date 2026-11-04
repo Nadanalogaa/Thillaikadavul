@@ -51,7 +51,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             )}
 
             {/* Main content */}
-            <div className="lg:pl-64 transition-all duration-300">
+            <div className="flex min-h-screen flex-col lg:pl-64 transition-all duration-300">
                 {/* Top Admin Bar - Desktop */}
                 <div className={`hidden lg:flex sticky top-0 z-10 items-center justify-between h-14 px-6 border-b ${
                     theme === 'dark'
@@ -114,12 +114,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 </div>
 
                 {/* Page content */}
-                <main className="p-3 sm:p-4 lg:p-6 pb-16">
+                <main className="flex-1 p-3 sm:p-4 lg:p-6">
                     {children}
                 </main>
 
-                {/* Admin Footer - Simple single line */}
-                <footer className={`fixed bottom-0 left-0 right-0 lg:left-64 h-12 flex items-center justify-center border-t ${
+                {/* Footer: at the end of the page (never over the content) */}
+                <footer className={`h-12 flex shrink-0 items-center justify-center border-t ${
                     theme === 'dark'
                         ? 'bg-gray-800 border-gray-700 text-gray-400'
                         : 'bg-white border-gray-200 text-gray-600'
