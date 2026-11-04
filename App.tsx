@@ -272,6 +272,7 @@ function App() {
             <Route path="/admin/student/:studentId" element={<AdminProtectedRoute><AdminStudentViewWrapper /></AdminProtectedRoute>} />
             <Route path="/admin/teachers" element={<AdminProtectedRoute><TeacherListPage /></AdminProtectedRoute>} />
             <Route path="/admin/batches" element={<AdminProtectedRoute><BatchesPage /></AdminProtectedRoute>} />
+            <Route path="/admin/batches/:batchId" element={<AdminProtectedRoute><BatchesPage /></AdminProtectedRoute>} />
             <Route path="/admin/attendance" element={<AdminProtectedRoute><AttendancePage /></AdminProtectedRoute>} />
             <Route path="/admin/notifications" element={<AdminProtectedRoute><NotificationSettingsPage /></AdminProtectedRoute>} />
             <Route path="/admin/app-update" element={<AdminProtectedRoute><AppUpdatePage /></AdminProtectedRoute>} />

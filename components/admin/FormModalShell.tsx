@@ -78,6 +78,35 @@ export const FormModalShell: React.FC<FormModalShellProps> = ({
     );
 };
 
+/** The same form shown inside a page (no pop-up): a header with Cancel / Save,
+ *  then the sections. Takes the shell's props; `isOpen` is ignored. */
+export const InlineFormShell: React.FC<FormModalShellProps> = ({
+    onClose, onSubmit, title, subtitle, submitLabel, isSubmitting, toolbar, children,
+}) => {
+    const { theme } = useTheme();
+    const dark = theme === 'dark';
+    return (
+        <form onSubmit={onSubmit} className={`overflow-hidden rounded-xl border shadow-sm ${dark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-gray-50'}`}>
+            <header className={`flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 sm:px-5 ${dark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                <div className="min-w-0">
+                    <h2 className={`truncate text-lg font-semibold ${dark ? 'text-white' : 'text-gray-900'}`}>{title}</h2>
+                    {subtitle && <p className={`truncate text-xs ${dark ? 'text-gray-400' : 'text-gray-500'}`}>{subtitle}</p>}
+                </div>
+                <div className="flex flex-shrink-0 items-center gap-2">
+                    <button type="button" onClick={onClose}
+                        className={`rounded-md border px-3 py-1.5 text-sm font-medium ${dark ? 'border-gray-600 text-gray-200 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>Cancel</button>
+                    <button type="submit" disabled={isSubmitting}
+                        className="rounded-md bg-brand-primary px-4 py-1.5 text-sm font-semibold text-white hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60">
+                        {isSubmitting ? 'Saving…' : submitLabel}
+                    </button>
+                </div>
+            </header>
+            {toolbar && <div className={`border-b px-4 sm:px-5 ${dark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>{toolbar}</div>}
+            <div className="space-y-4 px-4 py-4 sm:px-5">{children}</div>
+        </form>
+    );
+};
+
 /** A titled card. `aside` sits on the right of the title row (e.g. a photo). */
 export const Section: React.FC<{
     title: string;

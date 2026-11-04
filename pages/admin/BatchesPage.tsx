@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import Modal from '../../components/Modal';
 import { fetchInsights, NotInBatchList, type Insights } from '../../components/admin/AdminInsights';
-import { FormModalShell, Section, Field, FieldGrid, inputClass, selectClass } from '../../components/admin/FormModalShell';
+import { FormModalShell, InlineFormShell, Section, Field, FieldGrid, inputClass, selectClass } from '../../components/admin/FormModalShell';
 import { useTheme } from '../../contexts/ThemeContext';
 import {
     AdminBatch, AdminStudent, BatchInput, NamedItem, TimeSlot, WEEK_DAYS,
@@ -62,8 +63,19 @@ const BatchesPage: React.FC = () => {
     const [search, setSearch] = useState('');
     const [courseFilter, setCourseFilter] = useState('');
     const [teacherFilter, setTeacherFilter] = useState('');
-    // ?open=<batch id> opens that batch (the dashboard links here).
-    const [openId, setOpenId] = useState<number | null>(() => Number(new URLSearchParams(window.location.search).get('open')) || null);
+    // /admin/batches/<id> is one batch's own page (the list stays at /admin/batches).
+    // An old ?open=<id> link is turned into that page.
+    const navigate = useNavigate();
+    const { batchId } = useParams();
+    const openId = Number(batchId) || null;
+    const setOpenId = (id: number | null) => navigate(id ? `/admin/batches/${id}` : '/admin/batches');
+    useEffect(() => {
+        const legacy = Number(new URLSearchParams(window.location.search).get('open'));
+        if (legacy) navigate(`/admin/batches/${legacy}`, { replace: true });
+    }, [navigate]);
+    // Editing on a batch's page happens in the page, not a full-screen pop-up.
+    const [editingInline, setEditingInline] = useState(false);
+    useEffect(() => { setEditingInline(false); }, [openId]);
     const [editing, setEditing] = useState<AdminBatch | 'new' | null>(null);
 
     const load = useCallback(async () => {
@@ -125,6 +137,16 @@ const BatchesPage: React.FC = () => {
     const openBatch = batches.find(b => b.id === openId) || null;
 
     const replaceBatch = (b: AdminBatch) => setBatches(prev => prev.map(x => (x.id === b.id ? { ...x, ...b } : x)));
+
+    const afterSave = async (saved: AdminBatch) => {
+        setEditing(null);
+        setEditingInline(false);
+        setBatches(await listBatches());
+        setOpenId(saved.id);
+        if (saved.repricedBills) {
+            window.alert(`${saved.repricedBills} unpaid bill${saved.repricedBills === 1 ? '' : 's'} for this month updated to the new fee.`);
+        }
+    };
 
     // --- rendering helpers -------------------------------------------------
     const Timing: React.FC<{ b: AdminBatch; compact?: boolean }> = ({ b, compact }) => {
@@ -213,6 +235,55 @@ const BatchesPage: React.FC = () => {
         </div>
     );
 
+    // One batch's own page: back to the list, switch batch, edit in place.
+    if (openId) {
+        const byCourse = new Map<string, AdminBatch[]>();
+        for (const b of [...batches].sort((a, c) => a.name.localeCompare(c.name, undefined, { numeric: true }))) {
+            const k = b.courseName || 'Other';
+            if (!byCourse.has(k)) byCourse.set(k, []);
+            byCourse.get(k)!.push(b);
+        }
+        return (
+            <AdminLayout>
+                <div className={`mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 shadow-sm ${card}`}>
+                    <Link to="/admin/batches" className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm font-semibold ${dark ? 'text-indigo-300 hover:bg-gray-700' : 'text-brand-primary hover:bg-indigo-50'}`}>
+                        ← All batches
+                    </Link>
+                    <label className="flex min-w-0 items-center gap-2 text-sm">
+                        <span className={muted}>Switch batch</span>
+                        <select value={openId} onChange={e => setOpenId(Number(e.target.value))} className={`${selectClass} max-w-xs`}>
+                            {[...byCourse.entries()].map(([course, list]) => (
+                                <optgroup key={course} label={course}>
+                                    {list.map(b => <option key={b.id} value={b.id}>{b.name} · {b.studentIds.length} students</option>)}
+                                </optgroup>
+                            ))}
+                        </select>
+                    </label>
+                </div>
+                {loading && <p className={`py-10 text-center ${muted}`}>Loading batch…</p>}
+                {!loading && !openBatch && (
+                    <p className={`rounded-xl border py-12 text-center ${card} ${muted}`}>This batch no longer exists. <Link to="/admin/batches" className="font-semibold text-brand-primary">Back to all batches</Link></p>
+                )}
+                {!loading && openBatch && (editingInline ? (
+                    <BatchForm inline batch={openBatch} courses={courses} teachers={teachers} locations={locations}
+                        onClose={() => setEditingInline(false)} onSaved={afterSave} />
+                ) : (
+                    <BatchPanel
+                        batch={openBatch}
+                        batches={batches}
+                        students={students}
+                        studentById={studentById}
+                        onClose={() => setOpenId(null)}
+                        onEdit={() => setEditingInline(true)}
+                        onChanged={async () => { setBatches(await listBatches()); }}
+                        onReplace={replaceBatch}
+                        onDeleted={() => { setBatches(prev => prev.filter(b => b.id !== openBatch.id)); setOpenId(null); }}
+                    />
+                ))}
+            </AdminLayout>
+        );
+    }
+
     return (
         <AdminLayout>
             <AdminPageHeader title="Batches" subtitle="Who teaches each batch, when it meets and who is in it." />
@@ -272,20 +343,6 @@ const BatchesPage: React.FC = () => {
             )}
             {!loading && !error && filtered.length > 0 && (view === 'grid' ? renderGrid() : renderTable())}
 
-            {openBatch && (
-                <BatchPanel
-                    batch={openBatch}
-                    batches={batches}
-                    students={students}
-                    studentById={studentById}
-                    onClose={() => setOpenId(null)}
-                    onEdit={() => setEditing(openBatch)}
-                    onChanged={async () => { setBatches(await listBatches()); }}
-                    onReplace={replaceBatch}
-                    onDeleted={() => { setOpenId(null); setBatches(prev => prev.filter(b => b.id !== openBatch.id)); }}
-                />
-            )}
-
             {editing && (
                 <BatchForm
                     batch={editing === 'new' ? null : editing}
@@ -293,14 +350,7 @@ const BatchesPage: React.FC = () => {
                     teachers={teachers}
                     locations={locations}
                     onClose={() => setEditing(null)}
-                    onSaved={async saved => {
-                        setEditing(null);
-                        setBatches(await listBatches());
-                        setOpenId(saved.id);
-                        if (saved.repricedBills) {
-                            window.alert(`${saved.repricedBills} unpaid bill${saved.repricedBills === 1 ? '' : 's'} for this month updated to the new fee.`);
-                        }
-                    }}
+                    onSaved={afterSave}
                 />
             )}
         </AdminLayout>
@@ -356,9 +406,9 @@ const BatchPanel: React.FC<{
     };
 
     return (
-        <Modal isOpen onClose={onClose} size="3xl">
-            <div className={`max-h-[85vh] overflow-y-auto ${dark ? 'bg-gray-900' : 'bg-white'}`}>
-                <div className={`sticky top-0 z-10 border-b px-5 py-4 ${dark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+        <div className={`overflow-hidden rounded-xl border shadow-sm ${dark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+            <div>
+                <div className={`border-b px-5 py-4 ${dark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
                     <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                             <h2 className={`text-lg font-semibold ${strong}`}>{batch.name}</h2>
@@ -367,7 +417,6 @@ const BatchPanel: React.FC<{
                         <div className="flex flex-shrink-0 gap-2">
                             <button type="button" onClick={onEdit} className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Edit</button>
                             <button type="button" onClick={del} disabled={busy} className="rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50">Delete</button>
-                            <button type="button" onClick={onClose} aria-label="Close" className="rounded-md px-2 text-xl leading-none text-gray-400 hover:text-gray-600">×</button>
                         </div>
                     </div>
                     <div className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
@@ -443,7 +492,7 @@ const BatchPanel: React.FC<{
                     }}
                 />
             )}
-        </Modal>
+        </div>
     );
 };
 
@@ -543,7 +592,10 @@ const BatchForm: React.FC<{
     batch: AdminBatch | null;
     courses: NamedItem[]; teachers: NamedItem[]; locations: NamedItem[];
     onClose: () => void; onSaved: (b: AdminBatch) => void;
-}> = ({ batch, courses, teachers, locations, onClose, onSaved }) => {
+    /** Shown inside the batch's page instead of a full-screen pop-up. */
+    inline?: boolean;
+}> = ({ batch, courses, teachers, locations, onClose, onSaved, inline = false }) => {
+    const Shell = inline ? InlineFormShell : FormModalShell;
     const [name, setName] = useState(batch?.name || '');
     const [courseId, setCourseId] = useState(batch?.courseId ? String(batch.courseId) : '');
     const [teacherId, setTeacherId] = useState(batch?.teacherId ? String(batch.teacherId) : '');
@@ -593,7 +645,7 @@ const BatchForm: React.FC<{
     };
 
     return (
-        <FormModalShell isOpen onClose={onClose} onSubmit={submit} isSubmitting={saving}
+        <Shell isOpen onClose={onClose} onSubmit={submit} isSubmitting={saving}
             title={batch ? `Edit ${batch.name}` : 'New batch'}
             subtitle="Students are added and moved from the batch itself."
             submitLabel={batch ? 'Save changes' : 'Create batch'}>
@@ -634,7 +686,7 @@ const BatchForm: React.FC<{
                     </Field>
                     <Field label="Monthly fee for this batch (₹)" span={3} htmlFor="b-fee">
                         <input id="b-fee" type="number" min={1} value={fee} onChange={e => setFee(e.target.value)} className={inputClass} placeholder="Leave empty to use each student's grade fee" />
-                        <p className="mt-1 text-xs text-gray-500">When set, every student in this batch pays this amount, whatever their grade. From next month's bills.</p>
+                        <p className="mt-1 text-xs text-gray-500">When set, every student in this batch pays this amount, whatever their grade. This month's unpaid bills are updated too.</p>
                     </Field>
                 </FieldGrid>
             </Section>
@@ -659,7 +711,7 @@ const BatchForm: React.FC<{
                     })}
                 </div>
             </Section>
-        </FormModalShell>
+        </Shell>
     );
 };
 

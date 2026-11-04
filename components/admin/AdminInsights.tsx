@@ -212,7 +212,7 @@ export const AdminDashboardView: React.FC<{ teacherCount?: number; courseCount?:
                             }[c.state];
                             return (
                                 <li key={`${c.batch_id}:${c.start_time}`}>
-                                    <button type="button" onClick={() => navigate(c.state === 'not_marked' || c.state === 'running' ? `/admin/attendance?date=${data.today.date}` : `/admin/batches?open=${c.batch_id}`)}
+                                    <button type="button" onClick={() => navigate(c.state === 'not_marked' || c.state === 'running' ? `/admin/attendance?date=${data.today.date}` : `/admin/batches/${c.batch_id}`)}
                                         className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                         <span className="w-20 shrink-0 text-sm font-semibold text-gray-900 dark:text-white">{clock(c.start_time)}</span>
                                         <span className="min-w-0 flex-1">
@@ -470,7 +470,7 @@ const CapacitySheet: React.FC<{ data: Insights; onClose: () => void }> = ({ data
         <Sheet title="Batch sizes" subtitle="Full or over the most-students limit, and batches with very few students" onClose={onClose}>
             <Table head={['Batch', 'Teacher', 'Students', '']} empty="Every batch is a healthy size." count={data.capacity.batches.length}>
                 {data.capacity.batches.map(b => (
-                    <tr key={b.batch_id} className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50" onClick={() => navigate(`/admin/batches?open=${b.batch_id}`)}>
+                    <tr key={b.batch_id} className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50" onClick={() => navigate(`/admin/batches/${b.batch_id}`)}>
                         <td className="px-2 py-2"><div className="font-medium text-gray-900 dark:text-white">{b.batch_name}</div><div className="text-xs text-gray-500">{b.course_name}</div></td>
                         <td className="px-2 py-2">{b.teacher_name || '—'}</td>
                         <td className="px-2 py-2">{b.students}{b.max_students ? ` / ${b.max_students}` : ''}</td>
