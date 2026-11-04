@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import SelectedPills from '../SelectedPills';
 import Modal from '../../Modal';
 import { FormModalShell, Section, Field, FieldGrid, inputClass, selectClass, textareaClass } from '../FormModalShell';
 import { formatRupees } from './feeUi';
@@ -254,6 +255,10 @@ const NewBillForm: React.FC<{ categories: string[]; onClose: () => void; onCreat
                         {(audType === 'students' || audType === 'batch' || audType === 'grade') && (
                             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search" className={`${inputClass} mb-2`} />
                         )}
+                        <SelectedPills
+                            items={(lists[audType] || []).filter(x => picked.has(x.id)).map(x => ({ id: x.id, label: x.name }))}
+                            onRemove={id => toggle(Number(id))} onClear={() => setPicked(new Set())}
+                            noun={audType === 'students' ? 'student' : audType === 'batch' ? 'batch' : audType === 'grade' ? 'grade' : 'course'} />
                         <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-200">
                             {choices.length === 0 && <p className="p-3 text-sm text-gray-500">Nothing to show.</p>}
                             {choices.map(x => (
@@ -263,7 +268,6 @@ const NewBillForm: React.FC<{ categories: string[]; onClose: () => void; onCreat
                                 </label>
                             ))}
                         </div>
-                        <p className="mt-1 text-xs text-gray-500">{picked.size} selected</p>
                     </>
                 )}
             </Section>

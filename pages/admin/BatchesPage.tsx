@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import SelectedPills from '../../components/admin/SelectedPills';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
@@ -561,7 +562,11 @@ const AddStudentsDialog: React.FC<{
                     ))}
                 </div>
                 <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search name, ID, parent or phone" className={`${inputClass} mt-3`} />
-                <div className="mt-3 max-h-80 divide-y divide-gray-100 overflow-y-auto rounded-lg border border-gray-200">
+                <div className="mt-3">
+                    <SelectedPills items={students.filter(s => picked.has(s.id)).map(s => ({ id: s.id, label: s.name }))}
+                        onRemove={id => toggle(Number(id))} onClear={() => setPicked(new Set())} />
+                </div>
+                <div className="max-h-80 divide-y divide-gray-100 overflow-y-auto rounded-lg border border-gray-200">
                     {list.length === 0 && <p className="p-4 text-center text-sm text-gray-500">No students to show.</p>}
                     {list.map(s => (
                         <label key={s.id} className="flex cursor-pointer items-center gap-3 px-3 py-2 hover:bg-gray-50">

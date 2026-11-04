@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import SelectedPills from './SelectedPills';
 import Modal from '../Modal';
 import ModalHeader from '../ModalHeader';
 import TabButton from './TabButton';
@@ -247,6 +248,8 @@ const SendContentNotificationModal: React.FC<SendContentNotificationModalProps> 
                             <div className="flex flex-col h-full">
                                 <label className="form-label flex-shrink-0">Select Students</label>
                                 <input type="text" placeholder="Search students..." value={studentSearch} onChange={e => setStudentSearch(e.target.value)} className="form-input w-full mb-2 text-sm flex-shrink-0"/>
+                                <SelectedPills items={students.filter(u => selectedStudentIds.has(u.id)).map(u => ({ id: u.id, label: u.name }))}
+                                    onRemove={id => handleSingleSelectionChange(String(id), 'student')} onClear={() => setSelectedStudentIds(new Set())} />
                                 <div className="flex items-center space-x-3 p-2 border-t border-x bg-gray-50/50 rounded-t-md flex-shrink-0">
                                     <input ref={studentSelectAllRef} type="checkbox" onChange={e => handleSelectAll('student', e.target.checked)} checked={areAllStudentsSelected} className="h-4 w-4 text-brand-primary rounded" />
                                     <label className="text-sm font-medium">Select All ({filteredStudents.length})</label>
@@ -260,6 +263,8 @@ const SendContentNotificationModal: React.FC<SendContentNotificationModalProps> 
                             <div className="flex flex-col h-full">
                                 <label className="form-label flex-shrink-0">Select Teachers</label>
                                 <input type="text" placeholder="Search teachers..." value={teacherSearch} onChange={e => setTeacherSearch(e.target.value)} className="form-input w-full mb-2 text-sm flex-shrink-0"/>
+                                <SelectedPills noun="teacher" items={teachers.filter(u => selectedTeacherIds.has(u.id)).map(u => ({ id: u.id, label: u.name }))}
+                                    onRemove={id => handleSingleSelectionChange(String(id), 'teacher')} onClear={() => setSelectedTeacherIds(new Set())} />
                                 <div className="flex items-center space-x-3 p-2 border-t border-x bg-gray-50/50 rounded-t-md flex-shrink-0">
                                     <input ref={teacherSelectAllRef} type="checkbox" onChange={e => handleSelectAll('teacher', e.target.checked)} checked={areAllTeachersSelected} className="h-4 w-4 text-brand-primary rounded" />
                                     <label className="text-sm font-medium">Select All ({filteredTeachers.length})</label>
@@ -273,8 +278,8 @@ const SendContentNotificationModal: React.FC<SendContentNotificationModalProps> 
                         </div>
                     ) : activeTab === 'group' ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
-                            <div className="flex flex-col"><label className="form-label flex-shrink-0">Select Batches (sends to all students in batch)</label><ul className="border rounded-md divide-y overflow-y-auto flex-grow">{allBatches.map(batch => (<li key={batch.id}><label className="flex items-center p-2 hover:bg-gray-50 cursor-pointer"><input type="checkbox" checked={selectedBatchIds.has(batch.id)} onChange={() => handleGroupSelectionChange(batch.id, 'batch')} className="h-4 w-4 text-brand-primary rounded mr-3"/> <span className="text-sm font-medium">{batch.name}</span> <span className="text-sm text-gray-500 ml-2">({batch.courseName})</span></label></li>))}</ul></div>
-                            <div className="flex flex-col"><label className="form-label flex-shrink-0">Select Courses (sends to all users in course)</label><ul className="border rounded-md divide-y overflow-y-auto flex-grow">{allCourses.map(course => (<li key={course.id}><label className="flex items-center p-2 hover:bg-gray-50 cursor-pointer"><input type="checkbox" checked={selectedCourseIds.has(course.id)} onChange={() => handleGroupSelectionChange(course.id, 'course')} className="h-4 w-4 text-brand-primary rounded mr-3"/> <span className="text-sm font-medium">{course.name}</span></label></li>))}</ul></div>
+                            <div className="flex flex-col"><label className="form-label flex-shrink-0">Select Batches (sends to all students in batch)</label><SelectedPills noun="batch" items={allBatches.filter(b => selectedBatchIds.has(b.id)).map(b => ({ id: b.id, label: b.name }))} onRemove={id => handleGroupSelectionChange(String(id), 'batch')} onClear={() => setSelectedBatchIds(new Set())} /><ul className="border rounded-md divide-y overflow-y-auto flex-grow">{allBatches.map(batch => (<li key={batch.id}><label className="flex items-center p-2 hover:bg-gray-50 cursor-pointer"><input type="checkbox" checked={selectedBatchIds.has(batch.id)} onChange={() => handleGroupSelectionChange(batch.id, 'batch')} className="h-4 w-4 text-brand-primary rounded mr-3"/> <span className="text-sm font-medium">{batch.name}</span> <span className="text-sm text-gray-500 ml-2">({batch.courseName})</span></label></li>))}</ul></div>
+                            <div className="flex flex-col"><label className="form-label flex-shrink-0">Select Courses (sends to all users in course)</label><SelectedPills noun="course" items={allCourses.filter(c => selectedCourseIds.has(c.id)).map(c => ({ id: c.id, label: c.name }))} onRemove={id => handleGroupSelectionChange(String(id), 'course')} onClear={() => setSelectedCourseIds(new Set())} /><ul className="border rounded-md divide-y overflow-y-auto flex-grow">{allCourses.map(course => (<li key={course.id}><label className="flex items-center p-2 hover:bg-gray-50 cursor-pointer"><input type="checkbox" checked={selectedCourseIds.has(course.id)} onChange={() => handleGroupSelectionChange(course.id, 'course')} className="h-4 w-4 text-brand-primary rounded mr-3"/> <span className="text-sm font-medium">{course.name}</span></label></li>))}</ul></div>
                         </div>
                     ) : ( 
                         <div className="space-y-3">

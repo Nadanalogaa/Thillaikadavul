@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import SelectedPills from '../../components/admin/SelectedPills';
 import type { User, Course } from '../../types';
 import { getAdminUsers, getCourses, getStudentDiscounts, createStudentDiscount, deleteStudentDiscount } from '../../api';
 import AdminLayout from '../../components/admin/AdminLayout';
@@ -147,6 +148,9 @@ const DiscountManagementPage: React.FC = () => {
                     }} /> Select all
                 </label>
               </div>
+              <SelectedPills
+                items={Array.from(selected).map(id => ({ id, label: studentName(id) }))}
+                onRemove={id => toggle(String(id))} onClear={() => setSelected(new Set())} />
               <div className="border rounded-md divide-y max-h-[28rem] overflow-y-auto">
                 {filteredStudents.length === 0 && <p className="text-sm text-gray-500 text-center py-6">No students enrolled in this course.</p>}
                 {filteredStudents.map(s => {
