@@ -21,6 +21,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ isOpen, onClose }) => {
         { name: 'Teachers', path: '/admin/teachers', icon: UsersIcon },
         { name: 'Batches', path: '/admin/batches', icon: BatchesIcon },
         { name: 'Attendance', path: '/admin/attendance', icon: CalendarIcon },
+        { name: 'Courses', path: '/admin/courses', icon: BookIcon },
         { name: 'Locations', path: '/admin/locations', icon: MapPinIcon },
         { name: 'Fees', path: '/admin/fees', icon: FeesIcon },
         { name: 'Demo Bookings', path: '/admin/demo-bookings', icon: DemoClassIcon },

@@ -150,7 +150,7 @@ const Panel: React.FC<{ title: string; action?: React.ReactNode; children: React
 
 type Open = 'fees' | 'attendance' | 'batch' | 'unmarked' | 'joiners' | 'birthdays' | 'demos' | 'capacity' | 'extra' | null;
 
-export const AdminDashboardView: React.FC<{ teacherCount?: number; courseCount?: number; onCourses?: () => void }> = ({ teacherCount, courseCount, onCourses }) => {
+export const AdminDashboardView: React.FC<{ teacherCount?: number; courseCount?: number }> = ({ teacherCount, courseCount }) => {
     const navigate = useNavigate();
     const [data, setData] = useState<Insights | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -191,7 +191,7 @@ export const AdminDashboardView: React.FC<{ teacherCount?: number; courseCount?:
                 <Tile icon={GraduationCap} label="Students" value={data.counts.students} hint="Active" onClick={() => navigate('/admin/students')} />
                 <Tile icon={Users} label="Teachers" value={teacherCount ?? '—'} hint="Teaching staff" onClick={() => navigate('/admin/teachers')} />
                 <Tile icon={Layers} label="Batches" value={data.counts.batches_with_students} hint={`${data.counts.batches} in all`} onClick={() => navigate('/admin/batches')} />
-                <Tile icon={BookOpen} label="Courses" value={courseCount ?? '—'} hint="Add or edit" onClick={() => onCourses?.()} />
+                <Tile icon={BookOpen} label="Courses" value={courseCount ?? '—'} hint="Add or edit" onClick={() => navigate('/admin/courses')} />
                 <Tile icon={IndianRupee} label="Collected" value={short(f.collected)} hint={`${f.period.split(' ')[0].slice(0, 3)} · ${collectedPct}% of ${short(f.billed)}`} tone="good" onClick={() => setOpen('fees')} />
                 <Tile icon={Receipt} label="To collect" value={short(f.due)} hint={`${f.due_students} students`} tone={f.overdue > 0 ? 'bad' : f.due > 0 ? 'warn' : 'good'} onClick={() => setOpen('fees')} />
             </div>

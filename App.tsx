@@ -17,6 +17,7 @@ import ForgotPasswordModal from './components/ForgotPasswordModal';
 import SetPasswordModal from './components/SetPasswordModal';
 import RegisterPage from './pages/RegisterPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
+import AdminCoursesPage from './pages/admin/CoursesPage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import StudentDashboardPage from './pages/StudentDashboardPage';
 import TeacherDashboardPage from './pages/TeacherDashboardPage';
@@ -274,6 +275,7 @@ function App() {
             <Route path="/admin/attendance" element={<AdminProtectedRoute><AttendancePage /></AdminProtectedRoute>} />
             <Route path="/admin/notifications" element={<AdminProtectedRoute><NotificationSettingsPage /></AdminProtectedRoute>} />
             <Route path="/admin/app-update" element={<AdminProtectedRoute><AppUpdatePage /></AdminProtectedRoute>} />
+            <Route path="/admin/courses" element={<AdminProtectedRoute><AdminCoursesPage /></AdminProtectedRoute>} />
             <Route path="/admin/locations" element={<AdminProtectedRoute><LocationsManagementPage /></AdminProtectedRoute>} />
             <Route path="/admin/fees" element={<AdminProtectedRoute><FeeManagementPage /></AdminProtectedRoute>} />
             <Route path="/admin/grades" element={<AdminProtectedRoute><GradeManagementPage /></AdminProtectedRoute>} />
