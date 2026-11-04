@@ -34,6 +34,7 @@ class ApiEndpoints {
   static String changePassword(int id) => '$apiPrefix/users/$id/change-password';
   static String userChildren(int id) => '$apiPrefix/users/$id/children';
   static const String adminStats = '$apiPrefix/stats/admin';
+  static const String adminInsights = '$apiPrefix/admin/insights';
 
   // File Uploads
   static const String uploadIcon = '$apiPrefix/upload/icon';

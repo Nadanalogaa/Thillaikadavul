@@ -13,6 +13,7 @@ import '../../../bloc/batch/batch_state.dart';
 import '../../../widgets/batch_views.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/empty_state_widget.dart';
+import '../insights/not_in_batch_banner.dart';
 
 /// Every batch, as cards grouped by course or as one table. Teacher, class
 /// times and student count are the highlighted facts on both.
@@ -38,6 +39,8 @@ class _BatchListScreenState extends State<BatchListScreen> {
   Map<int, String> _studentNames = const {};
 
   static const _noCourse = -1;
+
+  final _notInBatchKey = GlobalKey<NotInBatchBannerState>();
 
   @override
   void initState() {
@@ -158,6 +161,9 @@ class _BatchListScreenState extends State<BatchListScreen> {
         listener: (context, state) {
           if (state is BatchLoaded) {
             setState(() => _cache = state.batches);
+            // Batch membership may have changed; refresh the "not in a
+            // batch" count with it.
+            _notInBatchKey.currentState?.reload();
           } else if (state is BatchOperationSuccess) {
             ScaffoldMessenger.of(context)
                 .showSnackBar(SnackBar(content: Text(state.message)));
@@ -195,6 +201,7 @@ class _BatchListScreenState extends State<BatchListScreen> {
           return Column(
             children: [
               if (state is BatchLoading) const LinearProgressIndicator(minHeight: 2),
+              NotInBatchBanner(key: _notInBatchKey),
               _buildFilters(batches),
               Expanded(
                 child: ValueListenableBuilder<BatchViewMode>(

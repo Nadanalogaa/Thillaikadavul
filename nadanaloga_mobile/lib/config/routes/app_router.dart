@@ -75,6 +75,10 @@ import '../../presentation/screens/admin/drilldown/student_detail_drilldown_scre
 import '../../presentation/screens/admin/drilldown/teachers_drilldown_screen.dart';
 import '../../presentation/screens/admin/batches/batch_list_screen.dart';
 import '../../presentation/screens/admin/drilldown/pending_fees_drilldown_screen.dart';
+import '../../presentation/screens/admin/insights/low_attendance_screen.dart';
+import '../../presentation/screens/admin/insights/more_insight_screens.dart';
+import '../../presentation/screens/admin/insights/not_in_batch_screen.dart';
+import '../../presentation/screens/admin/insights/pending_fees_insight_screen.dart';
 import '../../presentation/screens/teacher/teacher_dashboard_screen.dart';
 import '../../presentation/screens/student/student_shell_screen.dart';
 import '../../presentation/screens/student/student_payment_proof_screen.dart';
@@ -564,6 +568,43 @@ class AppRouter {
                 create: (_) => sl<BatchBloc>()..add(LoadBatches()),
                 child: const BatchListScreen(),
               ),
+            ),
+            // "Needs attention" lists (dashboard + batches banner)
+            GoRoute(
+              path: 'insights/fees',
+              builder: (context, state) => const PendingFeesInsightScreen(),
+            ),
+            GoRoute(
+              path: 'insights/attendance',
+              builder: (context, state) => const LowAttendanceScreen(),
+            ),
+            GoRoute(
+              path: 'insights/not-in-batch',
+              builder: (context, state) => const NotInBatchScreen(),
+            ),
+            GoRoute(
+              path: 'insights/unmarked',
+              builder: (context, state) => const UnmarkedClassesScreen(),
+            ),
+            GoRoute(
+              path: 'insights/joiners',
+              builder: (context, state) => const JoinersScreen(),
+            ),
+            GoRoute(
+              path: 'insights/birthdays',
+              builder: (context, state) => const BirthdaysScreen(),
+            ),
+            GoRoute(
+              path: 'insights/demos',
+              builder: (context, state) => const DemoEnquiriesScreen(),
+            ),
+            GoRoute(
+              path: 'insights/capacity',
+              builder: (context, state) => const BatchCapacityScreen(),
+            ),
+            GoRoute(
+              path: 'insights/extra-bills',
+              builder: (context, state) => const ExtraBillsInsightScreen(),
             ),
             GoRoute(
               path: 'drilldown/pending-fees',

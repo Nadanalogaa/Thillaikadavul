@@ -305,6 +305,13 @@ class ApiClient {
     return _dio.get(ApiEndpoints.adminStats);
   }
 
+  /// "Needs attention" lists for the admin dashboard: low attendance over the
+  /// last [days] days (below [threshold]%), unpaid fees, students not in a batch.
+  Future<Response> getAdminInsights({int days = 30, int threshold = 75}) {
+    return _dio.get(ApiEndpoints.adminInsights,
+        queryParameters: {'days': days, 'threshold': threshold});
+  }
+
   // --- File Upload API ---
 
   /// Upload an icon file (SVG, PNG, JPG)
