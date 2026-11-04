@@ -1067,7 +1067,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
                   child: Text(payable.isEmpty
                       ? 'Being verified'
                       : uploadOnly(d.fees)
-                          ? 'Upload payment screenshot · ${FeeFormat.rupees(billsTotal(payable))}'
+                          ? 'Upload screenshot · ${FeeFormat.rupees(billsTotal(payable))}'
                           : 'Pay ${FeeFormat.rupees(billsTotal(payable))}'),
                 ),
               ),

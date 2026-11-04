@@ -3860,7 +3860,7 @@ Please review and approve this registration in the admin panel.`;
             if (studentIds.length === 0) {
                 return res.json({ period, total_generated: 0, total_paid: 0, total_due: 0,
                     has_bill: false, all_paid: false, due_date: null, students: [],
-                    online_payments_enabled: razorpayConfigured() });
+                    online_payments_enabled: false });
             }
             const invRes = await pool.query(
                 `SELECT i.id, i.student_id, i.course_name, i.amount, i.currency, i.status, i.billing_period,
@@ -3915,6 +3915,7 @@ Please review and approve this registration in the admin panel.`;
                     }
                 }
             }
+            const feePayMode = String((await readAppSettings({ fee_pay_mode: APP_VERSION_KEYS.fee_pay_mode })).fee_pay_mode || 'upload').toLowerCase();
             res.json({
                 period,
                 total_generated: totalGenerated,
@@ -3928,9 +3929,11 @@ Please review and approve this registration in the admin panel.`;
                 due_date: earliestDue,
                 students: Array.from(byStudent.values()),
                 // The app hides "Pay online" when this is false and offers to
-                // upload a UPI receipt instead, so turning Razorpay off is a
-                // config change rather than an app release.
-                online_payments_enabled: razorpayConfigured(),
+                // upload a UPI receipt instead. Online payment is on only when
+                // Razorpay keys exist AND Admin -> App update "Fee payment mode"
+                // is 'razorpay' — keys alone (e.g. test keys) must not bring
+                // back a Pay button while families upload screenshots.
+                online_payments_enabled: razorpayConfigured() && feePayMode === 'razorpay',
                 // Pay-by-UPI details (Admin -> App update).
                 upi: await (async () => {
                     const st = await readAppSettings({
@@ -3953,7 +3956,7 @@ Please review and approve this registration in the admin panel.`;
                         app_links: String(st.upi_app_links || '').toLowerCase() === 'yes',
                         // A separate ID for the buttons: a plain person-to-person
                         // link with the amount and note filled in.
-                        mode: String(st.fee_pay_mode || 'upload').toLowerCase() === 'upi' ? 'upi' : 'upload',
+                        mode: ['upi', 'razorpay'].includes(String(st.fee_pay_mode || '').toLowerCase()) ? String(st.fee_pay_mode).toLowerCase() : 'upload',
                         button: String(st.upi_button_id || '').trim()
                             ? { id: String(st.upi_button_id).trim(), name: String(st.upi_button_name || st.upi_payee_name || '').trim() }
                             : null };

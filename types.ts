@@ -150,6 +150,9 @@ export interface HouseholdFees {
   total_generated: number;
   total_paid: number;
   total_due: number;
+  /** Razorpay on (Admin -> App update "Fee payment mode" = razorpay); else families upload a screenshot. */
+  online_payments_enabled?: boolean;
+  upi?: { id?: string; name?: string; mode?: string; button?: { id: string; name: string } | null } | null;
   /** Unpaid bills outside this month: extra bills (costumes, uniforms…) and older months. */
   other_due?: number;
   other_bills?: number;
@@ -354,6 +357,7 @@ export interface Invoice {
     // Receipt info for paid bills (from GET /api/invoices)
     receiptNumber?: string | null;
     paidMethod?: string | null;
+    proofStatus?: string | null;
     paidAt?: string | null;
     collectedByName?: string | null;
     // populated fields for display

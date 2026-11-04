@@ -176,7 +176,11 @@ class MemberDetailScreen extends StatelessWidget {
               : FilledButton(
                   onPressed: () => _openFees(context),
                   style: FilledButton.styleFrom(backgroundColor: accent),
-                  child: const Text('Pay now'),
+                  // Families upload a payment screenshot unless online
+                  // payment is switched on (Admin -> App update).
+                  child: Text(data.fees?['online_payments_enabled'] == true
+                      ? 'Pay now'
+                      : 'Upload screenshot'),
                 ),
         ],
       ),

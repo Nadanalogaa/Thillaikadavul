@@ -2652,6 +2652,8 @@ export const getStudentInvoicesForFamily = async (studentId: string): Promise<In
       paymentDetails: inv.payment_details || undefined,
       receiptNumber: inv.receipt_number ?? null,
       paidMethod: inv.paid_method ?? null,
+      // Latest family screenshot: 'submitted' = waiting for the academy to check.
+      proofStatus: inv.payment_status ? String(inv.payment_status).toLowerCase() : null,
       paidAt: inv.paid_at ?? null,
       collectedByName: inv.collected_by_name ?? null,
       student: inv.student || undefined,

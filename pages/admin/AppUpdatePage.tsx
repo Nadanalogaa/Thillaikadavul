@@ -150,6 +150,7 @@ const AppUpdatePage: React.FC = () => {
           <select id="paymode" value={form.fee_pay_mode || 'upload'} onChange={e => set('fee_pay_mode', e.target.value)} className="form-select w-full text-sm">
             <option value="upload">"Upload payment screenshot · ₹X" — families pay as they like, then upload</option>
             <option value="upi">"Pay" — opens UPI apps / the academy QR, then upload</option>
+            <option value="razorpay">"Pay online" (Razorpay) — only once live Razorpay keys are set</option>
           </select>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

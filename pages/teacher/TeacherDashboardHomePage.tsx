@@ -231,7 +231,7 @@ const TeacherDashboardHomePage: React.FC = () => {
                                     )}
                                     {!fees.all_paid && (
                                         <Link to="fees" className="inline-flex items-center mt-4 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold">
-                                            Pay now
+                                            {fees.online_payments_enabled ? 'Pay now' : 'Upload payment screenshot'}
                                         </Link>
                                     )}
                                 </>

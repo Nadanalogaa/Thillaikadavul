@@ -3,7 +3,8 @@ import { motion } from 'framer-motion';
 import { Calendar, CreditCard, DollarSign, User, CheckCircle, Clock, AlertCircle, FileText } from 'lucide-react';
 import type { Invoice, User as UserType } from '../../types';
 import { InvoiceStatus } from '../../types';
-import { getFamilyStudents, getStudentInvoicesForFamily, getCurrentUser } from '../../api';
+import { getFamilyStudents, getStudentInvoicesForFamily, getCurrentUser, getHouseholdFees } from '../../api';
+import UploadPaymentModal, { type UploadBill } from '../../components/student/UploadPaymentModal';
 import { useTheme } from '../../contexts/ThemeContext';
 import DashboardHeader from '../../components/DashboardHeader';
 import ReceiptModal from '../../components/admin/fees/ReceiptModal';
@@ -53,16 +54,25 @@ const PaymentHistoryPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState<'all' | 'paid' | 'pending' | 'overdue'>('all');
     const [receiptNo, setReceiptNo] = useState<string | null>(null);
+    // How families pay: screenshot upload (default) or Razorpay when switched on.
+    const [online, setOnline] = useState(false);
+    const [upiId, setUpiId] = useState<string | null>(null);
+    const [upload, setUpload] = useState<UploadBill[] | null>(null);
+    const [notice, setNotice] = useState<string | null>(null);
+    const [refresh, setRefresh] = useState(0);
 
     useEffect(() => {
         const fetchInvoices = async () => {
             setIsLoading(true);
             setError(null);
             try {
-                const [user, family] = await Promise.all([
+                const [user, family, hf] = await Promise.all([
                     getCurrentUser(),
-                    getFamilyStudents()
+                    getFamilyStudents(),
+                    getHouseholdFees().catch(() => null),
                 ]);
+                setOnline(!!hf?.online_payments_enabled);
+                setUpiId(hf?.upi?.id || null);
                 
                 setCurrentUser(user);
                 
@@ -86,7 +96,7 @@ const PaymentHistoryPage: React.FC = () => {
             }
         };
         fetchInvoices();
-    }, []);
+    }, [refresh]);
 
     if (isLoading) {
         return (
@@ -109,6 +119,9 @@ const PaymentHistoryPage: React.FC = () => {
     const pendingAmount = invoices.filter(inv => inv.status !== InvoiceStatus.Paid).reduce((sum, inv) => sum + inv.amount, 0);
 
     // Combined family split: per-student pending totals (only meaningful for a parent with multiple students)
+    // Unpaid bills the family has not sent a screenshot for yet.
+    const unpaidToSend = invoices.filter(inv => inv.status !== InvoiceStatus.Paid && inv.proofStatus !== 'submitted');
+
     const familyPending = (() => {
         const map = new Map<string, { name: string; amount: number }>();
         invoices.filter(inv => inv.status !== InvoiceStatus.Paid).forEach(inv => {
@@ -245,6 +258,12 @@ const PaymentHistoryPage: React.FC = () => {
                                 </div>
                             ))}
                         </div>
+                        {!online && unpaidToSend.length > 1 && (
+                            <button type="button" onClick={() => setUpload(unpaidToSend.map(inv => ({ id: inv.id, label: `${inv.student?.name || 'Student'} · ${inv.courseName} · ${inv.billingPeriod}`, amount: inv.amount })))}
+                                className="mt-4 w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700">
+                                Upload one screenshot for all · ₹{unpaidToSend.reduce((t, i) => t + i.amount, 0).toLocaleString('en-IN')}
+                            </button>
+                        )}
                     </motion.div>
                 )}
 
@@ -344,7 +363,21 @@ const PaymentHistoryPage: React.FC = () => {
                                                             ₹{invoice.originalAmount.toLocaleString('en-IN')} − {invoice.discountPercentage ? `${invoice.discountPercentage}% ` : ''}discount ₹{invoice.discountAmount.toLocaleString('en-IN')} = ₹{invoice.amount.toLocaleString('en-IN')}
                                                         </div>
                                                     )}
-                                                    {invoice.status !== InvoiceStatus.Paid && (
+                                                    {invoice.status !== InvoiceStatus.Paid && invoice.proofStatus === 'submitted' && (
+                                                        <span className="inline-flex items-center gap-1 rounded-lg bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
+                                                            <Clock className="w-3.5 h-3.5" /> Screenshot sent · being verified
+                                                        </span>
+                                                    )}
+                                                    {invoice.status !== InvoiceStatus.Paid && invoice.proofStatus !== 'submitted' && !online && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setUpload([{ id: invoice.id, label: `${invoice.student?.name || 'Student'} · ${invoice.courseName} · ${invoice.billingPeriod}`, amount: invoice.amount }])}
+                                                            className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold"
+                                                        >
+                                                            {invoice.proofStatus === 'rejected' ? 'Upload again' : 'Upload screenshot'}
+                                                        </button>
+                                                    )}
+                                                    {invoice.status !== InvoiceStatus.Paid && invoice.proofStatus !== 'submitted' && online && (
                                                         <button
                                                             type="button"
                                                             onClick={async () => {
@@ -423,6 +456,15 @@ const PaymentHistoryPage: React.FC = () => {
                 )}
             </div>
             <ReceiptModal receiptNumber={receiptNo} onClose={() => setReceiptNo(null)} canReverse={false} />
+            {upload && (
+                <UploadPaymentModal bills={upload} upiId={upiId} onClose={() => setUpload(null)}
+                    onDone={m => { setUpload(null); setNotice(m); setRefresh(r => r + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
+            )}
+            {notice && (
+                <div className="fixed bottom-6 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-medium text-white shadow-lg" role="status">
+                    {notice} <button type="button" onClick={() => setNotice(null)} className="ml-2 underline">OK</button>
+                </div>
+            )}
         </DashboardHeader>
     );
 };
