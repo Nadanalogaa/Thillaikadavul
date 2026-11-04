@@ -6681,6 +6681,141 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
+    // Admin dashboard: what needs attention. Low attendance (last N days),
+    // fees still to collect this month, and students not placed in a batch
+    // for a course they take. Each list is what the dashboard opens on click.
+    app.get('/api/admin/insights', ensureAdmin, async (req, res) => {
+        try {
+            const days = Math.min(180, Math.max(7, parseInt(req.query.days, 10) || 30));
+            const threshold = Math.min(100, Math.max(1, parseInt(req.query.threshold, 10) || 75));
+            const today = todayIso();
+            const now = new Date();
+            const period = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
+
+            const students = (await pool.query(
+                `SELECT u.id, COALESCE(u.display_name, u.name) AS name, u.user_id, u.contact_number AS phone,
+                        u.father_name AS parent_name, u.courses
+                   FROM users u
+                  WHERE LOWER(TRIM(u.role)) = 'student' AND u.is_deleted = false
+                    AND (u.status IS NULL OR LOWER(u.status) = 'active')`)).rows;
+            const byId = new Map(students.map(st => [Number(st.id), st]));
+            const who = (sid) => {
+                const st = byId.get(Number(sid));
+                return st ? { student_id: Number(st.id), name: st.name, user_id: st.user_id, phone: st.phone, parent_name: st.parent_name } : null;
+            };
+            const batches = (await pool.query(
+                `SELECT b.id, b.batch_name, b.course_id, b.student_ids, c.name AS course_name, t.name AS teacher_name
+                   FROM batches b LEFT JOIN courses c ON c.id = b.course_id LEFT JOIN users t ON t.id = b.teacher_id`)).rows;
+            const batchById = new Map(batches.map(b => [Number(b.id), b]));
+
+            // --- Low attendance -------------------------------------------------
+            const marks = (await pool.query(
+                `SELECT a.student_id, s.batch_id, a.status, to_char(s.session_date, 'YYYY-MM-DD') AS date
+                   FROM attendance a JOIN class_sessions s ON s.id = a.session_id
+                  WHERE s.status <> 'cancelled'
+                    AND s.session_date >= ($1::date - ($2 || ' days')::interval) AND s.session_date <= $1::date
+                  ORDER BY s.session_date DESC`, [today, String(days)])).rows;
+            const groups = new Map();
+            for (const m of marks) {
+                const key = `${m.student_id}:${m.batch_id}`;
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key).push(m);
+            }
+            const lowAttendance = [];
+            for (const list of groups.values()) {
+                const person = who(list[0].student_id);
+                if (!person) continue;
+                const attended = list.filter(m => m.status === 'present' || m.status === 'late').length;
+                const pct = Math.round((attended / list.length) * 100);
+                let streak = 0; // most recent classes missed in a row
+                for (const m of list) { if (m.status === 'absent') streak++; else break; }
+                if (list.length >= 3 && (pct < threshold || streak >= 3)) {
+                    const b = batchById.get(Number(list[0].batch_id));
+                    lowAttendance.push({
+                        ...person, batch_id: Number(list[0].batch_id), batch_name: b ? b.batch_name : '',
+                        course_name: b ? b.course_name : '', teacher_name: b ? b.teacher_name : '',
+                        classes: list.length, attended, absent: list.filter(m => m.status === 'absent').length,
+                        percentage: pct, missed_in_a_row: streak,
+                        last_attended: (list.find(m => m.status === 'present' || m.status === 'late') || {}).date || null,
+                    });
+                }
+            }
+            lowAttendance.sort((a, b) => a.percentage - b.percentage || b.missed_in_a_row - a.missed_in_a_row);
+
+            // --- Fees to collect ------------------------------------------------
+            const inv = (await pool.query(
+                `SELECT i.id, i.student_id, i.amount, LOWER(COALESCE(i.status, '')) AS status, i.billing_period,
+                        to_char(i.due_date, 'YYYY-MM-DD') AS due_date,
+                        EXISTS (SELECT 1 FROM invoice_payments p WHERE p.invoice_id = i.id AND p.status = 'submitted') AS verifying
+                   FROM invoices i WHERE i.student_id = ANY($1::int[])`, [students.map(st => Number(st.id))])).rows;
+            const fees = { period, billed: 0, collected: 0, due: 0, due_students: 0, overdue: 0, overdue_students: 0,
+                verifying: 0, verifying_bills: 0, older_due: 0, older_bills: 0 };
+            const owing = new Map();
+            for (const i of inv) {
+                const amt = Number(i.amount || 0);
+                const paid = i.status === 'paid';
+                const thisMonth = i.billing_period === period;
+                if (thisMonth) { fees.billed += amt; if (paid) fees.collected += amt; }
+                if (paid) continue;
+                if (i.verifying) { fees.verifying += amt; fees.verifying_bills++; }
+                if (thisMonth) fees.due += amt; else { fees.older_due += amt; fees.older_bills++; }
+                const overdue = !!(i.due_date && i.due_date < today);
+                if (overdue) fees.overdue += amt;
+                const o = owing.get(i.student_id) || { amount: 0, overdue_amount: 0, bills: 0, verifying: 0 };
+                o.amount += amt; o.bills++; if (overdue) o.overdue_amount += amt; if (i.verifying) o.verifying += amt;
+                owing.set(i.student_id, o);
+            }
+            const pendingFees = [...owing.entries()].map(([sid, o]) => ({ ...who(sid), ...o })).filter(x => x.student_id)
+                .sort((a, b) => b.overdue_amount - a.overdue_amount || b.amount - a.amount);
+            fees.due_students = new Set(inv.filter(i => i.billing_period === period && i.status !== 'paid').map(i => i.student_id)).size;
+            fees.overdue_students = pendingFees.filter(x => x.overdue_amount > 0).length;
+
+            // --- Not in a batch -------------------------------------------------
+            const courses = (await pool.query('SELECT id, name FROM courses')).rows;
+            const courseByName = new Map(courses.map(c => [String(c.name).trim().toLowerCase(), c]));
+            const courseById = new Map(courses.map(c => [Number(c.id), c]));
+            const grades = (await pool.query(
+                `SELECT scg.student_id, scg.course_id, g.name AS grade_name FROM student_course_grades scg
+                   LEFT JOIN grades g ON g.id = scg.grade_id`)).rows;
+            const gradeOf = new Map(grades.map(g => [`${g.student_id}:${g.course_id}`, g.grade_name]));
+            const inBatch = new Set();
+            const anyBatch = new Set();
+            for (const b of batches) for (const sid of (Array.isArray(b.student_ids) ? b.student_ids : [])) {
+                inBatch.add(`${Number(sid)}:${Number(b.course_id)}`); anyBatch.add(Number(sid));
+            }
+            const notInBatch = [];
+            for (const st of students) {
+                const sid = Number(st.id);
+                const ids = new Set(grades.filter(g => Number(g.student_id) === sid).map(g => Number(g.course_id)));
+                for (const n of safeJsonArray(st.courses)) {
+                    const c = courseByName.get(String(n).trim().toLowerCase());
+                    if (c) ids.add(Number(c.id));
+                }
+                if (ids.size === 0) {
+                    if (!anyBatch.has(sid)) notInBatch.push({ ...who(sid), course_id: null, course_name: null, grade_name: null });
+                    continue;
+                }
+                for (const cid of ids) {
+                    if (inBatch.has(`${sid}:${cid}`)) continue;
+                    notInBatch.push({ ...who(sid), course_id: cid, course_name: (courseById.get(cid) || {}).name || null,
+                        grade_name: gradeOf.get(`${sid}:${cid}`) || null,
+                        batches: batches.filter(b => Number(b.course_id) === cid).map(b => ({ id: Number(b.id), name: b.batch_name })) });
+                }
+            }
+            notInBatch.sort((a, b) => String(a.course_name || '~').localeCompare(String(b.course_name || '~')) || String(a.name).localeCompare(String(b.name)));
+
+            res.json({
+                generated_at: new Date().toISOString(),
+                attendance: { days, threshold, count: lowAttendance.length, students: lowAttendance },
+                fees: { ...fees, students: pendingFees },
+                not_in_batch: { count: notInBatch.length, students_count: new Set(notInBatch.map(x => x.student_id)).size, students: notInBatch },
+            });
+        } catch (error) {
+            console.error('Error building admin insights:', error);
+            res.status(500).json({ message: 'Server error building the dashboard.' });
+        }
+    });
+
     // --- Demo Booking API Endpoints ---
     // Admin only: these rows hold enquirers' names, phones and emails.
     app.get('/api/demo-bookings', ensureAdmin, async (req, res) => {

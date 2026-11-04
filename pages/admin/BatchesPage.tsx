@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import Modal from '../../components/Modal';
+import { fetchInsights, NotInBatchList, type Insights } from '../../components/admin/AdminInsights';
 import { FormModalShell, Section, Field, FieldGrid, inputClass, selectClass } from '../../components/admin/FormModalShell';
 import { useTheme } from '../../contexts/ThemeContext';
 import {
@@ -79,6 +80,12 @@ const BatchesPage: React.FC = () => {
         }
     }, []);
     useEffect(() => { load(); }, [load]);
+
+    // Students taking a course with no batch for it (shown above the batches).
+    const [unplaced, setUnplaced] = useState<Insights['not_in_batch'] | null>(null);
+    const [showUnplaced, setShowUnplaced] = useState(false);
+    const loadUnplaced = useCallback(() => fetchInsights().then(d => setUnplaced(d.not_in_batch)).catch(() => {}), []);
+    useEffect(() => { loadUnplaced(); }, [loadUnplaced]);
 
     const chooseView = (v: View) => {
         setView(v);
@@ -208,6 +215,24 @@ const BatchesPage: React.FC = () => {
     return (
         <AdminLayout>
             <AdminPageHeader title="Batches" subtitle="Who teaches each batch, when it meets and who is in it." />
+
+            {unplaced && unplaced.students_count > 0 && (
+                <div className={`mb-4 rounded-xl border p-4 ${dark ? 'border-amber-800 bg-amber-900/20' : 'border-amber-200 bg-amber-50'}`}>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <div className={`font-semibold ${dark ? 'text-amber-200' : 'text-amber-800'}`}>{unplaced.students_count} student{unplaced.students_count === 1 ? '' : 's'} not in a batch</div>
+                            <div className="text-xs text-gray-500">Taking a course but in no batch for it — they get no class timings or attendance.</div>
+                        </div>
+                        <button type="button" onClick={() => setShowUnplaced(v => !v)}
+                            className="rounded-md bg-amber-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-amber-700">{showUnplaced ? 'Hide' : 'Show and place them'}</button>
+                    </div>
+                    {showUnplaced && (
+                        <div className={`mt-3 rounded-lg p-3 ${dark ? 'bg-gray-800' : 'bg-white'}`}>
+                            <NotInBatchList rows={unplaced.students} onChanged={async () => { await Promise.all([load(), loadUnplaced()]); }} />
+                        </div>
+                    )}
+                </div>
+            )}
 
             <div className={`mb-4 rounded-xl border p-4 shadow-sm ${card}`}>
                 <div className="flex flex-wrap items-center gap-3">

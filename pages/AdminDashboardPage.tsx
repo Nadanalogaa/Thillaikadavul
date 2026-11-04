@@ -10,6 +10,7 @@ import StatCard from '../components/admin/StatCard';
 import AdminPageHeader from '../components/admin/AdminPageHeader';
 import AdminLayout from '../components/admin/AdminLayout';
 import { useTheme } from '../contexts/ThemeContext';
+import { AdminInsightsCards } from '../components/admin/AdminInsights';
 
 const AdminDashboardPage: React.FC = () => {
     const { theme } = useTheme();
@@ -92,6 +93,8 @@ const AdminDashboardPage: React.FC = () => {
 
             {!isLoading && !error && stats && (
                 <>
+                    <AdminInsightsCards />
+
                     {/* Stats Section */}
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
                         <StatCard title="Total Users" value={stats.totalUsers} />
