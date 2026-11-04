@@ -1,16 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Course, DashboardStats } from '../types';
 import {
     getAdminCourses, addCourseByAdmin, updateCourseByAdmin, deleteCourseByAdmin, getAdminStats
 } from '../api';
 import CourseTable from '../components/admin/CourseTable';
 import EditCourseModal from '../components/admin/EditCourseModal';
-import StatCard from '../components/admin/StatCard';
-import AdminPageHeader from '../components/admin/AdminPageHeader';
 import AdminLayout from '../components/admin/AdminLayout';
 import { useTheme } from '../contexts/ThemeContext';
-import { AdminInsightsCards } from '../components/admin/AdminInsights';
+import { AdminDashboardView } from '../components/admin/AdminInsights';
 
 const AdminDashboardPage: React.FC = () => {
     const { theme } = useTheme();
@@ -19,6 +16,7 @@ const AdminDashboardPage: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [editingCourse, setEditingCourse] = useState<Partial<Course> | null>(null);
+    const coursesRef = useRef<HTMLDivElement>(null);
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
@@ -72,53 +70,24 @@ const AdminDashboardPage: React.FC = () => {
     
     return (
         <AdminLayout>
-            <AdminPageHeader
-                title="Dashboard"
-                subtitle="Manage users, courses, and view system statistics."
-            />
-
-            {isLoading && (
-                <div className="flex justify-center items-center py-12">
-                    <div className={`text-base ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                        Loading dashboard...
-                    </div>
-                </div>
-            )}
-
             {error && (
-                <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-200 px-4 py-3 rounded-lg">
+                <div className="mb-4 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-red-700 dark:border-red-700 dark:bg-red-900/40 dark:text-red-200">
                     {error}
                 </div>
             )}
 
-            {!isLoading && !error && stats && (
-                <>
-                    <AdminInsightsCards />
+            <AdminDashboardView
+                teacherCount={stats?.teacherCount}
+                courseCount={isLoading ? undefined : courses.length}
+                onCourses={() => coursesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            />
 
-                    {/* Stats Section */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
-                        <StatCard title="Total Users" value={stats.totalUsers} />
-                        <Link to="/admin/students">
-                            <StatCard title="Students" value={stats.studentCount} isLink />
-                        </Link>
-                        <Link to="/admin/teachers">
-                            <StatCard title="Teachers" value={stats.teacherCount} isLink />
-                        </Link>
-                        <StatCard title="Online Pref." value={stats.onlinePreference} />
-                        <StatCard title="Offline Pref." value={stats.offlinePreference} />
-                    </div>
-
-                    {/* Course Management Section */}
-                    <div className="mt-6 sm:mt-8">
-                        <CourseTable
-                            courses={courses}
-                            onEdit={handleEditCourse}
-                            onDelete={handleDeleteCourse}
-                            onAddNew={handleAddNewCourse}
-                        />
-                    </div>
-                </>
-            )}
+            {/* Courses: managed here */}
+            <div ref={coursesRef} className="mt-8 scroll-mt-20">
+                {isLoading
+                    ? <p className={`py-6 text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Loading courses…</p>
+                    : <CourseTable courses={courses} onEdit={handleEditCourse} onDelete={handleDeleteCourse} onAddNew={handleAddNewCourse} />}
+            </div>
 
             <EditCourseModal
                 isOpen={!!editingCourse}

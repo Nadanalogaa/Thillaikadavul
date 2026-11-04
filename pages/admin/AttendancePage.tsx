@@ -45,7 +45,11 @@ const AttendancePage: React.FC = () => {
     const { theme } = useTheme();
     const dark = theme === 'dark';
     const [tab, setTab] = useState<Tab>('day');
-    const [date, setDate] = useState(todayIso());
+    // ?date=YYYY-MM-DD opens that day (the dashboard links to missed days).
+    const [date, setDate] = useState(() => {
+        const q = new URLSearchParams(window.location.search).get('date');
+        return q && /^\d{4}-\d{2}-\d{2}$/.test(q) ? q : todayIso();
+    });
     const [classes, setClasses] = useState<AttendanceClass[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');

@@ -62,7 +62,8 @@ const BatchesPage: React.FC = () => {
     const [search, setSearch] = useState('');
     const [courseFilter, setCourseFilter] = useState('');
     const [teacherFilter, setTeacherFilter] = useState('');
-    const [openId, setOpenId] = useState<number | null>(null);
+    // ?open=<batch id> opens that batch (the dashboard links here).
+    const [openId, setOpenId] = useState<number | null>(() => Number(new URLSearchParams(window.location.search).get('open')) || null);
     const [editing, setEditing] = useState<AdminBatch | 'new' | null>(null);
 
     const load = useCallback(async () => {

@@ -6804,9 +6804,147 @@ Please review and approve this registration in the admin panel.`;
             }
             notInBatch.sort((a, b) => String(a.course_name || '~').localeCompare(String(b.course_name || '~')) || String(a.name).localeCompare(String(b.name)));
 
+            // --- India "now": date, time, weekday ------------------------------
+            const istParts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+                timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', hour12: false, weekday: 'long' }).formatToParts(new Date()).map(p => [p.type, p.value]));
+            const nowTime = `${istParts.hour === '24' ? '00' : istParts.hour}:${istParts.minute}`;
+            const dayName = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+            const addDays = (iso, n) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+            const slotsOf = (b) => {
+                let t = b.time_slots;
+                if (typeof t === 'string') { try { t = JSON.parse(t); } catch { t = []; } }
+                return Array.isArray(t) ? t.filter(x => x && x.day) : [];
+            };
+            const fullBatches = (await pool.query(
+                `SELECT b.id, b.batch_name, b.course_id, b.student_ids, b.time_slots, b.max_students, b.created_at,
+                        c.name AS course_name, t.name AS teacher_name
+                   FROM batches b LEFT JOIN courses c ON c.id = b.course_id LEFT JOIN users t ON t.id = b.teacher_id`)).rows;
+            const activeIds = new Set(students.map(st => Number(st.id)));
+            const countIn = (b) => (Array.isArray(b.student_ids) ? b.student_ids : []).filter(x => activeIds.has(Number(x))).length;
+
+            // 1. Classes held in the last 7 days with no attendance marked.
+            const since = addDays(today, -7);
+            const sessRows = (await pool.query(
+                `SELECT batch_id, to_char(session_date, 'YYYY-MM-DD') AS date, status, marked_at
+                   FROM class_sessions WHERE session_date BETWEEN $1 AND $2`, [since, today])).rows;
+            const handled = new Set(sessRows.filter(r => r.marked_at || r.status === 'cancelled').map(r => `${r.batch_id}:${r.date}`));
+            const unmarked = [];
+            for (let i = 7; i >= 0; i--) {
+                const date = addDays(today, -i);
+                const wd = dayName(date);
+                for (const b of fullBatches) {
+                    if (!countIn(b)) continue;
+                    if (b.created_at && new Date(b.created_at).toISOString().slice(0, 10) > date) continue;
+                    for (const sl of slotsOf(b).filter(x => x.day === wd)) {
+                        const end = String(sl.end_time || sl.start_time || '23:59').slice(0, 5);
+                        if (date === today && end > nowTime) continue; // not over yet
+                        if (handled.has(`${b.id}:${date}`)) continue;
+                        unmarked.push({ batch_id: Number(b.id), batch_name: b.batch_name, course_name: b.course_name,
+                            teacher_name: b.teacher_name, date, start_time: String(sl.start_time || '').slice(0, 5),
+                            end_time: String(sl.end_time || '').slice(0, 5), students: countIn(b) });
+                    }
+                }
+            }
+            unmarked.sort((x, y) => y.date.localeCompare(x.date) || x.start_time.localeCompare(y.start_time));
+
+            // 2. Today's classes.
+            const todayName = dayName(today);
+            const todayClasses = [];
+            for (const b of fullBatches) {
+                if (!countIn(b)) continue;
+                for (const sl of slotsOf(b).filter(x => x.day === todayName)) {
+                    const start = String(sl.start_time || '').slice(0, 5), end = String(sl.end_time || '').slice(0, 5);
+                    const sess = sessRows.find(r => Number(r.batch_id) === Number(b.id) && r.date === today);
+                    todayClasses.push({ batch_id: Number(b.id), batch_name: b.batch_name, course_name: b.course_name,
+                        teacher_name: b.teacher_name, start_time: start, end_time: end, students: countIn(b),
+                        state: sess && sess.status === 'cancelled' ? 'cancelled' : sess && sess.marked_at ? 'marked'
+                            : end && end <= nowTime ? 'not_marked' : start && start <= nowTime ? 'running' : 'upcoming' });
+                }
+            }
+            todayClasses.sort((x, y) => x.start_time.localeCompare(y.start_time));
+
+            // 3. Joiners and leavers this month.
+            const monthStart = `${today.slice(0, 7)}-01`;
+            const gradedIds = new Set(grades.map(g => Number(g.student_id)));
+            const joinerRows = (await pool.query(
+                `SELECT id, to_char(date_of_joining, 'YYYY-MM-DD') AS joined FROM users
+                  WHERE LOWER(TRIM(role)) = 'student' AND is_deleted = false AND (status IS NULL OR LOWER(status) = 'active')
+                    AND date_of_joining >= $1 ORDER BY date_of_joining DESC`, [monthStart])).rows;
+            const joiners = joinerRows.map(r => ({ ...who(r.id), joined: r.joined, fee_set: gradedIds.has(Number(r.id)),
+                in_batch: anyBatch.has(Number(r.id)) })).filter(x => x.student_id);
+            const leavers = (await pool.query(
+                `SELECT id, COALESCE(display_name, name) AS name, user_id, contact_number AS phone, father_name AS parent_name,
+                        CASE WHEN is_deleted THEN 'deleted' ELSE LOWER(status) END AS state, to_char(updated_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') AS changed
+                   FROM users WHERE LOWER(TRIM(role)) = 'student' AND (is_deleted = true OR LOWER(COALESCE(status, 'active')) <> 'active')
+                    AND updated_at >= $1 ORDER BY updated_at DESC`, [monthStart])).rows
+                .map(r => ({ student_id: Number(r.id), name: r.name, user_id: r.user_id, phone: r.phone, parent_name: r.parent_name, state: r.state, changed: r.changed }));
+
+            // 4. Birthdays in the next 7 days.
+            const dobRows = (await pool.query(
+                `SELECT id, to_char(dob, 'YYYY-MM-DD') AS dob FROM users
+                  WHERE LOWER(TRIM(role)) = 'student' AND is_deleted = false AND (status IS NULL OR LOWER(status) = 'active') AND dob IS NOT NULL`)).rows;
+            const birthdays = [];
+            for (let i = 0; i < 7; i++) {
+                const d = addDays(today, i);
+                for (const r of dobRows) {
+                    if (!r.dob || r.dob.slice(5) !== d.slice(5)) continue;
+                    const person = who(r.id);
+                    if (person) birthdays.push({ ...person, date: d, turns: Number(d.slice(0, 4)) - Number(r.dob.slice(0, 4)), in_days: i });
+                }
+            }
+
+            // 5. Demo enquiries still pending after 2 days.
+            const demos = (await pool.query(
+                `SELECT id, student_name, parent_name, phone, course, to_char(created_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') AS asked,
+                        to_char(preferred_date, 'YYYY-MM-DD') AS preferred_date,
+                        (NOW() - created_at > INTERVAL '2 days') AS stale
+                   FROM demo_bookings WHERE LOWER(COALESCE(status, 'pending')) = 'pending' ORDER BY created_at`)).rows;
+
+            // 6. Batches full, over the limit, or nearly empty.
+            const capacity = fullBatches.map(b => ({ batch_id: Number(b.id), batch_name: b.batch_name, course_name: b.course_name,
+                teacher_name: b.teacher_name, students: countIn(b), max_students: b.max_students ? Number(b.max_students) : null }))
+                .map(b => ({ ...b, state: b.max_students && b.students > b.max_students ? 'over' : b.max_students && b.students >= b.max_students ? 'full'
+                    : b.students <= 2 ? (b.students === 0 ? 'empty' : 'small') : null }))
+                .filter(b => b.state)
+                .sort((x, y) => ['over', 'full', 'empty', 'small'].indexOf(x.state) - ['over', 'full', 'empty', 'small'].indexOf(y.state));
+
+            // 7. Monthly fees: billed vs collected, last 6 months.
+            const months = [];
+            for (let i = 5; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                months.push(`${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`);
+            }
+            const trendRows = (await pool.query(
+                `SELECT billing_period, SUM(amount)::float AS billed,
+                        SUM(amount) FILTER (WHERE LOWER(status) = 'paid')::float AS collected
+                   FROM invoices WHERE billing_period = ANY($1) GROUP BY billing_period`, [months])).rows;
+            const trend = months.map(m => {
+                const r = trendRows.find(x => x.billing_period === m) || {};
+                return { period: m, billed: Number(r.billed || 0), collected: Number(r.collected || 0) };
+            });
+
+            // 8. Extra bills still open: how many have paid.
+            const extra = (await pool.query(
+                `SELECT c.id, c.title, c.category, c.mode, to_char(c.due_date, 'YYYY-MM-DD') AS due_date,
+                        COUNT(i.id)::int AS bills, COUNT(i.id) FILTER (WHERE LOWER(i.status) = 'paid')::int AS paid,
+                        COALESCE(SUM(i.amount) FILTER (WHERE LOWER(i.status) = 'paid'), 0)::float AS paid_amount,
+                        COALESCE(SUM(i.amount) FILTER (WHERE LOWER(i.status) <> 'paid'), 0)::float AS due_amount
+                   FROM fee_charges c LEFT JOIN invoices i ON i.charge_id = c.id
+                  WHERE c.status = 'open' GROUP BY c.id ORDER BY c.created_at DESC`)).rows;
+
             res.json({
                 generated_at: new Date().toISOString(),
                 attendance: { days, threshold, count: lowAttendance.length, students: lowAttendance },
+                counts: { students: students.length, batches: fullBatches.length, batches_with_students: fullBatches.filter(b => countIn(b) > 0).length },
+                unmarked: { count: unmarked.length, classes: unmarked },
+                today: { date: today, weekday: todayName, now: nowTime, classes: todayClasses },
+                joiners: { month: period, count: joiners.length, fee_not_set: joiners.filter(j => !j.fee_set).length, students: joiners, leavers },
+                birthdays: { count: birthdays.length, students: birthdays },
+                demos: { pending: demos.length, stale: demos.filter(d => d.stale).length, bookings: demos },
+                capacity: { count: capacity.length, batches: capacity },
+                trend,
+                extra_bills: extra,
                 fees: { ...fees, students: pendingFees },
                 not_in_batch: { count: notInBatch.length, students_count: new Set(notInBatch.map(x => x.student_id)).size, students: notInBatch },
             });
