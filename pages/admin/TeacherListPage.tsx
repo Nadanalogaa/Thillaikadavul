@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Search } from 'lucide-react';
+import { Pencil, Search, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { User, Course } from '../../types';
 import { UserRole, ClassPreference, UserStatus } from '../../types';
-import { getAdminUsers, updateUserByAdmin, deleteUserByAdmin, addStudentByAdmin, sendNotification, getCourses, setBatchTeacher, getBatches } from '../../api';
+import { getAdminUsers, updateUserByAdmin, deleteUserByAdmin, addStudentByAdmin, sendNotification, getCourses, setBatchTeacher, getBatches, batchTimingLines } from '../../api';
 import PersonEditModal from '../../components/admin/PersonEditModal';
 import AddTeacherModal from '../../components/admin/AddTeacherModal';
 import SendNotificationModal from '../../components/admin/SendNotificationModal';
@@ -12,6 +12,7 @@ import { WEEKDAYS, TIME_SLOTS } from '../../constants';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useTheme } from '../../contexts/ThemeContext';
+import { compactTimes } from '../../utils/compactTimes';
 import { isSuperAdmin } from '../../utils/adminRole';
 
 type SortDirection = 'ascending' | 'descending';
@@ -24,7 +25,7 @@ const SortableIcon: React.FC<{ direction: SortDirection | 'none' }> = ({ directi
 };
 
 const SortableHeader: React.FC<{ columnKey: keyof User, title: string, sortConfig: SortConfig, requestSort: (key: keyof User) => void, className?: string }> = ({ columnKey, title, sortConfig, requestSort, className }) => (
-    <th scope="col" className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none group ${className || ''}`} onClick={() => requestSort(columnKey)}>
+    <th scope="col" className={`px-3 py-2.5 text-left font-medium cursor-pointer select-none group ${className || ''}`} onClick={() => requestSort(columnKey)}>
         <div className="flex items-center">
             {title}
             <span className="ml-2">
@@ -38,19 +39,27 @@ const TeacherListPage: React.FC = () => {
     const canDelete = isSuperAdmin();
     const { theme } = useTheme();
     const [allUsers, setAllUsers] = useState<User[]>([]);
-    // Students per teacher = everyone in the batches they teach.
+    // Per teacher: the batches they teach (name, timing, students) and the
+    // number of different students across them.
     const [studentsByTeacher, setStudentsByTeacher] = useState<Map<string, number>>(new Map());
+    const [batchesByTeacher, setBatchesByTeacher] = useState<Map<string, { id: string; name: string; timing: string; students: number }[]>>(new Map());
     useEffect(() => {
         getBatches().then(bs => {
             const sets = new Map<string, Set<string>>();
+            const lists = new Map<string, { id: string; name: string; timing: string; students: number }[]>();
             for (const b of bs) {
                 const t = b.teacherId == null ? '' : String(typeof b.teacherId === 'object' ? (b.teacherId as any).id : b.teacherId);
                 if (!t) continue;
                 const set = sets.get(t) || new Set<string>();
                 (b.studentIds || []).forEach(id => set.add(String(id)));
                 sets.set(t, set);
+                const list = lists.get(t) || [];
+                list.push({ id: String(b.id), name: b.name, timing: compactTimes(batchTimingLines(b)), students: (b.studentIds || []).length });
+                lists.set(t, list);
             }
+            for (const l of lists.values()) l.sort((a, c) => a.name.localeCompare(c.name, undefined, { numeric: true }));
             setStudentsByTeacher(new Map([...sets].map(([k, v]) => [k, v.size])));
+            setBatchesByTeacher(lists);
         }).catch(() => {});
     }, []);
     const [courses, setCourses] = useState<Course[]>([]);
@@ -397,77 +406,82 @@ const TeacherListPage: React.FC = () => {
                     {error && <p className="text-center text-red-500 bg-red-100 p-3 rounded-md">{error}</p>}
                     
                     {!isLoading && !error && (
-                        <div className="bg-white shadow-md rounded-lg overflow-hidden">
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50">
+                        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                            {/* Own scroll box: headings stay on top and the sideways scrollbar is always in view. */}
+                            <div className="max-h-[calc(100vh-14rem)] overflow-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="sticky top-0 z-10 bg-gray-50 text-xs uppercase tracking-wide text-gray-500 shadow-[0_1px_0_0_rgb(229,231,235)] dark:bg-gray-900 dark:text-gray-400">
                                         <tr>
-                                            <th scope="col" className="p-4">
-                                                <input 
-                                                    ref={selectAllCheckboxRef}
-                                                    type="checkbox"
-                                                    className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
-                                                    onChange={handleSelectAll}
-                                                    checked={areAllVisibleSelected}
-                                                />
+                                            <th scope="col" className="w-10 px-3 py-2.5">
+                                                <input ref={selectAllCheckboxRef} type="checkbox" onChange={handleSelectAll} checked={areAllVisibleSelected} aria-label="Select all"
+                                                    className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary" />
                                             </th>
-                                            <SortableHeader columnKey="name" title="Teacher Info" sortConfig={sortConfig} requestSort={requestSort} />
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course Expertise & Joined Date</th>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Students Assigned</th>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                            <th scope="col" className="relative px-6 py-3"><span className="sr-only">Actions</span></th>
+                                            <SortableHeader columnKey="name" title="Teacher" sortConfig={sortConfig} requestSort={requestSort} />
+                                            <th scope="col" className="px-3 py-2.5 text-left font-medium">Courses</th>
+                                            <th scope="col" className="px-3 py-2.5 text-left font-medium">Batches &amp; timing</th>
+                                            <th scope="col" className="px-3 py-2.5 text-left font-medium">Students</th>
+                                            <th scope="col" className="px-3 py-2.5 text-left font-medium">Phone</th>
+                                            <th scope="col" className="px-3 py-2.5 text-left font-medium">Status</th>
+                                            <th scope="col" className="px-3 py-2.5"><span className="sr-only">Actions</span></th>
                                         </tr>
                                     </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
+                                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                                         {filteredAndSortedTeachers.length > 0 ? filteredAndSortedTeachers.map((user) => {
                                             const assignedStudentCount = studentsByTeacher.get(String(user.id)) || 0;
+                                            const teaches = batchesByTeacher.get(String(user.id)) || [];
                                             return (
-                                            <tr key={user.id} className="hover:bg-gray-50">
-                                                <td className="p-4">
-                                                    <input 
-                                                        type="checkbox" 
-                                                        className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
-                                                        checked={selectedTeachers.has(user.id)}
-                                                        onChange={(e) => handleSelectOne(e, user.id)}
-                                                    />
+                                            <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                                                <td className="px-3 py-2.5 align-top">
+                                                    <input type="checkbox" checked={selectedTeachers.has(user.id)} onChange={(e) => handleSelectOne(e, user.id)} aria-label={`Select ${user.name}`}
+                                                        className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary" />
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                                    {user.name}
-                                                    <div className="text-xs text-gray-500 mt-1">
-                                                        ID: <span className="font-mono">{user.userId || user.id}</span> | {user.classPreference || 'N/A'}
+                                                <td className="min-w-[11rem] px-3 py-2.5 align-top">
+                                                    <div className="flex items-start gap-2.5">
+                                                        <img src={user.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=e8eaf6&color=1a237e&size=80`} alt=""
+                                                            className="h-9 w-9 flex-shrink-0 rounded-full object-cover ring-1 ring-gray-200"
+                                                            onError={(e) => { (e.currentTarget as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=e8eaf6&color=1a237e&size=80`; }} />
+                                                        <div className="min-w-0">
+                                                            <div className="font-medium text-gray-900 dark:text-white">{user.name}</div>
+                                                            <div className="text-xs text-gray-500"><span className="font-mono">{user.userId || user.id}</span> · {user.classPreference || '—'}</div>
+                                                            <div className="text-[11px] text-gray-400">Joined {user.dateOfJoining ? new Date(user.dateOfJoining).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</div>
+                                                        </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {user.courseExpertise?.join(', ') || 'N/A'}
-                                                    <div className="text-xs text-gray-500 mt-1">
-                                                        Joined: {user.dateOfJoining ? new Date(user.dateOfJoining).toLocaleDateString() : 'N/A'}
+                                                <td className="min-w-[7rem] px-3 py-2.5 align-top">
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {(user.courseExpertise || []).length ? (user.courseExpertise || []).map(c => (
+                                                            <span key={c} className="rounded-md bg-indigo-50 px-1.5 py-0.5 text-xs text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200">{c}</span>
+                                                        )) : <span className="text-xs text-gray-400">—</span>}
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{assignedStudentCount}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.contactNumber}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                     <select
-                                                        value={user.status || 'Active'}
-                                                        onChange={(e) => handleStatusChange(user.id, e.target.value as UserStatus, user.name)}
-                                                        className="form-select text-xs py-1 px-2 w-full max-w-[120px]"
-                                                        onClick={(e) => e.stopPropagation()}
-                                                    >
-                                                        {Object.values(UserStatus).map(status => (
-                                                            <option key={status} value={status}>{status}</option>
-                                                        ))}
-                                                    </select>
+                                                <td className="min-w-[11rem] px-3 py-2.5 align-top">
+                                                    {teaches.length ? (
+                                                        <div className="space-y-1.5">
+                                                            {teaches.map(b => (
+                                                                <div key={b.id} className="leading-tight">
+                                                                    <Link to={`/admin/batches/${b.id}`} className="font-medium text-gray-900 hover:text-brand-primary hover:underline dark:text-white">{b.name}</Link>
+                                                                    <span className="ml-1 text-xs text-gray-400">· {b.students}</span>
+                                                                    <div className="text-xs text-gray-500">{b.timing || 'Timings not set'}</div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700">No batch</span>}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
-                                                    <button onClick={() => handleEditUser(user)} className="text-brand-primary hover:text-brand-dark">Edit</button>
-                                                    {canDelete && <button onClick={() => handleDeleteUser(user.id)} className="text-red-600 hover:text-red-800">Delete</button>}
+                                                <td className="px-3 py-2.5 align-top font-semibold text-gray-900 dark:text-white">{assignedStudentCount}</td>
+                                                <td className="px-3 py-2.5 align-top whitespace-nowrap text-gray-700 dark:text-gray-200">{user.contactNumber ? <a href={`tel:${user.contactNumber}`} className="hover:text-brand-primary">{user.contactNumber}</a> : '—'}</td>
+                                                <td className="px-3 py-2.5 align-top"><select value={user.status || 'Active'} onChange={(e) => handleStatusChange(user.id, e.target.value as UserStatus, user.name)}
+                                                        onClick={(e) => e.stopPropagation()} aria-label="Status"
+                                                        className={`form-select w-[6.5rem] rounded-lg py-1 pl-2 pr-7 text-xs ${String(user.status || 'Active').toLowerCase() === 'active' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-gray-300 text-gray-600'}`}>
+                                                        {Object.values(UserStatus).map(status => <option key={status} value={status}>{status}</option>)}
+                                                    </select></td>
+                                                <td className="px-3 py-2.5 text-right align-top whitespace-nowrap">
+                                                    <button onClick={() => handleEditUser(user)} title="Edit" aria-label={`Edit ${user.name}`} className="rounded-md p-1.5 text-brand-primary hover:bg-indigo-50"><Pencil className="h-4 w-4" /></button>
+                                                    {canDelete && <button onClick={() => handleDeleteUser(user.id)} title="Delete" aria-label={`Delete ${user.name}`} className="rounded-md p-1.5 text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button>}
                                                 </td>
                                             </tr>
-                                        )
+                                            );
                                         }) : (
-                                            <tr>
-                                                <td colSpan={8} className="px-6 py-8 text-center text-sm text-gray-500">No teachers match the current filters.</td>
-                                            </tr>
+                                            <tr><td colSpan={8} className="px-3 py-10 text-center text-sm text-gray-500">No teachers match the current filters.</td></tr>
                                         )}
                                     </tbody>
                                 </table>

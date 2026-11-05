@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Search } from 'lucide-react';
+import { Pencil, Search, Trash2 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { User, Course, Batch } from '../../types';
 import { UserRole, ClassPreference, UserStatus } from '../../types';
@@ -16,6 +16,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { displayEmail } from '../../utils/displayEmail';
 import { placeStudent } from '../../services/batchAdminApi';
 import { batchTimingLines } from '../../api';
+import { compactTimes } from '../../utils/compactTimes';
 import { isSuperAdmin } from '../../utils/adminRole';
 
 type SortDirection = 'ascending' | 'descending';
@@ -28,7 +29,7 @@ const SortableIcon: React.FC<{ direction: SortDirection | 'none' }> = ({ directi
 };
 
 const SortableHeader: React.FC<{ columnKey: keyof User, title: string, sortConfig: SortConfig, requestSort: (key: keyof User) => void, className?: string }> = ({ columnKey, title, sortConfig, requestSort, className }) => (
-    <th scope="col" className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none group ${className || ''}`} onClick={() => requestSort(columnKey)}>
+    <th scope="col" className={`px-3 py-2.5 text-left font-medium cursor-pointer select-none group ${className || ''}`} onClick={() => requestSort(columnKey)}>
         <div className="flex items-center">
             {title}
             <span className="ml-2">
@@ -136,7 +137,7 @@ const StudentListPage: React.FC = () => {
                     enrollments.push({
                         batchName: batch.name,
                         courseName: batch.courseName,
-                        timing: batchTimingLines(batch).join(', '),
+                        timing: compactTimes(batchTimingLines(batch)),
                         teacherId: batch.teacherId != null ? String(typeof batch.teacherId === 'object' ? (batch.teacherId as User).id : batch.teacherId) : undefined,
                     });
                 }
@@ -537,136 +538,85 @@ const StudentListPage: React.FC = () => {
                     {error && <p className="text-center text-red-500 bg-red-100 p-3 rounded-md">{error}</p>}
                     
                     {!isLoading && !error && (
-                        <div className="bg-white shadow-md rounded-lg overflow-hidden">
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50">
+                        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                            {/* Own scroll box: headings stay on top and the sideways scrollbar is always in view. */}
+                            <div className="max-h-[calc(100vh-14rem)] overflow-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="sticky top-0 z-10 bg-gray-50 text-xs uppercase tracking-wide text-gray-500 shadow-[0_1px_0_0_rgb(229,231,235)] dark:bg-gray-900 dark:text-gray-400">
                                         <tr>
-                                            <th scope="col" className="p-4">
-                                                <input 
-                                                    ref={selectAllCheckboxRef}
-                                                    type="checkbox"
-                                                    className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
-                                                    onChange={handleSelectAll}
-                                                    checked={areAllVisibleSelected}
-                                                />
+                                            <th scope="col" className="w-10 px-3 py-2.5">
+                                                <input ref={selectAllCheckboxRef} type="checkbox" onChange={handleSelectAll} checked={areAllVisibleSelected} aria-label="Select all"
+                                                    className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary" />
                                             </th>
-                                            <SortableHeader columnKey="name" title="Student Info" sortConfig={sortConfig} requestSort={requestSort} />
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Courses &amp; Joined Date</th>
-                                            <SortableHeader columnKey="grade" title="Grade" sortConfig={sortConfig} requestSort={requestSort} />
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batches / Schedules</th>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                            <th scope="col" className="relative px-6 py-3"><span className="sr-only">Actions</span></th>
+                                            <SortableHeader columnKey="name" title="Student" sortConfig={sortConfig} requestSort={requestSort} />
+                                            <SortableHeader columnKey="grade" title="Courses & grade" sortConfig={sortConfig} requestSort={requestSort} />
+                                            <th scope="col" className="px-3 py-2.5 text-left font-medium">Batch &amp; timing</th>
+                                            <th scope="col" className="px-3 py-2.5 text-left font-medium">Phone</th>
+                                            <th scope="col" className="px-3 py-2.5 text-left font-medium">Status</th>
+                                            <th scope="col" className="px-3 py-2.5"><span className="sr-only">Actions</span></th>
                                         </tr>
                                     </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
-                                        {filteredAndSortedStudents.length > 0 ? filteredAndSortedStudents.map((user) => (
-                                            <tr key={user.id} className="hover:bg-gray-50">
-                                                <td className="p-4">
-                                                    <input 
-                                                        type="checkbox" 
-                                                        className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
-                                                        checked={selectedStudents.has(user.id)}
-                                                        onChange={(e) => handleSelectOne(e, user.id)}
-                                                    />
+                                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                                        {filteredAndSortedStudents.length > 0 ? filteredAndSortedStudents.map((user) => {
+                                            const enrollments = studentBatchEnrollments.get(user.id) || [];
+                                            const grades = user.courseGrades && user.courseGrades.length > 0 ? user.courseGrades : null;
+                                            return (
+                                            <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                                                <td className="px-3 py-2.5 align-top">
+                                                    <input type="checkbox" checked={selectedStudents.has(user.id)} onChange={(e) => handleSelectOne(e, user.id)} aria-label={`Select ${user.name}`}
+                                                        className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary" />
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                  <div className="flex items-center gap-3">
-                                                    <img
-                                                        src={user.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=e8eaf6&color=1a237e&size=80`}
-                                                        alt=""
-                                                        className="h-10 w-10 flex-shrink-0 rounded-full object-cover ring-1 ring-gray-200"
-                                                        onError={(e) => { (e.currentTarget as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=e8eaf6&color=1a237e&size=80`; }}
-                                                    />
-                                                    <div className="min-w-0">
-                                                    <Link to={`/admin/student/${user.id}`} className="text-brand-primary hover:text-brand-dark hover:underline">
-                                                        {user.name}
-                                                    </Link>
-                                                    {user.fatherName && (
-                                                        <div className="text-xs text-gray-600 mt-0.5">Parent: {user.fatherName}</div>
-                                                    )}
-                                                    <div className="text-xs text-gray-500 mt-1">
-                                                        ID: <span className="font-mono">{user.userId || user.id}</span> | {user.classPreference || 'N/A'}
-                                                    </div>
-                                                    </div>
-                                                  </div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    <div className="flex items-center space-x-2">
-                                                        {user.courses && user.courses.length > 0 ? (
-                                                            user.courses.map(courseName => {
-                                                                const course = courses.find(c => c.name === courseName);
-                                                                return course ? (
-                                                                    <Tooltip key={course.id} content={course.name} position="top">
-                                                                        <CourseIcon iconName={course.icon} className="h-6 w-6 text-brand-primary" />
-                                                                    </Tooltip>
-                                                                ) : null;
-                                                            })
-                                                        ) : 'N/A'}
-                                                    </div>
-                                                    <div className="text-xs text-gray-500 mt-1">
-                                                        Joined: {user.dateOfJoining ? new Date(user.dateOfJoining).toLocaleDateString() : 'N/A'}
+                                                <td className="min-w-[12rem] px-3 py-2.5 align-top">
+                                                    <div className="flex items-start gap-2.5">
+                                                        <img src={user.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=e8eaf6&color=1a237e&size=80`} alt=""
+                                                            className="h-9 w-9 flex-shrink-0 rounded-full object-cover ring-1 ring-gray-200"
+                                                            onError={(e) => { (e.currentTarget as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=e8eaf6&color=1a237e&size=80`; }} />
+                                                        <div className="min-w-0">
+                                                            <Link to={`/admin/student/${user.id}`} className="font-medium text-brand-primary hover:underline">{user.name}</Link>
+                                                            {user.fatherName && <div className="max-w-[13rem] truncate text-xs text-gray-600 dark:text-gray-300" title={user.fatherName}>Parent: {user.fatherName}</div>}
+                                                            <div className="text-xs text-gray-500"><span className="font-mono">{user.userId || user.id}</span> · {user.classPreference || '—'}</div>
+                                                        </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    <div className="flex items-center gap-2">
-                                                        <span>{(user.courseGrades && user.courseGrades.length > 0)
-                                                            ? user.courseGrades.map(g => g.grade_name).filter(Boolean).join(', ')
-                                                            : (user.grade || '—')}</span>
-                                                        {(() => {
-                                                            const maxPct = Math.max(0, ...((user.courseGrades || []).map(g => Number(g.discount_percentage) || 0)));
-                                                            return maxPct > 0 ? (
-                                                                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">{maxPct}% off</span>
-                                                            ) : null;
-                                                        })()}
+                                                <td className="min-w-[9rem] px-3 py-2.5 align-top">
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {grades ? grades.map((g, i) => (
+                                                            <span key={i} className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-1.5 py-0.5 text-xs text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200">
+                                                                {g.course_name}{g.grade_name ? <span className="font-semibold">· {g.grade_name}</span> : null}
+                                                                {Number(g.discount_percentage) > 0 && <span className="rounded bg-emerald-100 px-1 text-[10px] font-semibold text-emerald-700">{Number(g.discount_percentage)}% off</span>}
+                                                            </span>
+                                                        )) : (user.courses || []).length ? (user.courses || []).map(c => (
+                                                            <span key={c} className="rounded-md bg-gray-100 px-1.5 py-0.5 text-xs text-gray-700 dark:bg-gray-700 dark:text-gray-200">{c} <span className="text-amber-600">· no grade</span></span>
+                                                        )) : <span className="text-xs text-gray-400">No course</span>}
                                                     </div>
+                                                    <div className="mt-1 text-[11px] text-gray-400">Joined {user.dateOfJoining ? new Date(user.dateOfJoining).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</div>
                                                 </td>
-                                                <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
-                                                    {(() => {
-                                                        const enrollments = studentBatchEnrollments.get(user.id);
-                                                        if (enrollments && enrollments.length > 0) {
-                                                            return (
-                                                                <div className="space-y-2">
-                                                                    {enrollments.map((enrollment, index) => {
-                                                                        const teacherName = enrollment.teacherId ? teachersMap.get(enrollment.teacherId)?.name : 'Unassigned';
-                                                                        return (
-                                                                            <div key={`${user.id}-${enrollment.batchName}-${index}`}>
-                                                                                <div className="font-semibold text-gray-800">{enrollment.batchName}</div>
-                                                                                <div className="text-xs text-gray-600">{enrollment.timing}</div>
-                                                                                <div className="text-xs text-indigo-500">by {teacherName}</div>
-                                                                            </div>
-                                                                        );
-                                                                    })}
+                                                <td className="min-w-[10rem] px-3 py-2.5 align-top">
+                                                    {enrollments.length ? (
+                                                        <div className="space-y-1.5">
+                                                            {enrollments.map((en, index) => (
+                                                                <div key={`${en.batchName}-${index}`} className="leading-tight">
+                                                                    <div className="font-medium text-gray-900 dark:text-white">{en.batchName}</div>
+                                                                    <div className="text-xs text-gray-500">{en.timing || 'Timings not set'}{en.teacherId ? ` · ${teachersMap.get(en.teacherId)?.name || ''}` : ''}</div>
                                                                 </div>
-                                                            );
-                                                        } else {
-                                                            return <span className="text-gray-400 italic">Not in a batch</span>;
-                                                        }
-                                                    })()}
+                                                            ))}
+                                                        </div>
+                                                    ) : <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700">Not in a batch</span>}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.contactNumber}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <select
-                                                        value={user.status || 'Active'}
-                                                        onChange={(e) => handleStatusChange(user.id, e.target.value as UserStatus, user.name)}
-                                                        className="form-select text-xs py-1 px-2 w-full max-w-[120px]"
-                                                        onClick={(e) => e.stopPropagation()}
-                                                    >
-                                                        {Object.values(UserStatus).map(status => (
-                                                            <option key={status} value={status}>{status}</option>
-                                                        ))}
-                                                    </select>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
-                                                    <button onClick={() => handleEditUser(user)} className="text-brand-primary hover:text-brand-dark">Edit</button>
-                                                    {canDelete && <button onClick={() => handleDeleteUser(user.id)} className="text-red-600 hover:text-red-800">Delete</button>}
+                                                <td className="px-3 py-2.5 align-top whitespace-nowrap text-gray-700 dark:text-gray-200">{user.contactNumber ? <a href={`tel:${user.contactNumber}`} className="hover:text-brand-primary">{user.contactNumber}</a> : '—'}</td>
+                                                <td className="px-3 py-2.5 align-top"><select value={user.status || 'Active'} onChange={(e) => handleStatusChange(user.id, e.target.value as UserStatus, user.name)}
+                                                        onClick={(e) => e.stopPropagation()} aria-label="Status"
+                                                        className={`form-select w-[6.5rem] rounded-lg py-1 pl-2 pr-7 text-xs ${String(user.status || 'Active').toLowerCase() === 'active' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-gray-300 text-gray-600'}`}>
+                                                        {Object.values(UserStatus).map(status => <option key={status} value={status}>{status}</option>)}
+                                                    </select></td>
+                                                <td className="px-3 py-2.5 text-right align-top whitespace-nowrap">
+                                                    <button onClick={() => handleEditUser(user)} title="Edit" aria-label={`Edit ${user.name}`} className="rounded-md p-1.5 text-brand-primary hover:bg-indigo-50"><Pencil className="h-4 w-4" /></button>
+                                                    {canDelete && <button onClick={() => handleDeleteUser(user.id)} title="Delete" aria-label={`Delete ${user.name}`} className="rounded-md p-1.5 text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button>}
                                                 </td>
                                             </tr>
-                                        )) : (
-                                            <tr>
-                                                <td colSpan={9} className="px-6 py-8 text-center text-sm text-gray-500">No students match the current filters.</td>
-                                            </tr>
+                                            );
+                                        }) : (
+                                            <tr><td colSpan={7} className="px-3 py-10 text-center text-sm text-gray-500">No students match the current filters.</td></tr>
                                         )}
                                     </tbody>
                                 </table>
