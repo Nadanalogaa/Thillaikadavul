@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { User, Course } from '../../types';
 import { UserRole, ClassPreference, UserStatus } from '../../types';
@@ -328,100 +329,69 @@ const TeacherListPage: React.FC = () => {
             <AdminPageHeader
                 title="Teachers"
                 subtitle={`Showing ${filteredAndSortedTeachers.length} of ${teachers.length} total teachers.`}
-            />
-
-            <div className={`p-4 rounded-lg shadow-md mb-4 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <div className="lg:col-span-1">
-                                <input
-                                    type="text"
-                                    placeholder="Search by name, ID, email, courses, etc..."
-                                    value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
-                                    className="w-full form-input"
-                                />
-                            </div>
-                            <div className="relative" ref={courseFilterRef}>
-                                <label htmlFor="course-filter-btn" className="text-sm font-medium text-gray-700">Course Expertise</label>
-                                <button
-                                    id="course-filter-btn"
-                                    type="button"
-                                    onClick={() => setIsCourseFilterOpen(prev => !prev)}
-                                    className="w-full form-select mt-1 text-left flex justify-between items-center"
-                                >
-                                    <span>
-                                        {courseFilters.length > 0 ? `${courseFilters.length} course${courseFilters.length > 1 ? 's' : ''} selected` : 'All Courses'}
-                                    </span>
-                                    <svg className="w-5 h-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
-                                </button>
-                                {isCourseFilterOpen && (
-                                    <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200">
-                                        <div className="p-2 border-b border-gray-200">
-                                            <input
-                                                type="text"
-                                                placeholder="Search courses..."
-                                                value={courseSearch}
-                                                onChange={e => setCourseSearch(e.target.value)}
-                                                className="w-full form-input text-sm"
-                                            />
-                                        </div>
-                                        <ul className="py-1 max-h-48 overflow-y-auto">
-                                            {filteredCourseOptions.length > 0 ? filteredCourseOptions.map(course => (
-                                                <li key={course.id}>
-                                                    <label className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={courseFilters.includes(course.name)}
-                                                            onChange={() => handleCourseFilterChange(course.name)}
-                                                            className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded mr-3"
-                                                        />
-                                                        {course.name}
-                                                    </label>
-                                                </li>
-                                            )) : (
-                                                <li className="px-4 py-2 text-sm text-gray-500">No courses found.</li>
-                                            )}
-                                        </ul>
-                                    </div>
-                                )}
-                            </div>
-                            <div>
-                                <label htmlFor="pref-filter" className="text-sm font-medium text-gray-700">Preference</label>
-                                <select id="pref-filter" value={preferenceFilter} onChange={e => setPreferenceFilter(e.target.value)} className="w-full form-select mt-1">
-                                    <option value="">All</option>
-                                    <option value={ClassPreference.Online}>Online</option>
-                                    <option value={ClassPreference.Offline}>Offline</option>
-                                    <option value={ClassPreference.Hybrid}>Hybrid</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div className="flex justify-between items-center mb-4">
-                        <div className="flex items-center space-x-2">
-                            <button
-                                onClick={() => setIsNotificationModalOpen(true)}
-                                disabled={selectedTeachers.size === 0}
-                                className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-md shadow-sm transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                            >
-                                Send Notification ({selectedTeachers.size})
+            action={
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button onClick={() => setIsNotificationModalOpen(true)} disabled={selectedTeachers.size === 0}
+                            title={selectedTeachers.size === 0 ? 'Tick teachers in the list first' : undefined}
+                            className="h-9 rounded-lg border border-emerald-300 px-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400 dark:border-emerald-700 dark:text-emerald-300">
+                            Send notification{selectedTeachers.size ? ` (${selectedTeachers.size})` : ''}
+                        </button>
+                        {canDelete && selectedTeachers.size > 0 && (
+                            <button onClick={handleBulkDelete} className="h-9 rounded-lg bg-red-600 px-3 text-sm font-semibold text-white hover:bg-red-700">
+                                Delete selected ({selectedTeachers.size})
                             </button>
-                             {canDelete && selectedTeachers.size > 0 && (
-                                <button
-                                    onClick={handleBulkDelete}
-                                    className="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-md shadow-sm transition-colors"
-                                >
-                                    Delete Selected ({selectedTeachers.size})
-                                </button>
-                            )}
-                        </div>
-                         <button
-                            onClick={() => setIsAddModalOpen(true)}
-                            className="bg-brand-primary hover:bg-brand-dark text-white font-semibold px-4 py-2 rounded-md shadow-sm transition-colors"
-                        >
+                        )}
+                        <button onClick={() => setIsAddModalOpen(true)} className="h-9 rounded-lg bg-brand-primary px-4 text-sm font-semibold text-white hover:bg-brand-dark">
                             + Add Teacher
                         </button>
                     </div>
+            }
+            />
+
+            {/* Toolbar: search, filters and actions on one compact bar */}
+            <div className={`mb-4 rounded-xl border p-3 shadow-sm ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                <div className="flex flex-wrap items-center gap-2">
+                    <label className="relative min-w-[13rem] flex-1 md:max-w-xs">
+                        <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+                        <input type="search" placeholder="Search name, ID, phone" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                            className="h-9 w-full rounded-lg border border-gray-300 pl-8 pr-3 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white" />
+                    </label>
+                    <div className="relative" ref={courseFilterRef}>
+                        <button id="course-filter-btn" type="button" onClick={() => setIsCourseFilterOpen(prev => !prev)}
+                            className={`form-select h-9 rounded-lg border-gray-300 py-1 pl-3 pr-8 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white text-left ${courseFilters.length ? 'border-indigo-400 bg-indigo-50 text-indigo-800' : ''}`} aria-label="Course">
+                            {courseFilters.length > 0 ? `${courseFilters.length} course${courseFilters.length > 1 ? 's' : ''}` : 'All courses'}
+                        </button>
+                        {isCourseFilterOpen && (
+                            <div className="absolute left-0 z-20 mt-1 w-64 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                                <div className="border-b border-gray-200 p-2 dark:border-gray-700">
+                                    <input type="text" placeholder="Search courses..." value={courseSearch} onChange={e => setCourseSearch(e.target.value)} className="w-full form-input text-sm" />
+                                </div>
+                                <ul className="max-h-48 overflow-y-auto py-1">
+                                    {filteredCourseOptions.length > 0 ? filteredCourseOptions.map(course => (
+                                        <li key={course.id}>
+                                            <label className="flex w-full cursor-pointer items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                                                <input type="checkbox" checked={courseFilters.includes(course.name)} onChange={() => handleCourseFilterChange(course.name)}
+                                                    className="mr-3 h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary" />
+                                                {course.name}
+                                            </label>
+                                        </li>
+                                    )) : <li className="px-4 py-2 text-sm text-gray-500">No courses found.</li>}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
+                    <select id="pref-filter" aria-label="Class mode" value={preferenceFilter} onChange={e => setPreferenceFilter(e.target.value)} className={`form-select h-9 rounded-lg border-gray-300 py-1 pl-3 pr-8 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white ${preferenceFilter ? 'border-indigo-400 bg-indigo-50 text-indigo-800' : ''}`}>
+                        <option value="">Any mode</option>
+                        <option value={ClassPreference.Online}>Online</option>
+                        <option value={ClassPreference.Offline}>Offline</option>
+                        <option value={ClassPreference.Hybrid}>Hybrid</option>
+                    </select>
+                    {(searchQuery || preferenceFilter || courseFilters.length > 0) && (
+                        <button type="button" onClick={() => { setSearchQuery(''); setPreferenceFilter(''); setCourseFilters([]); }}
+                            className="h-9 rounded-lg px-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 dark:text-indigo-300">Clear</button>
+                    )}
+                </div>
+            </div>
 
                     {isLoading && <p className="text-center text-gray-500 py-8">Loading teachers...</p>}
                     {error && <p className="text-center text-red-500 bg-red-100 p-3 rounded-md">{error}</p>}
