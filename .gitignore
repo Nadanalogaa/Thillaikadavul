@@ -112,3 +112,4 @@ scripts/students-import.json
 *.xlsx
 *.xls
 *.csv
+students-add-*.json
