@@ -304,7 +304,7 @@ const ChargeDetail: React.FC<{ id: number; onClose: () => void; onChanged: (msg?
     const c = data?.charge;
     return (
         <Modal isOpen onClose={onClose} size="3xl">
-            <div className="max-h-[85vh] overflow-y-auto bg-white p-5 dark:bg-gray-800">
+            <div className="bg-white p-5 dark:bg-gray-800">
                 {!data && !error && <p className="py-8 text-center text-gray-500">Loading…</p>}
                 {error && <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>}
                 {c && (

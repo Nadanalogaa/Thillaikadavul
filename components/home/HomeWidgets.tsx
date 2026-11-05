@@ -259,7 +259,7 @@ const AttendanceHistory: React.FC<{ student: HomeStudent; onClose: () => void }>
     const { data } = useJson<{ summary: { classes: number; present: number; absent: number; late: number; percentage: number | null }; records: { session_date: string; session_status: string; status: string | null; batch_name: string; class_note: string | null; cancel_reason: string | null }[] }>(`/api/attendance/student/${student.id}`);
     return (
         <Modal isOpen onClose={onClose} size="2xl">
-            <div className="max-h-[85vh] overflow-y-auto bg-white p-5 dark:bg-gray-800">
+            <div className="bg-white p-5 dark:bg-gray-800">
                 <div className="mb-4 flex items-start justify-between">
                     <div><h3 className="text-lg font-semibold text-gray-900 dark:text-white">{student.name} · attendance</h3><p className="text-sm text-gray-500">Last 90 days</p></div>
                     <button type="button" onClick={onClose} className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:text-gray-200">Close</button>
@@ -448,7 +448,7 @@ export const TeacherHome: React.FC<{ name: string; attendancePath: string; batch
 
             {showLow && (
                 <Modal isOpen onClose={() => setShowLow(false)} size="3xl">
-                    <div className="max-h-[85vh] overflow-y-auto bg-white p-5 dark:bg-gray-800">
+                    <div className="bg-white p-5 dark:bg-gray-800">
                         <div className="mb-4 flex items-start justify-between"><div><h3 className="text-lg font-semibold text-gray-900 dark:text-white">Students missing classes</h3><p className="text-sm text-gray-500">Last 30 days · below 75% or missed 3 in a row · your batches</p></div>
                             <button type="button" onClick={() => setShowLow(false)} className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:text-gray-200">Close</button></div>
                         {data.attendance.low.length === 0 ? <p className="py-6 text-center text-sm text-gray-500">Everyone is attending well.</p> : (

@@ -311,7 +311,7 @@ const ExpenseForm: React.FC<{ expense: Partial<Expense>; meta: Meta; onClose: ()
     const lbl = 'block text-sm font-medium text-gray-700 dark:text-gray-200';
     return (
         <Modal isOpen onClose={onClose} size="2xl">
-            <form onSubmit={submit} className="max-h-[88vh] overflow-y-auto bg-white p-5 dark:bg-gray-800">
+            <form onSubmit={submit} className="bg-white p-5 dark:bg-gray-800">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{expense.id ? 'Edit expense' : 'Add expense'}</h3>
                 <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <label className={lbl}>Date of purchase / payment

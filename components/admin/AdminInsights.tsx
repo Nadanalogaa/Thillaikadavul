@@ -84,7 +84,7 @@ const Pills = <T extends string>({ value, options, onChange }: { value: T; optio
 
 const Sheet: React.FC<{ title: string; subtitle?: string; onClose: () => void; children: React.ReactNode }> = ({ title, subtitle, onClose, children }) => (
     <Modal isOpen onClose={onClose} size="4xl">
-        <div className="max-h-[85vh] overflow-y-auto bg-white p-5 dark:bg-gray-800">
+        <div className="bg-white p-5 dark:bg-gray-800">
             <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>

@@ -48,7 +48,7 @@ const UploadPaymentModal: React.FC<{
 
     return (
         <Modal isOpen onClose={onClose} size="lg">
-            <div className="max-h-[85vh] overflow-y-auto bg-white p-5 dark:bg-gray-800">
+            <div className="bg-white p-5 dark:bg-gray-800">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Upload payment screenshot</h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Pay the academy by UPI (GPay, PhonePe, Paytm…) or cash at the office, then upload the screenshot.</p>
 

@@ -41,7 +41,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ isOpen, onClose }) => {
     ];
 
     const sidebarClasses = `
-        fixed top-0 left-0 z-30 h-full w-64
+        fixed top-0 left-0 z-30 flex h-full w-64 flex-col
         transform transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         lg:translate-x-0
@@ -93,7 +93,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ isOpen, onClose }) => {
             </div>
 
             {/* Navigation Links - Compact */}
-            <nav className="flex-1 overflow-y-auto py-3 px-1">
+            <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-3 px-1">
                 <div className="space-y-0.5">
                     {links.map((link) => (
                         <NavLink
@@ -111,7 +111,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ isOpen, onClose }) => {
             </nav>
 
             {/* Footer - Minimal */}
-            <div className={`px-3 py-2 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+            <div className={`shrink-0 px-3 py-2 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
                 <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
                     v1.0
                 </p>
