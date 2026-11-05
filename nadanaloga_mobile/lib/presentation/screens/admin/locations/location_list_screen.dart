@@ -9,6 +9,7 @@ import '../../../bloc/location/location_event.dart';
 import '../../../bloc/location/location_state.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/empty_state_widget.dart';
+import '../../../../core/utils/admin_role.dart';
 
 class LocationListScreen extends StatelessWidget {
   const LocationListScreen({super.key});
@@ -125,9 +126,10 @@ class LocationListScreen extends StatelessWidget {
                             }
                           }
                         },
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(value: 'edit', child: Text('Edit')),
-                          PopupMenuItem(
+                        itemBuilder: (_) => [
+                          const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                          if (isSuperAdminOf(context))
+                            const PopupMenuItem(
                             value: 'delete',
                             child: Text('Delete',
                                 style: TextStyle(color: AppColors.error)),

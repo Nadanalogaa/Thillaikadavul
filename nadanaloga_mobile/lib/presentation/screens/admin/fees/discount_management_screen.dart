@@ -10,6 +10,7 @@ import '../../../../data/models/student_discount_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../di/injection_container.dart';
 import '../../../widgets/confirm_dialog.dart';
+import '../../../../core/utils/admin_role.dart';
 
 class DiscountManagementScreen extends StatefulWidget {
   const DiscountManagementScreen({super.key});
@@ -228,8 +229,12 @@ class _CourseDiscountsTabState extends State<_CourseDiscountsTab> {
 
   Future<void> _deleteDiscount(int id) async {
     try {
-      await sl<ApiClient>().deleteStudentDiscount(id);
+      final r = await sl<ApiClient>().deleteStudentDiscount(id);
       if (!mounted) return;
+      if (r.statusCode != 200) {
+        showErrorSnack(context, serverMessage(r, 'Could not delete the discount.'));
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Discount deleted successfully')),
       );
@@ -486,7 +491,7 @@ class _CourseDiscountsTabState extends State<_CourseDiscountsTab> {
                               style: AppTextStyles.caption),
                       ],
                     ),
-                    trailing: IconButton(
+                    trailing: !isSuperAdminOf(context) ? null : IconButton(
                       icon:
                           const Icon(Icons.delete_outline, color: AppColors.error),
                       onPressed: () async {
@@ -710,8 +715,12 @@ class _BatchDiscountsTabState extends State<_BatchDiscountsTab> {
 
   Future<void> _deleteDiscount(int id) async {
     try {
-      await sl<ApiClient>().deleteStudentDiscount(id);
+      final r = await sl<ApiClient>().deleteStudentDiscount(id);
       if (!mounted) return;
+      if (r.statusCode != 200) {
+        showErrorSnack(context, serverMessage(r, 'Could not delete the discount.'));
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Discount deleted successfully')),
       );
@@ -997,7 +1006,7 @@ class _BatchDiscountsTabState extends State<_BatchDiscountsTab> {
                               style: AppTextStyles.caption),
                       ],
                     ),
-                    trailing: IconButton(
+                    trailing: !isSuperAdminOf(context) ? null : IconButton(
                       icon:
                           const Icon(Icons.delete_outline, color: AppColors.error),
                       onPressed: () async {

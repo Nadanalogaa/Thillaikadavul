@@ -11,6 +11,7 @@ import '../../../../core/utils/fee_format.dart';
 import '../../../../data/models/fee_roster_model.dart';
 import '../../../../di/injection_container.dart';
 import '../../../widgets/receipt_sheet.dart';
+import '../../../../core/utils/admin_role.dart';
 
 /// Collect cash at the office for a student's family. Every unpaid family bill
 /// is pre-ticked, so it is two taps: open → "Collect ₹… in cash". Cash is full
@@ -520,7 +521,7 @@ class _CollectCashSheetState extends State<CollectCashSheet> {
                       : () async {
                           final reversed = await showReceiptSheet(
                               context, receiptNo,
-                              canReverse: true);
+                              canReverse: isSuperAdminOf(context));
                           if (reversed) widget.onChanged?.call();
                         },
                   child: const Text('View receipt'),

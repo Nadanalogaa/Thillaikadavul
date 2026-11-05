@@ -12,6 +12,7 @@ import '../../../../di/injection_container.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/empty_state_widget.dart';
 import '../../../widgets/recipient_selection_sheet.dart';
+import '../../../../core/utils/admin_role.dart';
 
 class NoticeListScreen extends StatelessWidget {
   const NoticeListScreen({super.key});
@@ -174,13 +175,14 @@ class NoticeListScreen extends StatelessWidget {
                             }
                           }
                         },
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(
+                        itemBuilder: (_) => [
+                          const PopupMenuItem(
                               value: 'share',
                               child: Text('Share')),
-                          PopupMenuItem(
+                          const PopupMenuItem(
                               value: 'edit', child: Text('Edit')),
-                          PopupMenuItem(
+                          if (isSuperAdminOf(context))
+                            const PopupMenuItem(
                             value: 'delete',
                             child: Text('Delete',
                                 style:

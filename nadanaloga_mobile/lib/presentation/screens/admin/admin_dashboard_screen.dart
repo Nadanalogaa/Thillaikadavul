@@ -428,6 +428,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       // One-off bills are raised only as extra bills.
       QuickAction(Icons.receipt_long_outlined, 'Extra bill', AppColors.success,
           () => _openPage(const ExtraBillFormScreen())),
+      QuickAction(Icons.payments_outlined, 'Add expense', AppColors.error,
+          () => context.push('/admin/expenses?add=1')),
     ]);
   }
 }

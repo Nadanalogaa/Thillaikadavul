@@ -17,6 +17,7 @@ import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/empty_state_widget.dart';
 import 'extra_bills_tab.dart';
 import 'fees_roster_tab.dart';
+import '../../../../core/utils/admin_role.dart';
 
 class FeeManagementScreen extends StatefulWidget {
   const FeeManagementScreen({super.key});
@@ -183,8 +184,8 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
               if (v == 'discounts') context.push('/admin/fees/discounts');
               if (v == 'clear') _clearOldInvoices();
             },
-            itemBuilder: (_) => const [
-              PopupMenuItem(
+            itemBuilder: (_) => [
+              const PopupMenuItem(
                 value: 'generate',
                 child: ListTile(
                   leading: Icon(Icons.autorenew),
@@ -192,7 +193,7 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: 'discounts',
                 child: ListTile(
                   leading: Icon(Icons.local_offer),
@@ -200,7 +201,8 @@ class _FeeManagementScreenState extends State<FeeManagementScreen>
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
-              PopupMenuItem(
+              if (isSuperAdminOf(context))
+                const PopupMenuItem(
                 value: 'clear',
                 child: ListTile(
                   leading: Icon(Icons.delete_sweep, color: Colors.red),
@@ -646,9 +648,10 @@ class _FeeStructureCard extends StatelessWidget {
                       }
                     }
                   },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'edit', child: Text('Edit')),
-                    PopupMenuItem(
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                    if (isSuperAdminOf(context))
+                      const PopupMenuItem(
                       value: 'delete',
                       child:
                           Text('Delete', style: TextStyle(color: AppColors.error)),

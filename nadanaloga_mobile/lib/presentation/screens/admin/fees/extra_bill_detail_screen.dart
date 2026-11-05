@@ -8,6 +8,7 @@ import '../../../../di/injection_container.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/receipt_sheet.dart';
 import 'extra_bills_tab.dart';
+import '../../../../core/utils/admin_role.dart';
 
 enum _Filter { all, paid, unpaid }
 
@@ -180,7 +181,7 @@ class _ExtraBillDetailScreenState extends State<ExtraBillDetailScreen> {
               Expanded(child: _stat('Due', FeeFormat.rupees(c.dueAmount), AppColors.warning)),
             ],
           ),
-          if (!c.closed) ...[
+          if (!c.closed && isSuperAdminOf(context)) ...[
             const SizedBox(height: 10),
             OutlinedButton.icon(
               onPressed: _closing ? null : _close,
@@ -195,7 +196,7 @@ class _ExtraBillDetailScreenState extends State<ExtraBillDetailScreen> {
                 minimumSize: const Size.fromHeight(42),
               ),
             ),
-          ] else
+          ] else if (c.closed)
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text('Closed — unpaid bills were withdrawn; paid ones stay.',

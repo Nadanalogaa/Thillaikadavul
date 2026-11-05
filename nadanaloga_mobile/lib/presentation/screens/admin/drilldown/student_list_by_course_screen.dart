@@ -16,6 +16,7 @@ import '../../../bloc/user_management/user_management_event.dart';
 import '../../../bloc/user_management/user_management_state.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/empty_state_widget.dart';
+import '../../../../core/utils/admin_role.dart';
 
 class StudentListByCourseScreen extends StatefulWidget {
   final String courseName;
@@ -503,6 +504,7 @@ class _AccordionStudentCardState extends State<_AccordionStudentCard> {
                           ),
                         ),
                       ),
+                      if (isSuperAdminOf(context)) ...[
                       const SizedBox(width: 6),
                       Expanded(
                         child: OutlinedButton.icon(
@@ -517,6 +519,7 @@ class _AccordionStudentCardState extends State<_AccordionStudentCard> {
                           ),
                         ),
                       ),
+                      ],
                     ],
                   ),
                 ],

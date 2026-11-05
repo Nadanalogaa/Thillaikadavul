@@ -141,6 +141,19 @@ class _MoreMenuScreen extends StatelessWidget {
         onTap: () => context.push('/admin/reports'),
       ),
       _MenuItem(
+        icon: Icons.receipt_long_outlined,
+        title: 'Expenses',
+        subtitle: 'Spending',
+        onTap: () => context.push('/admin/expenses'),
+      ),
+      if (isSuperAdmin)
+        _MenuItem(
+          icon: Icons.account_balance_outlined,
+          title: 'Accounts',
+          subtitle: 'Profit & loss',
+          onTap: () => context.push('/admin/accounts'),
+        ),
+      _MenuItem(
         icon: Icons.event,
         title: 'Events',
         subtitle: 'Manage events',
@@ -170,18 +183,25 @@ class _MoreMenuScreen extends StatelessWidget {
         subtitle: 'Trial classes',
         onTap: () => context.push('/admin/demos'),
       ),
+      // Staff admins add and edit branches too; deleting one stays super admin only.
+      _MenuItem(
+        icon: Icons.location_on,
+        title: 'Locations',
+        subtitle: 'Branches',
+        onTap: () => context.push('/admin/locations'),
+      ),
       if (isSuperAdmin) ...[
-        _MenuItem(
-          icon: Icons.location_on,
-          title: 'Locations',
-          subtitle: 'Branches',
-          onTap: () => context.push('/admin/locations'),
-        ),
         _MenuItem(
           icon: Icons.account_balance_wallet,
           title: 'Salary',
           subtitle: 'Staff payments',
           onTap: () => context.push('/admin/salary'),
+        ),
+        _MenuItem(
+          icon: Icons.admin_panel_settings_outlined,
+          title: 'Admins',
+          subtitle: 'Staff logins',
+          onTap: () => context.push('/admin/staff-admins'),
         ),
       ],
       _MenuItem(

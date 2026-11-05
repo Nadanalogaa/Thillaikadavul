@@ -159,4 +159,16 @@ class ApiEndpoints {
 
   // Health
   static const String health = '$apiPrefix/health';
+
+  // Expenses (any admin; delete is super admin only)
+  static const String expenses = '$apiPrefix/expenses';
+  static const String expensesMeta = '$apiPrefix/expenses/meta';
+  static String expenseById(int id) => '$apiPrefix/expenses/$id';
+
+  // Accounts summary (super admin)
+  static const String accountsSummary = '$apiPrefix/accounts/summary';
+
+  // Staff admins (super admin)
+  static const String staffAdmins = '$apiPrefix/staff-admins';
+  static String staffAdminById(int id) => '$apiPrefix/staff-admins/$id';
 }

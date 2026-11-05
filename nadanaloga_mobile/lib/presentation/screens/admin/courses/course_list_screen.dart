@@ -11,6 +11,7 @@ import '../../../bloc/course/course_event.dart';
 import '../../../bloc/course/course_state.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/empty_state_widget.dart';
+import '../../../../core/utils/admin_role.dart';
 
 class CourseListScreen extends StatelessWidget {
   const CourseListScreen({super.key});
@@ -314,13 +315,15 @@ class _CourseCardState extends State<_CourseCard> {
                             color: courseColor,
                             onTap: widget.onEdit,
                           ),
-                          const SizedBox(width: 8),
-                          _ActionChip(
-                            icon: Icons.delete_outline,
-                            label: 'Delete',
-                            color: AppColors.error,
-                            onTap: widget.onDelete,
-                          ),
+                          if (isSuperAdminOf(context)) ...[
+                            const SizedBox(width: 8),
+                            _ActionChip(
+                              icon: Icons.delete_outline,
+                              label: 'Delete',
+                              color: AppColors.error,
+                              onTap: widget.onDelete,
+                            ),
+                          ],
                         ],
                       ),
                     ],

@@ -7,6 +7,7 @@ import '../../../../data/models/course_model.dart';
 import '../../../../data/models/grade_model.dart';
 import '../../../../di/injection_container.dart';
 import '../../../widgets/confirm_dialog.dart';
+import '../../../../core/utils/admin_role.dart';
 
 /// Admin screen to manage Grades (grade-based fees). A grade belongs to a
 /// course and carries the monthly fee that drives student invoices.
@@ -152,10 +153,11 @@ class _GradeManagementScreenState extends State<GradeManagementScreen> {
               icon: const Icon(Icons.edit, size: 20),
               onPressed: () => _showForm(grade: g),
             ),
-            IconButton(
-              icon: const Icon(Icons.delete, size: 20, color: AppColors.error),
-              onPressed: () => _delete(g),
-            ),
+            if (isSuperAdminOf(context))
+              IconButton(
+                icon: const Icon(Icons.delete, size: 20, color: AppColors.error),
+                onPressed: () => _delete(g),
+              ),
           ],
         ),
       ),
@@ -175,6 +177,8 @@ class _GradeManagementScreenState extends State<GradeManagementScreen> {
       final r = await _api.deleteGrade(g.id);
       if (r.statusCode == 200) {
         _load();
+      } else if (mounted) {
+        showErrorSnack(context, serverMessage(r, 'Could not delete the grade.'));
       }
     } catch (_) {}
   }

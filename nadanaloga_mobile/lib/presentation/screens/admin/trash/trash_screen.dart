@@ -8,6 +8,7 @@ import '../../../bloc/trash/trash_event.dart';
 import '../../../bloc/trash/trash_state.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/empty_state_widget.dart';
+import '../../../../core/utils/admin_role.dart';
 
 class TrashScreen extends StatelessWidget {
   const TrashScreen({super.key});
@@ -123,6 +124,7 @@ class TrashScreen extends StatelessWidget {
                                   .add(RestoreUser(user.id));
                             },
                           ),
+                          if (isSuperAdminOf(context))
                           IconButton(
                             icon: const Icon(Icons.delete_forever),
                             color: AppColors.error,

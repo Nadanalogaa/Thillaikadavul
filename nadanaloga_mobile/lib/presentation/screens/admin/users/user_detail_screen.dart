@@ -19,6 +19,7 @@ import '../../../bloc/user_management/user_management_event.dart';
 import '../../../bloc/user_management/user_management_state.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/role_badge.dart';
+import '../../../../core/utils/admin_role.dart';
 
 class UserDetailScreen extends StatefulWidget {
   final int userId;
@@ -175,7 +176,8 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
-                  const PopupMenuItem(
+                  if (isSuperAdminOf(context))
+                    const PopupMenuItem(
                     value: 'delete',
                     child: ListTile(
                       leading: Icon(Icons.delete, color: AppColors.error),

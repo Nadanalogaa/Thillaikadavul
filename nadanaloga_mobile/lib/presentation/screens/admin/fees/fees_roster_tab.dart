@@ -16,6 +16,7 @@ import '../../../../di/injection_container.dart';
 import '../../../widgets/receipt_sheet.dart';
 import 'collect_cash_sheet.dart';
 import 'proof_review_sheet.dart';
+import '../../../../core/utils/admin_role.dart';
 
 Color feeStatusColor(String status) {
   switch (status) {
@@ -278,7 +279,7 @@ class FeesRosterTabState extends State<FeesRosterTab> {
 
   Future<void> _openReceipt(String receiptNumber) async {
     final reversed =
-        await showReceiptSheet(context, receiptNumber, canReverse: true);
+        await showReceiptSheet(context, receiptNumber, canReverse: isSuperAdminOf(context));
     if (reversed && mounted) reload();
   }
 

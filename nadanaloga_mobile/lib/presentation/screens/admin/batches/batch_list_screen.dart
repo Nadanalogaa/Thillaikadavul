@@ -14,6 +14,7 @@ import '../../../widgets/batch_views.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/empty_state_widget.dart';
 import '../insights/not_in_batch_banner.dart';
+import '../../../../core/utils/admin_role.dart';
 
 /// Every batch, as cards grouped by course or as one table. Teacher, class
 /// times and student count are the highlighted facts on both.
@@ -437,9 +438,10 @@ class _BatchListScreenState extends State<BatchListScreen> {
         if (v == 'edit') _editBatch(b);
         if (v == 'delete') _deleteBatch(b);
       },
-      itemBuilder: (_) => const [
-        PopupMenuItem(value: 'edit', child: Text('Edit batch')),
-        PopupMenuItem(
+      itemBuilder: (_) => [
+        const PopupMenuItem(value: 'edit', child: Text('Edit batch')),
+        if (isSuperAdminOf(context))
+          const PopupMenuItem(
           value: 'delete',
           child: Text('Delete', style: TextStyle(color: AppColors.error)),
         ),

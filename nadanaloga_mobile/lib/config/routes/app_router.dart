@@ -42,6 +42,9 @@ import '../../presentation/screens/admin/locations/location_form_screen.dart';
 import '../../presentation/screens/admin/courses/course_list_screen.dart';
 import '../../presentation/screens/admin/grades/grade_management_screen.dart';
 import '../../presentation/screens/admin/reports/reports_screen.dart';
+import '../../presentation/screens/admin/expenses/expenses_screen.dart';
+import '../../presentation/screens/admin/accounts/accounts_screen.dart';
+import '../../presentation/screens/admin/staff/staff_admins_screen.dart';
 import '../../presentation/screens/admin/courses/course_form_screen.dart';
 import '../../presentation/screens/admin/batches/batch_detail_screen.dart';
 import '../../presentation/screens/admin/batches/batch_form_screen.dart';
@@ -209,6 +212,21 @@ class AppRouter {
             GoRoute(
               path: 'reports',
               builder: (context, state) => const ReportsScreen(),
+            ),
+
+            // Expenses (all admins), Accounts + Staff admins (super admin)
+            GoRoute(
+              path: 'expenses',
+              builder: (context, state) => ExpensesScreen(
+                  startWithAdd: state.uri.queryParameters['add'] == '1'),
+            ),
+            GoRoute(
+              path: 'accounts',
+              builder: (context, state) => const AccountsScreen(),
+            ),
+            GoRoute(
+              path: 'staff-admins',
+              builder: (context, state) => const StaffAdminsScreen(),
             ),
 
             // Batch routes
