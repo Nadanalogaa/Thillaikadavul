@@ -25,6 +25,7 @@ interface Meta {
     categories: string[]; recurring: string[]; payment_modes: string[]; locations: { id: number; name: string }[];
     teachers: { id: number; name: string }[]; paid_to: string[]; this_month: string;
     due: (Expense & { last_month: string })[];
+    history: { id: number; category: string; location_id: number | null; teacher_id: number | null; paid_to: string | null; amount: number; payment_mode: string | null; for_month: string | null; expense_date: string }[];
 }
 interface ListData { rows: Expense[]; total: number; count: number; by_category: Group[]; by_month: Group[]; by_location: Group[]; by_mode: Group[] }
 
@@ -134,6 +135,8 @@ const ExpensesPage: React.FC = () => {
                 )}
                 <label className="relative flex-1 min-w-[10rem]"><Search className="absolute left-2.5 top-2 h-4 w-4 text-gray-400" />
                     <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search particulars, payee, bill no." className={`${input} w-full pl-8`} /></label>
+                <button type="button" onClick={() => setEditing({ expense_date: today(), category: 'Teacher fees / salary' })}
+                    className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200"><Users className="h-4 w-4" /> Teacher salary</button>
                 <button type="button" onClick={() => setEditing({ expense_date: today() })}
                     className="inline-flex items-center gap-1 rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"><Plus className="h-4 w-4" /> Add expense</button>
             </div>
@@ -147,7 +150,7 @@ const ExpensesPage: React.FC = () => {
                             <li key={i} className="flex items-center gap-3 rounded-xl bg-white p-2.5 dark:bg-gray-800">
                                 <CatIcon cat={d.category} size="h-8 w-8" />
                                 <span className="min-w-0 flex-1 text-sm">
-                                    <span className="block truncate font-medium text-gray-900 dark:text-white">{[d.category, d.teacher_name, d.location_name, d.paid_to].filter(Boolean).join(' · ')}</span>
+                                    <span className="block truncate font-medium text-gray-900 dark:text-white">{[...new Set([d.category, d.teacher_name, d.location_name, d.paid_to].filter(Boolean))].join(' · ')}</span>
                                     <span className="block text-xs text-gray-500">Last {rupees(d.amount)} for {shortMonth(d.last_month)}</span>
                                 </span>
                                 <button type="button" onClick={() => setEditing({
@@ -256,111 +259,229 @@ const ExpensesPage: React.FC = () => {
                     </div>
                 </Modal>
             )}
-            {editing && meta && <ExpenseForm expense={editing} meta={meta} onClose={() => setEditing(null)} onSaved={afterSave} />}
+            {editing && meta && <ExpenseForm expense={editing} meta={meta} defaultLocationId={locationId ? Number(locationId) : null} onClose={() => setEditing(null)} onSaved={afterSave} />}
         </AdminLayout>
     );
 };
 
+
 // --- Add / edit -----------------------------------------------------------------
+// Category first; then only what that kind of expense needs, with the rest
+// filled in: a teacher's salary prefills the last amount and warns if the
+// month is already paid; rent and bills prefill the location's last payee.
 
-const ExpenseForm: React.FC<{ expense: Partial<Expense>; meta: Meta; onClose: () => void; onSaved: (msg: string) => void }> = ({ expense, meta, onClose, onSaved }) => {
-    const known = !expense.category || meta.categories.includes(expense.category);
-    const [f, setF] = useState({
-        expense_date: expense.expense_date || today(), category: known ? (expense.category || '') : '__other', other: known ? '' : (expense.category || ''),
-        particulars: expense.particulars || '', amount: expense.amount ? String(expense.amount) : '', paid_to: expense.paid_to || '',
-        payment_mode: expense.payment_mode || '', location_id: expense.location_id ? String(expense.location_id) : '',
-        teacher_id: expense.teacher_id ? String(expense.teacher_id) : '', for_month: expense.for_month || '', reference_no: expense.reference_no || '', notes: expense.notes || '',
-    });
-    const [file, setFile] = useState<File | null>(null);
-    const [removeRef, setRemoveRef] = useState(false);
-    const [busy, setBusy] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const set = (k: keyof typeof f, v: string) => setF(p => ({ ...p, [k]: v }));
-    const category = f.category === '__other' ? f.other.trim() : f.category;
-    const isTeacher = /teacher|salary/i.test(category);
-    const isRecurring = meta.recurring.includes(category);
+type Kind = 'salary' | 'rent' | 'utility' | 'travel' | 'snacks' | 'purchase' | 'other';
+const kindOf = (cat: string): Kind =>
+    /teacher|salary/i.test(cat) ? 'salary' : /^rent/i.test(cat) ? 'rent'
+        : /electric|water|internet|phone/i.test(cat) ? 'utility' : /travel|convey/i.test(cat) ? 'travel'
+            : /tea|snack/i.test(cat) ? 'snacks'
+                : /material|suppl|costume|prop|procure|equip|repair|print|market|software|house/i.test(cat) ? 'purchase' : 'other';
 
-    const submit = async (e: React.FormEvent, confirmDuplicate = false) => {
-        e.preventDefault();
-        setBusy(true); setError(null);
-        const fd = new FormData();
-        fd.append('expense_date', f.expense_date); fd.append('category', category); fd.append('particulars', f.particulars);
-        fd.append('amount', f.amount); fd.append('paid_to', f.paid_to); fd.append('payment_mode', f.payment_mode);
-        fd.append('location_id', f.location_id); fd.append('teacher_id', isTeacher ? f.teacher_id : ''); fd.append('for_month', f.for_month);
-        fd.append('reference_no', f.reference_no); fd.append('notes', f.notes);
-        if (file) fd.append('reference', file);
-        if (removeRef) fd.append('remove_reference', 'yes');
-        if (confirmDuplicate) fd.append('confirm_duplicate', 'yes');
-        try {
-            const r = await fetch(expense.id ? `/api/expenses/${expense.id}` : '/api/expenses', { method: expense.id ? 'PUT' : 'POST', credentials: 'include', body: fd });
-            const d = await r.json().catch(() => ({}));
-            if (r.status === 409 && d.duplicate) {
-                setBusy(false);
-                if (window.confirm(d.message)) submit(e, true);
-                return;
-            }
-            if (!r.ok) throw new Error(d.message || 'Could not save.');
-            onSaved(expense.id ? 'Expense updated.' : `Added ${f.particulars} · ₹${Number(f.amount).toLocaleString('en-IN')}.`);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Could not save.');
-            setBusy(false);
+const ExpenseForm: React.FC<{ expense: Partial<Expense>; meta: Meta; defaultLocationId: number | null; onClose: () => void; onSaved: (msg: string) => void }> =
+    ({ expense, meta, defaultLocationId, onClose, onSaved }) => {
+        const editing = !!expense.id;
+        const known = !expense.category || meta.categories.includes(expense.category);
+        const [category, setCategory] = useState(expense.category && known ? expense.category : '');
+        const [otherCat, setOtherCat] = useState(expense.category && !known ? expense.category : '');
+        const [typingOther, setTypingOther] = useState(!!expense.category && !known);
+        const cat = typingOther ? otherCat.trim() : category;
+        const kind = kindOf(cat);
+
+        const [date, setDate] = useState(expense.expense_date || today());
+        const [amount, setAmount] = useState(expense.amount ? String(expense.amount) : '');
+        const [amountAuto, setAmountAuto] = useState(!expense.amount);
+        const [teacherId, setTeacherId] = useState(expense.teacher_id ? String(expense.teacher_id) : '');
+        const [locationId, setLocationId] = useState(expense.location_id ? String(expense.location_id) : defaultLocationId ? String(defaultLocationId) : '');
+        const [pickLocation, setPickLocation] = useState(!locationId);
+        const [forMonth, setForMonth] = useState(expense.for_month || today().slice(0, 7));
+        const [paidTo, setPaidTo] = useState(expense.paid_to || '');
+        const [paidToAuto, setPaidToAuto] = useState(!expense.paid_to);
+        const [mode, setMode] = useState(expense.payment_mode || '');
+        const [particulars, setParticulars] = useState(expense.particulars || '');
+        const [particularsTouched, setParticularsTouched] = useState(editing);
+        const [refNo, setRefNo] = useState(expense.reference_no || '');
+        const [notes, setNotes] = useState(expense.notes || '');
+        const [file, setFile] = useState<File | null>(null);
+        const [removeRef, setRemoveRef] = useState(false);
+        const [more, setMore] = useState(!!(expense.notes || expense.reference_no || expense.reference_url));
+        const [busy, setBusy] = useState(false);
+        const [error, setError] = useState<string | null>(null);
+
+        const teacher = meta.teachers.find(t => String(t.id) === teacherId);
+        const location = meta.locations.find(l => String(l.id) === locationId);
+        const monthName = forMonth ? monthLabel(forMonth) : '';
+        const sameKind = (h: Meta['history'][number]) => h.category === cat;
+        // The last entry like this one: same category and teacher / location.
+        const last = useMemo(() => meta.history.find(h => sameKind(h) && h.id !== expense.id
+            && (kind === 'salary' ? String(h.teacher_id) === teacherId : kind === 'rent' || kind === 'utility' ? String(h.location_id) === locationId : true)),
+        [meta.history, cat, kind, teacherId, locationId, expense.id]);
+        const alreadyPaid = kind === 'salary' && teacherId && forMonth
+            ? meta.history.find(h => sameKind(h) && h.id !== expense.id && String(h.teacher_id) === teacherId && (h.for_month || h.expense_date.slice(0, 7)) === forMonth)
+            : null;
+
+        // Prefill from the last similar entry while the admin has not typed their own.
+        useEffect(() => {
+            if (!last) return;
+            if (amountAuto) setAmount(String(last.amount));
+            if (paidToAuto && kind !== 'salary' && last.paid_to) setPaidTo(last.paid_to);
+            if (!mode && last.payment_mode) setMode(last.payment_mode);
+        }, [last]); // eslint-disable-line react-hooks/exhaustive-deps
+        // Description written for the admin, still editable.
+        const autoParticulars = kind === 'salary' ? (teacher ? `Salary · ${monthName} · ${teacher.name}` : '')
+            : kind === 'rent' ? `Rent · ${monthName}${location ? ` · ${location.name}` : ''}`
+                : kind === 'utility' ? `${cat} bill · ${monthName}${location ? ` · ${location.name}` : ''}`
+                    : kind === 'snacks' ? 'Tea & snacks' : '';
+        useEffect(() => { if (!particularsTouched && autoParticulars) setParticulars(autoParticulars); }, [autoParticulars, particularsTouched]);
+        const needsLocation = kind === 'rent' || kind === 'utility';
+        const needsMonth = kind === 'salary' || kind === 'rent' || kind === 'utility' || meta.recurring.includes(cat);
+
+        const submit = async (e: React.FormEvent | null, confirmDuplicate = false) => {
+            e?.preventDefault();
+            if (!cat) { setError('Choose a category.'); return; }
+            if (kind === 'salary' && !teacherId) { setError('Choose the teacher.'); return; }
+            if (needsLocation && !locationId) { setError('Choose the location.'); return; }
+            if (!particulars.trim()) { setError(kind === 'travel' ? 'Enter the trip.' : kind === 'purchase' ? 'Enter what was bought.' : 'Enter the particulars.'); return; }
+            if (alreadyPaid && !confirmDuplicate && !window.confirm(`${teacher?.name} is already paid for ${monthName} (${rupees(alreadyPaid.amount)} on ${dayLabel(alreadyPaid.expense_date)}). Add another payment for the same month?`)) return;
+            setBusy(true); setError(null);
+            const fd = new FormData();
+            fd.append('expense_date', date); fd.append('category', cat); fd.append('particulars', particulars.trim());
+            fd.append('amount', amount); fd.append('payment_mode', mode); fd.append('location_id', locationId);
+            fd.append('teacher_id', kind === 'salary' ? teacherId : '');
+            fd.append('paid_to', kind === 'salary' ? (teacher?.name || '') : paidTo);
+            fd.append('for_month', needsMonth ? forMonth : ''); fd.append('reference_no', refNo); fd.append('notes', notes);
+            if (file) fd.append('reference', file);
+            if (removeRef) fd.append('remove_reference', 'yes');
+            if (confirmDuplicate || alreadyPaid) fd.append('confirm_duplicate', 'yes');
+            try {
+                const r = await fetch(editing ? `/api/expenses/${expense.id}` : '/api/expenses', { method: editing ? 'PUT' : 'POST', credentials: 'include', body: fd });
+                const d = await r.json().catch(() => ({}));
+                if (r.status === 409 && d.duplicate) { setBusy(false); if (window.confirm(d.message)) submit(null, true); return; }
+                if (!r.ok) throw new Error(d.message || 'Could not save.');
+                onSaved(editing ? 'Expense updated.' : `Added ${particulars.trim()} · ${rupees(Number(amount))}.`);
+            } catch (err) { setError(err instanceof Error ? err.message : 'Could not save.'); setBusy(false); }
+        };
+
+        const fld = 'mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white';
+        const lbl = 'block text-sm font-medium text-gray-700 dark:text-gray-200';
+        const chip = (on: boolean) => `rounded-full border px-3 py-1 text-sm ${on ? 'border-brand-primary bg-brand-primary text-white' : 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200'}`;
+
+        // Step 1: what kind of expense.
+        if (!cat) {
+            return (
+                <Modal isOpen onClose={onClose} size="2xl">
+                    <div className="bg-white p-5 dark:bg-gray-800">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">What is this expense for?</h3>
+                        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                            {meta.categories.map(c => (
+                                <button key={c} type="button" onClick={() => { setCategory(c); setTypingOther(false); }}
+                                    className="flex items-center gap-2 rounded-xl border border-gray-200 p-3 text-left text-sm font-medium text-gray-800 hover:border-indigo-300 hover:bg-indigo-50/50 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-700/50">
+                                    <CatIcon cat={c} size="h-8 w-8" /><span>{c}</span>
+                                </button>
+                            ))}
+                            <div className="flex items-center gap-2 rounded-xl border border-dashed border-gray-300 p-2 dark:border-gray-600">
+                                <input value={otherCat} onChange={e => setOtherCat(e.target.value)} placeholder="Something else…" className="min-w-0 flex-1 bg-transparent px-1 text-sm outline-none dark:text-white" />
+                                <button type="button" disabled={!otherCat.trim()} onClick={() => setTypingOther(true)} className="rounded-lg bg-brand-primary px-2 py-1 text-xs font-semibold text-white disabled:opacity-40">Use</button>
+                            </div>
+                        </div>
+                        <div className="mt-4 flex justify-end"><button type="button" onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-600 dark:text-gray-200">Cancel</button></div>
+                    </div>
+                </Modal>
+            );
         }
-    };
 
-    const fld = 'mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white';
-    const lbl = 'block text-sm font-medium text-gray-700 dark:text-gray-200';
-    return (
-        <Modal isOpen onClose={onClose} size="2xl">
-            <form onSubmit={submit} className="bg-white p-5 dark:bg-gray-800">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{expense.id ? 'Edit expense' : 'Add expense'}</h3>
-                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <label className={lbl}>Date of purchase / payment
-                        <input type="date" required max={today()} value={f.expense_date} onChange={e => set('expense_date', e.target.value)} className={fld} /></label>
-                    <label className={lbl}>Amount (₹)
-                        <input type="number" required min="0.01" step="0.01" inputMode="decimal" value={f.amount} onChange={e => set('amount', e.target.value)} className={fld} placeholder="0" /></label>
-                    <label className={lbl}>Category
-                        <select required value={f.category} onChange={e => set('category', e.target.value)} className={fld}>
-                            <option value="">Choose…</option>
-                            {meta.categories.map(c => <option key={c}>{c}</option>)}
-                            <option value="__other">Other (type a new one)…</option>
-                        </select></label>
-                    {f.category === '__other'
-                        ? <label className={lbl}>New category<input required value={f.other} onChange={e => set('other', e.target.value)} className={fld} placeholder="e.g. Annual day hall booking" /></label>
-                        : <label className={lbl}>Payment mode
-                            <select value={f.payment_mode} onChange={e => set('payment_mode', e.target.value)} className={fld}>
-                                <option value="">—</option>{meta.payment_modes.map(m => <option key={m}>{m}</option>)}
-                            </select></label>}
-                    <label className={`${lbl} sm:col-span-2`}>Particulars (what was bought or paid for)
-                        <input required value={f.particulars} onChange={e => set('particulars', e.target.value)} className={fld} placeholder="e.g. Studio rent, EB bill, ghungroos x 6, tea & biscuits" /></label>
-                    <label className={lbl}>Paid to (person / shop)
-                        <input list="xp-payees" value={f.paid_to} onChange={e => set('paid_to', e.target.value)} className={fld} placeholder="e.g. TNEB, landlord, Saravana Stores" />
-                        <datalist id="xp-payees">{meta.paid_to.map(p => <option key={p} value={p} />)}</datalist></label>
-                    {f.category === '__other' && (
-                        <label className={lbl}>Payment mode
-                            <select value={f.payment_mode} onChange={e => set('payment_mode', e.target.value)} className={fld}>
-                                <option value="">—</option>{meta.payment_modes.map(m => <option key={m}>{m}</option>)}
-                            </select></label>
+        // Step 2: only the fields this category needs.
+        return (
+            <Modal isOpen onClose={onClose} size="2xl">
+                <form onSubmit={submit} className="bg-white p-5 dark:bg-gray-800">
+                    <div className="flex items-center gap-3">
+                        <CatIcon cat={cat} size="h-10 w-10" />
+                        <div className="min-w-0 flex-1">
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{editing ? 'Edit' : 'Add'} · {cat}</h3>
+                            {!editing && <button type="button" onClick={() => { setCategory(''); setTypingOther(false); setParticularsTouched(false); }} className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">Change category</button>}
+                        </div>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {kind === 'salary' && (
+                            <>
+                                <label className={lbl}>Teacher
+                                    <select required autoFocus value={teacherId} onChange={e => { setTeacherId(e.target.value); setAmountAuto(true); }} className={fld}>
+                                        <option value="">Choose the teacher…</option>{meta.teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                    </select></label>
+                                <label className={lbl}>Salary for month<input type="month" required value={forMonth} max={today().slice(0, 7)} onChange={e => setForMonth(e.target.value)} className={fld} /></label>
+                            </>
+                        )}
+                        {needsLocation && (pickLocation || !location ? (
+                            <label className={lbl}>Location
+                                <select required value={locationId} onChange={e => { setLocationId(e.target.value); setAmountAuto(true); setPaidToAuto(true); }} className={fld}>
+                                    <option value="">Choose…</option>{meta.locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                                </select></label>
+                        ) : (
+                            <div className={lbl}>Location
+                                <div className="mt-1 flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm dark:bg-gray-700/50"><span className="flex-1 font-medium text-gray-900 dark:text-white">{location!.name}</span>
+                                    <button type="button" onClick={() => setPickLocation(true)} className="text-xs font-semibold text-indigo-600">change</button></div>
+                            </div>
+                        ))}
+                        {(kind === 'rent' || kind === 'utility') && (
+                            <label className={lbl}>{kind === 'rent' ? 'Rent for month' : 'Bill for month'}<input type="month" required value={forMonth} max={addMonths(today().slice(0, 7), 1)} onChange={e => setForMonth(e.target.value)} className={fld} /></label>
+                        )}
+
+                        {kind === 'salary' && teacher && (last || alreadyPaid) && (
+                            <div className={`sm:col-span-2 rounded-lg px-3 py-2 text-sm ${alreadyPaid ? 'bg-amber-50 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200' : 'bg-indigo-50 text-indigo-900 dark:bg-indigo-900/30 dark:text-indigo-200'}`}>
+                                {alreadyPaid
+                                    ? <>⚠ {teacher.name} is <b>already paid for {monthName}</b>: {rupees(alreadyPaid.amount)} on {dayLabel(alreadyPaid.expense_date)}.</>
+                                    : <>Last paid {rupees(last!.amount)} for {last!.for_month ? monthLabel(last!.for_month) : dayLabel(last!.expense_date)}{last!.payment_mode ? ` · ${last!.payment_mode}` : ''} — filled in below.</>}
+                            </div>
+                        )}
+
+                        <label className={lbl}>Amount (₹)
+                            <input type="number" required min="0.01" step="0.01" inputMode="decimal" value={amount}
+                                onChange={e => { setAmount(e.target.value); setAmountAuto(false); }} className={fld} placeholder="0" /></label>
+                        <label className={lbl}>{kind === 'salary' ? 'Paid on' : 'Date of purchase / payment'}
+                            <input type="date" required max={today()} value={date} onChange={e => setDate(e.target.value)} className={fld} /></label>
+
+                        <div className={`${lbl} sm:col-span-2`}>Paid by
+                            <div className="mt-1 flex flex-wrap gap-1.5">{meta.payment_modes.map(m => <button key={m} type="button" onClick={() => setMode(mode === m ? '' : m)} className={chip(mode === m)}>{m}</button>)}</div>
+                        </div>
+
+                        {kind !== 'salary' && kind !== 'snacks' && (
+                            <label className={lbl}>{kind === 'rent' ? 'Landlord' : kind === 'utility' ? 'Paid to (board / provider)' : kind === 'travel' ? 'Who travelled' : kind === 'purchase' ? 'Shop / vendor' : 'Paid to (person / shop)'}
+                                <input list="xp-payees" value={paidTo} onChange={e => { setPaidTo(e.target.value); setPaidToAuto(false); }} className={fld}
+                                    placeholder={kind === 'utility' ? (/electric/i.test(cat) ? 'TNEB' : 'Provider') : kind === 'travel' ? 'Name' : ''} />
+                                <datalist id="xp-payees">{meta.paid_to.map(p => <option key={p} value={p} />)}</datalist></label>
+                        )}
+                        {kind === 'utility' && <label className={lbl}>Bill / consumer no. <span className="font-normal text-gray-400">(optional)</span><input value={refNo} onChange={e => setRefNo(e.target.value)} className={fld} /></label>}
+
+                        {(kind === 'travel' || kind === 'purchase' || kind === 'other' || particularsTouched || !autoParticulars) ? (
+                            <label className={`${lbl} sm:col-span-2`}>{kind === 'travel' ? 'Trip (from → to, purpose)' : kind === 'purchase' ? 'Items bought' : 'Particulars'}
+                                <input required value={particulars} onChange={e => { setParticulars(e.target.value); setParticularsTouched(true); }} className={fld}
+                                    placeholder={kind === 'travel' ? 'Studio → Kalakshetra, costume pickup' : kind === 'purchase' ? 'Ghungroos × 6, practice sarees × 2' : ''} /></label>
+                        ) : (
+                            <div className={`${lbl} sm:col-span-2`}>Saved as
+                                <div className="mt-1 flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm dark:bg-gray-700/50"><span className="flex-1 text-gray-900 dark:text-white">{particulars || '—'}</span>
+                                    <button type="button" onClick={() => setParticularsTouched(true)} className="text-xs font-semibold text-indigo-600">edit</button></div>
+                            </div>
+                        )}
+                    </div>
+
+                    <button type="button" onClick={() => setMore(v => !v)} className="mt-4 text-sm font-semibold text-indigo-600 dark:text-indigo-400">{more ? '− Fewer details' : `+ More details (${[needsLocation ? '' : 'location', kind === 'utility' ? '' : 'bill no.', 'notes'].filter(Boolean).join(', ')})`}</button>
+                    {more && (
+                        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            {!needsLocation && (
+                                <label className={lbl}>Location <span className="font-normal text-gray-400">(optional)</span>
+                                    <select value={locationId} onChange={e => setLocationId(e.target.value)} className={fld}>
+                                        <option value="">Not specific</option>{meta.locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                                    </select></label>
+                            )}
+                            {kind !== 'utility' && <label className={lbl}>Bill / receipt no. <span className="font-normal text-gray-400">(optional)</span><input value={refNo} onChange={e => setRefNo(e.target.value)} className={fld} /></label>}
+                            <label className={`${lbl} sm:col-span-2`}>Notes <span className="font-normal text-gray-400">(optional)</span><textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} className={fld} /></label>
+                        </div>
                     )}
-                    <label className={lbl}>Location
-                        <select value={f.location_id} onChange={e => set('location_id', e.target.value)} className={fld}>
-                            <option value="">Not specific</option>{meta.locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                        </select></label>
-                    {isTeacher && (
-                        <label className={lbl}>Teacher
-                            <select value={f.teacher_id} onChange={e => set('teacher_id', e.target.value)} className={fld}>
-                                <option value="">Choose…</option>{meta.teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                            </select></label>
-                    )}
-                    {(isRecurring || f.for_month) && (
-                        <label className={lbl}>For month <span className="font-normal text-gray-400">(which month this pays)</span>
-                            <input type="month" value={f.for_month} onChange={e => set('for_month', e.target.value)} className={fld} /></label>
-                    )}
-                    <label className={lbl}>Bill / receipt no. <span className="font-normal text-gray-400">(optional)</span>
-                        <input value={f.reference_no} onChange={e => set('reference_no', e.target.value)} className={fld} /></label>
-                    <div className={`${lbl} sm:col-span-2`}>Reference document <span className="font-normal text-gray-400">(optional — bill, receipt, photo; PDF or image)</span>
+
+                    <div className={`${lbl} mt-3`}>Bill / receipt / photo <span className="font-normal text-gray-400">(optional, PDF or image)</span>
                         <div className="mt-1 flex flex-wrap items-center gap-2">
                             <label className="cursor-pointer rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium hover:bg-gray-50 dark:border-gray-600">
-                                {file ? 'Change file' : 'Choose file'}
+                                <Paperclip className="mr-1 inline h-4 w-4" />{file ? 'Change file' : 'Attach'}
                                 <input type="file" accept="application/pdf,image/*" className="hidden" onChange={e => { setFile(e.target.files?.[0] || null); setRemoveRef(false); }} />
                             </label>
                             {file && <span className="text-xs text-gray-600">{file.name}</span>}
@@ -370,17 +491,18 @@ const ExpenseForm: React.FC<{ expense: Partial<Expense>; meta: Meta; onClose: ()
                             )}
                         </div>
                     </div>
-                    <label className={`${lbl} sm:col-span-2`}>Notes <span className="font-normal text-gray-400">(optional)</span>
-                        <textarea rows={2} value={f.notes} onChange={e => set('notes', e.target.value)} className={fld} /></label>
-                </div>
-                {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-                <div className="mt-5 flex justify-end gap-2">
-                    <button type="button" onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-600 dark:text-gray-200">Cancel</button>
-                    <button type="submit" disabled={busy} className="rounded-lg bg-brand-primary px-5 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Saving…' : expense.id ? 'Save changes' : 'Add expense'}</button>
-                </div>
-            </form>
-        </Modal>
-    );
-};
+
+                    {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+                    <div className="mt-5 flex items-center justify-between gap-2">
+                        <span className="text-lg font-bold text-gray-900 dark:text-white">{amount ? rupees(Number(amount)) : ''}</span>
+                        <span className="flex gap-2">
+                            <button type="button" onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-600 dark:text-gray-200">Cancel</button>
+                            <button type="submit" disabled={busy} className="rounded-lg bg-brand-primary px-5 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Saving…' : editing ? 'Save changes' : kind === 'salary' ? 'Record salary' : 'Add expense'}</button>
+                        </span>
+                    </div>
+                </form>
+            </Modal>
+        );
+    };
 
 export default ExpensesPage;

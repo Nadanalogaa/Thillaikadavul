@@ -9217,7 +9217,15 @@ Please review and approve this registration in the admin panel.`;
                   ORDER BY e.category, COALESCE(e.location_id, 0), COALESCE(e.teacher_id, 0), LOWER(COALESCE(e.paid_to, '')), e.expense_date DESC`,
                 [RECURRING])).rows;
             const due = recent.filter(r => r.month < thisMonth).map(r => ({ ...expenseView(r), last_month: r.month }));
-            res.json({ categories, recurring: RECURRING, payment_modes: PAYMENT_MODES, locations, teachers, paid_to: paidTo, due, this_month: thisMonth });
+            // The last 13 months' entries (light), so the form can prefill —
+            // a teacher's last salary, a location's rent and landlord — and
+            // warn when a teacher is already paid for the chosen month.
+            const history = (await pool.query(
+                `SELECT id, category, location_id, teacher_id, paid_to, amount::float AS amount, payment_mode, for_month,
+                        to_char(expense_date, 'YYYY-MM-DD') AS expense_date
+                   FROM expenses WHERE is_deleted = false AND expense_date >= CURRENT_DATE - INTERVAL '13 months'
+                  ORDER BY expense_date DESC, id DESC LIMIT 1500`)).rows;
+            res.json({ categories, recurring: RECURRING, payment_modes: PAYMENT_MODES, locations, teachers, paid_to: paidTo, due, history, this_month: thisMonth });
         } catch (error) {
             console.error('Error loading expense options:', error);
             res.status(500).json({ message: 'Server error loading expenses.' });
