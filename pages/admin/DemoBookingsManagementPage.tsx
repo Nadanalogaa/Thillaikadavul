@@ -19,6 +19,7 @@ import { whatsAppNumber, ackMessage, confirmMessage, openWhatsApp, formatDemoDat
 import type { DemoBooking } from '../../types';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import AdminLayout from '../../components/admin/AdminLayout';
+import { isSuperAdmin } from '../../utils/adminRole';
 
 // Booking dates are shown in academy time (IST) whatever the viewer's device zone.
 const formatBookedDate = (dateString?: string) => {
@@ -58,6 +59,7 @@ const buildShareText = (list: DemoBooking[]) => {
 };
 
 const DemoBookingsManagementPage: React.FC = () => {
+  const canDelete = isSuperAdmin();
   const { theme } = useTheme();
   const [bookings, setBookings] = useState<DemoBooking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -499,12 +501,14 @@ const DemoBookingsManagementPage: React.FC = () => {
                             >
                               Share
                             </button>
+                            {canDelete && (
                             <button
                               onClick={() => handleDelete(booking.id)}
                               className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
                             >
                               Delete
                             </button>
+                            )}
                           </div>
                         </td>
                       </motion.tr>

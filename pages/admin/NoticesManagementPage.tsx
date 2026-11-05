@@ -7,6 +7,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import Modal from '../../components/Modal';
 import ModalHeader from '../../components/ModalHeader';
 import SendContentNotificationModal from '../../components/admin/SendContentNotificationModal';
+import { isSuperAdmin } from '../../utils/adminRole';
 
 const NoticeForm: React.FC<{ notice?: Partial<Notice>, onSave: (notice: Partial<Notice>) => void, isLoading: boolean }> = ({ notice, onSave, isLoading }) => {
     const [formData, setFormData] = useState<Partial<Notice>>({});
@@ -66,6 +67,7 @@ const NoticeForm: React.FC<{ notice?: Partial<Notice>, onSave: (notice: Partial<
 
 
 const NoticesManagementPage: React.FC = () => {
+    const canDelete = isSuperAdmin();
     const { theme } = useTheme();
     const [notices, setNotices] = useState<Notice[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -152,7 +154,7 @@ const NoticesManagementPage: React.FC = () => {
                                             <td className="td-base text-right space-x-2">
                                                 <button onClick={() => setNotifyingNotice(notice)} className="btn-send">Send</button>
                                                 <button onClick={() => setEditingNotice(notice)} className="btn-secondary">Edit</button>
-                                                <button onClick={() => handleDelete(notice.id)} className="btn-danger">Delete</button>
+                                                {canDelete && <button onClick={() => handleDelete(notice.id)} className="btn-danger">Delete</button>}
                                             </td>
                                         </tr>
                                     ))}

@@ -8,6 +8,7 @@ import Modal from '../../components/Modal';
 import ModalHeader from '../../components/ModalHeader';
 import SendContentNotificationModal from '../../components/admin/SendContentNotificationModal';
 import { displayEmail } from '../../utils/displayEmail';
+import { isSuperAdmin } from '../../utils/adminRole';
 
 const EventForm: React.FC<{ event?: Partial<Event>, onSave: (event: Partial<Event>) => Promise<void>, isLoading: boolean }> = ({ event, onSave, isLoading }) => {
     const [formData, setFormData] = useState<Partial<Event>>({});
@@ -153,6 +154,7 @@ const EventForm: React.FC<{ event?: Partial<Event>, onSave: (event: Partial<Even
 
 
 const EventsManagementPage: React.FC = () => {
+    const canDelete = isSuperAdmin();
     const { theme } = useTheme();
     const [events, setEvents] = useState<Event[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -319,7 +321,7 @@ const EventsManagementPage: React.FC = () => {
                                                 <button onClick={() => setViewingResponses(event)} className="btn-send">Responses</button>
                                                 <button onClick={() => setNotifyingEvent(event)} className="btn-send">Send</button>
                                                 <button onClick={() => setEditingEvent(event)} className="btn-secondary">Edit</button>
-                                                <button onClick={() => handleDelete(event.id)} className="btn-danger">Delete</button>
+                                                {canDelete && <button onClick={() => handleDelete(event.id)} className="btn-danger">Delete</button>}
                                             </td>
                                         </tr>
                                     ))}

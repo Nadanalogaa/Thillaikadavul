@@ -7,6 +7,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import Modal from '../../components/Modal';
 import ModalHeader from '../../components/ModalHeader';
 import SendContentNotificationModal from '../../components/admin/SendContentNotificationModal';
+import { isSuperAdmin } from '../../utils/adminRole';
 
 // Fields match the grade_exams table: exam_name, course, exam_date,
 // exam_time, location, syllabus. A course limits the exam to families with a
@@ -88,6 +89,7 @@ const showDate = (d: any) => {
 };
 
 const GradeExamsManagementPage: React.FC = () => {
+    const canDelete = isSuperAdmin();
     const { theme } = useTheme();
     const [exams, setExams] = useState<GradeExam[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -176,7 +178,7 @@ const GradeExamsManagementPage: React.FC = () => {
                                             <td className="td-base text-right space-x-2">
                                                 <button onClick={() => setNotifyingExam(exam)} className="btn-send">Send</button>
                                                 <button onClick={() => setEditingExam(exam)} className="btn-secondary">Edit</button>
-                                                <button onClick={() => handleDelete(exam.id)} className="btn-danger">Delete</button>
+                                                {canDelete && <button onClick={() => handleDelete(exam.id)} className="btn-danger">Delete</button>}
                                             </td>
                                         </tr>
                                     ))}

@@ -3,6 +3,7 @@ import SelectedPills from '../SelectedPills';
 import Modal from '../../Modal';
 import { FormModalShell, Section, Field, FieldGrid, inputClass, selectClass, textareaClass } from '../FormModalShell';
 import { formatRupees } from './feeUi';
+import { isSuperAdmin } from '../../../utils/adminRole';
 
 // Admin -> Fees -> Extra bills. One-off bills beyond the monthly fee:
 // costumes, grade-exam fees, events, book materials, uniforms, anything else.
@@ -278,6 +279,7 @@ const NewBillForm: React.FC<{ categories: string[]; onClose: () => void; onCreat
 // --- One bill: who has paid ---------------------------------------------------
 
 const ChargeDetail: React.FC<{ id: number; onClose: () => void; onChanged: (msg?: string) => void }> = ({ id, onClose, onChanged }) => {
+    const canDelete = isSuperAdmin();
     const [data, setData] = useState<{ charge: Charge; bills: ChargeBill[] } | null>(null);
     const [filter, setFilter] = useState<'all' | 'paid' | 'unpaid'>('all');
     const [busy, setBusy] = useState(false);
@@ -315,7 +317,7 @@ const ChargeDetail: React.FC<{ id: number; onClose: () => void; onChanged: (msg?
                                 {c.description && <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">{c.description}</p>}
                             </div>
                             <div className="flex gap-2">
-                                {c.status === 'open' && <button type="button" disabled={busy} onClick={close} className="rounded-md border border-red-300 px-3 py-1.5 text-sm font-semibold text-red-700 hover:bg-red-50">Close bill</button>}
+                                {canDelete && c.status === 'open' && <button type="button" disabled={busy} onClick={close} className="rounded-md border border-red-300 px-3 py-1.5 text-sm font-semibold text-red-700 hover:bg-red-50">Close bill</button>}
                                 <button type="button" onClick={onClose} className="rounded-md border border-gray-300 px-3 py-1.5 text-sm">Close</button>
                             </div>
                         </div>

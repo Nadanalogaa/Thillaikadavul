@@ -11,6 +11,7 @@ import { WEEKDAYS, TIME_SLOTS } from '../../constants';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useTheme } from '../../contexts/ThemeContext';
+import { isSuperAdmin } from '../../utils/adminRole';
 
 type SortDirection = 'ascending' | 'descending';
 type SortConfig = { key: keyof User; direction: SortDirection } | null;
@@ -33,6 +34,7 @@ const SortableHeader: React.FC<{ columnKey: keyof User, title: string, sortConfi
 );
 
 const TeacherListPage: React.FC = () => {
+    const canDelete = isSuperAdmin();
     const { theme } = useTheme();
     const [allUsers, setAllUsers] = useState<User[]>([]);
     // Students per teacher = everyone in the batches they teach.
@@ -404,7 +406,7 @@ const TeacherListPage: React.FC = () => {
                             >
                                 Send Notification ({selectedTeachers.size})
                             </button>
-                             {selectedTeachers.size > 0 && (
+                             {canDelete && selectedTeachers.size > 0 && (
                                 <button
                                     onClick={handleBulkDelete}
                                     className="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-md shadow-sm transition-colors"
@@ -488,7 +490,7 @@ const TeacherListPage: React.FC = () => {
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
                                                     <button onClick={() => handleEditUser(user)} className="text-brand-primary hover:text-brand-dark">Edit</button>
-                                                    <button onClick={() => handleDeleteUser(user.id)} className="text-red-600 hover:text-red-800">Delete</button>
+                                                    {canDelete && <button onClick={() => handleDeleteUser(user.id)} className="text-red-600 hover:text-red-800">Delete</button>}
                                                 </td>
                                             </tr>
                                         )

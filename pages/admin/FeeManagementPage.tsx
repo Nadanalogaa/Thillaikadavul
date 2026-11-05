@@ -9,10 +9,12 @@ import FeesRosterPanel from '../../components/admin/fees/FeesRosterPanel';
 import PaymentsToVerifyPanel from '../../components/admin/fees/PaymentsToVerifyPanel';
 import ExtraBillsPanel from '../../components/admin/fees/ExtraBillsPanel';
 import { Link } from 'react-router-dom';
+import { isSuperAdmin } from '../../utils/adminRole';
 
 type ActiveTab = 'fees' | 'grades' | 'extra';
 
 const FeeManagementPage: React.FC = () => {
+    const canDelete = isSuperAdmin();
     const { theme } = useTheme();
     const [activeTab, setActiveTab] = useState<ActiveTab>('fees');
     const [courses, setCourses] = useState<Course[]>([]);
@@ -113,12 +115,12 @@ const FeeManagementPage: React.FC = () => {
                             </div>
                         )}
 
-                        <div className="mt-8 border-t pt-4">
+                        {canDelete && <div className="mt-8 border-t pt-4">
                             <p className="text-xs text-gray-400 mb-2">Legacy cleanup — the old per-course "fee structures" are no longer used (fees come from grades).</p>
                             <button onClick={doPurge} className="text-sm text-red-600 border border-red-300 px-3 py-1.5 rounded-md hover:bg-red-50">
                                 Delete old fee structures
                             </button>
-                        </div>
+                        </div>}
                     </div>
                 )
             )}

@@ -12,6 +12,7 @@ import {
     listBatches, listStudents, listTeachers, listCourses, listLocations,
     createBatch, updateBatchDetails, setBatchStudents, removeBatch, moveStudent, slotLines,
 } from '../../services/batchAdminApi';
+import { isSuperAdmin } from '../../utils/adminRole';
 
 // Admin -> Batches. Grid or table of every batch with its teacher, class
 // times and student count up front; open one to see its students and move,
@@ -379,6 +380,7 @@ const BatchPanel: React.FC<{
     const [moving, setMoving] = useState<AdminStudent | null>(null);
     const [adding, setAdding] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
+    const canDelete = isSuperAdmin();
 
     const members = batch.studentIds
         .map(id => studentById.get(id))
@@ -417,7 +419,7 @@ const BatchPanel: React.FC<{
                         </div>
                         <div className="flex flex-shrink-0 gap-2">
                             <button type="button" onClick={onEdit} className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Edit</button>
-                            <button type="button" onClick={del} disabled={busy} className="rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50">Delete</button>
+                            {canDelete && <button type="button" onClick={del} disabled={busy} className="rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50">Delete</button>}
                         </div>
                     </div>
                     <div className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">

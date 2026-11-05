@@ -5,6 +5,7 @@ import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import AdminLayout from '../../components/admin/AdminLayout';
 import Modal from '../../components/Modal';
 import ModalHeader from '../../components/ModalHeader';
+import { isSuperAdmin } from '../../utils/adminRole';
 
 interface Grade {
   id?: number;
@@ -88,6 +89,7 @@ const GradeForm: React.FC<{
 };
 
 const GradeManagementPage: React.FC = () => {
+  const canDelete = isSuperAdmin();
   const [grades, setGrades] = useState<Grade[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -174,7 +176,7 @@ const GradeManagementPage: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">₹{Number(g.monthly_fee || 0).toFixed(0)}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
                       <button onClick={() => setEditing(g)} className="text-brand-primary hover:text-brand-dark">Edit</button>
-                      <button onClick={() => handleDelete(g.id)} className="text-red-600 hover:text-red-800">Delete</button>
+                      {canDelete && <button onClick={() => handleDelete(g.id)} className="text-red-600 hover:text-red-800">Delete</button>}
                     </td>
                   </tr>
                 ))}

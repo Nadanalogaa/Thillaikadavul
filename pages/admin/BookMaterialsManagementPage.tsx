@@ -8,6 +8,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import Modal from '../../components/Modal';
 import ModalHeader from '../../components/ModalHeader';
 import SendContentNotificationModal from '../../components/admin/SendContentNotificationModal';
+import { isSuperAdmin } from '../../utils/adminRole';
 
 const BookMaterialForm: React.FC<{ material?: Partial<BookMaterial>, courses: Course[], onSave: (material: Partial<BookMaterial>) => void, isLoading: boolean }> = ({ material, courses, onSave, isLoading }) => {
     const [formData, setFormData] = useState<Partial<BookMaterial>>({});
@@ -107,6 +108,7 @@ const BookMaterialForm: React.FC<{ material?: Partial<BookMaterial>, courses: Co
 
 
 const BookMaterialsManagementPage: React.FC = () => {
+    const canDelete = isSuperAdmin();
     const { theme } = useTheme();
     const [materials, setMaterials] = useState<BookMaterial[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
@@ -194,7 +196,7 @@ const BookMaterialsManagementPage: React.FC = () => {
                                             <td className="td-base text-right space-x-2">
                                                 <button onClick={() => setNotifyingMaterial(material)} className="btn-send">Send</button>
                                                 <button onClick={() => setEditingMaterial(material)} className="btn-secondary">Edit</button>
-                                                <button onClick={() => handleDelete(material.id)} className="btn-danger">Delete</button>
+                                                {canDelete && <button onClick={() => handleDelete(material.id)} className="btn-danger">Delete</button>}
                                             </td>
                                         </tr>
                                     ))}

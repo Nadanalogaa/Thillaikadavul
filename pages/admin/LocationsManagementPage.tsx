@@ -7,6 +7,7 @@ import AdminLayout from '../../components/admin/AdminLayout';
 import { useTheme } from '../../contexts/ThemeContext';
 import Modal from '../../components/Modal';
 import ModalHeader from '../../components/ModalHeader';
+import { isSuperAdmin } from '../../utils/adminRole';
 
 const LocationForm: React.FC<{ location?: Partial<Location>, onSave: (location: Partial<Location>) => void, isLoading: boolean }> = ({ location, onSave, isLoading }) => {
     const [formData, setFormData] = useState<Partial<Location>>({});
@@ -70,6 +71,7 @@ const LocationForm: React.FC<{ location?: Partial<Location>, onSave: (location: 
 
 
 const LocationsManagementPage: React.FC = () => {
+    const canDelete = isSuperAdmin();
     const { theme } = useTheme();
     const [locations, setLocations] = useState<Location[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -150,7 +152,7 @@ const LocationsManagementPage: React.FC = () => {
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{location.address}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
                                                 <button onClick={() => setEditingLocation(location)} className="text-brand-primary hover:text-brand-dark">Edit</button>
-                                                <button onClick={() => handleDelete(location.id)} className="text-red-600 hover:text-red-800">Delete</button>
+                                                {canDelete && <button onClick={() => handleDelete(location.id)} className="text-red-600 hover:text-red-800">Delete</button>}
                                             </td>
                                         </tr>
                                     ))}

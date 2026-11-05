@@ -1,6 +1,7 @@
 
 import React from 'react';
 import type { FeeStructure } from '../../types';
+import { isSuperAdmin } from '../../utils/adminRole';
 
 interface FeeStructureTableProps {
     structures: FeeStructure[];
@@ -10,6 +11,7 @@ interface FeeStructureTableProps {
 }
 
 const FeeStructureTable: React.FC<FeeStructureTableProps> = ({ structures, onEdit, onDelete, onAddNew }) => {
+    const canDelete = isSuperAdmin();
     return (
         <div>
             <div className="flex justify-between items-center mb-4">
@@ -40,7 +42,7 @@ const FeeStructureTable: React.FC<FeeStructureTableProps> = ({ structures, onEdi
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{structure.billingCycle}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
                                         <button onClick={() => onEdit(structure)} className="text-brand-primary hover:text-brand-dark">Edit</button>
-                                        <button onClick={() => onDelete(structure.id)} className="text-red-600 hover:text-red-800">Delete</button>
+                                        {canDelete && <button onClick={() => onDelete(structure.id)} className="text-red-600 hover:text-red-800">Delete</button>}
                                     </td>
                                 </tr>
                             )) : (

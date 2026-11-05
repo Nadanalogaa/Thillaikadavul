@@ -7,6 +7,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import CollectCashModal from './CollectCashModal';
 import ReceiptModal from './ReceiptModal';
 import ProofReviewModal from './ProofReviewModal';
+import { isSuperAdmin } from '../../../utils/adminRole';
 import { STATUS_LABEL, StatusBadge, formatDateTime, formatDayMonth, formatRupees, recentBillingPeriods } from './feeUi';
 
 interface ReminderLink {
@@ -608,7 +609,7 @@ const FeesRosterPanel: React.FC = () => {
             <ReceiptModal
                 receiptNumber={receiptNo}
                 onClose={() => setReceiptNo(null)}
-                canReverse
+                canReverse={isSuperAdmin()}
                 onReversed={() => load()}
             />
         </div>

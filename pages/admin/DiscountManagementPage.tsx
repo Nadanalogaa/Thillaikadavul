@@ -5,8 +5,10 @@ import { getAdminUsers, getCourses, getStudentDiscounts, createStudentDiscount, 
 import AdminLayout from '../../components/admin/AdminLayout';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import { displayEmail } from '../../utils/displayEmail';
+import { isSuperAdmin } from '../../utils/adminRole';
 
 const DiscountManagementPage: React.FC = () => {
+  const canDelete = isSuperAdmin();
   const [courses, setCourses] = useState<Course[]>([]);
   const [students, setStudents] = useState<User[]>([]);
   const [courseId, setCourseId] = useState<string>('');
@@ -185,7 +187,7 @@ const DiscountManagementPage: React.FC = () => {
                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Discount</th>
                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Reason</th>
-                <th className="px-4 py-2"></th>
+                {canDelete && <th className="px-4 py-2"></th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -194,9 +196,9 @@ const DiscountManagementPage: React.FC = () => {
                   <td className="px-4 py-2 text-sm text-gray-800">{studentName(d.student_id)}</td>
                   <td className="px-4 py-2 text-sm font-semibold text-brand-primary">{Number(d.discount_percentage)}%</td>
                   <td className="px-4 py-2 text-sm text-gray-500">{d.reason || '—'}</td>
-                  <td className="px-4 py-2 text-right">
+                  {canDelete && <td className="px-4 py-2 text-right">
                     <button onClick={() => remove(d.id)} className="text-sm text-red-600 hover:text-red-800">Remove</button>
-                  </td>
+                  </td>}
                 </tr>
               ))}
             </tbody>

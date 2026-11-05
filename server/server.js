@@ -6001,7 +6001,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.post('/api/fee-structures', ensureSuperAdmin, async (req, res) => {
+    app.post('/api/fee-structures', ensureAdmin, async (req, res) => {
         try {
             const { course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee, batch_ids, grade } = req.body;
             const result = await pool.query(
@@ -6034,7 +6034,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.put('/api/fee-structures/:id', ensureSuperAdmin, async (req, res) => {
+    app.put('/api/fee-structures/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const { course_id, mode, monthly_fee, quarterly_fee, half_yearly_fee, annual_fee, batch_ids, grade } = req.body;
@@ -6152,7 +6152,7 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // POST create discount
-    app.post('/api/student-discounts', ensureSuperAdmin, async (req, res) => {
+    app.post('/api/student-discounts', ensureAdmin, async (req, res) => {
         try {
             const { student_id, discount_type, course_id, batch_id, discount_percentage, reason } = req.body;
 
@@ -6207,7 +6207,7 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // PUT update discount
-    app.put('/api/student-discounts/:id', ensureSuperAdmin, async (req, res) => {
+    app.put('/api/student-discounts/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const { discount_percentage, reason, is_active } = req.body;
@@ -7902,7 +7902,7 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // --- Location Management API Endpoints ---
-    app.post('/api/locations', ensureSuperAdmin, async (req, res) => {
+    app.post('/api/locations', ensureAdmin, async (req, res) => {
         try {
             const { name, address, city, state, postal_code, country, phone, email, is_active } = req.body;
             const result = await pool.query(
@@ -7935,7 +7935,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.put('/api/locations/:id', ensureSuperAdmin, async (req, res) => {
+    app.put('/api/locations/:id', ensureAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const row = await updateSentColumns('locations', id, req.body || {}, ['name', 'address', 'city', 'state', 'postal_code', 'country', 'phone', 'email', 'is_active']);

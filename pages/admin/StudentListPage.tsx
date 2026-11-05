@@ -15,6 +15,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { displayEmail } from '../../utils/displayEmail';
 import { placeStudent } from '../../services/batchAdminApi';
 import { batchTimingLines } from '../../api';
+import { isSuperAdmin } from '../../utils/adminRole';
 
 type SortDirection = 'ascending' | 'descending';
 type SortConfig = { key: keyof User; direction: SortDirection } | null;
@@ -38,6 +39,7 @@ const SortableHeader: React.FC<{ columnKey: keyof User, title: string, sortConfi
 
 
 const StudentListPage: React.FC = () => {
+    const canDelete = isSuperAdmin();
     const { theme } = useTheme();
     const [allUsers, setAllUsers] = useState<User[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
@@ -552,7 +554,7 @@ const StudentListPage: React.FC = () => {
                             >
                                 Send Notification ({selectedStudents.size})
                             </button>
-                            {selectedStudents.size > 0 && (
+                            {canDelete && selectedStudents.size > 0 && (
                                 <button
                                     onClick={handleBulkDelete}
                                     className="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-md shadow-sm transition-colors"
@@ -696,7 +698,7 @@ const StudentListPage: React.FC = () => {
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
                                                     <button onClick={() => handleEditUser(user)} className="text-brand-primary hover:text-brand-dark">Edit</button>
-                                                    <button onClick={() => handleDeleteUser(user.id)} className="text-red-600 hover:text-red-800">Delete</button>
+                                                    {canDelete && <button onClick={() => handleDeleteUser(user.id)} className="text-red-600 hover:text-red-800">Delete</button>}
                                                 </td>
                                             </tr>
                                         )) : (

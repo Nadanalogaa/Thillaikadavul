@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getInvoices, getCourses, getBatches, getGrades, markInvoicePaid, generateMonthlyInvoicesApi, purgeLegacyInvoices, sendInvoiceReminders } from '../../api';
 import type { Course, Batch } from '../../types';
+import { isSuperAdmin } from '../../utils/adminRole';
 
 const statusBadge = (status: string) => {
   const s = (status || '').toLowerCase();
@@ -10,6 +11,7 @@ const statusBadge = (status: string) => {
 };
 
 const InvoicesPanel: React.FC = () => {
+  const canDelete = isSuperAdmin();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
@@ -171,9 +173,11 @@ const InvoicesPanel: React.FC = () => {
         <button onClick={doGenerate} className="border border-brand-primary text-brand-primary font-semibold px-4 py-2 rounded-md hover:bg-brand-primary/10 whitespace-nowrap">
           + Generate Monthly
         </button>
+        {canDelete && (
         <button onClick={doPurgeLegacy} className="border border-red-300 text-red-600 font-semibold px-4 py-2 rounded-md hover:bg-red-50 whitespace-nowrap">
           Clear old (₹) invoices
         </button>
+        )}
       </div>
 
       {message && <div className="mb-3 text-sm bg-blue-50 text-blue-700 rounded-md px-3 py-2">{message}</div>}

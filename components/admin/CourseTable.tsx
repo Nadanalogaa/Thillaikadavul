@@ -1,6 +1,7 @@
 
 import React from 'react';
 import type { Course } from '../../types';
+import { isSuperAdmin } from '../../utils/adminRole';
 
 interface CourseTableProps {
     courses: Course[];
@@ -10,6 +11,7 @@ interface CourseTableProps {
 }
 
 const CourseTable: React.FC<CourseTableProps> = ({ courses, onEdit, onDelete, onAddNew }) => {
+    const canDelete = isSuperAdmin();
     return (
         <div>
             <div className="flex justify-between items-center mb-4">
@@ -59,7 +61,7 @@ const CourseTable: React.FC<CourseTableProps> = ({ courses, onEdit, onDelete, on
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{course.icon}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
                                             <button onClick={() => onEdit(course)} className="text-brand-primary hover:text-brand-dark">Edit</button>
-                                            <button onClick={() => onDelete(course.id)} className="text-red-600 hover:text-red-800">Delete</button>
+                                            {canDelete && <button onClick={() => onDelete(course.id)} className="text-red-600 hover:text-red-800">Delete</button>}
                                         </td>
                                     </tr>
                                 ))

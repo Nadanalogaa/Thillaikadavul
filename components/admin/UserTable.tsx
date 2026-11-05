@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import type { User } from '../../types';
 import { ArrowRightIcon } from '../icons';
 import { displayEmail } from '../../utils/displayEmail';
+import { isSuperAdmin } from '../../utils/adminRole';
 
 interface UserTableProps {
     title: string;
@@ -15,6 +16,7 @@ interface UserTableProps {
 }
 
 const UserTable: React.FC<UserTableProps> = ({ title, users, onEdit, onDelete, viewMoreLink, totalCount }) => {
+    const canDelete = isSuperAdmin();
     return (
         <div>
             <div className="flex justify-between items-center mb-4">
@@ -48,7 +50,7 @@ const UserTable: React.FC<UserTableProps> = ({ title, users, onEdit, onDelete, v
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.classPreference}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
                                             <button onClick={() => onEdit(user)} className="text-brand-primary hover:text-brand-dark">Edit</button>
-                                            <button onClick={() => onDelete(user.id)} className="text-red-600 hover:text-red-800">Delete</button>
+                                            {canDelete && <button onClick={() => onDelete(user.id)} className="text-red-600 hover:text-red-800">Delete</button>}
                                         </td>
                                     </tr>
                                 ))

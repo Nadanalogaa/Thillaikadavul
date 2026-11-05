@@ -6,8 +6,10 @@ import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useTheme } from '../../contexts/ThemeContext';
 import { displayEmail } from '../../utils/displayEmail';
+import { isSuperAdmin, SUPER_ADMIN_ONLY } from '../../utils/adminRole';
 
 const TrashPage: React.FC = () => {
+    const canDelete = isSuperAdmin();
     const { theme } = useTheme();
     const [trashedUsers, setTrashedUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -56,7 +58,7 @@ const TrashPage: React.FC = () => {
         <AdminLayout>
             <AdminPageHeader
                 title="Trash"
-                subtitle="Manage deleted records. You can restore them or delete them permanently."
+                subtitle={canDelete ? "Manage deleted records. You can restore them or delete them permanently." : `Manage deleted records. You can restore them. ${SUPER_ADMIN_ONLY}`}
             />
 
                     {isLoading && <p className="text-center text-gray-500 py-8">Loading trashed items...</p>}
@@ -84,7 +86,7 @@ const TrashPage: React.FC = () => {
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.deletedAt ? new Date(user.deletedAt).toLocaleString() : 'N/A'}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
                                                     <button onClick={() => handleRestore(user.id)} className="text-green-600 hover:text-green-800">Restore</button>
-                                                    <button onClick={() => handlePermanentDelete(user.id)} className="text-red-600 hover:text-red-800">Delete Permanently</button>
+                                                    {canDelete && <button onClick={() => handlePermanentDelete(user.id)} className="text-red-600 hover:text-red-800">Delete Permanently</button>}
                                                 </td>
                                             </tr>
                                         )) : (
