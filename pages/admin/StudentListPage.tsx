@@ -58,7 +58,11 @@ const StudentListPage: React.FC = () => {
     const [sortConfig, setSortConfig] = useState<SortConfig>(null);
     const [gradeFilter, setGradeFilter] = useState('');
     const [discountFilter, setDiscountFilter] = useState(''); // '', 'yes', 'no'
-    const [courseFilters, setCourseFilters] = useState<string[]>([]);
+    // ?course=<name> opens the list filtered to that course (dashboard course tiles).
+    const [courseFilters, setCourseFilters] = useState<string[]>(() => {
+        const c = new URLSearchParams(window.location.search).get('course');
+        return c ? [c] : [];
+    });
     const [isCourseFilterOpen, setIsCourseFilterOpen] = useState(false);
     const [courseSearch, setCourseSearch] = useState('');
     const courseFilterRef = useRef<HTMLDivElement>(null);

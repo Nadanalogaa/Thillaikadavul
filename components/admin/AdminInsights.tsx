@@ -28,7 +28,8 @@ interface Demo { id: number; student_name: string; parent_name: string | null; p
 interface Capacity { batch_id: number; batch_name: string; course_name: string | null; teacher_name: string | null; students: number; max_students: number | null; state: 'over' | 'full' | 'empty' | 'small' }
 interface ExtraBill { id: number; title: string; category: string; mode: string; due_date: string | null; bills: number; paid: number; paid_amount: number; due_amount: number }
 export interface Insights {
-    counts: { students: number; batches: number; batches_with_students: number };
+    counts: { students: number; batches: number; batches_with_students: number; course_places?: number };
+    enrolments?: { total: number; by_course: { course_id: number; course: string; count: number; in_batch: number; graded: number; batches: number }[] };
     attendance: { days: number; threshold: number; count: number; students: LowAttendance[] };
     fees: {
         period: string; billed: number; collected: number; due: number; due_students: number; overdue: number; overdue_students: number;
@@ -148,7 +149,7 @@ const Panel: React.FC<{ title: string; action?: React.ReactNode; children: React
 
 // --- The dashboard -------------------------------------------------------------
 
-type Open = 'fees' | 'attendance' | 'batch' | 'unmarked' | 'joiners' | 'birthdays' | 'demos' | 'capacity' | 'extra' | null;
+type Open = 'fees' | 'attendance' | 'batch' | 'unmarked' | 'joiners' | 'birthdays' | 'demos' | 'capacity' | 'extra' | 'students' | null;
 
 export const AdminDashboardView: React.FC<{ teacherCount?: number; courseCount?: number }> = ({ teacherCount, courseCount }) => {
     const navigate = useNavigate();
@@ -188,7 +189,8 @@ export const AdminDashboardView: React.FC<{ teacherCount?: number; courseCount?:
 
             {/* Key numbers */}
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-6">
-                <Tile icon={GraduationCap} label="Students" value={data.counts.students} hint="Active" onClick={() => navigate('/admin/students')} />
+                <Tile icon={GraduationCap} label="Students / course places" value={data.counts.course_places ? `${data.counts.students} / ${data.counts.course_places}` : data.counts.students}
+                    hint={data.enrolments ? `${data.enrolments.by_course.length} courses · tap for each` : 'Active'} onClick={() => setOpen('students')} />
                 <Tile icon={Users} label="Teachers" value={teacherCount ?? '—'} hint="Teaching staff" onClick={() => navigate('/admin/teachers')} />
                 <Tile icon={Layers} label="Batches" value={data.counts.batches_with_students} hint={`${data.counts.batches} in all`} onClick={() => navigate('/admin/batches')} />
                 <Tile icon={BookOpen} label="Courses" value={courseCount ?? '—'} hint="Add or edit" onClick={() => navigate('/admin/courses')} />
@@ -271,6 +273,7 @@ export const AdminDashboardView: React.FC<{ teacherCount?: number; courseCount?:
             {open === 'demos' && <DemosSheet data={data} onClose={() => setOpen(null)} />}
             {open === 'capacity' && <CapacitySheet data={data} onClose={() => setOpen(null)} />}
             {open === 'extra' && <ExtraBillsSheet data={data} onClose={() => setOpen(null)} />}
+            {open === 'students' && <StudentsSheet data={data} onClose={() => setOpen(null)} />}
         </div>
     );
 };
@@ -478,6 +481,51 @@ const CapacitySheet: React.FC<{ data: Insights; onClose: () => void }> = ({ data
                     </tr>
                 ))}
             </Table>
+        </Sheet>
+    );
+};
+
+// Students and course places, course by course. A student in two courses
+// counts once in "students" and once in each course.
+const StudentsSheet: React.FC<{ data: Insights; onClose: () => void }> = ({ data, onClose }) => {
+    const navigate = useNavigate();
+    const e = data.enrolments;
+    const extra = e ? e.total - data.counts.students : 0;
+    return (
+        <Sheet title="Students and course places" subtitle="A student who takes two courses counts once as a student and once in each course." onClose={onClose}>
+            <div className="mb-4 grid grid-cols-2 gap-3">
+                <button type="button" onClick={() => navigate('/admin/students')} className="rounded-2xl border border-gray-200 p-4 text-left hover:border-indigo-300 hover:bg-indigo-50/40 dark:border-gray-700">
+                    <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Students</div>
+                    <div className="text-3xl font-bold text-gray-900 dark:text-white">{data.counts.students}</div>
+                    <div className="text-xs text-gray-500">Active, each counted once</div>
+                </button>
+                <div className="rounded-2xl border border-gray-200 p-4 dark:border-gray-700">
+                    <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Course places</div>
+                    <div className="text-3xl font-bold text-indigo-700 dark:text-indigo-300">{e ? e.total : '—'}</div>
+                    <div className="text-xs text-gray-500">{extra > 0 ? `${extra} more than students — some take two or more courses` : 'Each student in one course'}</div>
+                </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {(e?.by_course || []).map(c => {
+                    const pct = e && e.total ? Math.round((c.count / e.total) * 100) : 0;
+                    const noBatch = c.count - c.in_batch, noGrade = c.count - c.graded;
+                    return (
+                        <button key={c.course_id} type="button" onClick={() => navigate(`/admin/students?course=${encodeURIComponent(c.course)}`)}
+                            className="group rounded-2xl border border-gray-200 p-4 text-left transition hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md dark:border-gray-700">
+                            <div className="flex items-center justify-between gap-2">
+                                <span className="flex items-center gap-2 font-semibold text-gray-900 dark:text-white"><BookOpen className="h-4 w-4 text-indigo-500" />{c.course}</span>
+                                <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-indigo-500" />
+                            </div>
+                            <div className="mt-2 flex items-baseline gap-2"><span className="text-3xl font-bold text-gray-900 dark:text-white">{c.count}</span><span className="text-xs text-gray-500">students · {pct}%</span></div>
+                            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700"><div className="h-full rounded-full bg-indigo-500" style={{ width: `${pct}%` }} /></div>
+                            <div className="mt-2 text-xs text-gray-500">{c.batches} batch{c.batches === 1 ? '' : 'es'}
+                                {noBatch > 0 && <span className="ml-1 font-medium text-amber-600">· {noBatch} not in a batch</span>}
+                                {noGrade > 0 && <span className="ml-1 font-medium text-amber-600">· {noGrade} no grade</span>}
+                            </div>
+                        </button>
+                    );
+                })}
+            </div>
         </Sheet>
     );
 };

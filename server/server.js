@@ -7111,6 +7111,25 @@ Please review and approve this registration in the admin panel.`;
             const activeIds = new Set(students.map(st => Number(st.id)));
             const countIn = (b) => (Array.isArray(b.student_ids) ? b.student_ids : []).filter(x => activeIds.has(Number(x))).length;
 
+            // Course places ("head count across courses"): a student counts once
+            // per course they have a grade in OR a batch of. 338 students can be
+            // 383 places when some take two courses.
+            const placeMap = new Map();   // course_id -> { students:Set, graded:Set, batched:Set }
+            const slot = (cid) => { if (!placeMap.has(cid)) placeMap.set(cid, { all: new Set(), graded: new Set(), batched: new Set() }); return placeMap.get(cid); };
+            for (const g of grades) if (activeIds.has(Number(g.student_id))) { const p = slot(Number(g.course_id)); p.all.add(Number(g.student_id)); p.graded.add(Number(g.student_id)); }
+            for (const b of fullBatches) for (const sid of (Array.isArray(b.student_ids) ? b.student_ids : [])) {
+                if (!activeIds.has(Number(sid))) continue;
+                const p = slot(Number(b.course_id)); p.all.add(Number(sid)); p.batched.add(Number(sid));
+            }
+            const enrolments = {
+                total: [...placeMap.values()].reduce((t, p) => t + p.all.size, 0),
+                by_course: [...placeMap.entries()].map(([cid, p]) => ({
+                    course_id: cid, course: (courseById.get(cid) || {}).name || 'Other', count: p.all.size,
+                    in_batch: p.batched.size, graded: p.graded.size,
+                    batches: fullBatches.filter(b => Number(b.course_id) === cid && countIn(b) > 0).length,
+                })).sort((a, b) => b.count - a.count),
+            };
+
             // 1. Classes held in the last 7 days with no attendance marked.
             const since = addDays(today, -7);
             const sessRows = (await pool.query(
@@ -7224,7 +7243,9 @@ Please review and approve this registration in the admin panel.`;
             res.json({
                 generated_at: new Date().toISOString(),
                 attendance: { days, threshold, count: lowAttendance.length, students: lowAttendance },
-                counts: { students: students.length, batches: fullBatches.length, batches_with_students: fullBatches.filter(b => countIn(b) > 0).length },
+                counts: { students: students.length, batches: fullBatches.length, batches_with_students: fullBatches.filter(b => countIn(b) > 0).length,
+                    course_places: enrolments.total },
+                enrolments,
                 unmarked: { count: unmarked.length, classes: unmarked },
                 today: { date: today, weekday: todayName, now: nowTime, classes: todayClasses },
                 joiners: { month: period, count: joiners.length, fee_not_set: joiners.filter(j => !j.fee_set).length, students: joiners, leavers },
