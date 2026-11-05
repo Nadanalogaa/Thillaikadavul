@@ -217,14 +217,16 @@ const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                    AND RIGHT(regexp_replace(COALESCE(contact_number, ''), '\\D', '', 'g'), 10) = $1
                  ORDER BY is_primary DESC NULLS LAST, id LIMIT 1`, [digits(s.phone)])).rows[0];
             if (!parent) {
-                const p = await insertUser({ name: s.parent_name || s.name, email: s.email, phone: s.phone, role: 'Parent',
+                // The family login: the parent's name when the sheet has it, else e.g. "Parent of Rohana".
+                const p = await insertUser({ name: s.parent_name || s.family_name || `Parent of ${s.name}`, email: s.email, phone: s.phone, role: 'Parent',
                     address: s.address, mode: s.mode, is_primary: true, placeholderDomain: 'parent' });
-                parent = { id: p.id, name: s.parent_name };
+                parent = { id: p.id, name: s.parent_name || null };
                 count('families created (new phone)');
             } else count('added to an existing family');
             const courseNames = [...new Set(s.enrolments.map(e => e.course))];
             const child = await insertUser({ name: s.name, email: null, phone: s.phone, role: 'Student', dob: s.dob,
-                address: s.address, mode: s.mode, courses: courseNames, father_name: s.parent_name, standard: s.standard,
+                // Parent shown on the child: from the sheet, or the existing family's parent.
+                address: s.address, mode: s.mode, courses: courseNames, father_name: s.parent_name || (parent.name && !/^Parent of /i.test(parent.name) ? parent.name : null), standard: s.standard,
                 parent_id: parent.id, is_primary: false, placeholderDomain: 'child', grade: s.enrolments[0]?.grade });
             for (const e of s.enrolments) await enrol(child.id, e, { isNew: true });
             log(`   + ${child.user_id} ${s.name} — ${s.enrolments.map(e => `${e.course}${e.grade ? ` ${e.grade}` : ''}${e.batch ? ` (${e.batch})` : ' (no batch)'}`).join(', ')}`);
