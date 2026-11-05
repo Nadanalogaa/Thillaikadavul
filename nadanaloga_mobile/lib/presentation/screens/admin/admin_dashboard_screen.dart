@@ -196,10 +196,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         }
         final s = state is DashboardLoaded ? state.stats : null;
         String v(int? n) => n == null ? '–' : '$n';
+        // Students / course places from the insights (a student taking two
+        // courses counts once as a student and once in each course).
+        final e = _insights?.enrolments;
+        final students = e?.students ?? s?.students;
+        final places = e?.coursePlaces;
+        final courses = e?.byCourse.length ?? 0;
         return KpiRow(items: [
-          KpiItem('Students', v(s?.students), Icons.school_outlined,
-              AppColors.studentAccent,
-              () => context.push('/admin/drilldown/students')),
+          KpiItem(
+            'Students / courses',
+            places == null || students == null
+                ? v(students)
+                : '$students / $places',
+            Icons.school_outlined,
+            AppColors.studentAccent,
+            () => _open('/admin/insights/enrolments'),
+            hint: courses > 0
+                ? '$courses ${courses == 1 ? 'course' : 'courses'} · tap'
+                : 'tap',
+            wide: true,
+          ),
           KpiItem('Teachers', v(s?.teachers), Icons.person_outline,
               AppColors.teacherAccent,
               () => context.push('/admin/drilldown/teachers')),

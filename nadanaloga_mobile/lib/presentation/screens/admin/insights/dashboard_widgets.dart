@@ -98,7 +98,14 @@ class KpiItem {
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
-  const KpiItem(this.label, this.value, this.icon, this.color, this.onTap);
+
+  /// Small grey line under the label, e.g. "7 courses · tap".
+  final String? hint;
+
+  /// Takes a wider slot (for a longer value such as "213 / 236").
+  final bool wide;
+  const KpiItem(this.label, this.value, this.icon, this.color, this.onTap,
+      {this.hint, this.wide = false});
 }
 
 /// One row of compact count tiles; scrolls sideways if they don't fit.
@@ -106,16 +113,27 @@ class KpiRow extends StatelessWidget {
   final List<KpiItem> items;
   const KpiRow({super.key, required this.items});
 
+  static const _wideFactor = 1.6;
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, c) {
       const gap = 8.0;
-      // Four fit across; with more, tiles widen a little and the next one
-      // peeks in to show the row scrolls.
-      final across = items.length > 4 ? 3.6 : 4.0;
-      final w = ((c.maxWidth - gap * 3) / across).clamp(68.0, 120.0);
+      final units = items.fold<double>(
+          0, (s, k) => s + (k.wide ? _wideFactor : 1.0));
+      // Up to four normal tiles (or three plus one wide) fit across; with
+      // more, tiles widen a little and the next one peeks in to show the
+      // row scrolls.
+      final double w;
+      if (units <= 4.0 + _wideFactor - 1) {
+        w = ((c.maxWidth - gap * (items.length - 1)) / units)
+            .clamp(60.0, 120.0);
+      } else {
+        w = ((c.maxWidth - gap * 3) / 3.6).clamp(68.0, 120.0);
+      }
+      final hasHint = items.any((k) => k.hint != null);
       return SizedBox(
-        height: 86,
+        height: hasHint ? 100 : 86,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           itemCount: items.length,
@@ -123,7 +141,7 @@ class KpiRow extends StatelessWidget {
           itemBuilder: (context, i) {
             final k = items[i];
             return SizedBox(
-              width: w,
+              width: k.wide ? w * _wideFactor : w,
               child: DashPanel(
                 onTap: k.onTap,
                 padding: const EdgeInsets.fromLTRB(10, 10, 6, 8),
@@ -139,10 +157,25 @@ class KpiRow extends StatelessWidget {
                           style: AppTextStyles.h3.copyWith(
                               fontWeight: FontWeight.w700, height: 1.1)),
                     ),
-                    Text(k.label,
-                        style: AppTextStyles.caption,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
+                    if (k.wide)
+                      // Shrinks a little rather than cutting the label off.
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(k.label,
+                            style: AppTextStyles.caption, maxLines: 1),
+                      )
+                    else
+                      Text(k.label,
+                          style: AppTextStyles.caption,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    if (k.hint != null)
+                      Text(k.hint!,
+                          style: AppTextStyles.caption.copyWith(
+                              fontSize: 10, color: AppColors.textHint),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),

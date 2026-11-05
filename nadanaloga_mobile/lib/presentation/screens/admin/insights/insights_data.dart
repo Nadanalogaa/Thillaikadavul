@@ -435,6 +435,41 @@ class ExtraBillInsight {
         dueAmount = _num(j['due_amount']);
 }
 
+/// One course's places: how many students take it, and how many of them
+/// are in a batch / have a grade.
+class CourseEnrolment {
+  final int? courseId;
+  final String course;
+  final int count;
+  final int inBatch;
+  final int graded;
+  final int batches;
+  CourseEnrolment(Map<String, dynamic> j)
+      : courseId = _intOrNull(j['course_id']),
+        course = _str(j['course']) ?? 'Course',
+        count = _int(j['count']),
+        inBatch = _int(j['in_batch']),
+        graded = _int(j['graded']),
+        batches = _int(j['batches']);
+
+  int get notInBatch => count - inBatch > 0 ? count - inBatch : 0;
+  int get noGrade => count - graded > 0 ? count - graded : 0;
+}
+
+/// Headline counts plus course places. A student taking two courses counts
+/// once in [students] and once in each course, so [coursePlaces] can be
+/// larger than [students].
+class EnrolmentInsights {
+  final int? students;
+  final int? coursePlaces;
+  final List<CourseEnrolment> byCourse;
+  EnrolmentInsights(Map<String, dynamic> counts, Map<String, dynamic> e)
+      : students = _intOrNull(counts['students']),
+        coursePlaces = _intOrNull(counts['course_places']) ??
+            _intOrNull(e['total']),
+        byCourse = _maps(e['by_course']).map(CourseEnrolment.new).toList();
+}
+
 class AdminInsights {
   final AttendanceInsights attendance;
   final FeeInsights fees;
@@ -447,6 +482,7 @@ class AdminInsights {
   final CapacityInsights capacity;
   final List<TrendPoint> trend;
   final List<ExtraBillInsight> extraBills;
+  final EnrolmentInsights enrolments;
 
   const AdminInsights({
     required this.attendance,
@@ -460,6 +496,7 @@ class AdminInsights {
     required this.capacity,
     required this.trend,
     required this.extraBills,
+    required this.enrolments,
   });
 
   factory AdminInsights.fromJson(Map<String, dynamic> j) {
@@ -477,6 +514,7 @@ class AdminInsights {
       capacity: CapacityInsights(m('capacity')),
       trend: _maps(j['trend']).map(TrendPoint.new).toList(),
       extraBills: _maps(j['extra_bills']).map(ExtraBillInsight.new).toList(),
+      enrolments: EnrolmentInsights(m('counts'), m('enrolments')),
     );
   }
 

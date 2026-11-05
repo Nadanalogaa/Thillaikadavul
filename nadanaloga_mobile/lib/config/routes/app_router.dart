@@ -78,6 +78,7 @@ import '../../presentation/screens/admin/drilldown/student_detail_drilldown_scre
 import '../../presentation/screens/admin/drilldown/teachers_drilldown_screen.dart';
 import '../../presentation/screens/admin/batches/batch_list_screen.dart';
 import '../../presentation/screens/admin/drilldown/pending_fees_drilldown_screen.dart';
+import '../../presentation/screens/admin/insights/enrolments_screen.dart';
 import '../../presentation/screens/admin/insights/low_attendance_screen.dart';
 import '../../presentation/screens/admin/insights/more_insight_screens.dart';
 import '../../presentation/screens/admin/insights/not_in_batch_screen.dart';
@@ -588,6 +589,10 @@ class AppRouter {
               ),
             ),
             // "Needs attention" lists (dashboard + batches banner)
+            GoRoute(
+              path: 'insights/enrolments',
+              builder: (context, state) => const EnrolmentsInsightScreen(),
+            ),
             GoRoute(
               path: 'insights/fees',
               builder: (context, state) => const PendingFeesInsightScreen(),
