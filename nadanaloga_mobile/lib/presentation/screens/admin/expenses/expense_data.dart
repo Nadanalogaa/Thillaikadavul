@@ -126,6 +126,63 @@ class DueExpense {
       );
 }
 
+/// One past expense (last 13 months), used to prefill and to warn about
+/// paying the same teacher twice for a month.
+class ExpenseHistory {
+  final int id;
+  final String category;
+  final int? locationId;
+  final int? teacherId;
+  final String? paidTo;
+  final num amount;
+  final String? paymentMode;
+  final String? forMonth; // YYYY-MM
+  final String date; // YYYY-MM-DD
+
+  const ExpenseHistory({
+    required this.id,
+    required this.category,
+    this.locationId,
+    this.teacherId,
+    this.paidTo,
+    required this.amount,
+    this.paymentMode,
+    this.forMonth,
+    required this.date,
+  });
+
+  /// The month this payment covers: its for-month, else the month paid.
+  String get month => forMonth ?? (date.length >= 7 ? date.substring(0, 7) : date);
+
+  factory ExpenseHistory.fromJson(Map<String, dynamic> j) => ExpenseHistory(
+        id: _int(j['id']) ?? 0,
+        category: _str(j['category']) ?? '',
+        locationId: _int(j['location_id']),
+        teacherId: _int(j['teacher_id']),
+        paidTo: _str(j['paid_to']),
+        amount: _num(j['amount']),
+        paymentMode: _str(j['payment_mode']),
+        forMonth: _str(j['for_month']),
+        date: '${j['expense_date'] ?? ''}'.split('T').first,
+      );
+}
+
+/// What a category needs on the form.
+enum ExpenseKind { salary, rent, utility, travel, snacks, purchase, other }
+
+ExpenseKind expenseKindOf(String category) {
+  bool m(String re) => RegExp(re, caseSensitive: false).hasMatch(category);
+  if (m(r'teacher|salary')) return ExpenseKind.salary;
+  if (m(r'^rent')) return ExpenseKind.rent;
+  if (m(r'electric|water|internet|phone')) return ExpenseKind.utility;
+  if (m(r'travel|convey')) return ExpenseKind.travel;
+  if (m(r'tea|snack')) return ExpenseKind.snacks;
+  if (m(r'material|suppl|costume|prop|procure|equip|repair|print|market|software|house')) {
+    return ExpenseKind.purchase;
+  }
+  return ExpenseKind.other;
+}
+
 class ExpenseMeta {
   final List<String> categories;
   final List<String> recurring;
@@ -134,6 +191,7 @@ class ExpenseMeta {
   final List<IdName> teachers;
   final List<String> paidTo;
   final List<DueExpense> due;
+  final List<ExpenseHistory> history; // newest first
   final String thisMonth;
 
   const ExpenseMeta({
@@ -144,6 +202,7 @@ class ExpenseMeta {
     required this.teachers,
     required this.paidTo,
     required this.due,
+    this.history = const [],
     required this.thisMonth,
   });
 
@@ -170,10 +229,21 @@ class ExpenseMeta {
                 .map((e) => DueExpense.fromJson(Map<String, dynamic>.from(e)))
                 .toList()
             : const [],
+        history: j['history'] is List
+            ? (j['history'] as List)
+                .whereType<Map>()
+                .map((e) => ExpenseHistory.fromJson(Map<String, dynamic>.from(e)))
+                .toList()
+            : const [],
         thisMonth: _str(j['this_month']) ?? ExpenseDates.monthKey(DateTime.now()),
       );
 
   bool isRecurring(String category) => recurring.contains(category);
+
+  /// The teacher-salary category ("Teacher fees / salary").
+  String get salaryCategory => categories.firstWhere(
+      (c) => expenseKindOf(c) == ExpenseKind.salary,
+      orElse: () => 'Teacher fees / salary');
 }
 
 /// "key" / total / count rows of the summary breakdowns.
@@ -235,6 +305,12 @@ class ExpenseDates {
 
   /// "November 2026".
   static String monthLong(DateTime d) => '${monthsLong[d.month - 1]} ${d.year}';
+
+  /// "November 2026" from "2026-11".
+  static String monthLongKey(String? key) {
+    final d = parseMonth(key);
+    return d == null ? (key ?? '') : monthLong(d);
+  }
 
   /// "Tue, 4 Nov 2026".
   static String dayHeading(String ymdStr) {

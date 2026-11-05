@@ -37,6 +37,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   late DateTime _month;
   DateTimeRange? _range;
   String? _category;
+  int? _locationId; // list filter; also the form's default location
 
   bool _loading = true;
   String? _error;
@@ -98,6 +99,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         'from': ExpenseDates.ymd(_from),
         'to': ExpenseDates.ymd(_to),
         if (_category != null) 'category': _category,
+        if (_locationId != null) 'location_id': _locationId,
         if (_search.text.trim().isNotEmpty) 'q': _search.text.trim(),
       };
       final r = await _api.dio.get(ApiEndpoints.expenses, queryParameters: q);
@@ -167,14 +169,21 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     _debounce = Timer(const Duration(milliseconds: 400), _loadRows);
   }
 
-  Future<void> _openForm({ExpenseRow? edit, DueExpense? prefill}) async {
+  Future<void> _openForm(
+      {ExpenseRow? edit, DueExpense? prefill, bool salary = false}) async {
     if (_meta == null) {
       await _loadMeta();
       if (_meta == null) return;
     }
     if (!mounted) return;
     final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
-      builder: (_) => ExpenseFormScreen(meta: _meta!, existing: edit, prefill: prefill),
+      builder: (_) => ExpenseFormScreen(
+        meta: _meta!,
+        existing: edit,
+        prefill: prefill,
+        initialCategory: salary ? _meta!.salaryCategory : null,
+        defaultLocationId: _locationId,
+      ),
     ));
     if (saved == true && mounted) _loadAll();
   }
@@ -217,6 +226,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             _searchField(),
             const SizedBox(height: 10),
             _categoryChips(),
+            const SizedBox(height: 10),
+            _locationAndSalaryRow(),
             const SizedBox(height: 12),
             if (_metaError != null && _meta == null) ...[
               DashPanel(
@@ -331,6 +342,51 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 },
               ),
       ),
+    );
+  }
+
+  /// Location filter + the "Teacher salary" quick action.
+  Widget _locationAndSalaryRow() {
+    final locations = _meta?.locations ?? const <IdName>[];
+    return Row(
+      children: [
+        if (locations.isNotEmpty)
+          Expanded(
+            child: DropdownButtonFormField<int?>(
+              initialValue: _locationId,
+              isExpanded: true,
+              isDense: true,
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
+              decoration: const InputDecoration(
+                isDense: true,
+                contentPadding: EdgeInsets.fromLTRB(12, 10, 8, 10),
+              ),
+              items: [
+                const DropdownMenuItem<int?>(
+                    value: null, child: Text('All locations', overflow: TextOverflow.ellipsis)),
+                for (final l in locations)
+                  DropdownMenuItem<int?>(
+                      value: l.id, child: Text(l.name, overflow: TextOverflow.ellipsis)),
+              ],
+              onChanged: (v) {
+                setState(() => _locationId = v);
+                _loadRows();
+              },
+            ),
+          )
+        else
+          const Spacer(),
+        const SizedBox(width: 8),
+        FilledButton.tonalIcon(
+          onPressed: () => _openForm(salary: true),
+          icon: const Icon(Icons.school_outlined, size: 18),
+          label: const Text('Teacher salary'),
+          style: FilledButton.styleFrom(
+            minimumSize: const Size(0, 44),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+          ),
+        ),
+      ],
     );
   }
 
@@ -537,7 +593,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               const Icon(Icons.receipt_long_outlined, size: 48, color: AppColors.textHint),
               const SizedBox(height: 8),
               Text(
-                _category != null || _search.text.trim().isNotEmpty
+                _category != null || _locationId != null || _search.text.trim().isNotEmpty
                     ? 'No expenses match these filters.'
                     : 'No expenses entered for this period.',
                 style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
