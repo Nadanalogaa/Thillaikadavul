@@ -4,6 +4,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { getCurrentUser, logout } from '../../api';
 import type { User } from '../../types';
 import AdminSidebar from './AdminSidebar';
+import { refreshAdminRole } from '../../utils/adminRole';
 import ThemeToggle from '../ThemeToggle';
 import UnifiedNotificationBell from '../UnifiedNotificationBell';
 
@@ -27,6 +28,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             }
         };
         fetchUser();
+        // Super admin or staff admin decides which buttons show; reload once if it changed.
+        refreshAdminRole().then(changed => { if (changed) window.location.reload(); });
     }, []);
 
     const handleLogout = async () => {

@@ -18,6 +18,9 @@ import SetPasswordModal from './components/SetPasswordModal';
 import RegisterPage from './pages/RegisterPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminCoursesPage from './pages/admin/CoursesPage';
+import ExpensesPage from './pages/admin/ExpensesPage';
+import AccountsPage from './pages/admin/AccountsPage';
+import StaffAdminsPage from './pages/admin/StaffAdminsPage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import StudentDashboardPage from './pages/StudentDashboardPage';
 import TeacherDashboardPage from './pages/TeacherDashboardPage';
@@ -277,6 +280,9 @@ function App() {
             <Route path="/admin/notifications" element={<AdminProtectedRoute><NotificationSettingsPage /></AdminProtectedRoute>} />
             <Route path="/admin/app-update" element={<AdminProtectedRoute><AppUpdatePage /></AdminProtectedRoute>} />
             <Route path="/admin/courses" element={<AdminProtectedRoute><AdminCoursesPage /></AdminProtectedRoute>} />
+            <Route path="/admin/expenses" element={<AdminProtectedRoute><ExpensesPage /></AdminProtectedRoute>} />
+            <Route path="/admin/accounts" element={<AdminProtectedRoute><AccountsPage /></AdminProtectedRoute>} />
+            <Route path="/admin/staff-admins" element={<AdminProtectedRoute><StaffAdminsPage /></AdminProtectedRoute>} />
             <Route path="/admin/locations" element={<AdminProtectedRoute><LocationsManagementPage /></AdminProtectedRoute>} />
             <Route path="/admin/fees" element={<AdminProtectedRoute><FeeManagementPage /></AdminProtectedRoute>} />
             <Route path="/admin/grades" element={<AdminProtectedRoute><GradeManagementPage /></AdminProtectedRoute>} />

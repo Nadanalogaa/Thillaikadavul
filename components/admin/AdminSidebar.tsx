@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
+import { isSuperAdmin } from '../../utils/adminRole';
 import { useTheme } from '../../contexts/ThemeContext';
 import {
     DashboardIcon, UsersIcon, BatchesIcon, MapPinIcon, FeesIcon, CalendarIcon,
@@ -24,6 +25,11 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ isOpen, onClose }) => {
         { name: 'Courses', path: '/admin/courses', icon: BookIcon },
         { name: 'Locations', path: '/admin/locations', icon: MapPinIcon },
         { name: 'Fees', path: '/admin/fees', icon: FeesIcon },
+        { name: 'Expenses', path: '/admin/expenses', icon: FeesIcon },
+        ...(isSuperAdmin() ? [
+            { name: 'Accounts', path: '/admin/accounts', icon: FeesIcon },
+            { name: 'Staff admins', path: '/admin/staff-admins', icon: UsersIcon },
+        ] : []),
         { name: 'Demo Bookings', path: '/admin/demo-bookings', icon: DemoClassIcon },
         { name: 'Events', path: '/admin/events', icon: CalendarIcon },
         { name: 'Grade Exams', path: '/admin/grade-exams', icon: CertificateIcon },

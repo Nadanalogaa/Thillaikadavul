@@ -221,6 +221,8 @@ export const loginUser = async (email: string, password: string): Promise<User> 
       notes: user.notes,
       students: user.students || [],  // Add students array for parent accounts
       mustChangePassword: user.must_change_password === true,
+      // Super admin can delete; staff admins (role Admin) cannot.
+      isSuperAdmin: user.is_super_admin === true,
       // Every switchable profile behind this login (grouped by phone number).
       profiles: Array.isArray(user.profiles) ? user.profiles : []
     } as any;

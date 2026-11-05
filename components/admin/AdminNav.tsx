@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
+import { isSuperAdmin } from '../../utils/adminRole';
 import { 
     DashboardIcon, UsersIcon, BatchesIcon, MapPinIcon, FeesIcon, CalendarIcon, 
     CertificateIcon, BookIcon, MegaphoneIcon, TrashIcon, MenuIcon, XIcon, DemoClassIcon 
@@ -17,6 +18,11 @@ const AdminNav: React.FC = () => {
         { name: 'Courses', path: '/admin/courses', icon: BookIcon },
         { name: 'Locations', path: '/admin/locations', icon: MapPinIcon },
         { name: 'Fees', path: '/admin/fees', icon: FeesIcon },
+        { name: 'Expenses', path: '/admin/expenses', icon: FeesIcon },
+        ...(isSuperAdmin() ? [
+            { name: 'Accounts', path: '/admin/accounts', icon: FeesIcon },
+            { name: 'Staff admins', path: '/admin/staff-admins', icon: UsersIcon },
+        ] : []),
         { name: 'Grades & Fees', path: '/admin/grades', icon: FeesIcon },
         { name: 'Discounts', path: '/admin/discounts', icon: FeesIcon },
         { name: 'Reports', path: '/admin/reports', icon: FeesIcon },

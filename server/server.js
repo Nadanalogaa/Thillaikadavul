@@ -135,6 +135,21 @@ const uploadPaymentProof = multer({
 });
 
 // Study materials (Admin -> Book materials): PDFs and images, up to 20 MB.
+// Expense bills / receipts (Admin -> Expenses): PDF or image, up to 10 MB.
+const EXPENSES_DIR = path.join(UPLOADS_DIR, 'expenses');
+if (!fs.existsSync(EXPENSES_DIR)) fs.mkdirSync(EXPENSES_DIR, { recursive: true });
+const uploadExpenseDoc = multer({
+    storage: multer.diskStorage({
+        destination: (req, file, cb) => cb(null, EXPENSES_DIR),
+        filename: (req, file, cb) => cb(null, `${uuidv4()}${path.extname(file.originalname).toLowerCase()}`),
+    }),
+    fileFilter: (req, file, cb) => {
+        const ok = ['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.heic'].includes(path.extname(file.originalname).toLowerCase());
+        cb(ok ? null : new Error('Only PDF or image files are allowed'), ok);
+    },
+    limits: { fileSize: 10 * 1024 * 1024 },
+});
+
 const MATERIALS_DIR = path.join(UPLOADS_DIR, 'materials');
 if (!fs.existsSync(MATERIALS_DIR)) fs.mkdirSync(MATERIALS_DIR, { recursive: true });
 const uploadMaterial = multer({
@@ -518,6 +533,29 @@ async function startServer() {
                 // A batch can have its own monthly fee (e.g. an adults' batch at a flat
                 // ₹1,500 whatever the grade); empty = the grade's fee applies.
                 await client.query(`ALTER TABLE batches ADD COLUMN IF NOT EXISTS monthly_fee NUMERIC`);
+                // Expenses (Admin -> Expenses). Deleting is the super admin's and
+                // only hides the row (is_deleted), so totals can be audited.
+                await client.query(`
+                    CREATE TABLE IF NOT EXISTS expenses (
+                        id SERIAL PRIMARY KEY,
+                        expense_date DATE NOT NULL,
+                        category VARCHAR(80) NOT NULL,
+                        particulars TEXT NOT NULL,
+                        amount NUMERIC(12,2) NOT NULL CHECK (amount > 0),
+                        paid_to VARCHAR(200),
+                        payment_mode VARCHAR(30),
+                        location_id INTEGER,
+                        teacher_id INTEGER,
+                        for_month VARCHAR(7),
+                        reference_no VARCHAR(100),
+                        reference_url TEXT,
+                        reference_name TEXT,
+                        notes TEXT,
+                        created_by INTEGER, created_by_name VARCHAR(200), created_at TIMESTAMPTZ DEFAULT NOW(),
+                        updated_by INTEGER, updated_by_name VARCHAR(200), updated_at TIMESTAMPTZ,
+                        is_deleted BOOLEAN NOT NULL DEFAULT false, deleted_by_name VARCHAR(200), deleted_at TIMESTAMPTZ
+                    )`);
+                await client.query(`CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses (expense_date) WHERE is_deleted = false`);
                 await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS grade_id INTEGER`);
                 await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS batch_id INTEGER`);
                 await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS original_amount NUMERIC`);
@@ -1210,11 +1248,25 @@ async function startServer() {
         res.status(401).json({ message: 'Unauthorized' });
     };
 
-    const ensureAdmin = (req, res, next) => {
-        if (!req.session.user) {
+    // Admins: the super admin (is_super_admin) and staff admins (role Admin).
+    // Staff admins view, add and edit; deleting is for the super admin only
+    // (ensureSuperAdmin). A staff admin the super admin has disabled is
+    // stopped on the next request, not only at the next sign-in.
+    const ensureAdmin = async (req, res, next) => {
+        const me = req.session.user;
+        if (!me) {
             return res.status(401).json({ message: 'Unauthorized: You must be logged in to perform this action.' });
         }
-        if (req.session.user.role && req.session.user.role.toLowerCase() === 'admin') {
+        if (me.is_super_admin === true) return next();
+        if (me.role && me.role.toLowerCase() === 'admin') {
+            try {
+                const row = (await pool.query('SELECT status, is_deleted, role FROM users WHERE id = $1', [me.id])).rows[0];
+                if (!row || row.is_deleted || String(row.role || '').toLowerCase() !== 'admin'
+                    || String(row.status || 'active').toLowerCase() !== 'active') {
+                    req.session.destroy(() => {});
+                    return res.status(401).json({ message: 'Your admin access has been turned off. Please contact the academy.' });
+                }
+            } catch (e) { return next(e); }
             return next();
         }
         res.status(403).json({ message: 'Forbidden: Administrative privileges required.' });
@@ -1227,7 +1279,7 @@ async function startServer() {
         if (req.session.user.is_super_admin === true) {
             return next();
         }
-        res.status(403).json({ message: 'Forbidden: Super Admin privileges required.' });
+        res.status(403).json({ message: 'Only the super admin can do this. Please ask the super admin.' });
     };
 
     // --- Email & Notification Helpers ---
@@ -2257,6 +2309,11 @@ async function startServer() {
                 }
             }
             if (!user) return res.status(401).json({ message: 'Invalid credentials.' });
+            // A staff admin the super admin turned off cannot sign in.
+            if (String(user.role || '').trim().toLowerCase() === 'admin' && user.is_super_admin !== true
+                && String(user.status || 'active').toLowerCase() !== 'active') {
+                return res.status(403).json({ message: 'Your admin access has been turned off. Please contact the academy.' });
+            }
 
             delete user.password;
 
@@ -3465,6 +3522,20 @@ Please review and approve this registration in the admin panel.`;
         try {
             const { id } = req.params;
             const userData = req.body;
+            // Roles and admin accounts are the super admin's to change.
+            if (req.session.user.is_super_admin !== true) {
+                delete userData.is_super_admin;
+                const target = (await pool.query('SELECT role, is_super_admin FROM users WHERE id = $1', [id])).rows[0];
+                if (target && (target.is_super_admin || (String(target.role || '').toLowerCase() === 'admin' && Number(id) !== Number(req.session.user.id)))) {
+                    return res.status(403).json({ message: 'Only the super admin can change admin accounts.' });
+                }
+                if (userData.role && String(userData.role).toLowerCase() === 'admin') {
+                    return res.status(403).json({ message: 'Only the super admin can make someone an admin.' });
+                }
+                if (target && String(target.role || '').toLowerCase() === 'admin') delete userData.role;
+            } else if (Number(id) === Number(req.session.user.id)) {
+                delete userData.is_super_admin;   // never demote yourself by accident
+            }
 
             // Only write columns that actually exist. The admin client sends a
             // dozen fields with no column behind them (preferred_timings,
@@ -3544,7 +3615,7 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // Soft delete user
-    app.delete('/api/users/:id', ensureAdmin, async (req, res) => {
+    app.delete('/api/users/:id', ensureSuperAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const result = await pool.query(
@@ -3593,7 +3664,7 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // Permanently delete user
-    app.delete('/api/users/:id/permanent', ensureAdmin, async (req, res) => {
+    app.delete('/api/users/:id/permanent', ensureSuperAdmin, async (req, res) => {
         const client = await pool.connect();
         try {
             const { id } = req.params;
@@ -4297,7 +4368,7 @@ Please review and approve this registration in the admin panel.`;
 
     // Close an extra bill: no more orders, and every UNPAID bill from it is
     // withdrawn. Paid ones (and their receipts) stay.
-    app.post('/api/fee-charges/:id/close', ensureAdmin, async (req, res) => {
+    app.post('/api/fee-charges/:id/close', ensureSuperAdmin, async (req, res) => {
         try {
             const c = (await pool.query(`UPDATE fee_charges SET status = 'closed', updated_at = NOW() WHERE id = $1 RETURNING *`, [req.params.id])).rows[0];
             if (!c) return res.status(404).json({ message: 'Bill not found.' });
@@ -4527,7 +4598,7 @@ Please review and approve this registration in the admin panel.`;
 
     // Reverse a receipt (admin, reason required). Bills return to pending and the
     // family is told; nothing is deleted.
-    app.post('/api/fees/receipts/:receipt/reverse', ensureAdmin, async (req, res) => {
+    app.post('/api/fees/receipts/:receipt/reverse', ensureSuperAdmin, async (req, res) => {
         try {
             const r = await reverseReceipt({
                 receiptNumber: req.params.receipt,
@@ -5080,7 +5151,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.delete('/api/batches/:id', ensureAdmin, async (req, res) => {
+    app.delete('/api/batches/:id', ensureSuperAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const result = await pool.query('DELETE FROM batches WHERE id = $1 RETURNING id', [id]);
@@ -5342,7 +5413,7 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // Delete uploaded icon
-    app.delete('/api/upload/icon/:filename', ensureAdmin, async (req, res) => {
+    app.delete('/api/upload/icon/:filename', ensureSuperAdmin, async (req, res) => {
         try {
             const { filename } = req.params;
             const filePath = path.join(ICONS_DIR, filename);
@@ -5440,7 +5511,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.delete('/api/courses/:id', ensureAdmin, async (req, res) => {
+    app.delete('/api/courses/:id', ensureSuperAdmin, async (req, res) => {
         const client = await pool.connect();
         try {
             const { id } = req.params;
@@ -5821,7 +5892,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.delete('/api/grades/:id', ensureAdmin, async (req, res) => {
+    app.delete('/api/grades/:id', ensureSuperAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             // Soft-delete so historical invoices/assignments stay intact.
@@ -7339,7 +7410,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.delete('/api/demo-bookings/:id', ensureAdmin, async (req, res) => {
+    app.delete('/api/demo-bookings/:id', ensureSuperAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const result = await pool.query('DELETE FROM demo_bookings WHERE id = $1 RETURNING id', [id]);
@@ -7460,7 +7531,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.delete('/api/events/:id', ensureAdmin, async (req, res) => {
+    app.delete('/api/events/:id', ensureSuperAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const result = await pool.query('DELETE FROM events WHERE id = $1 RETURNING id', [id]);
@@ -7532,7 +7603,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.delete('/api/grade-exams/:id', ensureAdmin, async (req, res) => {
+    app.delete('/api/grade-exams/:id', ensureSuperAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const result = await pool.query('DELETE FROM grade_exams WHERE id = $1 RETURNING id', [id]);
@@ -7604,7 +7675,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.delete('/api/book-materials/:id', ensureAdmin, async (req, res) => {
+    app.delete('/api/book-materials/:id', ensureSuperAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const result = await pool.query('DELETE FROM book_materials WHERE id = $1 RETURNING id', [id]);
@@ -7682,7 +7753,7 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    app.delete('/api/notices/:id', ensureAdmin, async (req, res) => {
+    app.delete('/api/notices/:id', ensureSuperAdmin, async (req, res) => {
         try {
             const { id } = req.params;
             const result = await pool.query('DELETE FROM notices WHERE id = $1 RETURNING id', [id]);
@@ -9019,6 +9090,331 @@ Please review and approve this registration in the admin panel.`;
     });
 
     // --- Salary Management API (Super Admin only) ---
+
+    // --- Staff admins (super admin only) --------------------------------------
+    // Staff admins (role Admin) view, add and edit everything; deleting is the
+    // super admin's. The super admin creates them, turns them off and resets
+    // their password here.
+    const staffView = (u) => ({ id: u.id, name: u.name, email: u.email, phone: u.contact_number, user_id: u.user_id,
+        status: String(u.status || 'active').toLowerCase(), is_super_admin: u.is_super_admin === true,
+        must_change_password: u.must_change_password === true, created_at: u.created_at });
+    app.get('/api/staff-admins', ensureSuperAdmin, async (req, res) => {
+        try {
+            const rows = (await pool.query(
+                `SELECT id, name, email, contact_number, user_id, status, is_super_admin, must_change_password, created_at
+                   FROM users WHERE is_deleted = false AND (LOWER(TRIM(role)) = 'admin' OR is_super_admin = true)
+                  ORDER BY is_super_admin DESC, name`)).rows;
+            res.json(rows.map(staffView));
+        } catch (error) {
+            console.error('Error listing admins:', error);
+            res.status(500).json({ message: 'Server error listing admins.' });
+        }
+    });
+    app.post('/api/staff-admins', ensureSuperAdmin, async (req, res) => {
+        try {
+            const name = String(req.body.name || '').trim();
+            const email = String(req.body.email || '').trim().toLowerCase();
+            const phone = String(req.body.phone || '').replace(/\D/g, '').slice(-10) || null;
+            const password = String(req.body.password || '');
+            if (!name) return res.status(400).json({ message: 'Enter the name.' });
+            if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ message: 'Enter a valid email; staff sign in with it.' });
+            if (password.length < 6) return res.status(400).json({ message: 'The first password must be at least 6 characters.' });
+            if ((await pool.query('SELECT 1 FROM users WHERE LOWER(email) = $1', [email])).rows.length) {
+                return res.status(409).json({ message: 'Someone already uses this email.' });
+            }
+            const seq = (await pool.query(`SELECT nextval('user_id_seq') AS seq`)).rows[0].seq;
+            const uid = `NDA-${new Date().getFullYear()}-${String(seq).padStart(4, '0')}`;
+            const hash = await bcrypt.hash(password, 10);
+            const row = (await pool.query(
+                `INSERT INTO users (name, display_name, email, password, role, status, contact_number, user_id, is_super_admin, must_change_password)
+                 VALUES ($1::text, $1::text, $2, $3, 'Admin', 'active', $4, $5, false, true) RETURNING *`,
+                [name, email, hash, phone, uid])).rows[0];
+            res.status(201).json(staffView(row));
+        } catch (error) {
+            console.error('Error creating admin:', error);
+            res.status(500).json({ message: 'Server error creating the admin.' });
+        }
+    });
+    app.put('/api/staff-admins/:id', ensureSuperAdmin, async (req, res) => {
+        try {
+            const id = Number(req.params.id);
+            const target = (await pool.query(`SELECT * FROM users WHERE id = $1 AND is_deleted = false AND (LOWER(TRIM(role)) = 'admin' OR is_super_admin = true)`, [id])).rows[0];
+            if (!target) return res.status(404).json({ message: 'Admin not found.' });
+            const self = id === Number(req.session.user.id);
+            const sets = [], vals = [];
+            const put = (col, v) => { vals.push(v); sets.push(`${col} = $${vals.length}`); };
+            if (req.body.name !== undefined) { const n = String(req.body.name).trim(); if (!n) return res.status(400).json({ message: 'Enter the name.' }); put('name', n); put('display_name', n); }
+            if (req.body.phone !== undefined) put('contact_number', String(req.body.phone || '').replace(/\D/g, '').slice(-10) || null);
+            if (req.body.email !== undefined) {
+                const e = String(req.body.email || '').trim().toLowerCase();
+                if (!/^\S+@\S+\.\S+$/.test(e)) return res.status(400).json({ message: 'Enter a valid email.' });
+                if ((await pool.query('SELECT 1 FROM users WHERE LOWER(email) = $1 AND id <> $2', [e, id])).rows.length) return res.status(409).json({ message: 'Someone already uses this email.' });
+                put('email', e);
+            }
+            if (req.body.status !== undefined) {
+                if (self) return res.status(400).json({ message: 'You cannot turn off your own access.' });
+                put('status', String(req.body.status).toLowerCase() === 'active' ? 'active' : 'inactive');
+            }
+            if (req.body.password) {
+                if (String(req.body.password).length < 6) return res.status(400).json({ message: 'The password must be at least 6 characters.' });
+                put('password', await bcrypt.hash(String(req.body.password), 10));
+                put('must_change_password', !self);
+            }
+            if (!sets.length) return res.json(staffView(target));
+            vals.push(id);
+            const row = (await pool.query(`UPDATE users SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${vals.length} RETURNING *`, vals)).rows[0];
+            res.json(staffView(row));
+        } catch (error) {
+            console.error('Error updating admin:', error);
+            res.status(500).json({ message: 'Server error updating the admin.' });
+        }
+    });
+    app.delete('/api/staff-admins/:id', ensureSuperAdmin, async (req, res) => {
+        try {
+            const id = Number(req.params.id);
+            if (id === Number(req.session.user.id)) return res.status(400).json({ message: 'You cannot remove yourself.' });
+            const r = await pool.query(`UPDATE users SET is_deleted = true, status = 'inactive', updated_at = NOW()
+                                         WHERE id = $1 AND LOWER(TRIM(role)) = 'admin' AND is_super_admin IS NOT TRUE`, [id]);
+            if (!r.rowCount) return res.status(404).json({ message: 'Staff admin not found.' });
+            res.json({ ok: true });
+        } catch (error) {
+            console.error('Error removing admin:', error);
+            res.status(500).json({ message: 'Server error removing the admin.' });
+        }
+    });
+
+    // --- Expenses (all admins; delete = super admin) ----------------------------
+    const EXPENSE_CATEGORIES = [
+        'Teacher fees / salary', 'Rent', 'Electricity', 'Water & maintenance', 'Internet & phone', 'Travel & conveyance',
+        'Materials & supplies', 'Costumes & props', 'Tea & snacks', 'Procurement / equipment', 'Repairs', 'Events & programmes',
+        'Printing & marketing', 'Software & subscriptions', 'Bank & payment charges', 'Housekeeping', 'Miscellaneous',
+    ];
+    // Paid every month: the meta call lists the ones not yet entered for this month.
+    const RECURRING = ['Teacher fees / salary', 'Rent', 'Electricity', 'Water & maintenance', 'Internet & phone', 'Housekeeping', 'Software & subscriptions'];
+    const PAYMENT_MODES = ['Cash', 'UPI', 'Bank transfer', 'Card', 'Cheque'];
+    const monthOf = (iso) => String(iso).slice(0, 7);
+    const expenseView = (r) => ({ ...r, amount: Number(r.amount), expense_date: r.expense_date instanceof Date
+        ? new Date(r.expense_date.getTime() - r.expense_date.getTimezoneOffset() * 60000).toISOString().slice(0, 10) : String(r.expense_date).slice(0, 10) });
+    const EXPENSE_SELECT = `SELECT e.*, l.name AS location_name, t.name AS teacher_name FROM expenses e
+                              LEFT JOIN locations l ON l.id = e.location_id LEFT JOIN users t ON t.id = e.teacher_id`;
+
+    app.get('/api/expenses/meta', ensureAdmin, async (req, res) => {
+        try {
+            const used = (await pool.query(`SELECT category, COUNT(*)::int AS n FROM expenses WHERE is_deleted = false GROUP BY category ORDER BY n DESC`)).rows;
+            const categories = [...new Set([...EXPENSE_CATEGORIES, ...used.map(u => u.category)])];
+            const locations = (await pool.query(`SELECT id, name FROM locations WHERE COALESCE(is_active, true) = true ORDER BY name`).catch(() => ({ rows: [] }))).rows;
+            const teachers = (await pool.query(`SELECT id, name FROM users WHERE LOWER(TRIM(role)) = 'teacher' AND is_deleted = false ORDER BY name`)).rows;
+            const paidTo = (await pool.query(`SELECT paid_to, COUNT(*)::int AS n FROM expenses WHERE is_deleted = false AND COALESCE(paid_to, '') <> '' GROUP BY paid_to ORDER BY n DESC LIMIT 60`)).rows.map(r => r.paid_to);
+            // Recurring costs paid in the last 3 months but not yet this month
+            // (by "for month" or, when blank, the date).
+            const thisMonth = monthOf(todayIso());
+            const recent = (await pool.query(
+                `SELECT DISTINCT ON (e.category, COALESCE(e.location_id, 0), COALESCE(e.teacher_id, 0), LOWER(COALESCE(e.paid_to, '')))
+                        e.category, e.location_id, e.teacher_id, e.paid_to, e.amount, e.particulars, e.payment_mode, e.expense_date,
+                        COALESCE(e.for_month, to_char(e.expense_date, 'YYYY-MM')) AS month, l.name AS location_name, t.name AS teacher_name
+                   FROM expenses e LEFT JOIN locations l ON l.id = e.location_id LEFT JOIN users t ON t.id = e.teacher_id
+                  WHERE e.is_deleted = false AND e.category = ANY($1) AND e.expense_date >= (CURRENT_DATE - INTERVAL '100 days')
+                  ORDER BY e.category, COALESCE(e.location_id, 0), COALESCE(e.teacher_id, 0), LOWER(COALESCE(e.paid_to, '')), e.expense_date DESC`,
+                [RECURRING])).rows;
+            const due = recent.filter(r => r.month < thisMonth).map(r => ({ ...expenseView(r), last_month: r.month }));
+            res.json({ categories, recurring: RECURRING, payment_modes: PAYMENT_MODES, locations, teachers, paid_to: paidTo, due, this_month: thisMonth });
+        } catch (error) {
+            console.error('Error loading expense options:', error);
+            res.status(500).json({ message: 'Server error loading expenses.' });
+        }
+    });
+
+    app.get('/api/expenses', ensureAdmin, async (req, res) => {
+        try {
+            const where = ['e.is_deleted = false'], vals = [];
+            const add = (sql, v) => { vals.push(v); where.push(sql.replace('?', `$${vals.length}`)); };
+            if (/^\d{4}-\d{2}-\d{2}$/.test(req.query.from || '')) add('e.expense_date >= ?', req.query.from);
+            if (/^\d{4}-\d{2}-\d{2}$/.test(req.query.to || '')) add('e.expense_date <= ?', req.query.to);
+            if (req.query.category) add('e.category = ?', String(req.query.category));
+            if (req.query.location_id) add('e.location_id = ?', Number(req.query.location_id));
+            if (req.query.teacher_id) add('e.teacher_id = ?', Number(req.query.teacher_id));
+            if (req.query.payment_mode) add('e.payment_mode = ?', String(req.query.payment_mode));
+            if (req.query.q) add(`(e.particulars ILIKE ? OR e.paid_to ILIKE $${vals.length + 1} OR e.reference_no ILIKE $${vals.length + 1} OR e.notes ILIKE $${vals.length + 1})`, `%${req.query.q}%`);
+            const rows = (await pool.query(`${EXPENSE_SELECT} WHERE ${where.join(' AND ')} ORDER BY e.expense_date DESC, e.id DESC`, vals)).rows.map(expenseView);
+            const sum = (list) => Math.round(list.reduce((t, r) => t + r.amount, 0) * 100) / 100;
+            const group = (key) => {
+                const m = new Map();
+                for (const r of rows) { const k = key(r) || '—'; const g = m.get(k) || { key: k, total: 0, count: 0 }; g.total += r.amount; g.count++; m.set(k, g); }
+                return [...m.values()].map(g => ({ ...g, total: Math.round(g.total * 100) / 100 })).sort((a, b) => b.total - a.total);
+            };
+            res.json({
+                rows, total: sum(rows), count: rows.length,
+                by_category: group(r => r.category), by_month: group(r => monthOf(r.expense_date)).sort((a, b) => a.key.localeCompare(b.key)),
+                by_location: group(r => r.location_name), by_mode: group(r => r.payment_mode),
+                is_super_admin: req.session.user.is_super_admin === true,
+            });
+        } catch (error) {
+            console.error('Error listing expenses:', error);
+            res.status(500).json({ message: 'Server error listing expenses.' });
+        }
+    });
+
+    // Fields from the form (multipart): validated, then saved.
+    const expenseFields = (b) => {
+        const amount = Math.round(Number(String(b.amount || '').replace(/[,₹\s]/g, '')) * 100) / 100;
+        const date = String(b.expense_date || '');
+        const errors = [];
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) errors.push('Choose the date of purchase / payment.');
+        else if (date > isoAddDays(todayIso(), 1)) errors.push('The date cannot be in the future.');
+        if (!String(b.category || '').trim()) errors.push('Choose a category.');
+        if (!String(b.particulars || '').trim()) errors.push('Enter the particulars (what was bought or paid for).');
+        if (!(amount > 0)) errors.push('Enter the amount.');
+        if (b.for_month && !/^\d{4}-\d{2}$/.test(String(b.for_month))) errors.push('"For month" must be a month.');
+        const num = (v) => (v === undefined || v === null || v === '' || v === 'null' ? null : Number(v) || null);
+        return { errors, f: {
+            expense_date: date, category: String(b.category || '').trim().slice(0, 80), particulars: String(b.particulars || '').trim(),
+            amount, paid_to: String(b.paid_to || '').trim().slice(0, 200) || null, payment_mode: String(b.payment_mode || '').trim().slice(0, 30) || null,
+            location_id: num(b.location_id), teacher_id: num(b.teacher_id), for_month: String(b.for_month || '').trim() || null,
+            reference_no: String(b.reference_no || '').trim().slice(0, 100) || null, notes: String(b.notes || '').trim() || null,
+        } };
+    };
+    // Same day, category, amount and payee already entered: ask before saving twice.
+    const duplicateOf = async (f, exceptId = 0) => (await pool.query(
+        `SELECT id, particulars, created_by_name FROM expenses WHERE is_deleted = false AND id <> $1 AND expense_date = $2
+            AND category = $3 AND amount = $4 AND LOWER(COALESCE(paid_to, '')) = LOWER(COALESCE($5, '')) LIMIT 1`,
+        [exceptId, f.expense_date, f.category, f.amount, f.paid_to])).rows[0];
+
+    app.post('/api/expenses', ensureAdmin, uploadExpenseDoc.single('reference'), async (req, res) => {
+        try {
+            const { errors, f } = expenseFields(req.body);
+            if (errors.length) return res.status(400).json({ message: errors.join(' ') });
+            const dup = req.body.confirm_duplicate === 'yes' ? null : await duplicateOf(f);
+            if (dup) return res.status(409).json({ duplicate: true, message: `This looks already entered: "${dup.particulars}"${dup.created_by_name ? ` by ${dup.created_by_name}` : ''} — same date, category, amount and payee. Save it again?` });
+            const me = req.session.user;
+            const row = (await pool.query(
+                `INSERT INTO expenses (expense_date, category, particulars, amount, paid_to, payment_mode, location_id, teacher_id,
+                                       for_month, reference_no, notes, reference_url, reference_name, created_by, created_by_name)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id`,
+                [f.expense_date, f.category, f.particulars, f.amount, f.paid_to, f.payment_mode, f.location_id, f.teacher_id,
+                 f.for_month, f.reference_no, f.notes, req.file ? `/uploads/expenses/${req.file.filename}` : null,
+                 req.file ? req.file.originalname : null, me.id, me.name])).rows[0];
+            res.status(201).json(expenseView((await pool.query(`${EXPENSE_SELECT} WHERE e.id = $1`, [row.id])).rows[0]));
+        } catch (error) {
+            console.error('Error adding expense:', error);
+            res.status(500).json({ message: 'Server error adding the expense.' });
+        }
+    });
+
+    app.put('/api/expenses/:id', ensureAdmin, uploadExpenseDoc.single('reference'), async (req, res) => {
+        try {
+            const id = Number(req.params.id);
+            const cur = (await pool.query('SELECT * FROM expenses WHERE id = $1 AND is_deleted = false', [id])).rows[0];
+            if (!cur) return res.status(404).json({ message: 'Expense not found.' });
+            const { errors, f } = expenseFields(req.body);
+            if (errors.length) return res.status(400).json({ message: errors.join(' ') });
+            const dup = req.body.confirm_duplicate === 'yes' ? null : await duplicateOf(f, id);
+            if (dup) return res.status(409).json({ duplicate: true, message: `Another entry has the same date, category, amount and payee ("${dup.particulars}"). Save anyway?` });
+            const ref = req.file ? [`/uploads/expenses/${req.file.filename}`, req.file.originalname]
+                : req.body.remove_reference === 'yes' ? [null, null] : [cur.reference_url, cur.reference_name];
+            await pool.query(
+                `UPDATE expenses SET expense_date=$1, category=$2, particulars=$3, amount=$4, paid_to=$5, payment_mode=$6, location_id=$7,
+                        teacher_id=$8, for_month=$9, reference_no=$10, notes=$11, reference_url=$12, reference_name=$13,
+                        updated_by=$14, updated_by_name=$15, updated_at=NOW() WHERE id=$16`,
+                [f.expense_date, f.category, f.particulars, f.amount, f.paid_to, f.payment_mode, f.location_id, f.teacher_id,
+                 f.for_month, f.reference_no, f.notes, ref[0], ref[1], req.session.user.id, req.session.user.name, id]);
+            res.json(expenseView((await pool.query(`${EXPENSE_SELECT} WHERE e.id = $1`, [id])).rows[0]));
+        } catch (error) {
+            console.error('Error updating expense:', error);
+            res.status(500).json({ message: 'Server error updating the expense.' });
+        }
+    });
+
+    app.delete('/api/expenses/:id', ensureSuperAdmin, async (req, res) => {
+        try {
+            const r = await pool.query(`UPDATE expenses SET is_deleted = true, deleted_at = NOW(), deleted_by_name = $1 WHERE id = $2 AND is_deleted = false`,
+                [req.session.user.name, Number(req.params.id)]);
+            if (!r.rowCount) return res.status(404).json({ message: 'Expense not found.' });
+            res.json({ ok: true });
+        } catch (error) {
+            console.error('Error deleting expense:', error);
+            res.status(500).json({ message: 'Server error deleting the expense.' });
+        }
+    });
+
+    // --- Accounts summary (super admin) ------------------------------------------
+    // Money in (fee payments approved, by the day paid) against money out
+    // (expenses, by date), month by month, with the breakdowns behind them.
+    app.get('/api/accounts/summary', ensureSuperAdmin, async (req, res) => {
+        try {
+            const today = todayIso();
+            const to = /^\d{4}-\d{2}$/.test(req.query.to || '') ? req.query.to : monthOf(today);
+            let from = /^\d{4}-\d{2}$/.test(req.query.from || '') ? req.query.from : null;
+            if (!from) { const d = new Date(`${to}-01T12:00:00Z`); d.setUTCMonth(d.getUTCMonth() - 5); from = d.toISOString().slice(0, 7); }
+            if (from > to) return res.status(400).json({ message: 'The start month is after the end month.' });
+            const months = [];
+            for (let d = new Date(`${from}-01T12:00:00Z`); d.toISOString().slice(0, 7) <= to; d.setUTCMonth(d.getUTCMonth() + 1)) months.push(d.toISOString().slice(0, 7));
+            const start = `${from}-01`;
+            const endD = new Date(`${to}-01T12:00:00Z`); endD.setUTCMonth(endD.getUTCMonth() + 1); endD.setUTCDate(0);
+            const end = endD.toISOString().slice(0, 10);
+
+            const income = (await pool.query(
+                `SELECT to_char((COALESCE(p.paid_at, p.approved_at, p.payment_date::timestamptz) AT TIME ZONE 'Asia/Kolkata'), 'YYYY-MM') AS month,
+                        COALESCE(p.payment_method, 'Other') AS method, p.amount::float AS amount,
+                        COALESCE(l.name, 'Not set') AS location, CASE WHEN i.charge_id IS NOT NULL THEN 'Extra bills' ELSE 'Monthly fees' END AS kind
+                   FROM invoice_payments p JOIN invoices i ON i.id = p.invoice_id
+                   LEFT JOIN batches b ON b.id = i.batch_id LEFT JOIN locations l ON l.id = b.location_id
+                  WHERE p.status = 'approved'
+                    AND (COALESCE(p.paid_at, p.approved_at, p.payment_date::timestamptz) AT TIME ZONE 'Asia/Kolkata')::date BETWEEN $1 AND $2`,
+                [start, end])).rows;
+            const spend = (await pool.query(
+                `SELECT to_char(e.expense_date, 'YYYY-MM') AS month, e.category, e.amount::float AS amount,
+                        COALESCE(l.name, 'Not set') AS location, COALESCE(e.payment_mode, 'Other') AS method
+                   FROM expenses e LEFT JOIN locations l ON l.id = e.location_id
+                  WHERE e.is_deleted = false AND e.expense_date BETWEEN $1 AND $2`, [start, end])).rows;
+            const billed = (await pool.query(
+                `SELECT to_char(issue_date, 'YYYY-MM') AS month, SUM(amount)::float AS amount FROM invoices
+                  WHERE issue_date BETWEEN $1 AND $2 GROUP BY 1`, [start, end])).rows;
+            const outstanding = (await pool.query(
+                `SELECT COALESCE(SUM(i.amount), 0)::float AS amount, COUNT(*)::int AS bills, COUNT(DISTINCT i.student_id)::int AS students
+                   FROM invoices i JOIN users u ON u.id = i.student_id
+                  WHERE LOWER(COALESCE(i.status, '')) <> 'paid' AND u.is_deleted = false`)).rows[0];
+            const people = (await pool.query(
+                `SELECT COUNT(*) FILTER (WHERE LOWER(TRIM(role)) = 'student' AND (status IS NULL OR LOWER(status) = 'active'))::int AS students,
+                        COUNT(*) FILTER (WHERE LOWER(TRIM(role)) = 'teacher')::int AS teachers,
+                        COUNT(*) FILTER (WHERE LOWER(TRIM(role)) = 'student' AND date_of_joining BETWEEN $1 AND $2)::int AS joined
+                   FROM users WHERE is_deleted = false`, [start, end])).rows[0];
+
+            const r2 = (n) => Math.round(n * 100) / 100;
+            const sumBy = (list, key) => {
+                const m = new Map();
+                for (const x of list) m.set(x[key], (m.get(x[key]) || 0) + x.amount);
+                return [...m.entries()].map(([k, v]) => ({ key: k, total: r2(v) })).sort((a, b) => b.total - a.total);
+            };
+            const monthly = months.map(m => {
+                const inc = income.filter(x => x.month === m).reduce((t, x) => t + x.amount, 0);
+                const exp = spend.filter(x => x.month === m).reduce((t, x) => t + x.amount, 0);
+                const bill = (billed.find(b => b.month === m) || {}).amount || 0;
+                return { month: m, billed: r2(bill), collected: r2(inc), expenses: r2(exp), net: r2(inc - exp) };
+            });
+            const totalIn = r2(income.reduce((t, x) => t + x.amount, 0));
+            const totalOut = r2(spend.reduce((t, x) => t + x.amount, 0));
+            const locs = [...new Set([...income.map(x => x.location), ...spend.map(x => x.location)])];
+            res.json({
+                from, to, months: monthly,
+                totals: { collected: totalIn, expenses: totalOut, net: r2(totalIn - totalOut),
+                    margin: totalIn ? Math.round(((totalIn - totalOut) / totalIn) * 100) : null,
+                    billed: r2(monthly.reduce((t, m) => t + m.billed, 0)) },
+                expenses_by_category: sumBy(spend, 'category'),
+                income_by_kind: sumBy(income, 'kind'),
+                income_by_method: sumBy(income, 'method'),
+                by_location: locs.map(l => {
+                    const i = r2(income.filter(x => x.location === l).reduce((t, x) => t + x.amount, 0));
+                    const e = r2(spend.filter(x => x.location === l).reduce((t, x) => t + x.amount, 0));
+                    return { location: l, collected: i, expenses: e, net: r2(i - e) };
+                }).sort((a, b) => b.collected - a.collected),
+                outstanding: { ...outstanding, amount: r2(outstanding.amount) },
+                people,
+            });
+        } catch (error) {
+            console.error('Error building accounts summary:', error);
+            res.status(500).json({ message: 'Server error building the summary.' });
+        }
+    });
 
     // GET /api/salaries - List all salary configs
     app.get('/api/salaries', ensureSuperAdmin, async (req, res) => {
