@@ -108,3 +108,7 @@ docs/NadanalogaDatas.csv
 # addresses and emails of every family. This repository is public.
 Nadanaloga_Students.xlsx
 scripts/students-import.json
+# Student lists are personal data and the repo is public: never commit any spreadsheet.
+*.xlsx
+*.xls
+*.csv
