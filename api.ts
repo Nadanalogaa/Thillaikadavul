@@ -1977,6 +1977,7 @@ export interface AttendanceClass {
   student_count: number;
   date: string;
   status: 'not_marked' | 'held' | 'cancelled' | 'makeup';
+  marked_at?: string | null;
   cancel_reason?: string | null;
 }
 
@@ -2027,6 +2028,40 @@ export interface OwedMakeup {
 }
 
 export const getOwedMakeups = (): Promise<OwedMakeup[]> => attendanceFetch('/owed-makeups');
+
+/** A cancelled class and its make-up: owed (no date yet) → scheduled → done. */
+export interface MakeupRow {
+  id: number;                 // the cancelled class
+  batch_id: number;
+  batch_name: string;
+  course_name?: string | null;
+  teacher_name?: string | null;
+  teacher_id?: number | null;
+  cancelled_date: string;
+  cancel_reason?: string | null;
+  makeup_id?: number | null;
+  makeup_date?: string | null;
+  start_time?: string | null; // HH:MM
+  end_time?: string | null;
+  closed_at?: string | null;
+  closed_by_name?: string | null;
+  students: number;
+  state: 'owed' | 'scheduled' | 'done';
+}
+
+/** Open make-ups (plus ones closed in the last 3 days); all=true for the full history. */
+export const getMakeups = async (all = false): Promise<MakeupRow[]> => {
+  const r = await fetch(`/api/makeups${all ? '?state=all' : ''}`, { credentials: 'include' });
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).message || 'Could not load make-up classes');
+  return r.json();
+};
+
+/** The make-up has been held: close it. */
+export const closeMakeup = async (cancelledSessionId: number) => {
+  const r = await fetch(`/api/makeups/${cancelledSessionId}/close`, { method: 'POST', credentials: 'include' });
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).message || 'Could not close the make-up');
+  return r.json();
+};
 
 /** Undo a cancellation made by mistake: the class goes back to "not marked". */
 export const reinstateClass = (cancelledSessionId: number) =>

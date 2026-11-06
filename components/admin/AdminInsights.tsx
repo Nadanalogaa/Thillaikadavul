@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
     AlertTriangle, BookOpen, CalendarCheck, CalendarX, Cake, ChevronRight, ClipboardList, GraduationCap,
-    IndianRupee, Layers, MessageSquare, Receipt, RefreshCw, UserPlus, Users, UserX, Image as ImageIcon,
+    IndianRupee, Layers, MessageSquare, Receipt, RefreshCw, CalendarClock, UserPlus, Users, UserX, Image as ImageIcon,
 } from 'lucide-react';
 import Modal from '../Modal';
 import { placeStudent } from '../../services/batchAdminApi';
@@ -44,6 +44,7 @@ export interface Insights {
     capacity: { count: number; batches: Capacity[] };
     trend: { period: string; billed: number; collected: number }[];
     extra_bills: ExtraBill[];
+    makeups?: { owed: number; scheduled: number };
 }
 
 const rupees = (n: number) => `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
@@ -248,6 +249,9 @@ export const AdminDashboardView: React.FC<{ teacherCount?: number; courseCount?:
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <Tile icon={AlertTriangle} label="Overdue fees" value={rupees(f.overdue)} hint={f.overdue ? `${f.overdue_students} students past the due date` : 'Nothing overdue'} tone={f.overdue ? 'bad' : 'good'} onClick={() => setOpen('fees')} />
                     <Tile icon={ImageIcon} label="Screenshots to check" value={f.verifying_bills} hint={f.verifying_bills ? `${rupees(f.verifying)} waiting for approval` : 'All checked'} tone={f.verifying_bills ? 'warn' : 'good'} onClick={() => navigate('/admin/fees')} />
+                    <Tile icon={CalendarClock} label="Make-up classes" value={(data.makeups?.owed || 0) + (data.makeups?.scheduled || 0)}
+                        hint={data.makeups?.owed ? `${data.makeups.owed} need a date` : data.makeups?.scheduled ? `${data.makeups.scheduled} scheduled` : 'None pending'}
+                        tone={data.makeups?.owed ? 'warn' : 'neutral'} onClick={() => navigate('/admin/attendance?tab=makeups')} />
                     <Tile icon={CalendarX} label="Attendance not marked" value={data.unmarked.count} hint="Classes in the last 7 days" tone={data.unmarked.count ? 'bad' : 'good'} onClick={() => setOpen('unmarked')} />
                     <Tile icon={ClipboardList} label="Low attendance" value={data.attendance.count} hint={`Below ${data.attendance.threshold}% · last ${data.attendance.days} days`} tone={data.attendance.count ? 'warn' : 'good'} onClick={() => setOpen('attendance')} />
                     <Tile icon={UserX} label="Not in a batch" value={data.not_in_batch.students_count} hint="Taking a course, no batch" tone={data.not_in_batch.students_count ? 'warn' : 'good'} onClick={() => setOpen('batch')} />

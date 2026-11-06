@@ -4,9 +4,10 @@ import AdminLayout from '../../components/admin/AdminLayout';
 import AdminPageHeader from '../../components/admin/AdminPageHeader';
 import {
     getAttendanceClasses, getAttendanceRoster, markAttendance, cancelClass,
-    getOwedMakeups, scheduleMakeup, reinstateClass, getAttendanceReport, getBatches,
-    type AttendanceClass, type AttendanceRoster, type OwedMakeup, type AttendanceReport,
+    getMakeups, getAttendanceReport, getBatches,
+    type AttendanceClass, type AttendanceRoster, type AttendanceReport,
 } from '../../api';
+import MakeupsPanel from '../../components/attendance/MakeupsPanel';
 import type { Batch } from '../../types';
 
 // Teachers mark their own classes in the app; this page is for the office:
@@ -48,7 +49,8 @@ const TeacherFrame: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 const AttendancePage: React.FC<{ teacher?: boolean }> = ({ teacher = false }) => {
     const { theme } = useTheme();
     const dark = theme === 'dark';
-    const [tab, setTab] = useState<Tab>('day');
+    // ?tab=makeups opens the make-up list (the dashboards link to it).
+    const [tab, setTab] = useState<Tab>(() => new URLSearchParams(window.location.search).get('tab') === 'makeups' ? 'makeups' : 'day');
     // ?date=YYYY-MM-DD opens that day (the dashboard links to missed days).
     const [date, setDate] = useState(() => {
         const q = new URLSearchParams(window.location.search).get('date');
@@ -70,8 +72,7 @@ const AttendancePage: React.FC<{ teacher?: boolean }> = ({ teacher = false }) =>
     const [month, setMonth] = useState(monthIso());
     const [report, setReport] = useState<AttendanceReport | null>(null);
 
-    const [owed, setOwed] = useState<OwedMakeup[]>([]);
-    const [makeupDates, setMakeupDates] = useState<Record<number, string>>({});
+    const [openMakeups, setOpenMakeups] = useState(0);
 
     const card = `rounded-xl border p-4 ${dark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`;
     const muted = dark ? 'text-gray-400' : 'text-gray-500';
@@ -97,9 +98,8 @@ const AttendancePage: React.FC<{ teacher?: boolean }> = ({ teacher = false }) =>
     }, [tab, date]);
 
     useEffect(() => {
-        if (tab !== 'makeups') return;
-        getOwedMakeups().then(setOwed).catch(e => setError(e.message));
-    }, [tab]);
+        getMakeups().then(l => setOpenMakeups(l.filter(r => r.state !== 'done').length)).catch(() => {});
+    }, []);
 
     const openRoster = async (batchId: number) => {
         setError('');
@@ -139,6 +139,7 @@ const AttendancePage: React.FC<{ teacher?: boolean }> = ({ teacher = false }) =>
             await cancelClass(String(batchId), date, reason);
             setRoster(null);
             setClasses(await getAttendanceClasses(date, !teacher));
+            setOpenMakeups(n => n + 1);
         } catch (e) {
             alert(e instanceof Error ? e.message : 'Could not cancel the class');
         }
@@ -154,30 +155,6 @@ const AttendancePage: React.FC<{ teacher?: boolean }> = ({ teacher = false }) =>
             setError(e instanceof Error ? e.message : 'Could not build the report');
         } finally {
             setLoading(false);
-        }
-    };
-
-    // A cancellation made by mistake. Back to "not marked"; nothing is sent.
-    const reinstate = async (row: OwedMakeup) => {
-        if (!window.confirm(`Undo the cancellation of "${row.batch_name}" on ${formatDate(row.session_date)}?\n\nThe class goes back to not marked and no make-up is owed.`)) return;
-        try {
-            await reinstateClass(row.id);
-            setOwed(await getOwedMakeups());
-            setClasses(await getAttendanceClasses(date, !teacher));
-        } catch (e) {
-            alert(e instanceof Error ? e.message : 'Could not undo the cancellation');
-        }
-    };
-
-    const giveBack = async (row: OwedMakeup) => {
-        const newDate = makeupDates[row.id];
-        if (!newDate) { alert('Pick the date of the make-up class first.'); return; }
-        try {
-            await scheduleMakeup(row.id, newDate);
-            setOwed(await getOwedMakeups());
-            alert('Make-up class scheduled. Families have been told.');
-        } catch (e) {
-            alert(e instanceof Error ? e.message : 'Could not schedule the make-up class');
         }
     };
 
@@ -203,10 +180,11 @@ const AttendancePage: React.FC<{ teacher?: boolean }> = ({ teacher = false }) =>
             held: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
             cancelled: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
             makeup: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300',
+            makeup_done: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
             not_marked: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
         };
         const label: Record<string, string> = {
-            held: 'Marked', cancelled: 'Cancelled', makeup: 'Make-up class', not_marked: 'Not marked',
+            held: 'Marked', cancelled: 'Cancelled', makeup: 'Make-up class', makeup_done: 'Make-up · marked', not_marked: 'Not marked',
         };
         return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${map[status] || map.not_marked}`}>{label[status] || status}</span>;
     };
@@ -218,8 +196,10 @@ const AttendancePage: React.FC<{ teacher?: boolean }> = ({ teacher = false }) =>
                 ? <div className="mb-4"><h1 className={`text-2xl font-bold ${strong}`}>Mark attendance</h1><p className={`text-sm ${muted}`}>Your classes for the day. Parents are told when their child is absent.</p></div>
                 : <AdminPageHeader title="Attendance" subtitle="Teachers mark their classes in the app; correct and review them here." />}
 
-            <div className={`mb-4 flex gap-4 border-b ${dark ? 'border-gray-700' : 'border-gray-200'} ${teacher ? 'hidden' : ''}`}>
-                {([['day', 'By day'], ['month', 'Monthly report'], ['makeups', 'Classes owed']] as [Tab, string][]).map(([id, label]) => (
+            <div className={`mb-4 flex gap-4 border-b ${dark ? 'border-gray-700' : 'border-gray-200'}`}>
+                {((teacher
+                    ? [['day', 'My classes'], ['makeups', 'Make-up classes']]
+                    : [['day', 'By day'], ['month', 'Monthly report'], ['makeups', 'Make-up classes']]) as [Tab, string][]).map(([id, label]) => (
                     <button
                         key={id}
                         onClick={() => setTab(id)}
@@ -230,8 +210,8 @@ const AttendancePage: React.FC<{ teacher?: boolean }> = ({ teacher = false }) =>
                         }`}
                     >
                         {label}
-                        {id === 'makeups' && owed.length > 0 && (
-                            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">{owed.length}</span>
+                        {id === 'makeups' && openMakeups > 0 && (
+                            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">{openMakeups}</span>
                         )}
                     </button>
                 ))}
@@ -265,14 +245,14 @@ const AttendancePage: React.FC<{ teacher?: boolean }> = ({ teacher = false }) =>
                                             </p>
                                             <p className={`text-xs ${muted}`}>{c.student_count} students</p>
                                         </div>
-                                        {statusPill(c.status)}
+                                        {statusPill(c.status === 'makeup' && c.marked_at ? 'makeup_done' : c.status)}
                                     </div>
                                     {c.cancel_reason && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{c.cancel_reason}</p>}
                                     <div className="mt-3 flex gap-2">
                                         <button onClick={() => openRoster(c.batch_id)} className="rounded-md bg-brand-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-dark">
-                                            {c.status === 'held' ? 'Edit attendance' : 'Mark attendance'}
+                                            {c.status === 'held' || c.marked_at && c.status === 'makeup' ? 'Edit attendance' : 'Mark attendance'}
                                         </button>
-                                        {c.status !== 'cancelled' && (
+                                        {c.status !== 'cancelled' && c.status !== 'makeup' && (
                                             <button onClick={() => cancel(c.batch_id, c.batch_name)} className={`rounded-md border px-3 py-1.5 text-xs font-medium ${dark ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}`}>
                                                 Class off
                                             </button>
@@ -346,42 +326,8 @@ const AttendancePage: React.FC<{ teacher?: boolean }> = ({ teacher = false }) =>
             )}
 
             {tab === 'makeups' && (
-                <div className="space-y-3">
-                    <p className={`text-sm ${muted}`}>
-                        Classes the academy cancelled and hasn't given back yet. Pick a date and the families are told.
-                    </p>
-                    {owed.length === 0 ? (
-                        <p className={muted}>Nothing owed. Every cancelled class has a make-up.</p>
-                    ) : owed.map(row => (
-                        <div key={row.id} className={`${card} flex flex-wrap items-center justify-between gap-3`}>
-                            <div className="min-w-0">
-                                <p className={`font-medium ${strong}`}>{row.batch_name}</p>
-                                <p className={`text-xs ${muted}`}>
-                                    Cancelled {formatDate(row.session_date)}
-                                    {row.cancel_reason ? ` · ${row.cancel_reason}` : ''} · {row.student_count} students
-                                </p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="date"
-                                    value={makeupDates[row.id] || ''}
-                                    onChange={e => setMakeupDates(prev => ({ ...prev, [row.id]: e.target.value }))}
-                                    className="form-input text-sm"
-                                />
-                                <button onClick={() => giveBack(row)} className="rounded-md bg-brand-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark">
-                                    Schedule make-up
-                                </button>
-                                <button
-                                    onClick={() => reinstate(row)}
-                                    title="Cancelled by mistake? Put the class back as not marked."
-                                    className={`rounded-md border px-3 py-1.5 text-sm font-medium ${dark ? 'border-gray-600 text-gray-200 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
-                                >
-                                    Undo cancel
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                <MakeupsPanel canUndo={!teacher} onCount={setOpenMakeups}
+                    onChanged={() => { getAttendanceClasses(date, !teacher).then(setClasses).catch(() => {}); }} />
             )}
 
             {roster && (

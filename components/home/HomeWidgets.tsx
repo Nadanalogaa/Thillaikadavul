@@ -13,6 +13,7 @@ export interface ClassSlot {
     date: string; day: string; start_time: string; end_time: string; batch_id: number; batch_name: string;
     course_name: string | null; teacher_name: string | null; mode: string | null; studio: string | null;
     location_name: string | null; cancelled: boolean; when: string;
+    is_makeup?: boolean;
 }
 interface Rate { classes: number; attended: number; percentage: number | null }
 interface HomeStudent {
@@ -22,6 +23,13 @@ interface HomeStudent {
     attendance: { month: Rate; last_90_days: Rate; recent: { date: string; status: string; batch_name: string }[] };
     last_note: { date: string; note: string; batch_name: string; status: string | null } | null;
     birthday: { date: string; in_days: number; turns: number } | null;
+    makeups?: HomeMakeup[];
+}
+/** A cancelled class still to be given back: owed (no date yet) or scheduled. */
+export interface HomeMakeup {
+    id: number; batch_name: string; course_name: string | null; teacher_name: string | null;
+    cancelled_date: string; cancel_reason: string | null; makeup_date: string | null;
+    start_time: string | null; end_time: string | null; state: 'owed' | 'scheduled' | 'done'; students?: number;
 }
 interface Exam { id: number; exam_name: string; course: string | null; exam_date: string; exam_time: string | null; location: string | null }
 interface EventItem { id: number; title: string; event_date: string; event_time: string | null; location: string | null }
@@ -132,6 +140,7 @@ const ClassRow: React.FC<{ c: ClassSlot; showTeacher?: boolean }> = ({ c, showTe
                 </span>
             </span>
             {c.cancelled && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">Cancelled</span>}
+            {c.is_makeup && !c.cancelled && <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-200">Make-up</span>}
         </li>
     );
 };
@@ -164,6 +173,8 @@ export const FamilyHomeSummary: React.FC<{ summary: HomeSummary | null; error: s
                 </div>
             )}
 
+            {(s.makeups || []).length > 0 && <MakeupList rows={s.makeups!} family />}
+
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 {/* Next class */}
                 <Link to="courses" className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-700 p-5 text-white shadow-md transition hover:shadow-lg">
@@ -173,6 +184,7 @@ export const FamilyHomeSummary: React.FC<{ summary: HomeSummary | null; error: s
                         <>
                             <div className="mt-2 text-2xl font-bold">{whenLabel(next)} · {clock(next.start_time)}</div>
                             {soon && <span className="mt-1 inline-block rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold">{soon}</span>}
+                            {next.is_makeup && <span className="ml-1 mt-1 inline-block rounded-full bg-amber-300 px-2 py-0.5 text-xs font-bold text-amber-950">Make-up class</span>}
                             <div className="mt-3 text-sm font-medium">{next.batch_name}</div>
                             <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-indigo-100">
                                 {next.teacher_name && <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" />{next.teacher_name}</span>}
@@ -299,9 +311,30 @@ export const familyQuickLinks = (s: HomeSummary | null) => [
     { to: 'notices', icon: Bell, label: 'Notices', hint: s?.notices.length ? `${s.notices.length} recent` : 'From the academy', tone: 'bg-orange-50 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300' },
 ];
 
+// Make-up classes owed or scheduled, as a list of rows.
+const makeupWhen = (m: HomeMakeup) => `${new Date(`${m.makeup_date}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}${m.start_time ? `, ${clock(m.start_time)}${m.end_time ? `–${clock(m.end_time)}` : ''}` : ''}`;
+export const MakeupList: React.FC<{ rows: HomeMakeup[]; family?: boolean }> = ({ rows, family = false }) => (
+    <ul className="space-y-2">
+        {rows.map(m => (
+            <li key={m.id} className={`flex items-start gap-3 rounded-xl border p-3 ${m.state === 'owed' ? 'border-amber-200 bg-amber-50/60 dark:border-amber-900/50 dark:bg-amber-900/10' : 'border-indigo-200 bg-indigo-50/60 dark:border-indigo-900/50 dark:bg-indigo-900/10'}`}>
+                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${m.state === 'owed' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-200' : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-200'}`}><CalendarClock className="h-5 w-5" /></span>
+                <span className="min-w-0 flex-1 text-sm">
+                    <span className="block font-semibold text-gray-900 dark:text-white">
+                        {m.state === 'owed' ? 'Make-up class owed' : `Make-up class · ${makeupWhen(m)}`}
+                    </span>
+                    <span className="block text-xs text-gray-600 dark:text-gray-300">
+                        {m.batch_name} · class cancelled on {shortDate(m.cancelled_date)}{m.cancel_reason ? ` (${m.cancel_reason})` : ''}
+                    </span>
+                    {m.state === 'owed' && <span className="mt-0.5 block text-xs text-amber-700 dark:text-amber-300">{family ? 'The academy will tell you the new date and time.' : 'Date not fixed yet.'}</span>}
+                </span>
+            </li>
+        ))}
+    </ul>
+);
+
 // --- Teacher ------------------------------------------------------------------
 
-interface TeacherClass { batch_id: number; batch_name: string; course_name: string | null; start_time: string; end_time: string; students: number; studio: string | null; location_name: string | null; mode: string | null; state: 'upcoming' | 'running' | 'not_marked' | 'marked' | 'cancelled' }
+interface TeacherClass { is_makeup?: boolean; batch_id: number; batch_name: string; course_name: string | null; start_time: string; end_time: string; students: number; studio: string | null; location_name: string | null; mode: string | null; state: 'upcoming' | 'running' | 'not_marked' | 'marked' | 'cancelled' }
 export interface TeacherSummary {
     today: string; now: string; counts: { batches: number; students: number; classes_this_week: number };
     today_classes: TeacherClass[]; next_class: (TeacherClass & Partial<ClassSlot>) | null;
@@ -311,6 +344,7 @@ export interface TeacherSummary {
     birthdays: { student_id: number; name: string; date: string; in_days: number; turns: number }[];
     exams: Exam[]; events: EventItem[];
     batches: { id: number; name: string; course_name: string | null; students: number; slots: { day: string; start_time: string; end_time: string }[] }[];
+    makeups?: HomeMakeup[];
 }
 
 export const useTeacherSummary = () => useJson<TeacherSummary>('/api/teacher/summary');
@@ -368,6 +402,13 @@ export const TeacherHome: React.FC<{ name: string; attendancePath: string; batch
                 <Kpi icon={ClipboardCheck} label="Attendance · 30 days" value={data.attendance.percentage == null ? '—' : `${data.attendance.percentage}%`} onClick={() => setShowLow(true)} tone="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300" />
             </div>
 
+            {(data.makeups || []).length > 0 && (
+                <Card title="Make-up classes" icon={CalendarClock} tint="bg-amber-50 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300"
+                    action={<MoreLink to={`${attendancePath}?tab=makeups`}>Fix date / mark done</MoreLink>}>
+                    <MakeupList rows={data.makeups!} />
+                </Card>
+            )}
+
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <Card title="Today" icon={Clock} className="lg:col-span-2" action={<MoreLink to={attendancePath}>Attendance</MoreLink>}>
                     {data.today_classes.length === 0 ? (
@@ -381,6 +422,7 @@ export const TeacherHome: React.FC<{ name: string; attendancePath: string; batch
                                         <span className="block truncate text-sm font-medium text-gray-900 dark:text-white">{c.batch_name}</span>
                                         <span className="block truncate text-xs text-gray-500">{[c.course_name, `${c.students} students`, place(c)].filter(Boolean).join(' · ')}</span>
                                     </span>
+                                    {c.is_makeup && <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-200">Make-up</span>}
                                     <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${stateChip[c.state][1]}`}>{stateChip[c.state][0]}</span>
                                     {(c.state === 'running' || c.state === 'not_marked') && (
                                         <Link to={toMark(c.batch_id, data.today)} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">Mark attendance</Link>

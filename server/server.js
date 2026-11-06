@@ -660,6 +660,11 @@ async function startServer() {
                     ON attendance (student_id)`);
                 // What the teacher taught that day, shown to parents in the app.
                 await client.query(`ALTER TABLE class_sessions ADD COLUMN IF NOT EXISTS class_note TEXT`);
+                // Make-up lifecycle on the cancelled class: owed -> scheduled
+                // (compensated_by) -> closed (closed_at), and a same-day reminder.
+                await client.query(`ALTER TABLE class_sessions ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ`);
+                await client.query(`ALTER TABLE class_sessions ADD COLUMN IF NOT EXISTS closed_by_name VARCHAR(200)`);
+                await client.query(`ALTER TABLE class_sessions ADD COLUMN IF NOT EXISTS reminded_at TIMESTAMPTZ`);
                 console.log('[DB] ✓ Ensured attendance tables exist');
             } catch (error) {
                 console.error('[DB] ✗ Failed to create attendance tables:', error.message);
@@ -6344,6 +6349,18 @@ Please review and approve this registration in the admin panel.`;
             const slot = Array.isArray(slots) ? slots.find(s => s && s.day === dayName) : null;
             return slot ? { ...b, start_time: slot.start_time || b.start_time, end_time: slot.end_time || b.end_time } : b;
         });
+        // Make-up classes on this date, also on days the batch does not normally meet.
+        const mk = (await pool.query(
+            `SELECT b.*, c.name AS course_name, u.name AS teacher_name, s.start_time AS mk_start, s.end_time AS mk_end
+               FROM class_sessions s JOIN batches b ON b.id = s.batch_id
+               LEFT JOIN courses c ON c.id = b.course_id LEFT JOIN users u ON u.id = b.teacher_id
+              WHERE s.status = 'makeup' AND s.session_date = $1 ${teacherId ? 'AND b.teacher_id = $2' : ''}`,
+            teacherId ? [dateIso, teacherId] : [dateIso])).rows;
+        for (const m of mk) {
+            const i = rows.findIndex(r => r.id === m.id);
+            const row = { ...m, start_time: m.mk_start || m.start_time, end_time: m.mk_end || m.end_time, is_makeup: true };
+            if (i >= 0) rows[i] = row; else rows.push(row);
+        }
         return rows.sort((a, c) => String(a.start_time || '99').localeCompare(String(c.start_time || '99'))
             || String(a.batch_name).localeCompare(String(c.batch_name), undefined, { numeric: true }));
     };
@@ -6473,7 +6490,8 @@ Please review and approve this registration in the admin panel.`;
                 `INSERT INTO class_sessions (batch_id, session_date, start_time, end_time, status, teacher_id, marked_by, marked_at, class_note)
                  VALUES ($1, $2, $3, $4, 'held', $5, $6, NOW(), NULLIF($7, ''))
                  ON CONFLICT (batch_id, session_date) DO UPDATE
-                   SET status = 'held', cancel_reason = NULL, marked_by = $6, marked_at = NOW(), updated_at = NOW(),
+                   SET status = CASE WHEN class_sessions.status = 'makeup' THEN 'makeup' ELSE 'held' END,
+                       cancel_reason = NULL, marked_by = $6, marked_at = NOW(), updated_at = NOW(),
                        -- keep an existing note if this save does not carry one
                        class_note = COALESCE(NULLIF($7, ''), class_sessions.class_note)
                  RETURNING *`,
@@ -6497,6 +6515,11 @@ Please review and approve this registration in the admin panel.`;
                 if ((status === 'absent' || status === 'late') && previous.get(String(entry.student_id)) !== status) {
                     newlyAbsent.push({ studentId: entry.student_id, status });
                 }
+            }
+            // Attendance on a make-up class = the make-up is done: close it.
+            if (session.status === 'makeup') {
+                await client.query(`UPDATE class_sessions SET closed_at = NOW(), closed_by_name = $1, updated_at = NOW()
+                                     WHERE compensated_by = $2 AND closed_at IS NULL`, [req.session.user.name || 'Teacher', session.id]);
             }
             await client.query('COMMIT');
 
@@ -6542,6 +6565,14 @@ Please review and approve this registration in the admin panel.`;
         try {
             const { session_id } = req.body || {};
             if (!session_id) return res.status(400).json({ message: 'session_id is required.' });
+            // A make-up already planned for it goes too — unless it has been held.
+            const row = (await pool.query(`SELECT compensated_by FROM class_sessions WHERE id = $1 AND status = 'cancelled'`, [session_id])).rows[0];
+            if (row?.compensated_by) {
+                const held = (await pool.query('SELECT 1 FROM attendance WHERE session_id = $1 LIMIT 1', [row.compensated_by])).rows.length;
+                if (held) return res.status(400).json({ message: 'The make-up for this class has already been held, so the cancellation cannot be undone.' });
+                await pool.query('UPDATE class_sessions SET compensated_by = NULL WHERE id = $1', [session_id]);
+                await pool.query(`DELETE FROM class_sessions WHERE id = $1 AND status = 'makeup'`, [row.compensated_by]);
+            }
             const r = await pool.query(
                 `DELETE FROM class_sessions WHERE id = $1 AND status = 'cancelled'
                  RETURNING batch_id, to_char(session_date, 'YYYY-MM-DD') AS session_date`, [session_id]);
@@ -6581,6 +6612,8 @@ Please review and approve this registration in the admin panel.`;
                     `${batch.batch_name} on ${when} is cancelled${reason ? ` (${reason})` : ''}. ` +
                     `The academy will arrange a make-up class.`, 'attendance.class_off');
             }
+            await notifyMakeupStaff(batch, 'Class cancelled — make-up owed',
+                `${batch.batch_name} on ${when} is cancelled${reason ? ` (${reason})` : ''}. A make-up class is owed; schedule it under Attendance → Make-up classes.`, req.session.user.id);
         } catch (error) {
             console.error('Error cancelling class:', error);
             res.status(500).json({ message: 'Server error cancelling the class.' });
@@ -6608,46 +6641,140 @@ Please review and approve this registration in the admin panel.`;
         }
     });
 
-    // Schedule the make-up for a cancelled class (admin).
-    app.post('/api/attendance/makeup', ensureAdmin, async (req, res) => {
+    // Make-up helpers: who besides families hears about it, and the list everyone sees.
+    const notifyMakeupStaff = async (batch, title, message, exceptUserId) => {
+        try {
+            if (batch.teacher_id && String(batch.teacher_id) !== String(exceptUserId)) {
+                createNotificationForUser(batch.teacher_id, title, message, 'Info', 'attendance.class_off');
+            }
+            for (const a of await getActiveAdmins()) {
+                if (String(a.id) !== String(exceptUserId)) createNotificationForUser(a.id, title, message, 'Info', 'admin');
+            }
+        } catch (e) { console.error('[Makeup] staff notify failed:', e.message); }
+    };
+    const niceDay = (iso) => new Date(`${String(iso).slice(0, 10)}T12:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+    const niceTime = (t) => { if (!t) return ''; const [h, m] = String(t).split(':').map(Number); return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`; };
+    const canRunBatch = (req, batch) => isAdminUser(req) || req.session.user.is_super_admin === true || String(batch.teacher_id) === String(req.session.user.id);
+
+    // Schedule (or move) the make-up for a cancelled class: admin or the batch's teacher.
+    app.post('/api/attendance/makeup', ensureAuthenticated, async (req, res) => {
         try {
             const { cancelled_session_id, date, start_time, end_time } = req.body || {};
-            if (!cancelled_session_id || !date) {
-                return res.status(400).json({ message: 'cancelled_session_id and date are required.' });
+            if (!cancelled_session_id || !/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) {
+                return res.status(400).json({ message: 'Choose the make-up date.' });
             }
             const cancelled = (await pool.query(
                 `SELECT *, to_char(session_date, 'YYYY-MM-DD') AS session_date
                  FROM class_sessions WHERE id = $1`, [cancelled_session_id])).rows[0];
-            if (!cancelled || cancelled.status !== 'cancelled') {
-                return res.status(404).json({ message: 'Cancelled class not found.' });
-            }
+            if (!cancelled || cancelled.status !== 'cancelled') return res.status(404).json({ message: 'Cancelled class not found.' });
+            if (cancelled.closed_at) return res.status(400).json({ message: 'This make-up is already done.' });
             const batch = (await pool.query('SELECT * FROM batches WHERE id = $1', [cancelled.batch_id])).rows[0];
+            if (!batch) return res.status(404).json({ message: 'Batch not found' });
+            if (!canRunBatch(req, batch)) return res.status(403).json({ message: 'Only the admin or this batch\'s teacher can schedule its make-up.' });
+            if (date < todayIso()) return res.status(400).json({ message: 'The make-up date cannot be in the past.' });
+            const clash = (await pool.query(`SELECT status FROM class_sessions WHERE batch_id = $1 AND session_date = $2 AND id <> COALESCE($3, 0)`,
+                [batch.id, date, cancelled.compensated_by])).rows[0];
+            if (clash && clash.status !== 'makeup') return res.status(409).json({ message: 'This batch already has a class recorded on that date. Choose another day.' });
+
+            // Moving it: drop the earlier make-up day if nothing was marked on it.
+            let previous = null;
+            if (cancelled.compensated_by) {
+                previous = (await pool.query(`SELECT id, to_char(session_date, 'YYYY-MM-DD') AS d, start_time FROM class_sessions WHERE id = $1`, [cancelled.compensated_by])).rows[0];
+                const marked = previous && (await pool.query('SELECT 1 FROM attendance WHERE session_id = $1 LIMIT 1', [previous.id])).rows.length;
+                if (marked) return res.status(400).json({ message: 'Attendance is already marked for this make-up, so it cannot be moved.' });
+                if (previous && previous.d !== date) await pool.query('DELETE FROM class_sessions WHERE id = $1', [previous.id]);
+            }
             const makeup = (await pool.query(
                 `INSERT INTO class_sessions (batch_id, session_date, start_time, end_time, status, makeup_for, teacher_id)
                  VALUES ($1, $2, $3, $4, 'makeup', $5, $6)
                  ON CONFLICT (batch_id, session_date) DO UPDATE
-                   SET status = 'makeup', makeup_for = $5, start_time = $3, end_time = $4, updated_at = NOW()
+                   SET status = 'makeup', makeup_for = $5, start_time = $3, end_time = $4, reminded_at = NULL, updated_at = NOW()
                  RETURNING *`,
-                [cancelled.batch_id, date, start_time || cancelled.start_time, end_time || cancelled.end_time,
-                 cancelled.id, batch?.teacher_id || null]
+                [batch.id, date, start_time || cancelled.start_time || batch.start_time, end_time || cancelled.end_time || batch.end_time,
+                 cancelled.id, batch.teacher_id || null]
             )).rows[0];
-            await pool.query('UPDATE class_sessions SET compensated_by = $1, updated_at = NOW() WHERE id = $2',
-                [makeup.id, cancelled.id]);
-            res.json({ success: true, makeup_session_id: makeup.id });
+            await pool.query('UPDATE class_sessions SET compensated_by = $1, updated_at = NOW() WHERE id = $2', [makeup.id, cancelled.id]);
+            res.json({ success: true, makeup_session_id: makeup.id, rescheduled: !!previous });
 
-            const missed = new Date(`${cancelled.session_date}T12:00:00`)
-                .toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-            const when = new Date(`${date}T12:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
-            for (const studentId of (batch?.student_ids || [])) {
-                await notifyAboutStudent(studentId, 'Make-up class scheduled',
-                    `The ${batch.batch_name} class cancelled on ${missed} will be held on ${when}.`,
-                    'attendance.class_off');
-            }
+            const missed = niceDay(cancelled.session_date);
+            const at = `${niceDay(date)}${makeup.start_time ? `, ${niceTime(makeup.start_time)}${makeup.end_time ? `–${niceTime(makeup.end_time)}` : ''}` : ''}`;
+            const title = previous ? 'Make-up class moved' : 'Make-up class scheduled';
+            const text = `The ${batch.batch_name} class cancelled on ${missed} will be held on ${at}.`;
+            for (const studentId of (batch.student_ids || [])) await notifyAboutStudent(studentId, title, text, 'attendance.class_off');
+            await notifyMakeupStaff(batch, title, text, req.session.user.id);
         } catch (error) {
             console.error('Error scheduling make-up class:', error);
             res.status(500).json({ message: 'Server error scheduling the make-up class.' });
         }
     });
+
+    // Mark a make-up as done (it also closes by itself when attendance is marked for it).
+    app.post('/api/makeups/:id/close', ensureAuthenticated, async (req, res) => {
+        try {
+            const c = (await pool.query(`SELECT * FROM class_sessions WHERE id = $1 AND status = 'cancelled'`, [req.params.id])).rows[0];
+            if (!c) return res.status(404).json({ message: 'Make-up not found.' });
+            const batch = (await pool.query('SELECT * FROM batches WHERE id = $1', [c.batch_id])).rows[0];
+            if (!batch || !canRunBatch(req, batch)) return res.status(403).json({ message: 'Only the admin or this batch\'s teacher can close it.' });
+            if (!c.compensated_by) return res.status(400).json({ message: 'Schedule the make-up first.' });
+            await pool.query(`UPDATE class_sessions SET closed_at = NOW(), closed_by_name = $1, updated_at = NOW() WHERE id = $2`,
+                [req.session.user.name || 'Admin', c.id]);
+            res.json({ ok: true });
+        } catch (error) {
+            console.error('Error closing make-up:', error);
+            res.status(500).json({ message: 'Server error closing the make-up.' });
+        }
+    });
+
+    // Make-ups as each person sees them: admins all, a teacher their batches, a
+    // family their children's batches. state = owed | scheduled | done.
+    const makeupRows = async (where, params, extra = '') => (await pool.query(
+        `SELECT s.id, s.batch_id, to_char(s.session_date, 'YYYY-MM-DD') AS cancelled_date, s.cancel_reason,
+                b.batch_name, c.name AS course_name, t.name AS teacher_name, b.teacher_id, b.student_ids,
+                m.id AS makeup_id, to_char(m.session_date, 'YYYY-MM-DD') AS makeup_date, m.start_time, m.end_time,
+                s.closed_at, s.closed_by_name,
+                CASE WHEN s.closed_at IS NOT NULL THEN 'done' WHEN m.id IS NOT NULL THEN 'scheduled' ELSE 'owed' END AS state
+           FROM class_sessions s JOIN batches b ON b.id = s.batch_id
+           LEFT JOIN courses c ON c.id = b.course_id LEFT JOIN users t ON t.id = b.teacher_id
+           LEFT JOIN class_sessions m ON m.id = s.compensated_by
+          WHERE s.status = 'cancelled' AND ${where} ${extra}
+          ORDER BY (s.closed_at IS NOT NULL), COALESCE(m.session_date, s.session_date), s.id`, params)).rows
+        .map(r => ({ ...r, start_time: r.start_time ? String(r.start_time).slice(0, 5) : null, end_time: r.end_time ? String(r.end_time).slice(0, 5) : null,
+            students: Array.isArray(r.student_ids) ? r.student_ids.length : 0, student_ids: undefined }));
+    app.get('/api/makeups', ensureAuthenticated, async (req, res) => {
+        try {
+            const open = req.query.state !== 'all';
+            const extra = open ? `AND (s.closed_at IS NULL OR s.closed_at > NOW() - INTERVAL '3 days')` : '';
+            const me = req.session.user;
+            const role = String(me.role || '').toLowerCase();
+            let rows;
+            if (role === 'admin' || me.is_super_admin) rows = await makeupRows('true', [], extra);
+            else {
+                const { studentIds } = await householdFor(req);
+                rows = await makeupRows(`(b.teacher_id = $1 OR b.student_ids && $2::int[])`, [me.id, studentIds.map(Number)], extra);
+            }
+            res.json(rows);
+        } catch (error) {
+            console.error('Error listing make-ups:', error);
+            res.status(500).json({ message: 'Server error listing make-up classes.' });
+        }
+    });
+
+    // On the day of a make-up, remind the families and the teacher once.
+    const runMakeupReminders = async () => {
+        const today = todayIso();
+        const due = (await pool.query(
+            `SELECT m.id, m.start_time, m.end_time, b.*, to_char(c.session_date, 'YYYY-MM-DD') AS missed
+               FROM class_sessions m JOIN batches b ON b.id = m.batch_id
+               LEFT JOIN class_sessions c ON c.compensated_by = m.id
+              WHERE m.status = 'makeup' AND m.session_date = $1 AND m.reminded_at IS NULL AND m.marked_at IS NULL`, [today])).rows;
+        for (const d of due) {
+            await pool.query('UPDATE class_sessions SET reminded_at = NOW() WHERE id = $1', [d.id]);
+            const text = `Make-up class today${d.start_time ? ` at ${niceTime(d.start_time)}` : ''}: ${d.batch_name}${d.missed ? ` (for the class cancelled on ${niceDay(d.missed)})` : ''}.`;
+            for (const sid of (d.student_ids || [])) await notifyAboutStudent(sid, 'Make-up class today', text, 'attendance.class_off');
+            if (d.teacher_id) createNotificationForUser(d.teacher_id, 'Make-up class today', text, 'Info', 'attendance.class_off');
+        }
+        if (due.length) console.log(`[Makeup] reminded ${due.length} make-up class(es) today`);
+    };
 
     // A student's own record, for the parent/student app. Parents may read their
     // household's students; admins and the batch teacher may read anyone's.
@@ -6792,6 +6919,26 @@ Please review and approve this registration in the admin panel.`;
                     cancelled: cancelled.has(`${b.id}:${date}`), when: i === 0 ? 'today' : i === 1 ? 'tomorrow' : wd });
             }
         }
+        // Make-up classes in the window (they may fall on days the batch does not normally meet).
+        if (ids.length) {
+            const mk = (await pool.query(
+                `SELECT s.batch_id, to_char(s.session_date, 'YYYY-MM-DD') AS d, s.start_time, s.end_time,
+                        to_char(c.session_date, 'YYYY-MM-DD') AS for_date
+                   FROM class_sessions s LEFT JOIN class_sessions c ON c.compensated_by = s.id
+                  WHERE s.status = 'makeup' AND s.batch_id = ANY($1::int[]) AND s.marked_at IS NULL AND s.session_date BETWEEN $2 AND $3`,
+                [ids, today, isoAddDays(today, days)])).rows;
+            for (const m of mk) {
+                const b = batches.find(x => Number(x.id) === Number(m.batch_id));
+                const start = hhmm(m.start_time), end = hhmm(m.end_time);
+                if (m.d === today && (end || start) && (end || start) <= time) continue;
+                const i = out.findIndex(o => o.batch_id === Number(m.batch_id) && o.date === m.d);
+                const row = { date: m.d, day: isoWeekday(m.d), start_time: start, end_time: end, batch_id: Number(m.batch_id), batch_name: b.batch_name,
+                    course_name: b.course_name || null, teacher_name: b.teacher_name || null, mode: b.mode || null, studio: b.studio || null,
+                    location_name: b.location_name || null, cancelled: false, is_makeup: true, makeup_for: m.for_date,
+                    when: m.d === today ? 'today' : m.d === isoAddDays(today, 1) ? 'tomorrow' : isoWeekday(m.d) };
+                if (i >= 0) out[i] = row; else out.push(row);
+            }
+        }
         return out.sort((a, c) => a.date.localeCompare(c.date) || a.start_time.localeCompare(c.start_time));
     };
     const batchRowsWhere = async (where, params) => (await pool.query(
@@ -6844,6 +6991,8 @@ Please review and approve this registration in the admin panel.`;
                     attendance: { month: rate(att.filter(r => r.date >= monthStart)), last_90_days: rate(att), recent: att.slice(0, 6) },
                     last_note: note,
                     birthday: birthdayWithin(u.dob, today),
+                    // Cancelled classes still to be given back (owed, or scheduled with a date).
+                    makeups: batches.length ? (await makeupRows('s.batch_id = ANY($1::int[]) AND s.closed_at IS NULL', [batches.map(b => Number(b.id))])) : [],
                 });
             }
             const in60 = isoAddDays(today, 60), in30 = isoAddDays(today, 30);
@@ -6898,6 +7047,20 @@ Please review and approve this registration in the admin panel.`;
                     students: countIn(b), studio: b.studio, location_name: b.location_name, mode: b.mode,
                     state: sx && sx.status === 'cancelled' ? 'cancelled' : sx && sx.marked_at ? 'marked'
                         : end && end <= time ? 'not_marked' : start && start <= time ? 'running' : 'upcoming' });
+            }
+            // Make-up classes today (may be on a day the batch does not normally meet).
+            if (ids.length) {
+                const mk = (await pool.query(`SELECT batch_id, start_time, end_time, marked_at FROM class_sessions
+                                               WHERE status = 'makeup' AND batch_id = ANY($1::int[]) AND session_date = $2`, [ids, today])).rows;
+                for (const m of mk) {
+                    const b = batches.find(x => Number(x.id) === Number(m.batch_id));
+                    const start = hhmm(m.start_time), end = hhmm(m.end_time);
+                    const row = { batch_id: Number(b.id), batch_name: b.batch_name, course_name: b.course_name, start_time: start, end_time: end,
+                        students: countIn(b), studio: b.studio, location_name: b.location_name, mode: b.mode, is_makeup: true,
+                        state: m.marked_at ? 'marked' : end && end <= time ? 'not_marked' : start && start <= time ? 'running' : 'upcoming' };
+                    const i = todayClasses.findIndex(c => c.batch_id === row.batch_id);
+                    if (i >= 0) todayClasses[i] = row; else todayClasses.push(row);
+                }
             }
             todayClasses.sort((a, c) => a.start_time.localeCompare(c.start_time));
 
@@ -6960,6 +7123,7 @@ Please review and approve this registration in the admin panel.`;
                 unmarked, week,
                 attendance: { classes: marks.length, percentage: marks.length ? Math.round((okCount / marks.length) * 100) : null, low },
                 birthdays, exams, events,
+                makeups: ids.length ? await makeupRows('s.batch_id = ANY($1::int[]) AND s.closed_at IS NULL', [ids]) : [],
                 batches: batches.map(b => ({ id: Number(b.id), name: b.batch_name, course_name: b.course_name, students: countIn(b),
                     slots: batchSlots(b).map(x => ({ day: x.day, start_time: hhmm(x.start_time), end_time: hhmm(x.end_time) })) })),
             });
@@ -7247,6 +7411,10 @@ Please review and approve this registration in the admin panel.`;
                     course_places: enrolments.total },
                 enrolments,
                 unmarked: { count: unmarked.length, classes: unmarked },
+                makeups: await (async () => {
+                    const list = await makeupRows('s.closed_at IS NULL', []);
+                    return { owed: list.filter(m => m.state === 'owed').length, scheduled: list.filter(m => m.state === 'scheduled').length, list };
+                })(),
                 today: { date: today, weekday: todayName, now: nowTime, classes: todayClasses },
                 joiners: { month: period, count: joiners.length, fee_not_set: joiners.filter(j => !j.fee_set).length, students: joiners, leavers },
                 birthdays: { count: birthdays.length, students: birthdays },
@@ -9687,6 +9855,7 @@ Please review and approve this registration in the admin panel.`;
             // Generate this month's invoices first (idempotent), then chase unpaid ones.
             await generateMonthlyInvoices().catch(e => console.error('[MonthlyInvoices] run failed:', e.message));
             await runFeeReminders().catch(e => console.error('[FeeReminders] run failed:', e.message));
+            await runMakeupReminders().catch(e => console.error('[Makeup] reminders failed:', e.message));
         };
         setTimeout(safeRun, 60 * 1000); // 1 min after startup
         setInterval(safeRun, SIX_HOURS);
