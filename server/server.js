@@ -6842,18 +6842,30 @@ Please review and approve this registration in the admin panel.`;
                     )).rows.length > 0;
                 if (!allowed) return res.status(403).json({ message: 'Not your student.' });
             }
+            // Each class with, for a cancelled one, its make-up (when, and whether
+            // it was held); for a make-up class, the cancelled day it gives back.
             const rows = (await pool.query(
                 `SELECT to_char(s.session_date, 'YYYY-MM-DD') AS session_date, s.status AS session_status, s.cancel_reason,
-                        s.class_note, a.status, a.remark, b.batch_name, c.name AS course_name
+                        s.class_note, a.status, a.remark, b.batch_name, c.name AS course_name,
+                        to_char(mf.session_date, 'YYYY-MM-DD') AS makeup_for_date,
+                        to_char(cb.session_date, 'YYYY-MM-DD') AS makeup_date,
+                        to_char(cb.start_time, 'HH24:MI') AS makeup_start, to_char(cb.end_time, 'HH24:MI') AS makeup_end,
+                        (s.closed_at IS NOT NULL OR cb.marked_at IS NOT NULL) AS made_up
                  FROM class_sessions s
                  JOIN batches b ON b.id = s.batch_id
                  LEFT JOIN courses c ON c.id = b.course_id
                  LEFT JOIN attendance a ON a.session_id = s.id AND a.student_id = $1
+                 LEFT JOIN class_sessions mf ON mf.id = s.makeup_for
+                 LEFT JOIN class_sessions cb ON cb.id = s.compensated_by
                  WHERE $1 = ANY(COALESCE(b.student_ids, ARRAY[]::int[]))
                    AND s.session_date BETWEEN $2 AND $3
                  ORDER BY s.session_date DESC`,
                 [studentId, from, to]
             )).rows;
+            // Make-ups still to come for this student's batches (owed or scheduled).
+            const makeups = await makeupRows(
+                `s.batch_id IN (SELECT id FROM batches WHERE $1 = ANY(COALESCE(student_ids, ARRAY[]::int[]))) AND s.closed_at IS NULL`,
+                [studentId]);
             const held = rows.filter(r => r.session_status !== 'cancelled' && r.status);
             const present = held.filter(r => r.status === 'present').length;
             const late = held.filter(r => r.status === 'late').length;
@@ -6867,9 +6879,12 @@ Please review and approve this registration in the admin panel.`;
                     absent: held.filter(r => r.status === 'absent').length,
                     late,
                     cancelled: rows.filter(r => r.session_status === 'cancelled').length,
+                    made_up: rows.filter(r => r.session_status === 'cancelled' && r.made_up).length,
+                    makeups_pending: makeups.length,
                     percentage: held.length ? Math.round((attended / held.length) * 100) : null,
                 },
                 records: rows,
+                makeups,
             });
         } catch (error) {
             console.error('Error loading student attendance:', error);

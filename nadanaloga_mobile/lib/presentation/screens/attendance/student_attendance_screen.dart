@@ -4,11 +4,14 @@ import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/utils/date_display.dart';
+import '../../../data/models/makeup_model.dart';
 import '../../../di/injection_container.dart';
+import '../home/dashboard_parts.dart' show MakeupAttendanceLine, makeupAmber, makeupIndigo;
 
 /// What a parent (or student) sees: the last three months of classes, with a
 /// simple summary at the top. Classes the academy cancelled don't count against
-/// the student.
+/// the student; each one says when its make-up is (or that it is still to be
+/// fixed), and a make-up class says which cancelled day it gives back.
 class StudentAttendanceScreen extends StatefulWidget {
   final int studentId;
   final String studentName;
@@ -28,6 +31,8 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
   String? _error;
   Map<String, dynamic> _summary = const {};
   List<Map<String, dynamic>> _records = const [];
+  /// Make-ups still to come (owed or scheduled) for this student's batches.
+  List<MakeupRow> _makeups = const [];
 
   @override
   void initState() {
@@ -53,6 +58,7 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
       setState(() {
         _summary = (data['summary'] as Map?)?.cast<String, dynamic>() ?? {};
         _records = ((data['records'] as List?) ?? []).cast<Map<String, dynamic>>();
+        _makeups = MakeupRow.listFrom(data['makeups']);
         _loading = false;
       });
     } catch (_) {
@@ -74,6 +80,21 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
                     padding: const EdgeInsets.all(16),
                     children: [
                       _summaryCard(),
+                      if (_makeups.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Text('Make-up classes', style: AppTextStyles.labelLarge),
+                        const SizedBox(height: 4),
+                        Text(
+                          'For classes the academy cancelled. The academy fixes the date and you are told.',
+                          style: AppTextStyles.caption,
+                        ),
+                        const SizedBox(height: 8),
+                        for (final m in _makeups)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: MakeupAttendanceLine(row: m),
+                          ),
+                      ],
                       const SizedBox(height: 16),
                       Text('Last 3 months', style: AppTextStyles.labelLarge),
                       const SizedBox(height: 8),
@@ -94,7 +115,9 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
   Widget _summaryCard() {
     final pct = _summary['percentage'];
     final classes = _summary['classes'] ?? 0;
-    final cancelled = _summary['cancelled'] ?? 0;
+    final cancelled = (_summary['cancelled'] ?? 0) as int;
+    final madeUp = (_summary['made_up'] ?? 0) as int;
+    final pending = (_summary['makeups_pending'] ?? 0) as int;
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -131,10 +154,14 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
                 if (cancelled != 0) _stat('Cancelled', '$cancelled', AppColors.textSecondary),
               ],
             ),
-            if (cancelled != 0) ...[
+            if (cancelled != 0 || pending != 0) ...[
               const SizedBox(height: 10),
               Text(
-                'Classes the academy cancelled are not counted, and are made up later.',
+                [
+                  'Classes the academy cancelled are not counted.',
+                  if (madeUp > 0) '$madeUp made up.',
+                  if (pending > 0) '$pending make-up ${pending == 1 ? 'class' : 'classes'} to come.',
+                ].join(' '),
                 style: AppTextStyles.caption,
               ),
             ],
@@ -156,7 +183,9 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
   Widget _recordTile(Map<String, dynamic> r) {
     final sessionStatus = '${r['session_status'] ?? ''}';
     final status = '${r['status'] ?? ''}';
-    final (label, color, icon) = switch (sessionStatus == 'cancelled' ? 'cancelled' : status) {
+    final isCancelled = sessionStatus == 'cancelled';
+    final isMakeup = sessionStatus == 'makeup';
+    final (label, color, icon) = switch (isCancelled ? 'cancelled' : status) {
       'present' => ('Present', AppColors.success, Icons.check_circle_outline),
       'late' => ('Late', Colors.orange, Icons.schedule),
       'absent' => ('Absent', AppColors.error, Icons.cancel_outlined),
@@ -164,36 +193,101 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
       'cancelled' => ('Class cancelled', AppColors.textSecondary, Icons.block),
       _ => ('Not marked', AppColors.textHint, Icons.help_outline),
     };
+    final reason = '${r['cancel_reason'] ?? ''}'.trim();
+    final note = '${r['class_note'] ?? ''}'.trim();
+
+    // For a cancelled class: where its make-up stands.
+    String? makeupLine;
+    Color makeupColor = makeupIndigo;
+    if (isCancelled) {
+      final madeUp = r['made_up'] == true;
+      final date = '${r['makeup_date'] ?? ''}';
+      if (madeUp && date.isNotEmpty) {
+        makeupLine = 'Made up on ${makeupDayLabel(date)}';
+      } else if (date.isNotEmpty) {
+        final a = makeupClock('${r['makeup_start'] ?? ''}'), b = makeupClock('${r['makeup_end'] ?? ''}');
+        makeupLine = 'Make-up on ${makeupDayLabel(date)}${a.isEmpty ? '' : ', $a${b.isEmpty ? '' : '–$b'}'}';
+      } else {
+        makeupLine = 'Make-up date to be announced';
+        makeupColor = makeupAmber;
+      }
+    }
+    final forDate = '${r['makeup_for_date'] ?? ''}';
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: Icon(icon, color: color),
-        title: Text(formatDisplayDate('${r['session_date'] ?? ''}'), style: AppTextStyles.bodyMedium),
-        subtitle: Column(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              [
-                '${r['batch_name'] ?? ''}',
-                if (sessionStatus == 'cancelled' && (r['cancel_reason'] ?? '').toString().isNotEmpty)
-                  '${r['cancel_reason']}',
-              ].where((s) => s.isNotEmpty).join(' · '),
-              style: AppTextStyles.caption,
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(isMakeup ? Icons.event_repeat_rounded : icon,
+                  color: isMakeup ? makeupIndigo : color),
             ),
-            // What the teacher taught that day.
-            if ((r['class_note'] ?? '').toString().trim().isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text('${r['class_note']}',
-                  style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary)),
-            ],
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(formatDisplayDate('${r['session_date'] ?? ''}'),
+                            style: AppTextStyles.bodyMedium),
+                      ),
+                      Text(label,
+                          style: AppTextStyles.caption
+                              .copyWith(color: color, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    [
+                      '${r['batch_name'] ?? ''}',
+                      if (isCancelled && reason.isNotEmpty) reason,
+                    ].where((s) => s.isNotEmpty).join(' · '),
+                    style: AppTextStyles.caption,
+                  ),
+                  if (isMakeup) ...[
+                    const SizedBox(height: 4),
+                    _chip(
+                      forDate.isEmpty
+                          ? 'Make-up class'
+                          : 'Make-up class for ${makeupDayLabel(forDate)}',
+                      makeupIndigo,
+                    ),
+                  ],
+                  if (makeupLine != null) ...[
+                    const SizedBox(height: 4),
+                    _chip(makeupLine, makeupColor),
+                  ],
+                  // What the teacher taught that day.
+                  if (note.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(note,
+                        style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary)),
+                  ],
+                ],
+              ),
+            ),
           ],
         ),
-        isThreeLine: (r['class_note'] ?? '').toString().trim().isNotEmpty,
-        trailing: Text(label,
-            style: AppTextStyles.caption.copyWith(color: color, fontWeight: FontWeight.w600)),
       ),
     );
   }
+
+  Widget _chip(String text, Color color) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(text,
+            style: AppTextStyles.caption
+                .copyWith(color: color, fontWeight: FontWeight.w600)),
+      );
 
   Widget _centered(String text, {VoidCallback? onRetry}) => Center(
         child: Padding(

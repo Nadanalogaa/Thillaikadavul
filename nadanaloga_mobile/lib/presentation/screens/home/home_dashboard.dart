@@ -793,48 +793,55 @@ class _HomeDashboardState extends State<HomeDashboard> {
     final dateLine =
         '${weekdays[now.weekday - 1]}, ${now.day} ${months[now.month - 1]}';
 
-    String summary = '';
+    // Headline ("No classes today") and, under it, the detail ("Next: Meghna,
+    // tomorrow at 5:00 PM"): two short lines, not one long sentence.
+    String headline = '';
+    String detail = '';
     if (d != null && !_failed) {
       final teacherOnly = d.students.isEmpty && d.teacher != null;
       final toMark = _viewerTeaches(d) ? (_teaching?.unmarked.length ?? 0) : 0;
       final teachToday = _viewerTeaches(d) && _teaching != null
           ? _teaching!.today.where((c) => c.state != 'cancelled').length
           : 0;
-      final parts = <String>[];
+      String classesToday(int n) => n == 0
+          ? 'No classes today'
+          : n == 1
+              ? '1 class today'
+              : '$n classes today';
+      final details = <String>[];
       if (teacherOnly) {
-        parts.add(teachToday == 0
-            ? 'No classes today'
-            : '$teachToday ${teachToday == 1 ? 'class' : 'classes'} today');
+        headline = classesToday(teachToday);
       } else if (_family != null) {
-        // Say whose class it is: one child may have a class while the other has none.
-        String who(SummaryClass c) => c.learners.isEmpty ? '' : c.learners.join(' & ');
+        String who(SummaryClass c) => c.learners.join(' & ');
         final upcoming = _family!.week.where((c) => !c.cancelled).toList();
         final today = upcoming.where((c) => c.dayWord(now) == 'Today').toList();
         if (today.isEmpty) {
+          headline = 'No classes today';
           final next = upcoming.isEmpty ? null : upcoming.first;
-          parts.add(next == null
-              ? 'No classes today'
-              : 'No classes today  ·  next: ${[who(next), next.dayWord(now) == 'Tomorrow' ? 'tomorrow' : next.dayWord(now), clock12(next.startTime)].where((x) => x.isNotEmpty).join(' ')}');
+          if (next != null) {
+            final day = next.dayWord(now) == 'Tomorrow' ? 'tomorrow' : next.dayWord(now);
+            details.add('Next: ${who(next).isEmpty ? '' : '${who(next)}, '}$day at ${clock12(next.startTime)}');
+          } else if (_family!.children.isNotEmpty) {
+            details.add('Nothing in the next 7 days');
+          }
         } else if (today.length == 1) {
           final c = today.first;
-          parts.add(who(c).isEmpty
-              ? 'Class today at ${clock12(c.startTime)}'
-              : '${who(c)}: class today at ${clock12(c.startTime)}');
-        } else if (today.length == 2) {
-          parts.add('Today: ${today.map((c) => [who(c), clock12(c.startTime)].where((x) => x.isNotEmpty).join(' ')).join('  ·  ')}');
+          headline = 'Class today at ${clock12(c.startTime)}';
+          details.add([who(c), c.batchName].where((x) => x.isNotEmpty).join(' · '));
         } else {
-          parts.add('${today.length} classes today');
+          headline = classesToday(today.length);
+          final shown = today.take(2).map((c) => [who(c), clock12(c.startTime)].where((x) => x.isNotEmpty).join(' '));
+          details.add([...shown, if (today.length > 2) 'and ${today.length - 2} more'].join(' · '));
         }
-        if (teachToday > 0) parts.add('$teachToday to teach');
+        if (teachToday > 0) details.add('$teachToday to teach');
       } else {
-        final n = d.upcomingClasses
+        headline = classesToday(d.upcomingClasses
             .where((s) => ClassSchedule.dayLabel(s.start) == 'Today')
-            .length;
-        parts.add(n == 0 ? 'No classes today' : '$n ${n == 1 ? 'class' : 'classes'} today');
+            .length);
       }
-      if (toMark > 0) parts.add('$toMark to mark');
+      if (toMark > 0) details.add('$toMark to mark');
       // Fees are not repeated here: the fees card just below has them.
-      summary = parts.join('  ·  ');
+      detail = details.join(' · ');
     }
 
     final accent = widget.accent;
@@ -927,10 +934,19 @@ class _HomeDashboardState extends State<HomeDashboard> {
               ),
               const SizedBox(height: 2),
               Text(
-                summary,
+                headline,
                 style: AppTextStyles.bodyLarge
                     .copyWith(color: Colors.white, fontWeight: FontWeight.w600),
               ),
+              if (detail.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  detail,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.bodySmall.copyWith(color: Colors.white70),
+                ),
+              ],
             ],
           ),
         ],

@@ -269,7 +269,16 @@ export const FamilyHomeSummary: React.FC<{ summary: HomeSummary | null; error: s
 };
 
 const AttendanceHistory: React.FC<{ student: HomeStudent; onClose: () => void }> = ({ student, onClose }) => {
-    const { data } = useJson<{ summary: { classes: number; present: number; absent: number; late: number; percentage: number | null }; records: { session_date: string; session_status: string; status: string | null; batch_name: string; class_note: string | null; cancel_reason: string | null }[] }>(`/api/attendance/student/${student.id}`);
+    const { data } = useJson<{
+        summary: { classes: number; present: number; absent: number; late: number; percentage: number | null; cancelled?: number; made_up?: number; makeups_pending?: number };
+        records: { session_date: string; session_status: string; status: string | null; batch_name: string; class_note: string | null; cancel_reason: string | null; makeup_for_date?: string | null; makeup_date?: string | null; makeup_start?: string | null; makeup_end?: string | null; made_up?: boolean }[];
+        makeups?: HomeMakeup[];
+    }>(`/api/attendance/student/${student.id}`);
+    // For a cancelled class: where its make-up stands.
+    const makeupLine = (r: { made_up?: boolean; makeup_date?: string | null; makeup_start?: string | null; makeup_end?: string | null }) =>
+        r.made_up && r.makeup_date ? ['Made up on ' + shortDate(r.makeup_date), 'text-indigo-700 dark:text-indigo-300']
+        : r.makeup_date ? [`Make-up on ${shortDate(r.makeup_date)}${r.makeup_start ? `, ${clock(r.makeup_start)}${r.makeup_end ? `–${clock(r.makeup_end)}` : ''}` : ''}`, 'text-indigo-700 dark:text-indigo-300']
+        : ['Make-up date to be announced', 'text-amber-700 dark:text-amber-300'];
     return (
         <Modal isOpen onClose={onClose} size="2xl">
             <div className="bg-white p-5 dark:bg-gray-800">
@@ -284,12 +293,24 @@ const AttendanceHistory: React.FC<{ student: HomeStudent; onClose: () => void }>
                                 <div key={l as string} className="rounded-xl bg-gray-50 p-2 dark:bg-gray-700/50"><div className={`text-lg font-bold ${c}`}>{v}</div><div className="text-xs text-gray-500">{l}</div></div>
                             ))}
                         </div>
+                        {(data.makeups || []).length > 0 && (
+                            <div className="mb-4">
+                                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Make-up classes to come</p>
+                                <MakeupList rows={data.makeups!} family />
+                            </div>
+                        )}
                         {data.records.length === 0 && <p className="py-6 text-center text-sm text-gray-500">No classes recorded yet.</p>}
                         <ul className="divide-y divide-gray-100 dark:divide-gray-700">
                             {data.records.map((r, i) => (
                                 <li key={i} className="flex items-start gap-3 py-2 text-sm">
                                     <span className="w-16 shrink-0 text-gray-500">{shortDate(r.session_date)}</span>
-                                    <span className="min-w-0 flex-1"><span className="text-gray-900 dark:text-white">{r.batch_name}</span>{r.class_note && <span className="block text-xs text-gray-500">{r.class_note}</span>}</span>
+                                    <span className="min-w-0 flex-1">
+                                        <span className="text-gray-900 dark:text-white">{r.batch_name}</span>
+                                        {r.session_status === 'cancelled' && r.cancel_reason && <span className="text-gray-500"> — {r.cancel_reason}</span>}
+                                        {r.session_status === 'makeup' && <span className="ml-2 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-200">Make-up class{r.makeup_for_date ? ` for ${shortDate(r.makeup_for_date)}` : ''}</span>}
+                                        {r.session_status === 'cancelled' && <span className={`block text-xs font-semibold ${makeupLine(r)[1]}`}>{makeupLine(r)[0]}</span>}
+                                        {r.class_note && <span className="block text-xs text-gray-500">{r.class_note}</span>}
+                                    </span>
                                     <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${r.session_status === 'cancelled' ? 'bg-amber-100 text-amber-800' : r.status === 'present' ? 'bg-emerald-100 text-emerald-700' : r.status === 'late' ? 'bg-amber-100 text-amber-800' : r.status === 'absent' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
                                         {r.session_status === 'cancelled' ? 'Cancelled' : r.status || 'Not marked'}
                                     </span>
