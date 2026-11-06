@@ -2011,6 +2011,14 @@ async function startServer() {
         try {
             const { password, ...userData } = req.body;
             if (!userData.email) return res.status(400).json({ message: 'Email is required.' });
+            // Admin accounts are made by the super admin only (Admin → Staff
+            // admins). This endpoint is public — families sign up through it —
+            // so a request for an admin role from anyone else is refused, and
+            // nobody can make themselves super admin.
+            delete userData.is_super_admin;
+            if (String(userData.role || '').trim().toLowerCase() === 'admin' && req.session?.user?.is_super_admin !== true) {
+                return res.status(403).json({ message: 'Admin accounts are created by the super admin only.' });
+            }
             
             const normalizedEmail = userData.email.toLowerCase();
             

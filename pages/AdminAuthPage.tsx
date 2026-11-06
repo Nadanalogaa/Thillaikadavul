@@ -144,19 +144,7 @@ const AdminAuthPage: React.FC<AdminAuthPageProps> = ({ onLoginSuccess }) => {
         
         {isLoginView ? renderLoginForm() : renderRegisterForm()}
         
-        <div className="text-center text-sm">
-            {isLoginView ? "Don't have an admin account? " : "Already have an account? "}
-            <button 
-                onClick={() => {
-                    setIsLoginView(!isLoginView);
-                    setError(null);
-                    setSuccess(null);
-                }} 
-                className="font-medium text-brand-primary hover:text-brand-dark"
-            >
-                {isLoginView ? "Register here" : "Sign in"}
-            </button>
-        </div>
+        <p className="text-center text-sm text-gray-500">Staff admin accounts are created by the super admin (Admin → Staff admins).</p>
       </div>
     </div>
   );

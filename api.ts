@@ -1,3 +1,4 @@
+import { setAdminRole } from './utils/adminRole';
 import type { User, ContactFormData, Course, DashboardStats, Notification, Batch, FeeStructure, Invoice, PaymentDetails, StudentEnrollment, Event, GradeExam, BookMaterial, Notice, Location, DemoBooking, EventNotification, EventImage, Household, HouseholdFees, FeeRoster, FeeRosterParams, FamilyDue, CollectCashResult, FeeReceipt, ReverseReceiptResult } from './types';
 import { UserRole, ClassPreference, InvoiceStatus } from './types';
 import { supabase } from './src/lib/supabase.js';
@@ -186,6 +187,7 @@ export const loginUser = async (email: string, password: string): Promise<User> 
     if (!user || !user.id) {
       throw new Error('Login failed. Invalid response from server.');
     }
+    setAdminRole(user.is_super_admin === true);
 
     // Convert database format to frontend format
     const userData: User = {
@@ -362,6 +364,7 @@ export const logout = async (): Promise<void> => {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('currentUser');
   }
+  setAdminRole(null);
   console.log('User logged out');
 };
 
