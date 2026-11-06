@@ -486,6 +486,13 @@ class _HomeDashboardState extends State<HomeDashboard> {
                             : 'Awaiting batch — class timings will show here once the academy assigns one',
                         onTap: hasBatch ? () => _openBatches(d, [m]) : null),
           ),
+          // Classes the academy cancelled and owes back to this child.
+          if (c != null)
+            for (final mk in c.makeups)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                child: MakeupCard(row: mk, family: true),
+              ),
           if (c != null) ...[
             _attendanceRow(m, c),
             if (c.lastNote != null) ...[

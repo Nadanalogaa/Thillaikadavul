@@ -765,6 +765,42 @@ class ApiClient {
         options: Options(validateStatus: (_) => true));
   }
 
+  /// Make-up classes this user may see (admin: all; teacher: their batches;
+  /// family: their children's). Open ones plus those closed in the last 3
+  /// days, or the full history with [all].
+  Future<Response> getMakeups({bool all = false}) {
+    return _dio.get(ApiEndpoints.makeups,
+        queryParameters: all ? {'state': 'all'} : null,
+        options: Options(validateStatus: (_) => true));
+  }
+
+  /// Fix (or move) the make-up for a cancelled class. Empty times fall back
+  /// to the batch's usual timing.
+  Future<Response> scheduleMakeup(int cancelledSessionId, String date,
+      {String? startTime, String? endTime}) {
+    return _dio.post(ApiEndpoints.attendanceMakeup,
+        data: {
+          'cancelled_session_id': cancelledSessionId,
+          'date': date,
+          if (startTime != null && startTime.isNotEmpty) 'start_time': startTime,
+          if (endTime != null && endTime.isNotEmpty) 'end_time': endTime,
+        },
+        options: Options(validateStatus: (_) => true));
+  }
+
+  /// Mark a scheduled make-up as done.
+  Future<Response> closeMakeup(int cancelledSessionId) {
+    return _dio.post(ApiEndpoints.makeupClose(cancelledSessionId),
+        options: Options(validateStatus: (_) => true));
+  }
+
+  /// Undo a cancellation (admin only); also removes a planned make-up.
+  Future<Response> reinstateClass(int sessionId) {
+    return _dio.post(ApiEndpoints.attendanceReinstate,
+        data: {'session_id': sessionId},
+        options: Options(validateStatus: (_) => true));
+  }
+
   /// What version families should be running. No auth: checked at startup.
   Future<Response> getAppVersion() {
     return _dio.get(ApiEndpoints.appVersion,

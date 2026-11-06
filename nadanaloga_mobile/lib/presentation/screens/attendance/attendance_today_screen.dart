@@ -5,6 +5,7 @@ import '../../../config/theme/app_text_styles.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/utils/date_display.dart';
 import '../../../di/injection_container.dart';
+import 'makeups_screen.dart';
 import 'mark_attendance_screen.dart';
 
 /// A teacher's classes for a day, with whether each one is marked yet.
@@ -74,6 +75,15 @@ class _AttendanceTodayScreenState extends State<AttendanceTodayScreen> {
         title: const Text('Attendance'),
         actions: [
           IconButton(
+            tooltip: 'Make-up classes',
+            icon: const Icon(Icons.event_repeat_outlined),
+            onPressed: () async {
+              await Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const MakeupsScreen()));
+              if (mounted) _load();
+            },
+          ),
+          IconButton(
             tooltip: 'Pick a date',
             icon: const Icon(Icons.calendar_today_outlined),
             onPressed: _pickDate,
@@ -125,10 +135,13 @@ class _AttendanceTodayScreenState extends State<AttendanceTodayScreen> {
 
   Widget _classCard(Map<String, dynamic> c) {
     final status = '${c['status'] ?? 'not_marked'}';
+    // A make-up class is marked like any other; it just carries a chip.
+    final isMakeup = status == 'makeup';
+    final markedMakeup = isMakeup && c['marked_at'] != null;
     final (label, color) = switch (status) {
       'held' => ('Marked', AppColors.success),
       'cancelled' => ('Cancelled', AppColors.error),
-      'makeup' => ('Make-up class', AppColors.primary),
+      'makeup' when markedMakeup => ('Marked', AppColors.success),
       _ => ('Not marked', Colors.orange),
     };
     final timing = [
@@ -154,14 +167,13 @@ class _AttendanceTodayScreenState extends State<AttendanceTodayScreen> {
               style: AppTextStyles.caption,
             ),
             const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(label,
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                if (isMakeup) _chip('Make-up', const Color(0xFF4F46E5)),
+                _chip(label, color),
+              ],
             ),
           ],
         ),
@@ -173,6 +185,7 @@ class _AttendanceTodayScreenState extends State<AttendanceTodayScreen> {
                 batchId: int.tryParse('${c['batch_id']}') ?? 0,
                 batchName: '${c['batch_name'] ?? 'Batch'}',
                 date: _dateIso,
+                timing: timing,
               ),
             ),
           );
@@ -181,6 +194,16 @@ class _AttendanceTodayScreenState extends State<AttendanceTodayScreen> {
       ),
     );
   }
+
+  Widget _chip(String label, Color color) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(label,
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+      );
 
   Widget _centered(String text, {VoidCallback? onRetry}) => Center(
         child: Padding(

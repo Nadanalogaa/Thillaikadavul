@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
+import '../../../data/models/makeup_model.dart';
 import '../admin/insights/dashboard_widgets.dart';
 import 'home_summary.dart';
 
@@ -503,6 +504,22 @@ class NextClassHero extends StatelessWidget {
                         decorationColor: Colors.white70,
                       ),
                     ),
+                    if (cls.isMakeup && !cls.cancelled) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFCD34D),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text('Make-up class',
+                            style: TextStyle(
+                                color: Color(0xFF451A03),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800)),
+                      ),
+                    ],
                     const SizedBox(height: 2),
                     Text(
                       cls.batchName.isEmpty ? cls.courseName : cls.batchName,
@@ -653,6 +670,9 @@ class WeekStrip extends StatelessWidget {
                       const TagChip('Cancelled',
                           color: AppColors.error,
                           icon: Icons.event_busy_outlined)
+                    else if (c.isMakeup)
+                      const TagChip('Make-up',
+                          color: makeupIndigo, icon: Icons.event_repeat_rounded)
                     else
                       Text(
                         showLearners && c.learners.isNotEmpty
@@ -669,6 +689,82 @@ class WeekStrip extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+const Color makeupIndigo = Color(0xFF4F46E5);
+const Color makeupAmber = Color(0xFFB45309);
+
+/// One open make-up class: "Make-up class owed" (amber) until the academy
+/// fixes a date, then "Make-up class · Mon, 9 Nov, 5:30 PM–6:30 PM" (indigo).
+/// [family] wording tells parents the academy will let them know.
+class MakeupCard extends StatelessWidget {
+  final MakeupRow row;
+  final bool family;
+  final VoidCallback? onTap;
+  const MakeupCard(
+      {super.key, required this.row, this.family = false, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final owed = row.isOwed;
+    final color = owed ? makeupAmber : makeupIndigo;
+    final reason = row.cancelReason == null ? '' : ' (${row.cancelReason})';
+    return Material(
+      color: color.withValues(alpha: 0.06),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              IconBubble(Icons.event_repeat_rounded, color, size: 36),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      owed
+                          ? 'Make-up class owed'
+                          : 'Make-up class · ${row.when}',
+                      style: AppTextStyles.labelLarge
+                          .copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${row.batchName} · class cancelled on '
+                      '${makeupShortDate(row.cancelledDate)}$reason',
+                      style: AppTextStyles.caption
+                          .copyWith(color: AppColors.textSecondary),
+                    ),
+                    if (owed) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        family
+                            ? 'The academy will tell you the new date and time.'
+                            : 'Date not fixed yet.',
+                        style: AppTextStyles.caption.copyWith(
+                            color: color, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (onTap != null)
+                const Icon(Icons.chevron_right, color: AppColors.textHint),
+            ],
+          ),
+        ),
       ),
     );
   }

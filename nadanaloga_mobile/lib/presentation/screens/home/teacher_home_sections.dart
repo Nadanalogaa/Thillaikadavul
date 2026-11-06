@@ -6,6 +6,7 @@ import '../../../config/theme/app_text_styles.dart';
 import '../admin/insights/dashboard_widgets.dart';
 import '../attendance/attendance_today_screen.dart';
 import '../attendance/batch_students_screen.dart';
+import '../attendance/makeups_screen.dart';
 import '../attendance/mark_attendance_screen.dart';
 import '../attendance/student_attendance_screen.dart';
 import '../student/events_list_screen.dart';
@@ -19,6 +20,7 @@ import 'home_widgets.dart';
 /// The teacher's home, built from GET /api/teacher/summary.
 ///
 ///   numbers      my batches · my students · classes this week
+///   make-ups     cancelled classes owed or scheduled (only when there are)
 ///   today        timeline with state chips and a big Mark attendance button
 ///   to mark      classes from the last week still waiting for attendance
 ///   missing      students skipping classes, with a call button
@@ -78,6 +80,7 @@ class TeacherHomeSections {
               'Classes this week', AppColors.studentAccent, _openWeek),
         ]),
       ],
+      ..._makeups(),
       ..._today(compact),
       ..._toMark(compact),
       if (!compact) ...[
@@ -110,6 +113,26 @@ class TeacherHomeSections {
               badge: s.low.isEmpty ? null : '${s.low.length}'),
         ]),
       ],
+    ];
+  }
+
+  void _openMakeups() => _push(const MakeupsScreen(), reloadAfter: true);
+
+  // -------------------------------------------------------------- makeups ---
+
+  /// Cancelled classes still owed, or scheduled and not yet held.
+  List<Widget> _makeups() {
+    final list = s.makeups;
+    if (list.isEmpty) return const [];
+    final owed = list.where((m) => m.isOwed).length;
+    return [
+      HomeSection('Make-up classes',
+          action: owed > 0 ? 'Fix date' : 'Open', onAction: _openMakeups),
+      for (var i = 0; i < list.length; i++)
+        Padding(
+          padding: EdgeInsets.only(top: i == 0 ? 0 : 8),
+          child: MakeupCard(row: list[i], onTap: _openMakeups),
+        ),
     ];
   }
 
@@ -261,6 +284,12 @@ class TeacherHomeSections {
                             ),
                           ),
                           const SizedBox(width: 6),
+                          if (c.isMakeup) ...[
+                            const TagChip('Make-up',
+                                color: makeupIndigo,
+                                icon: Icons.event_repeat_rounded),
+                            const SizedBox(width: 4),
+                          ],
                           TagChip(label,
                               color: color,
                               icon: switch (c.state) {
@@ -549,6 +578,8 @@ class TeacherHomeSections {
                         c.timeRange,
                         if (c.cancelled)
                           'Cancelled'
+                        else if (c.isMakeup)
+                          'Make-up'
                         else if (c.place.isNotEmpty)
                           c.place,
                       ].join(' · '),

@@ -1,4 +1,5 @@
 import '../../../core/network/api_client.dart';
+import '../../../data/models/makeup_model.dart';
 
 // Parsed GET /api/home/summary (family) and GET /api/teacher/summary (teacher).
 // Every field is optional on the wire; parsing never throws.
@@ -91,6 +92,9 @@ class SummaryClass {
   final bool cancelled;
   final String when;
 
+  /// A make-up class given back for a cancelled one.
+  final bool isMakeup;
+
   /// Household children in this class (filled when merging the family week).
   final List<String> learners;
 
@@ -108,6 +112,7 @@ class SummaryClass {
     this.locationName,
     this.cancelled = false,
     this.when = '',
+    this.isMakeup = false,
     this.learners = const [],
   });
 
@@ -125,6 +130,7 @@ class SummaryClass {
         locationName: _strOrNull(m['location_name']),
         cancelled: m['cancelled'] == true,
         when: _str(m['when']),
+        isMakeup: m['is_makeup'] == true,
       );
 
   SummaryClass withLearners(List<String> names) => SummaryClass(
@@ -141,6 +147,7 @@ class SummaryClass {
         locationName: locationName,
         cancelled: cancelled,
         when: when,
+        isMakeup: isMakeup,
         learners: names,
       );
 
@@ -277,6 +284,9 @@ class ChildSummary {
   final ClassNote? lastNote;
   final BirthdayInfo? birthday;
 
+  /// Open make-ups (owed or scheduled) for this child's batches.
+  final List<MakeupRow> makeups;
+
   const ChildSummary({
     required this.id,
     required this.name,
@@ -289,6 +299,7 @@ class ChildSummary {
     this.recent = const [],
     this.lastNote,
     this.birthday,
+    this.makeups = const [],
   });
 
   factory ChildSummary.fromJson(Map<String, dynamic> m) {
@@ -339,6 +350,9 @@ class ChildSummary {
               inDays: _int(bday['in_days']),
               turns: _intOrNull(bday['turns']),
             ),
+      makeups: MakeupRow.listFrom(m['makeups'])
+          .where((r) => !r.isDone)
+          .toList(),
     );
   }
 }
@@ -483,6 +497,7 @@ class TeacherTodayClass {
   final String? locationName;
   final String? mode;
   final String state; // upcoming | running | not_marked | marked | cancelled
+  final bool isMakeup;
 
   const TeacherTodayClass({
     required this.batchId,
@@ -495,6 +510,7 @@ class TeacherTodayClass {
     this.locationName,
     this.mode,
     this.state = '',
+    this.isMakeup = false,
   });
 
   bool get needsMarking => state == 'running' || state == 'not_marked';
@@ -623,6 +639,9 @@ class TeacherSummary {
   final List<TeacherBatch> batches;
   final String todayIso;
 
+  /// Open make-ups for the teacher's batches.
+  final List<MakeupRow> makeups;
+
   const TeacherSummary({
     this.batchCount = 0,
     this.studentCount = 0,
@@ -639,6 +658,7 @@ class TeacherSummary {
     this.events = const [],
     this.batches = const [],
     this.todayIso = '',
+    this.makeups = const [],
   });
 
   factory TeacherSummary.fromJson(Map<String, dynamic> m) {
@@ -647,6 +667,8 @@ class TeacherSummary {
     final next = _map(m['next_class']);
     return TeacherSummary(
       todayIso: _str(m['today']),
+      makeups:
+          MakeupRow.listFrom(m['makeups']).where((r) => !r.isDone).toList(),
       batchCount: _int(counts['batches']),
       studentCount: _int(counts['students']),
       classesThisWeek: _int(counts['classes_this_week']),
@@ -663,6 +685,7 @@ class TeacherSummary {
             locationName: _strOrNull(c['location_name']),
             mode: _strOrNull(c['mode']),
             state: _str(c['state']),
+            isMakeup: c['is_makeup'] == true,
           ),
       ],
       nextClass: next == null ? null : SummaryClass.fromJson(next),

@@ -7,17 +7,24 @@ import '../../../core/utils/date_display.dart';
 import '../../../di/injection_container.dart';
 
 /// Teacher marks one class: everyone starts present, tap the few who are not.
-/// A class the academy calls off is cancelled here, which owes a make-up.
+/// A class the academy called off shows as cancelled (a make-up is owed). A
+/// make-up class (status 'makeup') is marked like any class; saving its
+/// attendance closes the make-up. It is never offered "Class off".
 class MarkAttendanceScreen extends StatefulWidget {
   final int batchId;
   final String batchName;
   final String date; // YYYY-MM-DD
+
+  /// "5:30 PM – 6:30 PM" when known (a make-up can differ from the batch's
+  /// usual timing, which is all the roster returns).
+  final String? timing;
 
   const MarkAttendanceScreen({
     super.key,
     required this.batchId,
     required this.batchName,
     required this.date,
+    this.timing,
   });
 
   @override
@@ -31,6 +38,7 @@ class _MarkAttendanceScreenState extends State<MarkAttendanceScreen> {
   String _sessionStatus = 'not_marked';
   String? _cancelReason;
   String? _batchTiming;
+  bool _markedBefore = false;
   final _noteController = TextEditingController();
   final List<_Row> _rows = [];
 
@@ -68,7 +76,8 @@ class _MarkAttendanceScreenState extends State<MarkAttendanceScreen> {
       setState(() {
         _sessionStatus = '${data['session_status'] ?? 'not_marked'}';
         _cancelReason = data['cancel_reason'] as String?;
-        _batchTiming = [
+        _markedBefore = data['marked_at'] != null;
+        _batchTiming = widget.timing?.isNotEmpty == true ? widget.timing : [
           formatDisplayTime('${batch['start_time'] ?? ''}'),
           formatDisplayTime('${batch['end_time'] ?? ''}'),
         ].where((s) => s.isNotEmpty).join(' – ');
@@ -183,7 +192,29 @@ class _MarkAttendanceScreenState extends State<MarkAttendanceScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.batchName, style: AppTextStyles.labelLarge),
+            Row(
+              children: [
+                Flexible(
+                    child: Text(widget.batchName,
+                        style: AppTextStyles.labelLarge)),
+                if (_sessionStatus == 'makeup') ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text('Make-up',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF4F46E5))),
+                  ),
+                ],
+              ],
+            ),
             const SizedBox(height: 2),
             Text(
               [formatDisplayDate(widget.date), if (_batchTiming?.isNotEmpty == true) _batchTiming!]
@@ -202,9 +233,14 @@ class _MarkAttendanceScreenState extends State<MarkAttendanceScreen> {
                 ),
               ),
             ],
-            if (_sessionStatus == 'held') ...[
+            if (_sessionStatus == 'held' ||
+                (_sessionStatus == 'makeup' && _markedBefore)) ...[
               const SizedBox(height: 4),
               Text('Already marked — saving again updates it.', style: AppTextStyles.caption),
+            ] else if (_sessionStatus == 'makeup') ...[
+              const SizedBox(height: 4),
+              Text('Make-up class. Saving attendance marks the make-up as done.',
+                  style: AppTextStyles.caption),
             ],
           ],
         ),

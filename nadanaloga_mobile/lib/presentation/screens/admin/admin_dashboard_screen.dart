@@ -13,6 +13,7 @@ import '../../bloc/batch/batch_event.dart';
 import '../../bloc/dashboard/dashboard_bloc.dart';
 import '../../bloc/dashboard/dashboard_event.dart';
 import '../../bloc/dashboard/dashboard_state.dart';
+import '../attendance/makeups_screen.dart';
 import 'fees/extra_bill_detail_screen.dart';
 import 'fees/extra_bill_form_screen.dart';
 import 'insights/dashboard_widgets.dart';
@@ -309,6 +310,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               : '${n(d.unmarked.count, 'class', 'classes')} this week',
           alert: d.unmarked.count > 0 ? AppColors.error : null,
           onTap: () => _open('/admin/insights/unmarked'),
+        ),
+        AttentionItem(
+          icon: Icons.event_repeat_outlined,
+          title: 'Make-up classes',
+          value: d.makeups.open,
+          context: d.makeups.owed > 0
+              ? '${d.makeups.owed} need a date'
+              : d.makeups.scheduled > 0
+                  ? '${d.makeups.scheduled} scheduled'
+                  : 'None pending',
+          alert: d.makeups.owed > 0
+              ? AppColors.warning
+              : d.makeups.scheduled > 0
+                  ? AppColors.primary
+                  : null,
+          onTap: () => _openPage(const MakeupsScreen()),
         ),
         AttentionItem(
           icon: Icons.trending_down,

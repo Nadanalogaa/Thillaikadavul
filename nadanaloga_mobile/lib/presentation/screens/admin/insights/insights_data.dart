@@ -470,6 +470,16 @@ class EnrolmentInsights {
         byCourse = _maps(e['by_course']).map(CourseEnrolment.new).toList();
 }
 
+/// Make-up classes still open: owed (no date yet) and scheduled.
+class MakeupInsights {
+  final int owed;
+  final int scheduled;
+  MakeupInsights(Map<String, dynamic> m)
+      : owed = _int(m['owed']),
+        scheduled = _int(m['scheduled']);
+  int get open => owed + scheduled;
+}
+
 class AdminInsights {
   final AttendanceInsights attendance;
   final FeeInsights fees;
@@ -483,6 +493,7 @@ class AdminInsights {
   final List<TrendPoint> trend;
   final List<ExtraBillInsight> extraBills;
   final EnrolmentInsights enrolments;
+  final MakeupInsights makeups;
 
   const AdminInsights({
     required this.attendance,
@@ -497,6 +508,7 @@ class AdminInsights {
     required this.trend,
     required this.extraBills,
     required this.enrolments,
+    required this.makeups,
   });
 
   factory AdminInsights.fromJson(Map<String, dynamic> j) {
@@ -515,6 +527,7 @@ class AdminInsights {
       trend: _maps(j['trend']).map(TrendPoint.new).toList(),
       extraBills: _maps(j['extra_bills']).map(ExtraBillInsight.new).toList(),
       enrolments: EnrolmentInsights(m('counts'), m('enrolments')),
+      makeups: MakeupInsights(m('makeups')),
     );
   }
 

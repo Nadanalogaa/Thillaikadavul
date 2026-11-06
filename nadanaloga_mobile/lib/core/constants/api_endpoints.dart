@@ -120,6 +120,12 @@ class ApiEndpoints {
   static const String attendanceRoster = '$apiPrefix/attendance/roster';
   static const String attendanceMark = '$apiPrefix/attendance/mark';
   static const String attendanceCancel = '$apiPrefix/attendance/cancel';
+  // Make-up classes: owed (cancelled) -> scheduled -> done.
+  static const String attendanceMakeup = '$apiPrefix/attendance/makeup';
+  static const String attendanceReinstate = '$apiPrefix/attendance/reinstate';
+  static const String makeups = '$apiPrefix/makeups';
+  static String makeupClose(int cancelledSessionId) =>
+      '$apiPrefix/makeups/$cancelledSessionId/close';
   static String attendanceForStudent(int studentId) =>
       '$apiPrefix/attendance/student/$studentId';
 
