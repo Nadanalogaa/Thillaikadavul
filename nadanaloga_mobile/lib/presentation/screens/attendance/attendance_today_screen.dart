@@ -77,11 +77,7 @@ class _AttendanceTodayScreenState extends State<AttendanceTodayScreen> {
           IconButton(
             tooltip: 'Make-up classes',
             icon: const Icon(Icons.event_repeat_outlined),
-            onPressed: () async {
-              await Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => const MakeupsScreen()));
-              if (mounted) _load();
-            },
+            onPressed: _openMakeups,
           ),
           IconButton(
             tooltip: 'Pick a date',
@@ -137,10 +133,12 @@ class _AttendanceTodayScreenState extends State<AttendanceTodayScreen> {
     final status = '${c['status'] ?? 'not_marked'}';
     // A make-up class is marked like any other; it just carries a chip.
     final isMakeup = status == 'makeup';
+    final classOff = status == 'cancelled';
+    final reason = '${c['cancel_reason'] ?? ''}'.trim();
     final markedMakeup = isMakeup && c['marked_at'] != null;
     final (label, color) = switch (status) {
       'held' => ('Marked', AppColors.success),
-      'cancelled' => ('Cancelled', AppColors.error),
+      'cancelled' => ('Class off', AppColors.error),
       'makeup' when markedMakeup => ('Marked', AppColors.success),
       _ => ('Not marked', Colors.orange),
     };
@@ -175,10 +173,25 @@ class _AttendanceTodayScreenState extends State<AttendanceTodayScreen> {
                 _chip(label, color),
               ],
             ),
+            if (classOff) ...[
+              if (reason.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(reason,
+                    style: AppTextStyles.caption.copyWith(color: AppColors.error)),
+              ],
+              const SizedBox(height: 4),
+              Text('Class off · see the make-up →',
+                  style: AppTextStyles.caption.copyWith(
+                      color: AppColors.primary, fontWeight: FontWeight.w600)),
+            ],
           ],
         ),
         trailing: const Icon(Icons.chevron_right),
         onTap: () async {
+          if (classOff) {
+            await _openMakeups();
+            return;
+          }
           final changed = await Navigator.of(context).push<bool>(
             MaterialPageRoute(
               builder: (_) => MarkAttendanceScreen(
@@ -193,6 +206,12 @@ class _AttendanceTodayScreenState extends State<AttendanceTodayScreen> {
         },
       ),
     );
+  }
+
+  Future<void> _openMakeups() async {
+    await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const MakeupsScreen()));
+    if (mounted) _load();
   }
 
   Widget _chip(String label, Color color) => Container(

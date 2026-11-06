@@ -267,7 +267,26 @@ class _HomeDashboardState extends State<HomeDashboard> {
         if (c.birthday != null && c.birthday!.inDays <= 7) c,
     ]..sort((a, b) => a.birthday!.inDays.compareTo(b.birthday!.inDays));
 
+    // Classes called off in the coming days (the family's, and the viewer's
+    // own teaching), at the very top.
+    final cancelled = <String, CancelledNotice>{};
+    for (final c in fam?.week ?? const <SummaryClass>[]) {
+      if (c.cancelled) {
+        final n = CancelledNotice.of(c);
+        cancelled.putIfAbsent(n.key, () => n);
+      }
+    }
+    if (_viewerTeaches(d) && _teaching != null) {
+      for (final n in TeacherHomeSections.cancelledNotices(_teaching!)) {
+        cancelled.putIfAbsent(n.key, () => n);
+      }
+    }
+
     return [
+      if (cancelled.isNotEmpty) ...[
+        CancelledBand(notices: cancelled.values.toList()),
+        const SizedBox(height: 12),
+      ],
       if (d.students.isNotEmpty) _feeCard(d),
       if (d.partial)
         Padding(
@@ -415,8 +434,9 @@ class _HomeDashboardState extends State<HomeDashboard> {
 
   Widget _childCard(HomeData d, HouseholdMember m, ChildSummary? c) {
     final f = d.feesFor(m.id);
+    // The amount itself is shown once, in the fees card.
     final Widget? pill = f.due > 0
-        ? StatusPill('${FeeFormat.rupees(f.due)} due', color: AppColors.warning)
+        ? const StatusPill('Fees due', color: AppColors.warning)
         : f.allPaid
             ? const StatusPill('Paid',
                 color: AppColors.success, icon: Icons.check_rounded)
@@ -486,15 +506,14 @@ class _HomeDashboardState extends State<HomeDashboard> {
                             : 'Awaiting batch — class timings will show here once the academy assigns one',
                         onTap: hasBatch ? () => _openBatches(d, [m]) : null),
           ),
-          // Classes the academy cancelled and owes back to this child.
-          if (c != null)
-            for (final mk in c.makeups)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                child: MakeupCard(row: mk, family: true),
-              ),
           if (c != null) ...[
             _attendanceRow(m, c),
+            // Classes the academy cancelled and owes back to this child.
+            for (final mk in c.makeups)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+                child: MakeupAttendanceLine(row: mk),
+              ),
             if (c.lastNote != null) ...[
               const Divider(height: 1, indent: 14, endIndent: 14, color: AppColors.divider),
               _noteRow(m, c.lastNote!),
@@ -797,12 +816,11 @@ class _HomeDashboardState extends State<HomeDashboard> {
             : '$today ${today == 1 ? 'class' : 'classes'} today',
         if (toMark > 0) '$toMark to mark',
         if (d.students.isNotEmpty && (d.hasBill || d.otherDue > 0))
+          // The amount is shown once, in the fees card below.
           d.monthDue
-              ? (d.allVerifying
-                  ? 'Payment being verified'
-                  : '${FeeFormat.rupees(d.totalDue + d.otherDue)} due')
+              ? (d.allVerifying ? 'Payment being verified' : 'Fees due')
               : d.otherDue > 0
-                  ? '${FeeFormat.rupees(d.otherDue)} due'
+                  ? 'Fees due'
                   : 'Fees paid',
       ];
       summary = parts.join('  ·  ');
@@ -1071,11 +1089,16 @@ class _HomeDashboardState extends State<HomeDashboard> {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: Text(payable.isEmpty
-                      ? 'Being verified'
-                      : uploadOnly(d.fees)
-                          ? 'Upload screenshot · ${FeeFormat.rupees(billsTotal(payable))}'
-                          : 'Pay ${FeeFormat.rupees(billsTotal(payable))}'),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                        payable.isEmpty
+                            ? 'Being verified'
+                            : uploadOnly(d.fees)
+                                ? 'Upload payment screenshot'
+                                : 'Pay now',
+                        maxLines: 1),
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
@@ -1137,7 +1160,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
       line2Icon = batches.isEmpty ? Icons.hourglass_empty : Icons.groups_2_outlined;
       final f = d.feesFor(m.id);
       pill = f.due > 0
-          ? StatusPill('${FeeFormat.rupees(f.due)} due', color: AppColors.warning)
+          ? const StatusPill('Fees due', color: AppColors.warning)
           : f.allPaid
               ? const StatusPill('Paid',
                   color: AppColors.success, icon: Icons.check_rounded)

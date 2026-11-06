@@ -60,8 +60,38 @@ class TeacherHomeSections {
   void _openTeaching() => _push(
       TeachingSummaryScreen(teacherId: teacherId, teacherName: teacherName));
 
+  /// Classes called off: today's cancelled ones plus cancelled days later
+  /// in the week (shown as a band at the top of home).
+  static List<CancelledNotice> cancelledNotices(TeacherSummary s) {
+    final today = DateTime.tryParse(s.todayIso);
+    final out = <CancelledNotice>[
+      for (final c in s.today)
+        if (c.state == 'cancelled')
+          CancelledNotice(
+              date: today,
+              startTime: c.startTime,
+              batchName: c.batchName,
+              reason: c.cancelReason),
+    ];
+    for (final c in s.week) {
+      if (!c.cancelled) continue;
+      final sameDay = today != null &&
+          c.date != null &&
+          c.date!.year == today.year &&
+          c.date!.month == today.month &&
+          c.date!.day == today.day;
+      if (!sameDay) out.add(CancelledNotice.of(c));
+    }
+    return out;
+  }
+
   List<Widget> build({bool compact = false}) {
+    final cancelled = compact ? const <CancelledNotice>[] : cancelledNotices(s);
     return [
+      if (cancelled.isNotEmpty) ...[
+        CancelledBand(notices: cancelled),
+        const SizedBox(height: 12),
+      ],
       if (!compact) ...[
         StatRow(tiles: [
           StatTile(
@@ -124,10 +154,10 @@ class TeacherHomeSections {
   List<Widget> _makeups() {
     final list = s.makeups;
     if (list.isEmpty) return const [];
-    final owed = list.where((m) => m.isOwed).length;
     return [
       HomeSection('Make-up classes',
-          action: owed > 0 ? 'Fix date' : 'Open', onAction: _openMakeups),
+          action: 'See all',
+          onAction: _openMakeups),
       for (var i = 0; i < list.length; i++)
         Padding(
           padding: EdgeInsets.only(top: i == 0 ? 0 : 8),
@@ -181,6 +211,8 @@ class TeacherHomeSections {
     final time = clock12(c.startTime);
     final parts = time.split(' ');
     final meta = [
+      if (c.state == 'cancelled')
+        'Class off${c.cancelReason == null ? '' : ' — ${c.cancelReason}'}',
       if (c.courseName.isNotEmpty) c.courseName,
       '${c.students} ${c.students == 1 ? 'student' : 'students'}',
       if (c.place.isNotEmpty) c.place,
@@ -243,7 +275,10 @@ class TeacherHomeSections {
             child: Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: DashPanel(
-                onTap: () => _mark(c.batchId, c.batchName, today),
+                // A class off has nothing to mark; its make-up is the next step.
+                onTap: c.state == 'cancelled'
+                    ? _openMakeups
+                    : () => _mark(c.batchId, c.batchName, today),
                 border: c.needsMarking ? color.withValues(alpha: 0.45) : null,
                 padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
                 child: Opacity(

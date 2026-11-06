@@ -289,7 +289,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ),
       TodayStrip(
         today: t,
-        onTap: (c) => _open('/admin/batches/${c.batchId}'),
+        // A class off has no attendance; its make-up is what needs doing.
+        onTap: (c) => c.state == 'cancelled'
+            ? _openPage(const MakeupsScreen())
+            : _open('/admin/batches/${c.batchId}'),
       ),
       const SizedBox(height: 22),
       const DashSectionTitle('Fees'),

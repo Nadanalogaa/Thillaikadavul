@@ -200,7 +200,7 @@ class KpiRow extends StatelessWidget {
     case 'marked':
       return ('Marked', AppColors.textSecondary);
     case 'cancelled':
-      return ('Cancelled', AppColors.textHint);
+      return ('Class off', AppColors.error);
     default:
       return (s ?? '', AppColors.textSecondary);
   }

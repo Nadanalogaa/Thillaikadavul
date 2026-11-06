@@ -752,7 +752,7 @@ class MakeupCard extends StatelessWidget {
                       Text(
                         family
                             ? 'The academy will tell you the new date and time.'
-                            : 'Date not fixed yet.',
+                            : 'The academy will fix the date.',
                         style: AppTextStyles.caption.copyWith(
                             color: color, fontWeight: FontWeight.w600),
                       ),
@@ -765,6 +765,124 @@ class MakeupCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+const Color cancelledRose = Color(0xFFB91C1C);
+
+/// Red band(s) at the top of home for classes called off in the coming days:
+/// "Class cancelled · Tue, 10 Nov · 6:00 PM", then "Batch — reason".
+class CancelledBand extends StatelessWidget {
+  final List<CancelledNotice> notices;
+  const CancelledBand({super.key, required this.notices});
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < notices.length; i++)
+          Container(
+            margin: EdgeInsets.only(top: i == 0 ? 0 : 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF2F2),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFFECACA)),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2)),
+              ],
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const IconBubble(Icons.event_busy_rounded, cancelledRose,
+                    size: 36),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(notices[i].title(now),
+                          style: AppTextStyles.labelLarge.copyWith(
+                              color: const Color(0xFF991B1B),
+                              fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 2),
+                      Text(notices[i].subtitle,
+                          style: AppTextStyles.caption
+                              .copyWith(color: cancelledRose)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// A child's open make-up inside the attendance section of their card:
+/// "Class on Tue, 10 Nov was cancelled by the academy (reason)", then
+/// "Make-up: owed — the academy will tell you the date" or
+/// "Make-up: Sat, 15 Nov, 5:00 PM–6:00 PM".
+class MakeupAttendanceLine extends StatelessWidget {
+  final MakeupRow row;
+  const MakeupAttendanceLine({super.key, required this.row});
+
+  @override
+  Widget build(BuildContext context) {
+    final owed = row.isOwed;
+    final color = owed ? makeupAmber : makeupIndigo;
+    final reason = row.cancelReason == null ? '' : ' (${row.cancelReason})';
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(Icons.event_repeat_rounded, size: 18, color: color),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Class on ${makeupDayLabel(row.cancelledDate)} was cancelled '
+                  'by the academy$reason',
+                  style: AppTextStyles.caption
+                      .copyWith(color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  owed
+                      ? 'Make-up: owed — the academy will tell you the date'
+                      : 'Make-up: ${row.when}',
+                  style: AppTextStyles.caption
+                      .copyWith(color: color, fontWeight: FontWeight.w700),
+                ),
+                Text(row.batchName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.caption
+                        .copyWith(color: AppColors.textHint)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

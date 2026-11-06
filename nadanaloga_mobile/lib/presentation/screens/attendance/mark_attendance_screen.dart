@@ -5,6 +5,7 @@ import '../../../config/theme/app_text_styles.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/utils/date_display.dart';
 import '../../../di/injection_container.dart';
+import 'makeups_screen.dart';
 
 /// Teacher marks one class: everyone starts present, tap the few who are not.
 /// A class the academy called off shows as cancelled (a make-up is owed). A
@@ -145,9 +146,13 @@ class _MarkAttendanceScreenState extends State<MarkAttendanceScreen> {
                     if (cancelled)
                       Expanded(
                         child: _Centered(
-                          text: 'The academy has cancelled this class'
-                              '${_cancelReason?.isNotEmpty == true ? ' (${_cancelReason!})' : ''}.'
-                              '\nA make-up will be arranged.',
+                          text: 'Class off'
+                              '${_cancelReason?.isNotEmpty == true ? ' — ${_cancelReason!}' : ''}'
+                              '\nNo attendance is taken for it; a make-up class is owed.',
+                          actionLabel: 'Make-up classes',
+                          onAction: () => Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(
+                                  builder: (_) => const MakeupsScreen())),
                         ),
                       )
                     else if (_rows.isEmpty)
@@ -331,7 +336,10 @@ class _Row {
 class _Centered extends StatelessWidget {
   final String text;
   final VoidCallback? onRetry;
-  const _Centered({required this.text, this.onRetry});
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  const _Centered(
+      {required this.text, this.onRetry, this.actionLabel, this.onAction});
 
   @override
   Widget build(BuildContext context) => Center(
@@ -344,6 +352,14 @@ class _Centered extends StatelessWidget {
               if (onRetry != null) ...[
                 const SizedBox(height: 12),
                 OutlinedButton(onPressed: onRetry, child: const Text('Try again')),
+              ],
+              if (onAction != null) ...[
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: onAction,
+                  icon: const Icon(Icons.event_repeat_rounded, size: 18),
+                  label: Text(actionLabel ?? 'Open'),
+                ),
               ],
             ],
           ),

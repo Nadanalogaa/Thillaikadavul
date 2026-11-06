@@ -90,6 +90,7 @@ class SummaryClass {
   final String? studio;
   final String? locationName;
   final bool cancelled;
+  final String? cancelReason;
   final String when;
 
   /// A make-up class given back for a cancelled one.
@@ -111,6 +112,7 @@ class SummaryClass {
     this.studio,
     this.locationName,
     this.cancelled = false,
+    this.cancelReason,
     this.when = '',
     this.isMakeup = false,
     this.learners = const [],
@@ -129,6 +131,7 @@ class SummaryClass {
         studio: _strOrNull(m['studio']),
         locationName: _strOrNull(m['location_name']),
         cancelled: m['cancelled'] == true,
+        cancelReason: _strOrNull(m['cancel_reason']),
         when: _str(m['when']),
         isMakeup: m['is_makeup'] == true,
       );
@@ -146,6 +149,7 @@ class SummaryClass {
         studio: studio,
         locationName: locationName,
         cancelled: cancelled,
+        cancelReason: cancelReason,
         when: when,
         isMakeup: isMakeup,
         learners: names,
@@ -498,6 +502,7 @@ class TeacherTodayClass {
   final String? mode;
   final String state; // upcoming | running | not_marked | marked | cancelled
   final bool isMakeup;
+  final String? cancelReason;
 
   const TeacherTodayClass({
     required this.batchId,
@@ -511,6 +516,7 @@ class TeacherTodayClass {
     this.mode,
     this.state = '',
     this.isMakeup = false,
+    this.cancelReason,
   });
 
   bool get needsMarking => state == 'running' || state == 'not_marked';
@@ -686,6 +692,7 @@ class TeacherSummary {
             mode: _strOrNull(c['mode']),
             state: _str(c['state']),
             isMakeup: c['is_makeup'] == true,
+            cancelReason: _strOrNull(c['cancel_reason']),
           ),
       ],
       nextClass: next == null ? null : SummaryClass.fromJson(next),
@@ -764,4 +771,38 @@ class TeacherSummary {
       return null;
     }
   }
+}
+
+/// A class called off in the coming days, for the band at the top of home.
+class CancelledNotice {
+  final DateTime? date;
+  final String startTime;
+  final String batchName;
+  final String? reason;
+  const CancelledNotice(
+      {this.date, this.startTime = '', this.batchName = '', this.reason});
+
+  factory CancelledNotice.of(SummaryClass c) => CancelledNotice(
+      date: c.date,
+      startTime: c.startTime,
+      batchName: c.batchName,
+      reason: c.cancelReason);
+
+  /// "Class cancelled · Today · 6:00 PM" / "· Tue, 10 Nov · 6:00 PM".
+  String title(DateTime now) {
+    final d = date;
+    String word;
+    if (d == null) {
+      word = 'Today';
+    } else {
+      final diff = d.difference(DateTime(now.year, now.month, now.day)).inDays;
+      word = diff == 0 ? 'Today' : diff == 1 ? 'Tomorrow' : weekdayDay(d);
+    }
+    final t = clock12(startTime);
+    return 'Class cancelled · $word${t.isEmpty ? '' : ' · $t'}';
+  }
+
+  String get subtitle => reason == null ? batchName : '$batchName — $reason';
+
+  String get key => '$batchName|${date?.toIso8601String()}|$startTime';
 }

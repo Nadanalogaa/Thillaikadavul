@@ -84,10 +84,11 @@ class _MakeupsScreenState extends State<MakeupsScreen> {
     }
   }
 
-  static String _message(dynamic data, String fallback) =>
-      data is Map && data['message'] is String && '${data['message']}'.isNotEmpty
-          ? data['message'] as String
-          : fallback;
+  static String _message(dynamic data, String fallback) => data is Map &&
+          data['message'] is String &&
+          '${data['message']}'.isNotEmpty
+      ? data['message'] as String
+      : fallback;
 
   void _snack(String text, {bool error = false}) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -269,9 +270,10 @@ class _MakeupsScreenState extends State<MakeupsScreen> {
             ? 'No make-up classes pending.'
             : 'No make-up classes pending. Recently done ones are listed below.')
         : '$owed owed (date not fixed) · ${open.length - owed} scheduled. '
-            'Fix or move the date any time — everyone is told.';
+            '${_isAdmin ? 'Fix or move the date any time — everyone is told.' : 'The academy fixes the date; you are told.'}';
     return Text(text,
-        style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary));
+        style:
+            AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary));
   }
 
   Widget _card(MakeupRow r) {
@@ -316,7 +318,8 @@ class _MakeupsScreenState extends State<MakeupsScreen> {
             Text(
               'Make-up: ${r.when}',
               style: AppTextStyles.bodySmall.copyWith(
-                color: r.isDone ? AppColors.textSecondary : AppColors.textPrimary,
+                color:
+                    r.isDone ? AppColors.textSecondary : AppColors.textPrimary,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -327,28 +330,30 @@ class _MakeupsScreenState extends State<MakeupsScreen> {
                 style: AppTextStyles.caption
                     .copyWith(color: AppColors.textSecondary)),
           ],
-          if (!r.isDone) ...[
+          // Only the admin sets up make-ups; a teacher can still mark one done.
+          if (!r.isDone && (_isAdmin || r.isScheduled)) ...[
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 6,
               children: [
-                FilledButton.icon(
-                  onPressed: busy ? null : () => _fixDate(r),
-                  icon: busy
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.edit_calendar_outlined, size: 18),
-                  label: Text(r.isScheduled ? 'Change date' : 'Fix date'),
-                  style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      minimumSize: const Size(0, 38),
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      textStyle: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600)),
-                ),
+                if (_isAdmin)
+                  FilledButton.icon(
+                    onPressed: busy ? null : () => _fixDate(r),
+                    icon: busy
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.edit_calendar_outlined, size: 18),
+                    label: Text(r.isScheduled ? 'Change date' : 'Fix date'),
+                    style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        minimumSize: const Size(0, 38),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        textStyle: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w600)),
+                  ),
                 if (r.isScheduled)
                   OutlinedButton.icon(
                     onPressed: busy ? null : () => _markDone(r),
@@ -375,7 +380,8 @@ class _MakeupsScreenState extends State<MakeupsScreen> {
 ButtonStyle _outlined([Color? color]) => OutlinedButton.styleFrom(
       foregroundColor: color ?? AppColors.primary,
       backgroundColor: Colors.transparent,
-      side: BorderSide(color: (color ?? AppColors.primary).withValues(alpha: 0.5)),
+      side: BorderSide(
+          color: (color ?? AppColors.primary).withValues(alpha: 0.5)),
       minimumSize: const Size(0, 38),
       padding: const EdgeInsets.symmetric(horizontal: 14),
       textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
@@ -462,16 +468,24 @@ class _ScheduleSheetState extends State<_ScheduleSheet> {
       lastDate: _today.add(const Duration(days: 365)),
       helpText: 'Make-up date',
     );
-    if (picked != null) setState(() { _date = picked; _error = null; });
+    if (picked != null) {
+      setState(() {
+        _date = picked;
+        _error = null;
+      });
+    }
   }
 
   Future<void> _pickTime(bool start) async {
     final picked = await showTimePicker(
       context: context,
       initialTime: (start ? _start : _end) ??
-          (start ? const TimeOfDay(hour: 17, minute: 0) : (_start == null
-              ? const TimeOfDay(hour: 18, minute: 0)
-              : TimeOfDay(hour: (_start!.hour + 1) % 24, minute: _start!.minute))),
+          (start
+              ? const TimeOfDay(hour: 17, minute: 0)
+              : (_start == null
+                  ? const TimeOfDay(hour: 18, minute: 0)
+                  : TimeOfDay(
+                      hour: (_start!.hour + 1) % 24, minute: _start!.minute))),
       helpText: start ? 'Starts' : 'Ends',
     );
     if (picked == null) return;
@@ -573,8 +587,8 @@ class _ScheduleSheetState extends State<_ScheduleSheet> {
             if (_error != null) ...[
               const SizedBox(height: 8),
               Text(_error!,
-                  style: AppTextStyles.bodySmall
-                      .copyWith(color: AppColors.error)),
+                  style:
+                      AppTextStyles.bodySmall.copyWith(color: AppColors.error)),
             ],
             const SizedBox(height: 16),
             FilledButton(
