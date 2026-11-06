@@ -30,6 +30,7 @@ const PersonEditModal: React.FC<Props> = ({ isOpen, personId, onClose, onSaved }
     const [batches, setBatches] = useState<AdminBatch[]>([]);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [familyEmail, setFamilyEmail] = useState('');
 
     useEffect(() => {
         if (!isOpen || personId == null) return;
@@ -38,6 +39,7 @@ const PersonEditModal: React.FC<Props> = ({ isOpen, personId, onClose, onSaved }
         Promise.all([getPerson(personId), listCourses(), listBatches()])
             .then(([p, c, b]) => {
                 setPerson(p);
+                setFamilyEmail(p.contact_email || '');
                 setCourses(c);
                 setBatches(b);
                 setForm({
@@ -88,7 +90,11 @@ const PersonEditModal: React.FC<Props> = ({ isOpen, personId, onClose, onSaved }
         setSaving(true); setError(null);
         const fields: Partial<Person> = { ...form };
         // A child's login address is a stand-in; it is not edited here.
-        if (isStudent && isPlaceholderEmail(person.email)) delete (fields as any).email;
+        if (isStudent && isPlaceholderEmail(person.email)) {
+            delete (fields as any).email;
+            const fe = familyEmail.trim();
+            if (fe && fe.toLowerCase() !== String(person.contact_email || '').toLowerCase()) (fields as any).family_email = fe;
+        }
         if (isStudent) { delete (fields as any).course_expertise; delete (fields as any).educational_qualifications; delete (fields as any).employment_type; }
         else { delete (fields as any).courses; delete (fields as any).father_name; delete (fields as any).standard; delete (fields as any).school_name; }
         try {
@@ -142,8 +148,8 @@ const PersonEditModal: React.FC<Props> = ({ isOpen, personId, onClose, onSaved }
                                 <input id="p-phone" value={form.contact_number || ''} onChange={e => set('contact_number', e.target.value)} className={inputClass} />
                             </Field>
                             {isStudent && isPlaceholderEmail(person.email) ? (
-                                <Field label="Family email" span={3} htmlFor="p-email" hint="Kept on the parent's login.">
-                                    <input id="p-email" value={person.contact_email || 'No email on file'} readOnly disabled className={inputClass} />
+                                <Field label="Family email" span={3} htmlFor="p-email" hint="Saved on the family's login (used to sign in and for receipts).">
+                                    <input id="p-email" type="email" value={familyEmail} onChange={e => setFamilyEmail(e.target.value)} placeholder="No email on file" className={inputClass} />
                                 </Field>
                             ) : (
                                 <Field label="Email" span={3} htmlFor="p-email">

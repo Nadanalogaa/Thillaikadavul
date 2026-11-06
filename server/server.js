@@ -3542,6 +3542,33 @@ Please review and approve this registration in the admin panel.`;
                 delete userData.is_super_admin;   // never demote yourself by accident
             }
 
+            // "Family email" on a child: a child's own login address is a
+            // stand-in, so the address goes on the family's login (the parent,
+            // else the main login on the same phone; a child with neither is
+            // the login itself). Blank leaves it as it is.
+            if (userData.family_email !== undefined) {
+                const familyEmail = String(userData.family_email || '').trim().toLowerCase();
+                delete userData.family_email;
+                if (familyEmail) {
+                    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(familyEmail)) return res.status(400).json({ message: 'That family email does not look right.' });
+                    const child = (await pool.query('SELECT id, email, parent_id, contact_number FROM users WHERE id = $1', [id])).rows[0];
+                    if (!child) return res.status(404).json({ message: 'User not found' });
+                    let loginId = child.id;
+                    if (isPlaceholderEmail(child.email)) {
+                        const parent = child.parent_id
+                            ? (await pool.query('SELECT id FROM users WHERE id = $1 AND is_deleted = false', [child.parent_id])).rows[0] : null;
+                        const samePhone = !parent && child.contact_number ? (await pool.query(
+                            `SELECT id FROM users WHERE is_deleted = false AND contact_number = $1 AND id <> $2
+                              ORDER BY is_primary DESC NULLS LAST, (email NOT ILIKE '%.nadanaloga.local') DESC, id LIMIT 1`,
+                            [child.contact_number, child.id])).rows[0] : null;
+                        loginId = (parent || samePhone || child).id;
+                    }
+                    const taken = (await pool.query('SELECT id, name FROM users WHERE lower(email) = $1 AND id <> $2 AND is_deleted = false', [familyEmail, loginId])).rows[0];
+                    if (taken) return res.status(409).json({ message: `${familyEmail} is already used by ${taken.name}'s login.` });
+                    await pool.query('UPDATE users SET email = $1, updated_at = NOW() WHERE id = $2', [familyEmail, loginId]);
+                }
+            }
+
             // Only write columns that actually exist. The admin client sends a
             // dozen fields with no column behind them (preferred_timings,
             // documents, schedules, country, timezone, ...) and a single unknown
@@ -3612,7 +3639,7 @@ Please review and approve this registration in the admin panel.`;
                     }
                 }
             }
-            res.json(parseUserData(result.rows[0]));
+            res.json((await attachContactEmails([parseUserData(result.rows[0])]))[0]);
         } catch (error) {
             console.error('Error updating user:', error);
             res.status(500).json({ message: 'Server error updating user.' });
