@@ -10,9 +10,11 @@ import UnifiedNotificationBell from '../UnifiedNotificationBell';
 
 interface AdminLayoutProps {
     children: React.ReactNode;
+    /** Fit the page to the screen (no page scroll); a child with flex-1 min-h-0 takes the rest and scrolls itself. */
+    fill?: boolean;
 }
 
-const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
+const AdminLayout: React.FC<AdminLayoutProps> = ({ children, fill = false }) => {
     const { theme } = useTheme();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -54,7 +56,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             )}
 
             {/* Main content */}
-            <div className="flex min-h-screen flex-col lg:pl-64 transition-all duration-300">
+            <div className={`flex min-h-screen flex-col lg:pl-64 transition-all duration-300 ${fill ? 'lg:h-screen' : ''}`}>
                 {/* Top Admin Bar - Desktop */}
                 <div className={`hidden lg:flex sticky top-0 z-10 items-center justify-between h-14 px-6 border-b ${
                     theme === 'dark'
@@ -117,7 +119,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 </div>
 
                 {/* Page content */}
-                <main className="flex-1 p-3 sm:p-4 lg:p-6">
+                <main className={`flex-1 p-3 sm:p-4 lg:p-6 ${fill ? 'lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden [&>*]:shrink-0' : ''}`}>
                     {children}
                 </main>
 

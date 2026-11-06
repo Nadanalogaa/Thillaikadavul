@@ -451,7 +451,7 @@ const StudentListPage: React.FC = () => {
 
 
     return (
-        <AdminLayout>
+        <AdminLayout fill>
             <AdminPageHeader
                 title="Students"
                 subtitle={`Showing ${filteredAndSortedStudents.length} of ${students.length} total students.`}
@@ -542,9 +542,9 @@ const StudentListPage: React.FC = () => {
                     {error && <p className="text-center text-red-500 bg-red-100 p-3 rounded-md">{error}</p>}
                     
                     {!isLoading && !error && (
-                        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                            {/* Own scroll box: headings stay on top and the sideways scrollbar is always in view. */}
-                            <div className="max-h-[calc(100vh-14rem)] overflow-auto">
+                        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800 lg:flex lg:min-h-0 lg:!shrink lg:flex-1 lg:flex-col">
+                            {/* Own scroll box filling the rest of the screen: one scrollbar, headings on top, the sideways scrollbar always in view. */}
+                            <div className="max-h-[70vh] overflow-auto lg:max-h-none lg:min-h-0 lg:flex-1">
                                 <table className="w-full text-sm">
                                     <thead className="sticky top-0 z-10 bg-gray-50 text-xs uppercase tracking-wide text-gray-500 shadow-[0_1px_0_0_rgb(229,231,235)] dark:bg-gray-900 dark:text-gray-400">
                                         <tr>
