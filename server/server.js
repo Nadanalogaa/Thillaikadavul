@@ -6707,6 +6707,8 @@ Please review and approve this registration in the admin panel.`;
             if (!batch) return res.status(404).json({ message: 'Batch not found' });
             if (!canRunBatch(req, batch)) return res.status(403).json({ message: 'Only the admin or this batch\'s teacher can schedule its make-up.' });
             if (date < todayIso()) return res.status(400).json({ message: 'The make-up date cannot be in the past.' });
+            if (!!start_time !== !!end_time) return res.status(400).json({ message: 'Set both the start and end time, or neither for the usual timing.' });
+            if (start_time && String(end_time) <= String(start_time)) return res.status(400).json({ message: 'The end time must be after the start time.' });
             const clash = (await pool.query(`SELECT status FROM class_sessions WHERE batch_id = $1 AND session_date = $2 AND id <> COALESCE($3, 0)`,
                 [batch.id, date, cancelled.compensated_by])).rows[0];
             if (clash && clash.status !== 'makeup') return res.status(409).json({ message: 'This batch already has a class recorded on that date. Choose another day.' });

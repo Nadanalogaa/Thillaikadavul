@@ -75,6 +75,7 @@ const MakeupsPanel: React.FC<{ canUndo?: boolean; onCount?: (open: number) => vo
 
     const save = (r: MakeupRow) => {
         if (!draft.date) { setError('Pick the date of the make-up class.'); return; }
+        if (!!draft.start !== !!draft.end) { setError('Set both the start and end time, or leave both empty for the usual timing.'); return; }
         if (draft.start && draft.end && draft.end <= draft.start) { setError('The end time must be after the start time.'); return; }
         run(r.id, () => scheduleMakeup(r.id, draft.date, draft.start || undefined, draft.end || undefined),
             r.state === 'scheduled' ? 'Make-up moved. Families, the teacher and admins have been told.' : 'Make-up scheduled. Families, the teacher and admins have been told.');
@@ -158,7 +159,7 @@ const MakeupsPanel: React.FC<{ canUndo?: boolean; onCount?: (open: number) => vo
                                     <input type="time" value={draft.end} onChange={e => setDraft(d => ({ ...d, end: e.target.value }))} className="form-input mt-1 w-full text-sm" />
                                 </label>
                             </div>
-                            <p className={`mt-2 text-xs ${muted}`}>Leave the times empty to keep the batch's usual timing.</p>
+                            <p className={`mt-2 text-xs ${muted}`}>Leave both times empty to keep the batch's usual timing.</p>
                             <div className="mt-3 flex justify-end gap-2">
                                 <button onClick={() => setEditing(null)} className={outline}>Cancel</button>
                                 <button onClick={() => save(r)} disabled={busy === r.id} className="rounded-md bg-brand-primary px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-dark disabled:opacity-50">
