@@ -257,7 +257,7 @@ const AttendancePage: React.FC<{ teacher?: boolean }> = ({ teacher = false }) =>
                                         <button onClick={() => openRoster(c.batch_id)} className="rounded-md bg-brand-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-dark">
                                             {c.status === 'held' || c.marked_at && c.status === 'makeup' ? 'Edit attendance' : 'Mark attendance'}
                                         </button>
-                                        {c.status === 'not_marked' && (
+                                        {!teacher && c.status === 'not_marked' && (
                                             <button onClick={() => cancel(c.batch_id, c.batch_name)} className={`rounded-md border px-3 py-1.5 text-xs font-medium ${dark ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}`}>
                                                 Class off
                                             </button>

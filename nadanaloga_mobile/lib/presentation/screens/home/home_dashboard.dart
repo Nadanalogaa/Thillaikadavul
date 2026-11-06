@@ -84,12 +84,13 @@ class _HomeDashboardState extends State<HomeDashboard> {
   TeacherSummary? _teaching;
   bool _teachingFailed = false;
 
-  /// Signed-in user; "You teach" / teaching numbers only when this is the teacher.
-  int? _viewerId;
+  /// Signed-in user's role.
   String? _viewerRole;
 
-  bool _viewerTeaches(HomeData d) =>
-      d.teacher != null && d.teacher!.id == _viewerId;
+  /// The household's teacher teaches from whichever of its logins is signed
+  /// in (a teacher who is also a parent may land on her parent login), so her
+  /// classes, marking and make-ups show whenever the household has a teacher.
+  bool _viewerTeaches(HomeData d) => d.teacher != null;
 
   bool get _isTeacherLogin =>
       (_viewerRole ?? '').trim().toLowerCase() == 'teacher';
@@ -99,7 +100,6 @@ class _HomeDashboardState extends State<HomeDashboard> {
     super.initState();
     final auth = context.read<AuthBloc>().state;
     if (auth is AuthAuthenticated) {
-      _viewerId = auth.user.id;
       _viewerRole = auth.user.role;
     }
     _load();
@@ -175,7 +175,6 @@ class _HomeDashboardState extends State<HomeDashboard> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthBloc>().state;
     final user = auth is AuthAuthenticated ? auth.user : null;
-    _viewerId = user?.id;
     _viewerRole = user?.role;
     final top = MediaQuery.of(context).padding.top;
     final d = _data;
@@ -308,10 +307,16 @@ class _HomeDashboardState extends State<HomeDashboard> {
             onTap: () => _openMember(d, c.id),
           ),
         ),
-      if (teaching != null) ...teaching.build(compact: true),
-      if (_viewerTeaches(d) && teaching == null && _teachingFailed) ...[
-        const SizedBox(height: 12),
-        SectionError(text: "Couldn't load your teaching today.", onRetry: _load),
+      // A teacher who is also a parent: her teaching first, as its own section
+      // (batches, students, today's classes to mark, make-ups), then the children.
+      if (d.teacher != null) ...[
+        const HomeSection('Teaching'),
+        _memberTile(d.teacher!, d),
+        if (teaching != null) ...teaching.build(compact: true),
+        if (teaching == null && _teachingFailed) ...[
+          const SizedBox(height: 12),
+          SectionError(text: "Couldn't load your teaching today.", onRetry: _load),
+        ],
       ],
       ..._childrenSection(d),
       ..._weekSection(d),
@@ -405,7 +410,6 @@ class _HomeDashboardState extends State<HomeDashboard> {
 
   List<Widget> _childrenSection(HomeData d) {
     final students = d.students;
-    final teacherTile = d.teacher != null && students.isNotEmpty;
     if (students.isEmpty) return const [];
     final title = students.length == 1 && !students.first.isChild
         ? 'My classes'
@@ -425,10 +429,6 @@ class _HomeDashboardState extends State<HomeDashboard> {
             padding: EdgeInsets.only(top: i == 0 ? 0 : 12),
             child: _childCard(d, students[i], _family?.child(students[i].id), i),
           ),
-      if (teacherTile) ...[
-        const SizedBox(height: 12),
-        _memberTile(d.teacher!, d),
-      ],
     ];
   }
 
@@ -1174,7 +1174,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
       line1 = 'Teaching · $n ${n == 1 ? 'batch' : 'batches'} · '
           '${_count(d.studentsTaught, 'student')}';
       final weekly = ClassSchedule.weeklyClassCount(d.teachingBatches);
-      line2 = '$weekly ${weekly == 1 ? 'class' : 'classes'} a week';
+      line2 = '$weekly ${weekly == 1 ? 'class' : 'classes'} a week · tap for attendance';
       line2Icon = Icons.event_repeat_outlined;
       pill = const StatusPill('Teacher', color: AppColors.teacherAccent);
       onTap = () => _push(

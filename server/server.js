@@ -2277,6 +2277,19 @@ async function startServer() {
         };
     }
 
+    // One phone number is one household, and a household's teacher teaches from
+    // whichever of its logins is signed in (a teacher who is also a parent may
+    // land on her parent login): the ids that count as "me, the teacher".
+    const teacherIdsFor = async (req) => {
+        const me = req.session.user;
+        const ids = new Set([Number(me.id)]);
+        try { for (const p of (await householdFor(req)).profiles) if (p.role === 'Teacher') ids.add(Number(p.id)); } catch { /* own id only */ }
+        return [...ids];
+    };
+    const teachesBatch = async (req, batch) =>
+        isAdminUser(req) || req.session.user.is_super_admin === true
+        || (await teacherIdsFor(req)).map(String).includes(String(batch.teacher_id));
+
     app.post('/api/login', async (req, res) => {
         try {
             const { email, password, identifier } = req.body;
@@ -2314,13 +2327,17 @@ async function startServer() {
 
             // Find the account whose password matches. With email/user_id this is the single
             // row; with a shared phone number it picks the family member whose password fits.
-            let user = null;
+            // When more than one fits (a teacher who is also the family's parent,
+            // both on the default password), take the most capable: admin, then
+            // teacher, then parent, then the main login, then a child.
+            const matches = [];
             for (const candidate of result.rows) {
-                if (await bcrypt.compare(password, candidate.password)) {
-                    user = candidate;
-                    break;
-                }
+                if (await bcrypt.compare(password, candidate.password)) matches.push(candidate);
             }
+            const rank = (u) => { const r = String(u.role || '').trim().toLowerCase();
+                return u.is_super_admin ? 0 : r === 'admin' ? 1 : r === 'teacher' ? 2 : r === 'parent' ? 3 : u.is_primary ? 4 : 5; };
+            matches.sort((a, b) => rank(a) - rank(b) || Number(a.id) - Number(b.id));
+            let user = matches[0] || null;
             if (!user) return res.status(401).json({ message: 'Invalid credentials.' });
             // A staff admin the super admin turned off cannot sign in.
             if (String(user.role || '').trim().toLowerCase() === 'admin' && user.is_super_admin !== true
@@ -5216,7 +5233,7 @@ Please review and approve this registration in the admin panel.`;
                 return res.status(404).json({ message: 'Batch not found' });
             }
             const batch = parseBatchData(batchResult.rows[0]);
-            if (!isAdminUser(req) && String(batch.teacher_id) !== String(req.session.user.id)) {
+            if (!(await teachesBatch(req, batch))) {
                 return res.status(403).json({ message: 'This batch belongs to another teacher.' });
             }
 
@@ -6366,7 +6383,7 @@ Please review and approve this registration in the admin panel.`;
         const dayName = WEEKDAY_NAMES[new Date(`${dateIso}T12:00:00`).getDay()];
         const params = [dayName];
         let where = `($1 = ANY(COALESCE(b.days, ARRAY[]::text[])))`;
-        if (teacherId) { params.push(teacherId); where += ` AND b.teacher_id = $2`; }
+        if (teacherId) { params.push(Array.isArray(teacherId) ? teacherId : [teacherId]); where += ` AND b.teacher_id = ANY($2::int[])`; }
         const result = await pool.query(
             `SELECT b.*, c.name AS course_name, u.name AS teacher_name
              FROM batches b
@@ -6389,8 +6406,8 @@ Please review and approve this registration in the admin panel.`;
             `SELECT b.*, c.name AS course_name, u.name AS teacher_name, s.start_time AS mk_start, s.end_time AS mk_end
                FROM class_sessions s JOIN batches b ON b.id = s.batch_id
                LEFT JOIN courses c ON c.id = b.course_id LEFT JOIN users u ON u.id = b.teacher_id
-              WHERE s.status = 'makeup' AND s.session_date = $1 ${teacherId ? 'AND b.teacher_id = $2' : ''}`,
-            teacherId ? [dateIso, teacherId] : [dateIso])).rows;
+              WHERE s.status = 'makeup' AND s.session_date = $1 ${teacherId ? 'AND b.teacher_id = ANY($2::int[])' : ''}`,
+            teacherId ? [dateIso, Array.isArray(teacherId) ? teacherId : [teacherId]] : [dateIso])).rows;
         for (const m of mk) {
             const i = rows.findIndex(r => r.id === m.id);
             const row = { ...m, start_time: m.mk_start || m.start_time, end_time: m.mk_end || m.end_time, is_makeup: true };
@@ -6422,8 +6439,8 @@ Please review and approve this registration in the admin panel.`;
     app.get('/api/attendance/my-classes', ensureAuthenticated, async (req, res) => {
         try {
             const date = req.query.date || todayIso();
-            const teacherId = isAdminUser(req) && req.query.all === 'true' ? null : req.session.user.id;
-            const batches = await batchesOnDate(date, teacherId);
+            const teacherIds = isAdminUser(req) && req.query.all === 'true' ? null : await teacherIdsFor(req);
+            const batches = await batchesOnDate(date, teacherIds);
             const out = [];
             for (const b of batches) {
                 const session = await sessionFor(b.id, date);
@@ -6461,7 +6478,7 @@ Please review and approve this registration in the admin panel.`;
                  LEFT JOIN courses c ON c.id = b.course_id WHERE b.id = $1`, [batch_id]
             )).rows[0];
             if (!batch) return res.status(404).json({ message: 'Batch not found' });
-            if (!isAdminUser(req) && String(batch.teacher_id) !== String(req.session.user.id)) {
+            if (!(await teachesBatch(req, batch))) {
                 return res.status(403).json({ message: 'This batch belongs to another teacher.' });
             }
             const ids = Array.isArray(batch.student_ids) ? batch.student_ids : [];
@@ -6511,7 +6528,7 @@ Please review and approve this registration in the admin panel.`;
             }
             const batch = (await client.query('SELECT * FROM batches WHERE id = $1', [batch_id])).rows[0];
             if (!batch) return res.status(404).json({ message: 'Batch not found' });
-            if (!isAdminUser(req) && String(batch.teacher_id) !== String(req.session.user.id)) {
+            if (!(await teachesBatch(req, batch))) {
                 return res.status(403).json({ message: 'This batch belongs to another teacher.' });
             }
 
@@ -6626,7 +6643,7 @@ Please review and approve this registration in the admin panel.`;
             if (!batch_id) return res.status(400).json({ message: 'batch_id is required.' });
             const batch = (await pool.query('SELECT * FROM batches WHERE id = $1', [batch_id])).rows[0];
             if (!batch) return res.status(404).json({ message: 'Batch not found' });
-            if (!isAdminUser(req) && String(batch.teacher_id) !== String(req.session.user.id)) {
+            if (!(await teachesBatch(req, batch))) {
                 return res.status(403).json({ message: 'This batch belongs to another teacher.' });
             }
             // A class that was held (attendance marked) cannot be called off
@@ -6700,7 +6717,7 @@ Please review and approve this registration in the admin panel.`;
     };
     const niceDay = (iso) => new Date(`${String(iso).slice(0, 10)}T12:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
     const niceTime = (t) => { if (!t) return ''; const [h, m] = String(t).split(':').map(Number); return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`; };
-    const canRunBatch = (req, batch) => isAdminUser(req) || req.session.user.is_super_admin === true || String(batch.teacher_id) === String(req.session.user.id);
+    const canRunBatch = teachesBatch;
 
     // Schedule (or move) the make-up for a cancelled class: admin or the batch's teacher.
     app.post('/api/attendance/makeup', ensureAuthenticated, async (req, res) => {
@@ -6763,7 +6780,7 @@ Please review and approve this registration in the admin panel.`;
             const c = (await pool.query(`SELECT * FROM class_sessions WHERE id = $1 AND status = 'cancelled'`, [req.params.id])).rows[0];
             if (!c) return res.status(404).json({ message: 'Make-up not found.' });
             const batch = (await pool.query('SELECT * FROM batches WHERE id = $1', [c.batch_id])).rows[0];
-            if (!batch || !canRunBatch(req, batch)) return res.status(403).json({ message: 'Only the admin or this batch\'s teacher can close it.' });
+            if (!batch || !(await canRunBatch(req, batch))) return res.status(403).json({ message: 'Only the admin or this batch\'s teacher can close it.' });
             if (!c.compensated_by) return res.status(400).json({ message: 'Schedule the make-up first.' });
             await pool.query(`UPDATE class_sessions SET closed_at = NOW(), closed_by_name = $1, updated_at = NOW() WHERE id = $2`,
                 [req.session.user.name || 'Admin', c.id]);
@@ -6799,7 +6816,7 @@ Please review and approve this registration in the admin panel.`;
             if (role === 'admin' || me.is_super_admin) rows = await makeupRows('true', [], extra);
             else {
                 const { studentIds } = await householdFor(req);
-                rows = await makeupRows(`(b.teacher_id = $1 OR b.student_ids && $2::int[])`, [me.id, studentIds.map(Number)], extra);
+                rows = await makeupRows(`(b.teacher_id = ANY($1::int[]) OR b.student_ids && $2::int[])`, [await teacherIdsFor(req), studentIds.map(Number)], extra);
             }
             res.json(rows);
         } catch (error) {
@@ -6837,8 +6854,8 @@ Please review and approve this registration in the admin panel.`;
                 const allowed = household.studentIds.map(String).includes(String(studentId))
                     || String(req.session.user.id) === String(studentId)
                     || (await pool.query(
-                        `SELECT 1 FROM batches WHERE teacher_id = $1 AND $2 = ANY(COALESCE(student_ids, ARRAY[]::int[])) LIMIT 1`,
-                        [req.session.user.id, studentId]
+                        `SELECT 1 FROM batches WHERE teacher_id = ANY($1::int[]) AND $2 = ANY(COALESCE(student_ids, ARRAY[]::int[])) LIMIT 1`,
+                        [await teacherIdsFor(req), studentId]
                     )).rows.length > 0;
                 if (!allowed) return res.status(403).json({ message: 'Not your student.' });
             }
@@ -7088,7 +7105,7 @@ Please review and approve this registration in the admin panel.`;
         try {
             const me = req.session.user;
             const { date: today, time } = istNow();
-            const batches = await batchRowsWhere(`b.teacher_id = $1`, [me.id]);
+            const batches = await batchRowsWhere(`b.teacher_id = ANY($1::int[])`, [await teacherIdsFor(req)]);
             const ids = batches.map(b => Number(b.id));
             const studentSet = new Set();
             for (const b of batches) for (const s of (Array.isArray(b.student_ids) ? b.student_ids : [])) studentSet.add(Number(s));
