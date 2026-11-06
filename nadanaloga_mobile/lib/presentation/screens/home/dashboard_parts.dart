@@ -409,6 +409,8 @@ class NextClassHero extends StatelessWidget {
   final VoidCallback onTap;
   final bool showTeacher;
   final Widget? trailing;
+  /// Gradient for the card; by default the course's colour.
+  final List<Color>? colors;
   const NextClassHero({
     super.key,
     required this.cls,
@@ -416,7 +418,19 @@ class NextClassHero extends StatelessWidget {
     this.overline,
     this.showTeacher = true,
     this.trailing,
+    this.colors,
   });
+
+  /// One gradient per child in a family, in this order (then repeats).
+  static const List<List<Color>> _childPalette = [
+    [Color(0xFF4F46E5), Color(0xFF7C3AED)], // indigo → violet
+    [Color(0xFF0D9488), Color(0xFF0369A1)], // teal → ocean blue
+    [Color(0xFFE11D48), Color(0xFFC026D3)], // rose → magenta
+    [Color(0xFFEA580C), Color(0xFFB45309)], // orange → amber
+    [Color(0xFF2563EB), Color(0xFF0891B2)], // blue → cyan
+    [Color(0xFF16A34A), Color(0xFF047857)], // green → emerald
+  ];
+  static List<Color> childColors(int index) => _childPalette[index % _childPalette.length];
 
   @override
   Widget build(BuildContext context) {
@@ -427,6 +441,7 @@ class NextClassHero extends StatelessWidget {
             ? AppColors.getCourseColor(cls.courseName)
             : AppColors.primary);
     final dark = Color.lerp(base, Colors.black, 0.25)!;
+    final grad = cls.cancelled || colors == null ? [base, dark] : colors!;
     final s = cls.start, e = cls.end;
     final live = !cls.cancelled &&
         s != null &&
@@ -445,7 +460,7 @@ class NextClassHero extends StatelessWidget {
     return Material(
       borderRadius: BorderRadius.circular(16),
       clipBehavior: Clip.antiAlias,
-      color: base,
+      color: grad.first,
       child: InkWell(
         onTap: onTap,
         child: Ink(
@@ -453,7 +468,7 @@ class NextClassHero extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [base, dark],
+              colors: grad,
             ),
           ),
           child: Stack(

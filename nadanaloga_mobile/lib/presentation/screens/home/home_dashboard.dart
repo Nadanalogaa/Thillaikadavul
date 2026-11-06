@@ -423,7 +423,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
         for (var i = 0; i < students.length; i++)
           Padding(
             padding: EdgeInsets.only(top: i == 0 ? 0 : 12),
-            child: _childCard(d, students[i], _family?.child(students[i].id)),
+            child: _childCard(d, students[i], _family?.child(students[i].id), i),
           ),
       if (teacherTile) ...[
         const SizedBox(height: 12),
@@ -432,7 +432,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
     ];
   }
 
-  Widget _childCard(HomeData d, HouseholdMember m, ChildSummary? c) {
+  Widget _childCard(HomeData d, HouseholdMember m, ChildSummary? c, [int index = 0]) {
     final f = d.feesFor(m.id);
     // The amount itself is shown once, in the fees card.
     final Widget? pill = f.due > 0
@@ -498,6 +498,8 @@ class _HomeDashboardState extends State<HomeDashboard> {
                 : c.nextClass != null
                     ? NextClassHero(
                         cls: c.nextClass!,
+                        // Each child its own colour, so brothers and sisters never look alike.
+                        colors: NextClassHero.childColors(index),
                         onTap: () => _openBatches(d, [m]),
                       )
                     : _noClassBox(
