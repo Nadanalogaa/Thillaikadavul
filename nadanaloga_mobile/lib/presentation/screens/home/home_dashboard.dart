@@ -14,6 +14,7 @@ import '../../bloc/auth/auth_bloc.dart';
 import '../../bloc/auth/auth_event.dart';
 import '../../bloc/auth/auth_state.dart';
 import '../admin/insights/dashboard_widgets.dart';
+import '../attendance/attendance_today_screen.dart';
 import '../attendance/student_attendance_screen.dart';
 import '../student/book_materials_list_screen.dart';
 import '../student/events_list_screen.dart';
@@ -121,13 +122,23 @@ class _HomeDashboardState extends State<HomeDashboard> {
       if (teacher) TeacherSummary.load(api),
     ]);
     if (!mounted) return;
+    final data = results[0] as HomeData;
+    var teaching = teacher ? results[2] as TeacherSummary? : null;
+    // A teacher who is also a parent may be on her parent login: the household
+    // still has a teacher, so fetch her teaching (the server knows she is the
+    // household's teacher) once the household is known.
+    final hasTeacher = teacher || data.teacher != null;
+    if (!teacher && data.teacher != null) {
+      teaching = await TeacherSummary.load(api);
+      if (!mounted) return;
+    }
     setState(() {
-      _data = results[0] as HomeData;
+      _data = data;
       _family = results[1] as FamilySummary?;
       _familyFailed = _family == null;
-      if (teacher) {
-        _teaching = results[2] as TeacherSummary?;
-        _teachingFailed = _teaching == null;
+      if (hasTeacher) {
+        _teaching = teaching;
+        _teachingFailed = teaching == null;
       }
       _loading = false;
     });
@@ -168,6 +179,12 @@ class _HomeDashboardState extends State<HomeDashboard> {
 
   void _push(Widget screen) =>
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+
+  /// Marking attendance changes today's counts: reload the home afterwards.
+  Future<void> _pushThenReload(Widget screen) async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+    if (mounted) _load();
+  }
 
   // ---------------------------------------------------------------- build ---
 
@@ -374,11 +391,17 @@ class _HomeDashboardState extends State<HomeDashboard> {
   /// One child opens straight away; with several, ask whose.
   Future<void> _pickAttendance(HomeData d) async {
     final students = d.students;
-    if (students.isEmpty) return;
-    if (students.length == 1) {
+    final teacher = d.teacher;
+    if (students.isEmpty && teacher == null) return;
+    if (students.isEmpty) {
+      _pushThenReload(const AttendanceTodayScreen());
+      return;
+    }
+    if (students.length == 1 && teacher == null) {
       _openAttendanceOf(students.first.id, students.first.name);
       return;
     }
+    // A teacher who is also a parent: marking her classes, or a child's record.
     final chosen = await showModalBottomSheet<HouseholdMember>(
       context: context,
       showDragHandle: true,
@@ -391,6 +414,15 @@ class _HomeDashboardState extends State<HomeDashboard> {
               padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
               child: Text('Whose attendance?', style: AppTextStyles.h4),
             ),
+            if (teacher != null)
+              ListTile(
+                leading: const CircleAvatar(
+                    backgroundColor: AppColors.teacherAccent,
+                    child: Icon(Icons.fact_check_rounded, color: Colors.white)),
+                title: const Text('Mark attendance for my classes'),
+                subtitle: Text('${teacher.name} · teacher'),
+                onTap: () => Navigator.pop(sheet, teacher),
+              ),
             for (final s in students)
               ListTile(
                 leading: InitialsAvatar(s.name, size: 40, photoUrl: s.photoUrl),
@@ -405,7 +437,12 @@ class _HomeDashboardState extends State<HomeDashboard> {
         ),
       ),
     );
-    if (chosen != null && mounted) _openAttendanceOf(chosen.id, chosen.name);
+    if (chosen == null || !mounted) return;
+    if (chosen.isTeacher) {
+      _pushThenReload(const AttendanceTodayScreen());
+    } else {
+      _openAttendanceOf(chosen.id, chosen.name);
+    }
   }
 
   List<Widget> _childrenSection(HomeData d) {
@@ -816,7 +853,12 @@ class _HomeDashboardState extends State<HomeDashboard> {
         final upcoming = _family!.week.where((c) => !c.cancelled).toList();
         final today = upcoming.where((c) => c.dayWord(now) == 'Today').toList();
         if (today.isEmpty) {
-          headline = 'No classes today';
+          // Her own teaching counts as a class today.
+          headline = teachToday == 0
+              ? 'No classes today'
+              : teachToday == 1
+                  ? 'You teach 1 class today'
+                  : 'You teach $teachToday classes today';
           final next = upcoming.isEmpty ? null : upcoming.first;
           if (next != null) {
             final day = next.dayWord(now) == 'Tomorrow' ? 'tomorrow' : next.dayWord(now);
@@ -833,7 +875,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
           final shown = today.take(2).map((c) => [who(c), clock12(c.startTime)].where((x) => x.isNotEmpty).join(' '));
           details.add([...shown, if (today.length > 2) 'and ${today.length - 2} more'].join(' · '));
         }
-        if (teachToday > 0) details.add('$teachToday to teach');
+        if (teachToday > 0 && today.isNotEmpty) details.add('$teachToday to teach');
       } else {
         headline = classesToday(d.upcomingClasses
             .where((s) => ClassSchedule.dayLabel(s.start) == 'Today')
