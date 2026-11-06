@@ -6629,6 +6629,17 @@ Please review and approve this registration in the admin panel.`;
             if (!isAdminUser(req) && String(batch.teacher_id) !== String(req.session.user.id)) {
                 return res.status(403).json({ message: 'This batch belongs to another teacher.' });
             }
+            // A class that was held (attendance marked) cannot be called off
+            // afterwards; nor can a make-up class (move it instead).
+            const existing = (await pool.query(
+                `SELECT s.status, EXISTS (SELECT 1 FROM attendance a WHERE a.session_id = s.id) AS marked
+                   FROM class_sessions s WHERE s.batch_id = $1 AND s.session_date = $2`, [batch_id, date])).rows[0];
+            if (existing && (existing.marked || existing.status === 'held')) {
+                return res.status(409).json({ message: 'Attendance is already marked for this class, so it cannot be called off.' });
+            }
+            if (existing && existing.status === 'makeup') {
+                return res.status(409).json({ message: 'This is a make-up class. Change its date in Make-up classes instead.' });
+            }
             const session = (await pool.query(
                 `INSERT INTO class_sessions (batch_id, session_date, start_time, end_time, status, cancel_reason, teacher_id, marked_by, marked_at)
                  VALUES ($1, $2, $3, $4, 'cancelled', $5, $6, $7, NOW())
