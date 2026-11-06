@@ -796,35 +796,44 @@ class _HomeDashboardState extends State<HomeDashboard> {
     String summary = '';
     if (d != null && !_failed) {
       final teacherOnly = d.students.isEmpty && d.teacher != null;
-      final int today;
-      if (teacherOnly && _teaching != null) {
-        today = _teaching!.today.where((c) => c.state != 'cancelled').length;
+      final toMark = _viewerTeaches(d) ? (_teaching?.unmarked.length ?? 0) : 0;
+      final teachToday = _viewerTeaches(d) && _teaching != null
+          ? _teaching!.today.where((c) => c.state != 'cancelled').length
+          : 0;
+      final parts = <String>[];
+      if (teacherOnly) {
+        parts.add(teachToday == 0
+            ? 'No classes today'
+            : '$teachToday ${teachToday == 1 ? 'class' : 'classes'} today');
       } else if (_family != null) {
-        today = _family!.week
-                .where((c) => !c.cancelled && c.dayWord(now) == 'Today')
-                .length +
-            (_viewerTeaches(d) && _teaching != null
-                ? _teaching!.today.where((c) => c.state != 'cancelled').length
-                : 0);
+        // Say whose class it is: one child may have a class while the other has none.
+        String who(SummaryClass c) => c.learners.isEmpty ? '' : c.learners.join(' & ');
+        final upcoming = _family!.week.where((c) => !c.cancelled).toList();
+        final today = upcoming.where((c) => c.dayWord(now) == 'Today').toList();
+        if (today.isEmpty) {
+          final next = upcoming.isEmpty ? null : upcoming.first;
+          parts.add(next == null
+              ? 'No classes today'
+              : 'No classes today  ·  next: ${[who(next), next.dayWord(now) == 'Tomorrow' ? 'tomorrow' : next.dayWord(now), clock12(next.startTime)].where((x) => x.isNotEmpty).join(' ')}');
+        } else if (today.length == 1) {
+          final c = today.first;
+          parts.add(who(c).isEmpty
+              ? 'Class today at ${clock12(c.startTime)}'
+              : '${who(c)}: class today at ${clock12(c.startTime)}');
+        } else if (today.length == 2) {
+          parts.add('Today: ${today.map((c) => [who(c), clock12(c.startTime)].where((x) => x.isNotEmpty).join(' ')).join('  ·  ')}');
+        } else {
+          parts.add('${today.length} classes today');
+        }
+        if (teachToday > 0) parts.add('$teachToday to teach');
       } else {
-        today = d.upcomingClasses
+        final n = d.upcomingClasses
             .where((s) => ClassSchedule.dayLabel(s.start) == 'Today')
             .length;
+        parts.add(n == 0 ? 'No classes today' : '$n ${n == 1 ? 'class' : 'classes'} today');
       }
-      final toMark = _viewerTeaches(d) ? (_teaching?.unmarked.length ?? 0) : 0;
-      final parts = <String>[
-        today == 0
-            ? 'No classes today'
-            : '$today ${today == 1 ? 'class' : 'classes'} today',
-        if (toMark > 0) '$toMark to mark',
-        if (d.students.isNotEmpty && (d.hasBill || d.otherDue > 0))
-          // The amount is shown once, in the fees card below.
-          d.monthDue
-              ? (d.allVerifying ? 'Payment being verified' : 'Fees due')
-              : d.otherDue > 0
-                  ? 'Fees due'
-                  : 'Fees paid',
-      ];
+      if (toMark > 0) parts.add('$toMark to mark');
+      // Fees are not repeated here: the fees card just below has them.
       summary = parts.join('  ·  ');
     }
 

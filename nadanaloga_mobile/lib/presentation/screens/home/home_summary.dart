@@ -42,6 +42,16 @@ String _modeLabel(String? mode) {
   return m;
 }
 
+/// The name to call a child by, skipping initials: "A Meghna" → "Meghna",
+/// "A.Shivanya" → "Shivanya", "Lakshvika V" → "Lakshvika".
+String childCallName(String full) {
+  final parts = full.trim().split(RegExp(r'[\s.]+')).where((p) => p.isNotEmpty).toList();
+  for (final p in parts) {
+    if (p.length >= 3) return p;
+  }
+  return full.trim();
+}
+
 /// "18:00" → "6:00 PM".
 String clock12(String? hhmm) {
   final mins = summaryMinutes(hhmm);
@@ -460,7 +470,7 @@ class FamilySummary {
     final byKey = <String, SummaryClass>{};
     final names = <String, List<String>>{};
     for (final c in children) {
-      final first = c.name.trim().split(RegExp(r'\s+')).first;
+      final first = childCallName(c.name);
       for (final s in c.week) {
         final key = '${s.batchId}|${s.date}|${s.startTime}';
         byKey.putIfAbsent(key, () => s);
