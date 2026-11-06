@@ -12,7 +12,7 @@ import Modal from '../Modal';
 export interface ClassSlot {
     date: string; day: string; start_time: string; end_time: string; batch_id: number; batch_name: string;
     course_name: string | null; teacher_name: string | null; mode: string | null; studio: string | null;
-    location_name: string | null; cancelled: boolean; when: string;
+    location_name: string | null; cancelled: boolean; cancel_reason?: string | null; when: string;
     is_makeup?: boolean;
 }
 interface Rate { classes: number; attended: number; percentage: number | null }
@@ -173,6 +173,7 @@ export const FamilyHomeSummary: React.FC<{ summary: HomeSummary | null; error: s
                 </div>
             )}
 
+            {s.week.some(c => c.cancelled) && <CancelledBanner rows={s.week.filter(c => c.cancelled)} />}
             {(s.makeups || []).length > 0 && <MakeupList rows={s.makeups!} family />}
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -311,6 +312,21 @@ export const familyQuickLinks = (s: HomeSummary | null) => [
     { to: 'notices', icon: Bell, label: 'Notices', hint: s?.notices.length ? `${s.notices.length} recent` : 'From the academy', tone: 'bg-orange-50 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300' },
 ];
 
+// Classes called off in the coming days, at the top of the home screen.
+export const CancelledBanner: React.FC<{ rows: { batch_name: string; date?: string; day?: string; when?: string; start_time?: string | null; cancel_reason?: string | null }[] }> = ({ rows }) => (
+    <div className="space-y-2">
+        {rows.map((c, i) => (
+            <div key={i} className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-900/20">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-200"><CalendarClock className="h-5 w-5" /></span>
+                <span className="min-w-0">
+                    <span className="block text-sm font-bold text-red-800 dark:text-red-200">Class cancelled · {c.when === 'today' ? 'Today' : c.when === 'tomorrow' ? 'Tomorrow' : c.date ? `${(c.day || '').slice(0, 3)}, ${shortDate(c.date)}` : 'Today'}{c.start_time ? ` · ${clock(c.start_time)}` : ''}</span>
+                    <span className="block text-xs text-red-700/90 dark:text-red-300">{c.batch_name}{c.cancel_reason ? ` — ${c.cancel_reason}` : ''}</span>
+                </span>
+            </div>
+        ))}
+    </div>
+);
+
 // Make-up classes owed or scheduled, as a list of rows.
 const makeupWhen = (m: HomeMakeup) => `${new Date(`${m.makeup_date}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}${m.start_time ? `, ${clock(m.start_time)}${m.end_time ? `–${clock(m.end_time)}` : ''}` : ''}`;
 export const MakeupList: React.FC<{ rows: HomeMakeup[]; family?: boolean }> = ({ rows, family = false }) => (
@@ -334,7 +350,7 @@ export const MakeupList: React.FC<{ rows: HomeMakeup[]; family?: boolean }> = ({
 
 // --- Teacher ------------------------------------------------------------------
 
-interface TeacherClass { is_makeup?: boolean; batch_id: number; batch_name: string; course_name: string | null; start_time: string; end_time: string; students: number; studio: string | null; location_name: string | null; mode: string | null; state: 'upcoming' | 'running' | 'not_marked' | 'marked' | 'cancelled' }
+interface TeacherClass { is_makeup?: boolean; cancel_reason?: string | null; batch_id: number; batch_name: string; course_name: string | null; start_time: string; end_time: string; students: number; studio: string | null; location_name: string | null; mode: string | null; state: 'upcoming' | 'running' | 'not_marked' | 'marked' | 'cancelled' }
 export interface TeacherSummary {
     today: string; now: string; counts: { batches: number; students: number; classes_this_week: number };
     today_classes: TeacherClass[]; next_class: (TeacherClass & Partial<ClassSlot>) | null;
@@ -402,9 +418,15 @@ export const TeacherHome: React.FC<{ name: string; attendancePath: string; batch
                 <Kpi icon={ClipboardCheck} label="Attendance · 30 days" value={data.attendance.percentage == null ? '—' : `${data.attendance.percentage}%`} onClick={() => setShowLow(true)} tone="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300" />
             </div>
 
+            {(data.today_classes.some(c => c.state === 'cancelled') || data.week.some(c => c.cancelled)) && (
+                <CancelledBanner rows={[
+                    ...data.today_classes.filter(c => c.state === 'cancelled').map(c => ({ ...c, when: 'today' })),
+                    ...data.week.filter(c => c.cancelled && c.date !== data.today),
+                ]} />
+            )}
             {(data.makeups || []).length > 0 && (
                 <Card title="Make-up classes" icon={CalendarClock} tint="bg-amber-50 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300"
-                    action={<MoreLink to={`${attendancePath}?tab=makeups`}>Fix date / mark done</MoreLink>}>
+                    action={<MoreLink to={`${attendancePath}?tab=makeups`}>See all</MoreLink>}>
                     <MakeupList rows={data.makeups!} />
                 </Card>
             )}

@@ -36,7 +36,7 @@ const STATE_LABEL: Record<MakeupRow['state'], string> = { owed: 'Owed · date no
 
 type Draft = { date: string; start: string; end: string };
 
-const MakeupsPanel: React.FC<{ canUndo?: boolean; onCount?: (open: number) => void; onChanged?: () => void }> = ({ canUndo = false, onCount, onChanged }) => {
+const MakeupsPanel: React.FC<{ canUndo?: boolean; canSchedule?: boolean; onCount?: (open: number) => void; onChanged?: () => void }> = ({ canUndo = false, canSchedule = true, onCount, onChanged }) => {
     const { theme } = useTheme();
     const dark = theme === 'dark';
     const [rows, setRows] = useState<MakeupRow[] | null>(null);
@@ -98,7 +98,7 @@ const MakeupsPanel: React.FC<{ canUndo?: boolean; onCount?: (open: number) => vo
                 <p className={`text-sm ${muted}`}>
                     {rows === null ? 'Loading…'
                         : openRows.length === 0 ? 'No make-up classes pending.'
-                        : `${owed} owed (date not fixed) · ${openRows.length - owed} scheduled. Fix or move the date any time — everyone is told.`}
+                        : `${owed} owed (date not fixed) · ${openRows.length - owed} scheduled.${canSchedule ? ' Fix or move the date any time — everyone is told.' : ' The academy fixes the date; you are told.'}`}
                 </p>
                 <div className={`flex rounded-lg border p-0.5 text-xs ${dark ? 'border-gray-700' : 'border-gray-200'}`}>
                     {([[false, 'Pending'], [true, 'All history']] as [boolean, string][]).map(([v, label]) => (
@@ -133,9 +133,11 @@ const MakeupsPanel: React.FC<{ canUndo?: boolean; onCount?: (open: number) => vo
                         </div>
                         {r.state !== 'done' && editing !== r.id && (
                             <div className="flex flex-wrap gap-2">
+                                {canSchedule && (
                                 <button onClick={() => open(r)} className="rounded-md bg-brand-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark">
                                     {r.state === 'scheduled' ? 'Change date' : 'Fix date'}
                                 </button>
+                                )}
                                 {r.state === 'scheduled' && (
                                     <button onClick={() => markDone(r)} disabled={busy === r.id} className={outline}>Mark as done</button>
                                 )}

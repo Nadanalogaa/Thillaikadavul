@@ -248,6 +248,11 @@ const AttendancePage: React.FC<{ teacher?: boolean }> = ({ teacher = false }) =>
                                         {statusPill(c.status === 'makeup' && c.marked_at ? 'makeup_done' : c.status)}
                                     </div>
                                     {c.cancel_reason && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{c.cancel_reason}</p>}
+                                    {c.status === 'cancelled' ? (
+                                        <button onClick={() => setTab('makeups')} className="mt-3 text-xs font-semibold text-indigo-600 hover:underline dark:text-indigo-300">
+                                            Class off · see the make-up →
+                                        </button>
+                                    ) : (
                                     <div className="mt-3 flex gap-2">
                                         <button onClick={() => openRoster(c.batch_id)} className="rounded-md bg-brand-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-dark">
                                             {c.status === 'held' || c.marked_at && c.status === 'makeup' ? 'Edit attendance' : 'Mark attendance'}
@@ -258,6 +263,7 @@ const AttendancePage: React.FC<{ teacher?: boolean }> = ({ teacher = false }) =>
                                             </button>
                                         )}
                                     </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -326,7 +332,7 @@ const AttendancePage: React.FC<{ teacher?: boolean }> = ({ teacher = false }) =>
             )}
 
             {tab === 'makeups' && (
-                <MakeupsPanel canUndo={!teacher} onCount={setOpenMakeups}
+                <MakeupsPanel canUndo={!teacher} canSchedule={!teacher} onCount={setOpenMakeups}
                     onChanged={() => { getAttendanceClasses(date, !teacher).then(setClasses).catch(() => {}); }} />
             )}
 

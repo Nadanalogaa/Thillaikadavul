@@ -6705,7 +6705,8 @@ Please review and approve this registration in the admin panel.`;
             if (cancelled.closed_at) return res.status(400).json({ message: 'This make-up is already done.' });
             const batch = (await pool.query('SELECT * FROM batches WHERE id = $1', [cancelled.batch_id])).rows[0];
             if (!batch) return res.status(404).json({ message: 'Batch not found' });
-            if (!canRunBatch(req, batch)) return res.status(403).json({ message: 'Only the admin or this batch\'s teacher can schedule its make-up.' });
+            // The academy (admin) sets up the make-up; teachers and families are told.
+            if (!isAdminUser(req) && req.session.user.is_super_admin !== true) return res.status(403).json({ message: 'Make-up classes are scheduled by the admin.' });
             if (date < todayIso()) return res.status(400).json({ message: 'The make-up date cannot be in the past.' });
             if (!!start_time !== !!end_time) return res.status(400).json({ message: 'Set both the start and end time, or neither for the usual timing.' });
             if (start_time && String(end_time) <= String(start_time)) return res.status(400).json({ message: 'The end time must be after the start time.' });
@@ -6939,10 +6940,11 @@ Please review and approve this registration in the admin panel.`;
     const upcomingClasses = async (batches, days = 7) => {
         const { date: today, time } = istNow();
         const ids = batches.map(b => Number(b.id));
-        const cancelled = ids.length ? new Set((await pool.query(
-            `SELECT batch_id, to_char(session_date, 'YYYY-MM-DD') AS d FROM class_sessions
+        // Cancelled days, with the reason given (families see it on the home screen).
+        const cancelled = ids.length ? new Map((await pool.query(
+            `SELECT batch_id, to_char(session_date, 'YYYY-MM-DD') AS d, cancel_reason FROM class_sessions
               WHERE batch_id = ANY($1::int[]) AND status = 'cancelled' AND session_date BETWEEN $2 AND $3`,
-            [ids, today, isoAddDays(today, days)])).rows.map(r => `${r.batch_id}:${r.d}`)) : new Set();
+            [ids, today, isoAddDays(today, days)])).rows.map(r => [`${r.batch_id}:${r.d}`, r.cancel_reason || ''])) : new Map();
         const out = [];
         for (let i = 0; i <= days; i++) {
             const date = isoAddDays(today, i);
@@ -6953,7 +6955,8 @@ Please review and approve this registration in the admin panel.`;
                 out.push({ date, day: wd, start_time: start, end_time: end, batch_id: Number(b.id), batch_name: b.batch_name,
                     course_name: b.course_name || null, teacher_name: b.teacher_name || null, mode: b.mode || null,
                     studio: b.studio || null, location_name: b.location_name || null,
-                    cancelled: cancelled.has(`${b.id}:${date}`), when: i === 0 ? 'today' : i === 1 ? 'tomorrow' : wd });
+                    cancelled: cancelled.has(`${b.id}:${date}`), cancel_reason: cancelled.get(`${b.id}:${date}`) || null,
+                    when: i === 0 ? 'today' : i === 1 ? 'tomorrow' : wd });
             }
         }
         // Make-up classes in the window (they may fall on days the batch does not normally meet).
@@ -7072,7 +7075,7 @@ Please review and approve this registration in the admin panel.`;
 
             // Sessions of my batches in the last 7 days and today.
             const sess = ids.length ? (await pool.query(
-                `SELECT batch_id, to_char(session_date, 'YYYY-MM-DD') AS date, status, marked_at FROM class_sessions
+                `SELECT batch_id, to_char(session_date, 'YYYY-MM-DD') AS date, status, marked_at, cancel_reason FROM class_sessions
                   WHERE batch_id = ANY($1::int[]) AND session_date BETWEEN $2 AND $3`, [ids, isoAddDays(today, -7), today])).rows : [];
             const sessOf = (bid, d) => sess.find(r => Number(r.batch_id) === Number(bid) && r.date === d);
             const countIn = (b) => (Array.isArray(b.student_ids) ? b.student_ids : []).filter(x => byId.has(Number(x))).length;
@@ -7082,6 +7085,7 @@ Please review and approve this registration in the admin panel.`;
                 const start = hhmm(sl.start_time), end = hhmm(sl.end_time), sx = sessOf(b.id, today);
                 todayClasses.push({ batch_id: Number(b.id), batch_name: b.batch_name, course_name: b.course_name, start_time: start, end_time: end,
                     students: countIn(b), studio: b.studio, location_name: b.location_name, mode: b.mode,
+                    cancel_reason: sx && sx.status === 'cancelled' ? (sx.cancel_reason || null) : null,
                     state: sx && sx.status === 'cancelled' ? 'cancelled' : sx && sx.marked_at ? 'marked'
                         : end && end <= time ? 'not_marked' : start && start <= time ? 'running' : 'upcoming' });
             }
