@@ -40,46 +40,21 @@ const CoursesSection: React.FC = () => {
     {
       title: 'Drawing Classes',
       description: 'Develop your artistic skills through structured drawing lessons and creative expression',
-      image: '/danceImages/responsive/large/EGM_7698_DxO.webp',
+      image: '/images/drawing.png',
+      illustration: true,
       duration: '4 Months',
       level: 'All Levels',
       features: ['Basic Sketching', 'Color Theory', 'Creative Expression', 'Portfolio Development'],
       type: 'regular' as const
     },
     {
-      title: 'Vocal Music Classes',
-      description: 'Learn classical Carnatic music to complement your dance training',
-      image: '/danceImages/responsive/large/PRAP3795_DxO.webp',
+      title: 'Carnatic Vocal',
+      description: 'Learn classical Carnatic music: voice training, ragas and compositions',
+      image: '/images/vocal.png',
+      illustration: true,
       duration: '6 Months',
       level: 'All Levels',
       features: ['Carnatic Basics', 'Ragas', 'Compositions', 'Voice Training'],
-      type: 'regular' as const
-    },
-    {
-      title: 'Abacus Classes',
-      description: 'Enhance mathematical skills and mental calculation abilities through traditional abacus training',
-      image: '/danceImages/responsive/large/EGM_7745_DxO.webp',
-      duration: '6 Months',
-      level: 'All Levels',
-      features: ['Mental Math', 'Speed Calculation', 'Concentration Training', 'Problem Solving'],
-      type: 'regular' as const
-    },
-    {
-      title: 'Phonics Classes',
-      description: 'Build strong reading foundations with systematic phonics instruction for early learners',
-      image: '/danceImages/responsive/large/DSC03395_DxO.webp',
-      duration: '4 Months',
-      level: 'Beginner',
-      features: ['Letter Sounds', 'Reading Skills', 'Pronunciation', 'Language Development'],
-      type: 'regular' as const
-    },
-    {
-      title: 'Private Classes',
-      description: 'Personalized one-on-one instruction tailored to your individual learning pace and goals',
-      image: '/danceImages/responsive/large/EGM_7524_DxO.webp',
-      duration: 'Flexible',
-      level: 'All Levels',
-      features: ['Personalized Attention', 'Flexible Schedule', 'Customized Curriculum', 'Faster Progress'],
       type: 'regular' as const
     },
     {
@@ -90,15 +65,6 @@ const CoursesSection: React.FC = () => {
       level: 'All Levels',
       features: ['Multiple Instruments', 'Professional Training', 'Music Theory', 'Performance Skills'],
       type: 'instrument' as const
-    },
-    {
-      title: 'Yoga Classes',
-      description: 'Enhance flexibility, mindfulness, and overall well-being through traditional yoga practices',
-      image: '/danceImages/responsive/large/DSC07875~2.webp',
-      duration: '3 Months',
-      level: 'All Levels',
-      features: ['Asanas & Pranayama', 'Meditation', 'Flexibility Training', 'Stress Relief'],
-      type: 'regular' as const
     }
   ];
 
@@ -148,12 +114,12 @@ const CoursesSection: React.FC = () => {
               className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group"
             >
               {/* Course Image */}
-              <div className="relative h-44 sm:h-48 overflow-hidden">
+              <div className={`relative h-44 sm:h-48 overflow-hidden ${(course as { illustration?: boolean }).illustration ? 'bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-700 dark:to-gray-800' : ''}`}>
                 <motion.img
                   whileHover={{ scale: 1.1 }}
                   src={course.image}
                   alt={course.title}
-                  className="w-full h-full object-cover transition-transform duration-500"
+                  className={`w-full h-full transition-transform duration-500 ${(course as { illustration?: boolean }).illustration ? 'object-contain p-3' : 'object-cover'}`}
                 />
                 <div className="absolute top-4 right-4 bg-white dark:bg-gray-800 px-3 py-1 rounded-full text-sm font-semibold text-indigo-600 dark:text-indigo-400">
                   {course.level}

@@ -1,7 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, Mail, Calendar, MapPin, Globe, Monitor, Users, Phone } from 'lucide-react';
-// Removed local email service import - using backend SMTP
+import { X, Check } from 'lucide-react';
+
+// "Enroll now" from a homepage course card. One wide card that fits the screen
+// (no scrolling on a laptop): the course to join (Bharatanatyam or Carnatic
+// Vocal first), who is joining, and how to reach them. The academy gets an
+// email and the family a confirmation.
 
 interface EnrollmentModalProps {
   isOpen: boolean;
@@ -10,576 +14,183 @@ interface EnrollmentModalProps {
   courseType?: 'instrument' | 'regular';
 }
 
-interface EnrollmentFormData {
+const COURSES = ['Bharatanatyam', 'Carnatic Vocal', 'Drawing', 'Instrument'] as const;
+type CourseName = typeof COURSES[number];
+const INSTRUMENTS = ['Violin', 'Keyboard', 'Veena', 'Other'];
+
+// Which course a card title stands for ("Advanced Bharatanatyam" → Bharatanatyam).
+const courseFromTitle = (title: string, type: 'instrument' | 'regular'): CourseName => {
+  const t = title.toLowerCase();
+  if (type === 'instrument' || t.includes('instrument')) return 'Instrument';
+  if (t.includes('vocal') || t.includes('carnatic') || t.includes('music')) return 'Carnatic Vocal';
+  if (t.includes('draw')) return 'Drawing';
+  return 'Bharatanatyam';
+};
+
+interface Form {
+  course: CourseName;
+  instrument: string;
+  otherInstrument: string;
   name: string;
   email: string;
   phone: string;
   dateOfBirth: string;
   location: string;
   classMode: 'online' | 'offline';
-  instrument?: string;
-  customInstrument?: string;
 }
 
-const EnrollmentModal: React.FC<EnrollmentModalProps> = ({
-  isOpen,
-  onClose,
-  courseTitle,
-  courseType = 'regular'
-}) => {
-  const [formData, setFormData] = useState<EnrollmentFormData>({
-    name: '',
-    email: '',
-    phone: '',
-    dateOfBirth: '',
-    location: '',
-    classMode: 'online',
-    instrument: '',
-    customInstrument: ''
+const EnrollmentModal: React.FC<EnrollmentModalProps> = ({ isOpen, onClose, courseTitle, courseType = 'regular' }) => {
+  const blank = (): Form => ({
+    course: courseFromTitle(courseTitle, courseType), instrument: '', otherInstrument: '',
+    name: '', email: '', phone: '', dateOfBirth: '', location: '', classMode: 'offline',
   });
+  const [form, setForm] = useState<Form>(blank);
+  const [errors, setErrors] = useState<Partial<Record<keyof Form, string>>>({});
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
 
-  const [errors, setErrors] = useState<Partial<EnrollmentFormData>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
+  useEffect(() => { if (isOpen) { setForm(blank()); setErrors({}); setDone(false); } }, [isOpen, courseTitle, courseType]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const instrumentOptions = [
-    { value: 'violin', label: 'Violin' },
-    { value: 'keyboard', label: 'Keyboard' },
-    { value: 'veena', label: 'Veena' },
-    { value: 'others', label: 'Others' }
-  ];
+  const set = (k: keyof Form, v: string) => { setForm(f => ({ ...f, [k]: v })); if (errors[k]) setErrors(e => ({ ...e, [k]: undefined })); };
 
-
-  const validateEmail = (email: string): { isValid: boolean; error?: string } => {
-    // Basic format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return { isValid: false, error: 'Please enter a valid email format' };
+  const validate = () => {
+    const e: Partial<Record<keyof Form, string>> = {};
+    if (form.name.trim().length < 2) e.name = 'Please enter the learner\'s name.';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) e.email = 'Please enter a valid email.';
+    if (form.phone.replace(/\D/g, '').length < 7) e.phone = 'Please enter a valid phone number.';
+    if (!form.dateOfBirth) e.dateOfBirth = 'Please enter the date of birth.';
+    if (!form.location.trim()) e.location = 'Please enter your city.';
+    if (form.course === 'Instrument') {
+      if (!form.instrument) e.instrument = 'Please choose an instrument.';
+      else if (form.instrument === 'Other' && form.otherInstrument.trim().length < 2) e.otherInstrument = 'Please name the instrument.';
     }
-
-    return { isValid: true };
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
-  const validatePhoneNumber = (phone: string): { isValid: boolean; error?: string } => {
-    // Remove all non-digit characters for validation
-    const cleanPhone = phone.replace(/\D/g, '');
-
-    // Check minimum length (should be at least 10 digits)
-    if (cleanPhone.length < 10) {
-      return { isValid: false, error: 'Phone number must be at least 10 digits' };
-    }
-
-    // Check for suspicious patterns
-    if (/^(\d)\1{9,}$/.test(cleanPhone)) { // All same digit
-      return { isValid: false, error: 'Please enter a valid phone number' };
-    }
-
-    if (/^(1234567890|0987654321|1111111111|0000000000)$/.test(cleanPhone)) {
-      return { isValid: false, error: 'Please enter a valid phone number' };
-    }
-
-    return { isValid: true };
-  };
-
-  const validateName = (name: string): { isValid: boolean; error?: string } => {
-    // Check minimum length
-    if (name.trim().length < 2) {
-      return { isValid: false, error: 'Name must be at least 2 characters long' };
-    }
-
-    return { isValid: true };
-  };
-
-
-  const validateForm = (): boolean => {
-    const newErrors: Partial<EnrollmentFormData> = {};
-
-    // Validate name
-    if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
-    } else {
-      const nameValidation = validateName(formData.name);
-      if (!nameValidation.isValid) {
-        newErrors.name = nameValidation.error;
-      }
-    }
-
-    // Validate email
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else {
-      const emailValidation = validateEmail(formData.email);
-      if (!emailValidation.isValid) {
-        newErrors.email = emailValidation.error;
-      }
-    }
-
-    // Validate phone
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone number is required';
-    } else {
-      const phoneValidation = validatePhoneNumber(formData.phone);
-      if (!phoneValidation.isValid) {
-        newErrors.phone = phoneValidation.error;
-      }
-    }
-
-    // Validate date of birth
-    if (!formData.dateOfBirth) {
-      newErrors.dateOfBirth = 'Date of birth is required';
-    } else {
-      // Check if date is not in the future
-      const today = new Date();
-      const birthDate = new Date(formData.dateOfBirth);
-      if (birthDate > today) {
-        newErrors.dateOfBirth = 'Birth date cannot be in the future';
-      }
-
-      // Check if age is reasonable (not more than 120 years old)
-      const age = today.getFullYear() - birthDate.getFullYear();
-      if (age > 120) {
-        newErrors.dateOfBirth = 'Please enter a valid birth date';
-      }
-    }
-
-    // Validate location
-    if (!formData.location.trim()) {
-      newErrors.location = 'Location is required';
-    } else if (formData.location.trim().length < 2) {
-      newErrors.location = 'Please enter a valid location';
-    }
-
-    // Validate instrument selection
-    if (courseType === 'instrument') {
-      if (!formData.instrument) {
-        newErrors.instrument = 'Please select an instrument';
-      } else if (formData.instrument === 'others' && !formData.customInstrument?.trim()) {
-        newErrors.customInstrument = 'Please specify the instrument';
-      } else if (formData.instrument === 'others' && formData.customInstrument && formData.customInstrument.trim().length < 2) {
-        newErrors.customInstrument = 'Please enter a valid instrument name';
-      }
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
-
-    setIsSubmitting(true);
-
+  const submit = async (ev: React.FormEvent) => {
+    ev.preventDefault();
+    if (!validate()) return;
+    setBusy(true);
+    const instrument = form.course === 'Instrument' ? (form.instrument === 'Other' ? form.otherInstrument.trim() : form.instrument) : '';
+    const courseLabel = instrument ? `${form.course} (${instrument})` : form.course;
+    const mode = form.classMode === 'online' ? 'Online classes' : 'At the academy';
+    const send = (to: string, subject: string, body: string, recipientName: string) =>
+      fetch('/api/send-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to, subject, body, recipientName }) }).catch(() => null);
     try {
-      // Prepare submission data
-      const submissionData = {
-        ...formData,
-        courseTitle,
-        courseType,
-        finalInstrument: courseType === 'instrument'
-          ? (formData.instrument === 'others' ? formData.customInstrument : formData.instrument)
-          : undefined,
-        submittedAt: new Date().toISOString()
-      };
-
-      // Prepare validation information for admin
-      const emailValidation = validateEmail(formData.email);
-      const nameValidation = validateName(formData.name);
-      const phoneValidation = validatePhoneNumber(formData.phone);
-
-      // Send enrollment email to admin
-      const emailBody = `
-New Course Enrollment Request
-
-Course: ${courseTitle}
-${courseType === 'instrument' ? `Instrument: ${submissionData.finalInstrument}` : ''}
-
-Student Details:
-Name: ${formData.name}
-Email: ${formData.email}
-Phone: ${formData.phone}
-Date of Birth: ${formData.dateOfBirth}
-Location: ${formData.location}
-Preferred Mode: ${formData.classMode === 'online' ? 'Online Classes' : 'Offline Classes'}
-
-Submitted on: ${new Date().toLocaleString()}
-
----
-This enrollment request was submitted through the Nadanaloga Fine Arts Academy website.
-      `;
-
-      // Send email to admin via backend SMTP
-      try {
-        const response = await fetch('/api/send-email', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            to: 'nadanaloga2026@gmail.com',
-            subject: `New Enrollment Request - ${courseTitle}`,
-            body: emailBody,
-            recipientName: 'Admin'
-          })
-        });
-
-        if (response.ok) {
-          console.log('Enrollment email sent successfully to admin');
-        } else {
-          console.error('Failed to send enrollment email to admin');
-        }
-      } catch (emailError) {
-        console.error('Error sending enrollment email:', emailError);
-      }
-
-      // Send confirmation email to student
-      try {
-        const confirmationBody = `
-Dear ${formData.name},
-
-Thank you for your enrollment request for ${courseTitle}!
-
-We have received your application and will contact you within 24 hours to confirm your enrollment and provide further details.
-
-Course Details:
-- Course: ${courseTitle}
-${courseType === 'instrument' ? `- Instrument: ${submissionData.finalInstrument}` : ''}
-- Preferred Mode: ${formData.classMode === 'online' ? 'Online Classes' : 'Offline Classes'}
-
-Best regards,
-Nadanaloga Fine Arts Academy Team
-        `;
-
-        const confirmationResponse = await fetch('/api/send-email', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            to: formData.email,
-            subject: `Enrollment Confirmation - ${courseTitle}`,
-            body: confirmationBody,
-            recipientName: formData.name
-          })
-        });
-
-        if (confirmationResponse.ok) {
-          console.log('Confirmation email sent successfully to student');
-        } else {
-          console.error('Failed to send confirmation email to student');
-        }
-      } catch (confirmationError) {
-        console.error('Error sending confirmation email:', confirmationError);
-      }
-
-
-      console.log('Enrollment submitted:', submissionData);
-
-      setSubmitSuccess(true);
-
-      // Reset form after 4 seconds to give user time to read success message
-      setTimeout(() => {
-        setSubmitSuccess(false);
-        onClose();
-        setFormData({
-          name: '',
-          email: '',
-          phone: '',
-          dateOfBirth: '',
-          location: '',
-          classMode: 'online',
-          instrument: '',
-          customInstrument: '',
-        });
-        setErrors({});
-      }, 4000);
-
-    } catch (error) {
-      console.error('Failed to submit enrollment:', error);
-      alert('Failed to submit enrollment. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
+      await send('nadanaloga2026@gmail.com', `New enrolment request – ${courseLabel}`,
+        `New course enrolment request\n\nCourse: ${courseLabel}\nFrom card: ${courseTitle}\n\nLearner: ${form.name}\nEmail: ${form.email}\nPhone: ${form.phone}\nDate of birth: ${form.dateOfBirth}\nCity: ${form.location}\nPreferred: ${mode}\n\nSubmitted ${new Date().toLocaleString('en-IN')} through the Nadanaloga website.`, 'Admin');
+      await send(form.email.trim(), `We received your request – ${courseLabel}`,
+        `Dear ${form.name},\n\nThank you for your interest in ${courseLabel} at Nadanaloga Fine Arts Academy. We will contact you within a day to arrange a free demo class and timings.\n\nPreferred: ${mode}\n\nWarm regards,\nNadanaloga Fine Arts Academy`, form.name);
+      setDone(true);
+      setTimeout(() => { onClose(); }, 3500);
+    } finally { setBusy(false); }
   };
 
-  const handleInputChange = (field: keyof EnrollmentFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
-    }
-  };
+  const field = 'w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 outline-none transition placeholder-gray-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:placeholder-gray-500';
+  const label = 'mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400';
+  const err = (k: keyof Form) => errors[k] ? <p className="mt-1 text-xs text-red-600">{errors[k]}</p> : null;
+  const chip = (on: boolean) => `rounded-full border px-4 py-2 text-sm font-medium transition ${on ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm' : 'border-gray-300 text-gray-700 hover:border-indigo-400 hover:bg-indigo-50 dark:border-gray-600 dark:text-gray-200 dark:hover:border-indigo-400 dark:hover:bg-indigo-900/30'}`;
+  const seg = (on: boolean) => `flex-1 rounded-lg px-3 py-2 text-sm font-medium transition ${on ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`;
 
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={onClose}
-        >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            transition={{ duration: 0.3 }}
-            className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
+          <motion.div initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 16, scale: 0.98 }}
+            transition={{ duration: 0.2 }} onClick={e => e.stopPropagation()}
+            className="w-full max-w-3xl max-h-[94vh] overflow-y-auto rounded-2xl bg-white shadow-2xl dark:bg-gray-800 lg:overflow-visible">
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-start justify-between gap-4 rounded-t-2xl bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-5 text-white">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  Enroll Now
-                </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                  {courseTitle}
-                </p>
+                <p className="text-xs font-semibold uppercase tracking-widest text-indigo-100">Nadanaloga Fine Arts Academy</p>
+                <h2 className="mt-1 text-2xl font-bold">Enroll now</h2>
+                <p className="mt-1 text-sm text-indigo-100">Tell us who is joining; we'll call you within a day to fix a free demo.</p>
               </div>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-              </button>
+              <button type="button" onClick={onClose} aria-label="Close" className="rounded-full p-2 text-white/80 transition hover:bg-white/15 hover:text-white"><X className="h-5 w-5" /></button>
             </div>
 
-            {/* Success Message */}
-            {submitSuccess && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mx-6 mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg"
-              >
-                <div className="text-center">
-                  <p className="text-green-800 dark:text-green-300 font-medium text-lg mb-2">
-                    🎉 Enrollment submitted successfully!
-                  </p>
-                  <p className="text-green-700 dark:text-green-400 text-sm">
-                    Thank you, {formData.name}! We'll contact you at {formData.email} within 24 hours.
-                  </p>
+            {done ? (
+              <div className="px-6 py-12 text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-300"><Check className="h-8 w-8" /></div>
+                <h3 className="mt-4 text-xl font-bold text-gray-900 dark:text-white">Thank you, {form.name.split(' ')[0]}!</h3>
+                <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">We've received your request for <b>{form.course}</b>. A confirmation is on its way to {form.email}, and we'll be in touch within a day.</p>
+              </div>
+            ) : (
+              <form onSubmit={submit} noValidate className="px-6 py-5">
+                {/* Course */}
+                <p className={label}>Which course?</p>
+                <div className="flex flex-wrap gap-2">
+                  {COURSES.map(c => (
+                    <button type="button" key={c} onClick={() => set('course', c)} className={chip(form.course === c)} aria-pressed={form.course === c}>{c}</button>
+                  ))}
                 </div>
-              </motion.div>
-            )}
-
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-
-              {/* Name */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  <User className="w-4 h-4 inline mr-2" />
-                  Full Name *
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors ${
-                    errors.name
-                      ? 'border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-600'
-                      : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
-                  } text-gray-900 dark:text-white`}
-                  placeholder="Enter your full name"
-                />
-                {errors.name && (
-                  <p className="text-red-600 dark:text-red-400 text-sm mt-1">{errors.name}</p>
-                )}
-              </div>
-
-              {/* Email */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  <Mail className="w-4 h-4 inline mr-2" />
-                  Email Address *
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors ${
-                    errors.email
-                      ? 'border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-600'
-                      : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
-                  } text-gray-900 dark:text-white`}
-                  placeholder="Enter your email address"
-                />
-                {errors.email && (
-                  <p className="text-red-600 dark:text-red-400 text-sm mt-1">{errors.email}</p>
-                )}
-              </div>
-
-              {/* Phone */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  <Phone className="w-4 h-4 inline mr-2" />
-                  Phone Number *
-                </label>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors ${
-                    errors.phone
-                      ? 'border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-600'
-                      : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
-                  } text-gray-900 dark:text-white`}
-                  placeholder="Enter your phone number"
-                />
-                {errors.phone && (
-                  <p className="text-red-600 dark:text-red-400 text-sm mt-1">{errors.phone}</p>
-                )}
-              </div>
-
-              {/* Date of Birth */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  <Calendar className="w-4 h-4 inline mr-2" />
-                  Date of Birth *
-                </label>
-                <input
-                  type="date"
-                  value={formData.dateOfBirth}
-                  onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors ${
-                    errors.dateOfBirth
-                      ? 'border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-600'
-                      : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
-                  } text-gray-900 dark:text-white`}
-                />
-                {errors.dateOfBirth && (
-                  <p className="text-red-600 dark:text-red-400 text-sm mt-1">{errors.dateOfBirth}</p>
-                )}
-              </div>
-
-              {/* Location */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  <MapPin className="w-4 h-4 inline mr-2" />
-                  Location *
-                </label>
-                <input
-                  type="text"
-                  value={formData.location}
-                  onChange={(e) => handleInputChange('location', e.target.value)}
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors ${
-                    errors.location
-                      ? 'border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-600'
-                      : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
-                  } text-gray-900 dark:text-white`}
-                  placeholder="Enter your city/location"
-                />
-                {errors.location && (
-                  <p className="text-red-600 dark:text-red-400 text-sm mt-1">{errors.location}</p>
-                )}
-              </div>
-
-              {/* Class Mode */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                  Preferred Class Mode *
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <motion.button
-                    type="button"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => handleInputChange('classMode', 'online')}
-                    className={`p-4 border rounded-lg flex flex-col items-center gap-2 transition-all ${
-                      formData.classMode === 'online'
-                        ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300'
-                        : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-                    }`}
-                  >
-                    <Globe className="w-6 h-6" />
-                    <span className="font-medium">Online</span>
-                  </motion.button>
-                  <motion.button
-                    type="button"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => handleInputChange('classMode', 'offline')}
-                    className={`p-4 border rounded-lg flex flex-col items-center gap-2 transition-all ${
-                      formData.classMode === 'offline'
-                        ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300'
-                        : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-                    }`}
-                  >
-                    <Users className="w-6 h-6" />
-                    <span className="font-medium">Offline</span>
-                  </motion.button>
-                </div>
-              </div>
-
-              {/* Instrument Selection (only for instrument courses) */}
-              {courseType === 'instrument' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    <Monitor className="w-4 h-4 inline mr-2" />
-                    Select Instrument *
-                  </label>
-                  <select
-                    value={formData.instrument}
-                    onChange={(e) => handleInputChange('instrument', e.target.value)}
-                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors ${
-                      errors.instrument
-                        ? 'border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-600'
-                        : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
-                    } text-gray-900 dark:text-white`}
-                  >
-                    <option value="">Select an instrument</option>
-                    {instrumentOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.instrument && (
-                    <p className="text-red-600 dark:text-red-400 text-sm mt-1">{errors.instrument}</p>
-                  )}
-
-                  {/* Custom Instrument Input */}
-                  {formData.instrument === 'others' && (
-                    <div className="mt-3">
-                      <input
-                        type="text"
-                        value={formData.customInstrument}
-                        onChange={(e) => handleInputChange('customInstrument', e.target.value)}
-                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors ${
-                          errors.customInstrument
-                            ? 'border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-600'
-                            : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
-                        } text-gray-900 dark:text-white`}
-                        placeholder="Please specify the instrument"
-                      />
-                      {errors.customInstrument && (
-                        <p className="text-red-600 dark:text-red-400 text-sm mt-1">{errors.customInstrument}</p>
-                      )}
+                {form.course === 'Instrument' && (
+                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className={label} htmlFor="en-instrument">Instrument</label>
+                      <select id="en-instrument" value={form.instrument} onChange={e => set('instrument', e.target.value)} className={field}>
+                        <option value="">Choose…</option>
+                        {INSTRUMENTS.map(i => <option key={i} value={i}>{i}</option>)}
+                      </select>
+                      {err('instrument')}
                     </div>
-                  )}
-                </div>
-              )}
+                    {form.instrument === 'Other' && (
+                      <div>
+                        <label className={label} htmlFor="en-other">Which instrument?</label>
+                        <input id="en-other" value={form.otherInstrument} onChange={e => set('otherInstrument', e.target.value)} placeholder="e.g. Flute" className={field} />
+                        {err('otherInstrument')}
+                      </div>
+                    )}
+                  </div>
+                )}
 
-              {/* Submit Button */}
-              <motion.button
-                type="submit"
-                disabled={isSubmitting || submitSuccess}
-                whileHover={{ scale: isSubmitting ? 1 : 1.02 }}
-                whileTap={{ scale: isSubmitting ? 1 : 0.98 }}
-                className={`w-full py-4 px-6 rounded-lg font-semibold transition-all duration-300 ${
-                  isSubmitting || submitSuccess
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:shadow-lg'
-                } text-white`}
-              >
-                {isSubmitting ? 'Submitting...' : submitSuccess ? 'Submitted!' : 'Submit Enrollment'}
-              </motion.button>
-            </form>
+                {/* Learner + contact, side by side on a laptop */}
+                <div className="mt-5 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+                  <div>
+                    <label className={label} htmlFor="en-name">Learner's full name</label>
+                    <input id="en-name" value={form.name} onChange={e => set('name', e.target.value)} autoComplete="name" placeholder="e.g. Anika Raman" className={field} />
+                    {err('name')}
+                  </div>
+                  <div>
+                    <label className={label} htmlFor="en-dob">Date of birth</label>
+                    <input id="en-dob" type="date" value={form.dateOfBirth} max={new Date().toISOString().slice(0, 10)} onChange={e => set('dateOfBirth', e.target.value)} className={field} />
+                    {err('dateOfBirth')}
+                  </div>
+                  <div>
+                    <label className={label} htmlFor="en-phone">Phone (WhatsApp)</label>
+                    <input id="en-phone" value={form.phone} onChange={e => set('phone', e.target.value)} inputMode="tel" autoComplete="tel" placeholder="+91 …" className={field} />
+                    {err('phone')}
+                  </div>
+                  <div>
+                    <label className={label} htmlFor="en-email">Email</label>
+                    <input id="en-email" type="email" value={form.email} onChange={e => set('email', e.target.value)} autoComplete="email" placeholder="you@example.com" className={field} />
+                    {err('email')}
+                  </div>
+                  <div>
+                    <label className={label} htmlFor="en-city">City</label>
+                    <input id="en-city" value={form.location} onChange={e => set('location', e.target.value)} placeholder="e.g. Chennai, or your city abroad" className={field} />
+                    {err('location')}
+                  </div>
+                  <div>
+                    <p className={label}>Classes</p>
+                    <div className="flex rounded-xl border border-gray-300 bg-white p-1 dark:border-gray-600 dark:bg-gray-900">
+                      <button type="button" className={seg(form.classMode === 'offline')} onClick={() => set('classMode', 'offline')}>At the academy</button>
+                      <button type="button" className={seg(form.classMode === 'online')} onClick={() => set('classMode', 'online')}>Online</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex flex-col-reverse items-center gap-3 sm:flex-row sm:justify-between">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">No payment now. Fees start only after the demo, once a batch is fixed.</p>
+                  <button type="submit" disabled={busy}
+                    className="w-full rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-indigo-700 disabled:opacity-60 sm:w-auto">
+                    {busy ? 'Sending…' : 'Send enrolment request'}
+                  </button>
+                </div>
+              </form>
+            )}
           </motion.div>
         </motion.div>
       )}

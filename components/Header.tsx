@@ -11,13 +11,9 @@ import {
   Music,
   Mic,
   Palette,
-  Calculator,
-  BookOpen,
   Users,
   Trophy,
   Guitar,
-  Piano,
-  Heart,
   Sparkles,
   Phone,
   Mail
@@ -101,15 +97,11 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onLoginClick }) 
   const courseMenuItems = [
     { name: 'All Courses', path: '/courses', icon: <GraduationCap className="w-4 h-4" /> },
     { name: 'Bharatanatyam', path: '/courses/bharatanatyam', icon: <Music className="w-4 h-4" /> },
-    { name: 'Classical Vocal', path: '/courses/classical-vocal', icon: <Mic className="w-4 h-4" /> },
+    { name: 'Carnatic Vocal', path: '/courses/classical-vocal', icon: <Mic className="w-4 h-4" /> },
     { name: 'Drawing', path: '/courses/drawing', icon: <Palette className="w-4 h-4" /> },
-    { name: 'Abacus', path: '/courses/abacus', icon: <Calculator className="w-4 h-4" /> },
-    { name: 'Phonics', path: '/courses/phonics', icon: <BookOpen className="w-4 h-4" /> },
-    { name: 'Private Class (1 to 1)', path: '/private-class', icon: <Heart className="w-4 h-4" /> },
     { name: 'Class for Adults', path: '/courses/adults', icon: <Users className="w-4 h-4" /> },
     { name: 'Performance Workshops', path: '/performance-workshops', icon: <Trophy className="w-4 h-4" /> },
-    { name: 'Instrument', path: '/courses/instrument', icon: <Guitar className="w-4 h-4" /> },
-    { name: 'Western Classes', path: '/courses/western', icon: <Piano className="w-4 h-4" /> }
+    { name: 'Instrument', path: '/courses/instrument', icon: <Guitar className="w-4 h-4" /> }
   ];
 
   const socialLinks = [

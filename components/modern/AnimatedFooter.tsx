@@ -41,10 +41,7 @@ const AnimatedFooter: React.FC = () => {
       items: [
         { text: 'Bharatanatyam Classes', to: '/courses' },
         { text: 'Classical Dance for Adults', to: '/courses' },
-        { text: 'Vocal Music', to: '/courses' },
-        { text: 'Abacus Class', to: '/courses' },
-        { text: 'Phonics Class', to: '/courses' },
-        { text: 'One to One Class (Private Class)', to: '/private-class' },
+        { text: 'Carnatic Vocal', to: '/courses/classical-vocal' },
         { text: 'Performance Workshops', to: '/performance-workshops' }
       ]
     },
