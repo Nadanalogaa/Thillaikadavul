@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 240" width="360" height="240">
+  <!-- Violin: flat illustration in the site's style (replace with a photo at the same path if preferred) -->
+  <defs>
+    <linearGradient id="vw" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#b5542a"/><stop offset="1" stop-color="#7a3214"/>
+    </linearGradient>
+  </defs>
+  <g transform="rotate(-32 180 120)">
+    <!-- bow -->
+    <line x1="60" y1="190" x2="330" y2="190" stroke="#5c2e17" stroke-width="4" stroke-linecap="round"/>
+    <line x1="66" y1="196" x2="326" y2="196" stroke="#f3e7cf" stroke-width="2"/>
+    <rect x="56" y="182" width="16" height="22" rx="3" fill="#2a1408"/>
+    <!-- body -->
+    <path d="M118 120 C118 94 142 86 158 98 C166 104 170 104 178 98 C194 86 220 94 220 120 C220 136 206 140 206 148 C206 156 220 160 220 176 C220 204 194 212 178 200 C170 194 166 194 158 200 C142 212 118 204 118 176 C118 160 132 156 132 148 C132 140 118 136 118 120 Z" fill="url(#vw)"/>
+    <!-- f-holes -->
+    <g fill="none" stroke="#2a1408" stroke-width="3" stroke-linecap="round">
+      <path d="M146 128 C140 140 140 156 146 168"/><path d="M192 128 C198 140 198 156 192 168"/>
+    </g>
+    <!-- fingerboard and neck -->
+    <rect x="160" y="22" width="18" height="128" rx="4" fill="#2a1408"/>
+    <!-- tailpiece and bridge -->
+    <path d="M158 174 L180 174 L176 206 L162 206 Z" fill="#2a1408"/>
+    <rect x="154" y="146" width="30" height="5" rx="1" fill="#f3d9a6"/>
+    <!-- strings -->
+    <g stroke="#f7e7c6" stroke-width="1.2"><line x1="164" y1="24" x2="166" y2="178"/><line x1="168" y1="24" x2="169" y2="178"/><line x1="172" y1="24" x2="172" y2="178"/><line x1="176" y1="24" x2="175" y2="178"/></g>
+    <!-- scroll and pegs -->
+    <path d="M160 24 C156 8 178 2 182 16 C184 24 176 28 174 22 C172 18 178 16 178 20" fill="#7a3214" stroke="#5c2e17" stroke-width="2"/>
+    <g fill="#2a1408"><rect x="150" y="30" width="12" height="5" rx="2"/><rect x="176" y="36" width="12" height="5" rx="2"/><rect x="150" y="42" width="12" height="5" rx="2"/><rect x="176" y="48" width="12" height="5" rx="2"/></g>
+  </g>
+</svg>

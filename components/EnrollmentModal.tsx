@@ -14,14 +14,16 @@ interface EnrollmentModalProps {
   courseType?: 'instrument' | 'regular';
 }
 
-const COURSES = ['Bharatanatyam', 'Carnatic Vocal', 'Drawing', 'Instrument'] as const;
+const COURSES = ['Bharatanatyam', 'Carnatic Vocal', 'Semi Classical Dance', 'Drawing', 'Veena', 'Violin', 'Keyboard'] as const;
 type CourseName = typeof COURSES[number];
-const INSTRUMENTS = ['Violin', 'Keyboard', 'Veena', 'Other'];
 
 // Which course a card title stands for ("Advanced Bharatanatyam" → Bharatanatyam).
 const courseFromTitle = (title: string, type: 'instrument' | 'regular'): CourseName => {
   const t = title.toLowerCase();
-  if (type === 'instrument' || t.includes('instrument')) return 'Instrument';
+  if (t.includes('veena')) return 'Veena';
+  if (t.includes('violin')) return 'Violin';
+  if (t.includes('keyboard') || t.includes('piano') || type === 'instrument') return 'Keyboard';
+  if (t.includes('semi')) return 'Semi Classical Dance';
   if (t.includes('vocal') || t.includes('carnatic') || t.includes('music')) return 'Carnatic Vocal';
   if (t.includes('draw')) return 'Drawing';
   return 'Bharatanatyam';
@@ -29,8 +31,6 @@ const courseFromTitle = (title: string, type: 'instrument' | 'regular'): CourseN
 
 interface Form {
   course: CourseName;
-  instrument: string;
-  otherInstrument: string;
   name: string;
   email: string;
   phone: string;
@@ -41,7 +41,7 @@ interface Form {
 
 const EnrollmentModal: React.FC<EnrollmentModalProps> = ({ isOpen, onClose, courseTitle, courseType = 'regular' }) => {
   const blank = (): Form => ({
-    course: courseFromTitle(courseTitle, courseType), instrument: '', otherInstrument: '',
+    course: courseFromTitle(courseTitle, courseType),
     name: '', email: '', phone: '', dateOfBirth: '', location: '', classMode: 'offline',
   });
   const [form, setForm] = useState<Form>(blank);
@@ -60,10 +60,6 @@ const EnrollmentModal: React.FC<EnrollmentModalProps> = ({ isOpen, onClose, cour
     if (form.phone.replace(/\D/g, '').length < 7) e.phone = 'Please enter a valid phone number.';
     if (!form.dateOfBirth) e.dateOfBirth = 'Please enter the date of birth.';
     if (!form.location.trim()) e.location = 'Please enter your city.';
-    if (form.course === 'Instrument') {
-      if (!form.instrument) e.instrument = 'Please choose an instrument.';
-      else if (form.instrument === 'Other' && form.otherInstrument.trim().length < 2) e.otherInstrument = 'Please name the instrument.';
-    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -72,8 +68,7 @@ const EnrollmentModal: React.FC<EnrollmentModalProps> = ({ isOpen, onClose, cour
     ev.preventDefault();
     if (!validate()) return;
     setBusy(true);
-    const instrument = form.course === 'Instrument' ? (form.instrument === 'Other' ? form.otherInstrument.trim() : form.instrument) : '';
-    const courseLabel = instrument ? `${form.course} (${instrument})` : form.course;
+    const courseLabel: string = form.course;
     const mode = form.classMode === 'online' ? 'Online classes' : 'At the academy';
     const send = (to: string, subject: string, body: string, recipientName: string) =>
       fetch('/api/send-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to, subject, body, recipientName }) }).catch(() => null);
@@ -126,25 +121,6 @@ const EnrollmentModal: React.FC<EnrollmentModalProps> = ({ isOpen, onClose, cour
                     <button type="button" key={c} onClick={() => set('course', c)} className={chip(form.course === c)} aria-pressed={form.course === c}>{c}</button>
                   ))}
                 </div>
-                {form.course === 'Instrument' && (
-                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div>
-                      <label className={label} htmlFor="en-instrument">Instrument</label>
-                      <select id="en-instrument" value={form.instrument} onChange={e => set('instrument', e.target.value)} className={field}>
-                        <option value="">Choose…</option>
-                        {INSTRUMENTS.map(i => <option key={i} value={i}>{i}</option>)}
-                      </select>
-                      {err('instrument')}
-                    </div>
-                    {form.instrument === 'Other' && (
-                      <div>
-                        <label className={label} htmlFor="en-other">Which instrument?</label>
-                        <input id="en-other" value={form.otherInstrument} onChange={e => set('otherInstrument', e.target.value)} placeholder="e.g. Flute" className={field} />
-                        {err('otherInstrument')}
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 {/* Learner + contact, side by side on a laptop */}
                 <div className="mt-5 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">

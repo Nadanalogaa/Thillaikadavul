@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { useNavigate } from 'react-router-dom';
-import { Clock, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import EnrollmentModal from '../EnrollmentModal';
 
 const CoursesSection: React.FC = () => {
@@ -23,7 +23,6 @@ const CoursesSection: React.FC = () => {
       title: 'Bharatanatyam Fundamentals',
       description: 'Learn the basic postures, hand gestures, and movements of this classical dance form',
       image: '/danceImages/responsive/large/DSC03395_DxO.webp',
-      duration: '3 Months',
       level: 'Beginner',
       features: ['Basic Adavus', 'Hand Gestures', 'Posture Training', 'Cultural Context'],
       type: 'regular' as const
@@ -32,7 +31,6 @@ const CoursesSection: React.FC = () => {
       title: 'Advanced Bharatanatyam',
       description: 'Master complex choreographies and expressive storytelling through dance',
       image: '/danceImages/responsive/large/EGM_7524_DxO.webp',
-      duration: '6 Months',
       level: 'Advanced',
       features: ['Complex Choreography', 'Abhinaya', 'Performance Skills', 'Competition Prep'],
       type: 'regular' as const
@@ -42,7 +40,6 @@ const CoursesSection: React.FC = () => {
       description: 'Develop your artistic skills through structured drawing lessons and creative expression',
       image: '/images/drawing.png',
       illustration: true,
-      duration: '4 Months',
       level: 'All Levels',
       features: ['Basic Sketching', 'Color Theory', 'Creative Expression', 'Portfolio Development'],
       type: 'regular' as const
@@ -52,19 +49,45 @@ const CoursesSection: React.FC = () => {
       description: 'Learn classical Carnatic music: voice training, ragas and compositions',
       image: '/images/vocal.png',
       illustration: true,
-      duration: '6 Months',
       level: 'All Levels',
       features: ['Carnatic Basics', 'Ragas', 'Compositions', 'Voice Training'],
       type: 'regular' as const
     },
     {
-      title: 'Instrument Classes',
-      description: 'Learn to play traditional and modern instruments with expert guidance',
-      image: '/danceImages/responsive/large/PRAP3795_DxO.webp',
-      duration: '6 Months',
+      title: 'Semi Classical Dance',
+      description: 'Graceful, expressive dance that blends classical technique with popular music',
+      image: '/images/semi_classical.png',
+      illustration: true,
       level: 'All Levels',
-      features: ['Multiple Instruments', 'Professional Training', 'Music Theory', 'Performance Skills'],
-      type: 'instrument' as const
+      features: ['Rhythm & Expression', 'Choreography', 'Stage Confidence', 'Fitness'],
+      type: 'regular' as const
+    },
+    {
+      title: 'Veena',
+      description: 'Learn the classical veena: posture, plucking technique, ragas and compositions',
+      image: '/images/veena.svg',
+      illustration: true,
+      level: 'All Levels',
+      features: ['Basic Technique', 'Ragas & Varnams', 'Compositions', 'Performance'],
+      type: 'regular' as const
+    },
+    {
+      title: 'Violin',
+      description: 'Carnatic violin from the first bow stroke to accompanying and solo playing',
+      image: '/images/violin.svg',
+      illustration: true,
+      level: 'All Levels',
+      features: ['Bowing & Posture', 'Ragas & Varnams', 'Compositions', 'Performance'],
+      type: 'regular' as const
+    },
+    {
+      title: 'Keyboard',
+      description: 'Keyboard for Carnatic and light music: scales, ragas, songs and chords',
+      image: '/images/keyboard.svg',
+      illustration: true,
+      level: 'All Levels',
+      features: ['Scales & Fingering', 'Ragas & Songs', 'Chords', 'Performance'],
+      type: 'regular' as const
     }
   ];
 
@@ -137,12 +160,6 @@ const CoursesSection: React.FC = () => {
                 <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base mb-4 line-clamp-2">
                   {course.description}
                 </p>
-
-                {/* Course Duration */}
-                <div className="flex items-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-3">
-                  <Clock className="w-4 h-4 mr-2" />
-                  Duration: {course.duration}
-                </div>
 
                 {/* Course Features */}
                 <div className="space-y-1.5 sm:space-y-2 mb-5 sm:mb-6">
