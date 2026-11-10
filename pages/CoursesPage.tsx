@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
-import { Clock, ArrowRight, BookOpen, Target, Award } from 'lucide-react';
+import { ArrowRight, BookOpen, Target, Award } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import EnrollmentModal from '../components/EnrollmentModal';
+import { COURSE_CARDS } from '../components/modern/courseCards';
 
 const CoursesPage: React.FC = () => {
   const { theme } = useTheme();
@@ -19,89 +20,7 @@ const CoursesPage: React.FC = () => {
     courseType: 'regular'
   });
 
-  const courses = [
-    {
-      title: 'Bharatanatyam Fundamentals',
-      description: 'Learn the basic postures, hand gestures, and movements of this classical dance form',
-      image: '/danceImages/responsive/large/DSC03395_DxO.webp',
-      duration: '3 Months',
-      level: 'Beginner',
-      features: ['Basic Adavus', 'Hand Gestures', 'Posture Training', 'Cultural Context'],
-      type: 'regular' as const
-    },
-    {
-      title: 'Advanced Bharatanatyam',
-      description: 'Master complex choreographies and expressive storytelling through dance',
-      image: '/danceImages/responsive/large/EGM_7524_DxO.webp',
-      duration: '6 Months',
-      level: 'Advanced',
-      features: ['Complex Choreography', 'Abhinaya', 'Performance Skills', 'Competition Prep'],
-      type: 'regular' as const
-    },
-    {
-      title: 'Drawing Classes',
-      description: 'Develop your artistic skills through structured drawing lessons and creative expression',
-      image: '/danceImages/responsive/large/EGM_7698_DxO.webp',
-      duration: '4 Months',
-      level: 'All Levels',
-      features: ['Basic Sketching', 'Color Theory', 'Creative Expression', 'Portfolio Development'],
-      type: 'regular' as const
-    },
-    {
-      title: 'Vocal Music Classes',
-      description: 'Learn classical Carnatic music to complement your dance training',
-      image: '/danceImages/responsive/large/PRAP3795_DxO.webp',
-      duration: '6 Months',
-      level: 'All Levels',
-      features: ['Carnatic Basics', 'Ragas', 'Compositions', 'Voice Training'],
-      type: 'regular' as const
-    },
-    {
-      title: 'Abacus Classes',
-      description: 'Enhance mathematical skills and mental calculation abilities through traditional abacus training',
-      image: '/danceImages/responsive/large/EGM_7745_DxO.webp',
-      duration: '6 Months',
-      level: 'All Levels',
-      features: ['Mental Math', 'Speed Calculation', 'Concentration Training', 'Problem Solving'],
-      type: 'regular' as const
-    },
-    {
-      title: 'Phonics Classes',
-      description: 'Build strong reading foundations with systematic phonics instruction for early learners',
-      image: '/danceImages/responsive/large/DSC03395_DxO.webp',
-      duration: '4 Months',
-      level: 'Beginner',
-      features: ['Letter Sounds', 'Reading Skills', 'Pronunciation', 'Language Development'],
-      type: 'regular' as const
-    },
-    {
-      title: 'Private Classes',
-      description: 'Personalized one-on-one instruction tailored to your individual learning pace and goals',
-      image: '/danceImages/responsive/large/EGM_7524_DxO.webp',
-      duration: 'Flexible',
-      level: 'All Levels',
-      features: ['Personalized Attention', 'Flexible Schedule', 'Customized Curriculum', 'Faster Progress'],
-      type: 'regular' as const
-    },
-    {
-      title: 'Instrument Classes',
-      description: 'Learn to play traditional and modern instruments with expert guidance',
-      image: '/danceImages/responsive/large/PRAP3795_DxO.webp',
-      duration: '6 Months',
-      level: 'All Levels',
-      features: ['Multiple Instruments', 'Professional Training', 'Music Theory', 'Performance Skills'],
-      type: 'instrument' as const
-    },
-    {
-      title: 'Yoga Classes',
-      description: 'Enhance flexibility, mindfulness, and overall well-being through traditional yoga practices',
-      image: '/danceImages/responsive/large/DSC07875~2.webp',
-      duration: '3 Months',
-      level: 'All Levels',
-      features: ['Asanas & Pranayama', 'Meditation', 'Flexibility Training', 'Stress Relief'],
-      type: 'regular' as const
-    }
-  ];
+  const courses = COURSE_CARDS;
 
   const handleEnrollClick = (courseTitle: string, courseType: 'instrument' | 'regular') => {
     setEnrollmentModal({
@@ -228,12 +147,12 @@ const CoursesPage: React.FC = () => {
                 className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group"
               >
                 {/* Course Image */}
-                <div className="relative h-48 overflow-hidden">
+                <div className={`relative h-48 overflow-hidden ${course.illustration ? 'bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-700 dark:to-gray-800' : ''}`}>
                   <motion.img
                     whileHover={{ scale: 1.1 }}
                     src={course.image}
                     alt={course.title}
-                    className="w-full h-full object-cover transition-transform duration-500"
+                    className={`w-full h-full transition-transform duration-500 ${course.illustration ? 'object-contain p-3' : 'object-cover'}`}
                   />
                   <div className="absolute top-4 right-4 bg-white dark:bg-gray-800 px-3 py-1 rounded-full text-sm font-semibold text-indigo-600 dark:text-indigo-400">
                     {course.level}
@@ -251,12 +170,6 @@ const CoursesPage: React.FC = () => {
                   <p className="text-gray-600 dark:text-gray-300 mb-4 line-clamp-2">
                     {course.description}
                   </p>
-
-                  {/* Course Duration */}
-                  <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    <Clock className="w-4 h-4 mr-2" />
-                    Duration: {course.duration}
-                  </div>
 
                   {/* Course Features */}
                   <div className="space-y-2 mb-6">

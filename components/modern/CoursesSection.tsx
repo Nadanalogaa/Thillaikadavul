@@ -4,6 +4,7 @@ import { useInView } from 'react-intersection-observer';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import EnrollmentModal from '../EnrollmentModal';
+import { COURSE_CARDS } from './courseCards';
 
 const CoursesSection: React.FC = () => {
   const [ref, inView] = useInView({ threshold: 0.1 });
@@ -18,78 +19,7 @@ const CoursesSection: React.FC = () => {
     courseType: 'regular'
   });
 
-  const courses = [
-    {
-      title: 'Bharatanatyam Fundamentals',
-      description: 'Learn the basic postures, hand gestures, and movements of this classical dance form',
-      image: '/danceImages/responsive/large/DSC03395_DxO.webp',
-      level: 'Beginner',
-      features: ['Basic Adavus', 'Hand Gestures', 'Posture Training', 'Cultural Context'],
-      type: 'regular' as const
-    },
-    {
-      title: 'Advanced Bharatanatyam',
-      description: 'Master complex choreographies and expressive storytelling through dance',
-      image: '/danceImages/responsive/large/EGM_7524_DxO.webp',
-      level: 'Advanced',
-      features: ['Complex Choreography', 'Abhinaya', 'Performance Skills', 'Competition Prep'],
-      type: 'regular' as const
-    },
-    {
-      title: 'Drawing Classes',
-      description: 'Develop your artistic skills through structured drawing lessons and creative expression',
-      image: '/images/drawing.png',
-      illustration: true,
-      level: 'All Levels',
-      features: ['Basic Sketching', 'Color Theory', 'Creative Expression', 'Portfolio Development'],
-      type: 'regular' as const
-    },
-    {
-      title: 'Carnatic Vocal',
-      description: 'Learn classical Carnatic music: voice training, ragas and compositions',
-      image: '/images/vocal.png',
-      illustration: true,
-      level: 'All Levels',
-      features: ['Carnatic Basics', 'Ragas', 'Compositions', 'Voice Training'],
-      type: 'regular' as const
-    },
-    {
-      title: 'Semi Classical Dance',
-      description: 'Graceful, expressive dance that blends classical technique with popular music',
-      image: '/images/semi_classical.png',
-      illustration: true,
-      level: 'All Levels',
-      features: ['Rhythm & Expression', 'Choreography', 'Stage Confidence', 'Fitness'],
-      type: 'regular' as const
-    },
-    {
-      title: 'Veena',
-      description: 'Learn the classical veena: posture, plucking technique, ragas and compositions',
-      image: '/images/veena.svg',
-      illustration: true,
-      level: 'All Levels',
-      features: ['Basic Technique', 'Ragas & Varnams', 'Compositions', 'Performance'],
-      type: 'regular' as const
-    },
-    {
-      title: 'Violin',
-      description: 'Carnatic violin from the first bow stroke to accompanying and solo playing',
-      image: '/images/violin.svg',
-      illustration: true,
-      level: 'All Levels',
-      features: ['Bowing & Posture', 'Ragas & Varnams', 'Compositions', 'Performance'],
-      type: 'regular' as const
-    },
-    {
-      title: 'Keyboard',
-      description: 'Keyboard for Carnatic and light music: scales, ragas, songs and chords',
-      image: '/images/keyboard.svg',
-      illustration: true,
-      level: 'All Levels',
-      features: ['Scales & Fingering', 'Ragas & Songs', 'Chords', 'Performance'],
-      type: 'regular' as const
-    }
-  ];
+  const courses = COURSE_CARDS;
 
   const handleEnrollClick = (courseTitle: string, courseType: 'instrument' | 'regular') => {
     setEnrollmentModal({
@@ -137,12 +67,12 @@ const CoursesSection: React.FC = () => {
               className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group"
             >
               {/* Course Image */}
-              <div className={`relative h-44 sm:h-48 overflow-hidden ${(course as { illustration?: boolean }).illustration ? 'bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-700 dark:to-gray-800' : ''}`}>
+              <div className={`relative h-44 sm:h-48 overflow-hidden ${course.illustration ? 'bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-700 dark:to-gray-800' : ''}`}>
                 <motion.img
                   whileHover={{ scale: 1.1 }}
                   src={course.image}
                   alt={course.title}
-                  className={`w-full h-full transition-transform duration-500 ${(course as { illustration?: boolean }).illustration ? 'object-contain p-3' : 'object-cover'}`}
+                  className={`w-full h-full transition-transform duration-500 ${course.illustration ? 'object-contain p-3' : 'object-cover'}`}
                 />
                 <div className="absolute top-4 right-4 bg-white dark:bg-gray-800 px-3 py-1 rounded-full text-sm font-semibold text-indigo-600 dark:text-indigo-400">
                   {course.level}
