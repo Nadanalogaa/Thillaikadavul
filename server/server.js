@@ -2036,6 +2036,106 @@ async function startServer() {
     });
 
     // --- API Routes ---
+    // Family sign-up from the website: one call makes the family's login and
+    // every learner, so a half-made family is impossible. A parent registering
+    // children gets a Parent login with each child as a Student under it; an
+    // adult learning themselves is the Student login (any other learners are
+    // their children). Children sign in through the family's phone number.
+    app.post('/api/register-family', async (req, res) => {
+        const body = req.body || {};
+        const g = body.guardian || {};
+        const learners = Array.isArray(body.learners) ? body.learners : [];
+        const name = String(g.name || '').trim();
+        const email = String(g.email || '').trim().toLowerCase();
+        const phone = String(g.phone || '').trim();
+        const password = String(g.password || '');
+        const selfLearner = g.self_learner === true;
+        const phoneDigits = phone.replace(/\D/g, '');
+        if (name.length < 2) return res.status(400).json({ message: 'Please enter your name.' });
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ message: 'Please enter a valid email address.' });
+        if (phoneDigits.length < 7) return res.status(400).json({ message: 'Please enter a valid phone number.' });
+        if (password.length < 6) return res.status(400).json({ message: 'The password needs at least 6 characters.' });
+        if (!learners.length) return res.status(400).json({ message: 'Add at least one learner.' });
+        for (const [i, l] of learners.entries()) {
+            if (!String(l.name || '').trim()) return res.status(400).json({ message: `Please enter learner ${i + 1}'s name.` });
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(String(l.dob || ''))) return res.status(400).json({ message: `Please enter ${l.name}'s date of birth.` });
+            if (!Array.isArray(l.courses) || !l.courses.length) return res.status(400).json({ message: `Choose at least one course for ${l.name}.` });
+        }
+        const currency = normalizeCurrency(body.billing_currency);
+        const country = String(body.country || '').trim().slice(0, 60);
+        try {
+            const taken = (await pool.query('SELECT id FROM users WHERE LOWER(email) = $1 AND is_deleted = false LIMIT 1', [email])).rows[0];
+            if (taken) return res.status(409).json({ message: 'This email already has an account. Please sign in instead.' });
+            const phoneTaken = (await pool.query(`SELECT id FROM users WHERE ${phoneMatchSql('$1')} AND is_deleted = false LIMIT 1`, [phoneDigits])).rows[0];
+            if (phoneTaken) return res.status(409).json({ message: 'This phone number already has an account. Please sign in with it; you can add another child from your profile.' });
+
+            const client = await pool.connect();
+            let loginUser, created = [];
+            try {
+                await client.query('BEGIN');
+                const year = new Date().getFullYear();
+                const hash = await bcrypt.hash(password, 10);
+                const today = new Date().toISOString().slice(0, 10);
+                const nextUserId = async () => `NDA-${year}-${String((await client.query(`SELECT nextval('user_id_seq') AS seq`)).rows[0].seq).padStart(4, '0')}`;
+                const modeOf = (l) => (String(l.mode || '') === 'academy' ? 'Offline' : 'Online');
+                const notes = [`Registered on the website ${today}`, country ? `Country: ${country}` : ''].filter(Boolean).join(' · ');
+                const insert = async (u) => {
+                    const uid = await nextUserId();
+                    // A child has no address of their own: a stand-in login address
+                    // from their id (they sign in through the family's phone number).
+                    u.email = u.email || `${uid.toLowerCase()}@child.nadanaloga.local`;
+                    const r = await client.query(
+                        `INSERT INTO users (name, email, password, role, status, class_preference, dob, contact_number, date_of_joining,
+                                            courses, father_name, user_id, preferred_location_id, parent_id, display_name, is_primary,
+                                            must_change_password, billing_currency, notes)
+                         VALUES ($1,$2,$3,$4,'active',$5,$6,$7,$8,$9,$10,$11,$12,$13,$17,$14,false,$15,$16) RETURNING id, user_id, name, email`,
+                        [u.name, u.email, hash, u.role, u.mode, u.dob || null, phone, today, JSON.stringify(u.courses || []),
+                         u.father_name || null, uid, u.location_id || null, u.parent_id || null, u.is_primary, currency, notes, u.name]);
+                    return r.rows[0];
+                };
+                if (selfLearner) {
+                    const me = learners[0];
+                    loginUser = await insert({ name, email, role: 'Student', mode: modeOf(me), dob: me.dob, courses: me.courses,
+                        location_id: me.location_id, is_primary: true });
+                    created.push({ ...loginUser, courses: me.courses });
+                    for (const l of learners.slice(1)) {
+                        const c = await insert({ name: String(l.name).trim(), email: null, role: 'Student', mode: modeOf(l), dob: l.dob, courses: l.courses,
+                            location_id: l.location_id, parent_id: loginUser.id, father_name: name, is_primary: false });
+                        created.push({ ...c, courses: l.courses });
+                    }
+                } else {
+                    loginUser = await insert({ name, email, role: 'Parent', mode: modeOf(learners[0]), is_primary: true });
+                    for (const l of learners) {
+                        const c = await insert({ name: String(l.name).trim(), email: null, role: 'Student', mode: modeOf(l), dob: l.dob, courses: l.courses,
+                            location_id: l.location_id, parent_id: loginUser.id, father_name: name, is_primary: false });
+                        created.push({ ...c, courses: l.courses });
+                    }
+                }
+                await client.query('COMMIT');
+            } catch (e) {
+                await client.query('ROLLBACK');
+                throw e;
+            } finally { client.release(); }
+
+            res.status(201).json({ ok: true, login: email, phone, user_id: loginUser.user_id,
+                learners: created.map(c => ({ id: c.id, name: c.name })) });
+
+            // Welcome the family and tell the admins (both obey Admin -> Notifications).
+            try {
+                const who = created.map(c => `${c.name} (${(c.courses || []).join(', ')})`).join('; ');
+                createNotificationForUser(loginUser.id, 'Welcome to Nadanaloga Academy!',
+                    `Thank you for registering. We will contact you shortly to arrange a free demo class and timings for ${created.map(c => c.name).join(', ')}.`,
+                    'Success', 'registration.welcome');
+                for (const a of await getActiveAdmins()) {
+                    createNotificationForUser(a.id, 'New registration', `${name} (${phone}${country ? `, ${country}` : ''}) registered: ${who}.`, 'Info', 'admin');
+                }
+            } catch (e) { console.error('[Register] notify failed:', e.message); }
+        } catch (error) {
+            console.error('Error registering family:', error);
+            res.status(500).json({ message: 'Server error creating your account. Please try again.' });
+        }
+    });
+
     app.post('/api/register', async (req, res) => {
         try {
             const { password, ...userData } = req.body;

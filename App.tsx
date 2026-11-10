@@ -16,6 +16,7 @@ import LoginForm from './components/LoginForm';
 import ForgotPasswordModal from './components/ForgotPasswordModal';
 import SetPasswordModal from './components/SetPasswordModal';
 import RegisterPage from './pages/RegisterPage';
+import RegisterFamilyPage from './pages/RegisterFamilyPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminCoursesPage from './pages/admin/CoursesPage';
 import ExpensesPage from './pages/admin/ExpensesPage';
@@ -265,7 +266,8 @@ function App() {
             <Route path="/gallery" element={<GalleryPage />} />
             <Route path="/faq" element={<FAQPage />} />
             <Route path="/contact" element={<ContactPage />} />
-            <Route path="/register" element={<RegisterPage onLoginNeeded={openLoginModal} />} />
+            <Route path="/register" element={<RegisterFamilyPage onLoginNeeded={openLoginModal} />} />
+            <Route path="/register/teacher" element={<RegisterPage onLoginNeeded={openLoginModal} teacherOnly />} />
             <Route 
               path="/admin/login" 
               element={<AdminLoginPage onLoginSuccess={handleLoginSuccess} />} 

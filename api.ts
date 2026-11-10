@@ -126,6 +126,20 @@ const emailCache = new Map<string, { exists: boolean; timestamp: number }>();
 const CACHE_DURATION = 30000; // 30 seconds
 
 // Core working functions
+/** Website sign-up: the family's login and every learner in one call. */
+export interface RegisterFamilyPayload {
+  guardian: { name: string; phone: string; email: string; password: string; self_learner: boolean };
+  learners: { name: string; dob: string; courses: string[]; mode: 'online' | 'academy'; location_id?: string | null }[];
+  country?: string;
+  billing_currency?: string | null;
+}
+export const registerFamily = async (payload: RegisterFamilyPayload): Promise<{ ok: boolean; login: string; phone: string; learners: { id: number; name: string }[] }> => {
+  const r = await fetch('/api/register-family', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.message || 'Could not create your account.');
+  return d;
+};
+
 export const checkEmailExists = async (email: string): Promise<{ exists: boolean }> => {
   try {
     const normalizedEmail = email.toLowerCase().trim();

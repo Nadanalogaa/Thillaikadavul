@@ -29,13 +29,15 @@ import {
 
 interface RegisterPageProps {
   onLoginNeeded: (email: string) => void;
+  /** /register/teacher: the instructor application only (families use RegisterFamilyPage). */
+  teacherOnly?: boolean;
 }
 
-const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded }) => {
+const RegisterPage: React.FC<RegisterPageProps> = ({ onLoginNeeded, teacherOnly = false }) => {
     const { theme } = useTheme();
     const [heroRef, heroInView] = useInView({ threshold: 0.1, triggerOnce: true });
     const [cardsRef, cardsInView] = useInView({ threshold: 0.1, triggerOnce: true });
-    const [registrationType, setRegistrationType] = useState<'student' | 'teacher' | null>(null);
+    const [registrationType, setRegistrationType] = useState<'student' | 'teacher' | null>(teacherOnly ? 'teacher' : null);
     const [learningMode, setLearningMode] = useState<'online' | 'inperson' | null>(null);
     const [currentStep, setCurrentStep] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
