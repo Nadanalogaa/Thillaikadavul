@@ -8,10 +8,11 @@ import { useTheme } from '../../contexts/ThemeContext';
 import FeesRosterPanel from '../../components/admin/fees/FeesRosterPanel';
 import PaymentsToVerifyPanel from '../../components/admin/fees/PaymentsToVerifyPanel';
 import ExtraBillsPanel from '../../components/admin/fees/ExtraBillsPanel';
+import OverseasFeesPanel from '../../components/admin/fees/OverseasFeesPanel';
 import { Link } from 'react-router-dom';
 import { isSuperAdmin } from '../../utils/adminRole';
 
-type ActiveTab = 'fees' | 'grades' | 'extra';
+type ActiveTab = 'fees' | 'grades' | 'extra' | 'overseas';
 
 const FeeManagementPage: React.FC = () => {
     const canDelete = isSuperAdmin();
@@ -72,6 +73,7 @@ const FeeManagementPage: React.FC = () => {
                     <TabButton isActive={activeTab === 'fees'} onClick={() => setActiveTab('fees')}>Fees</TabButton>
                     <TabButton isActive={activeTab === 'grades'} onClick={() => setActiveTab('grades')}>Grades &amp; Fees</TabButton>
                     <TabButton isActive={activeTab === 'extra'} onClick={() => setActiveTab('extra')}>Extra bills</TabButton>
+                    <TabButton isActive={activeTab === 'overseas'} onClick={() => setActiveTab('overseas')}>Overseas fees</TabButton>
                 </nav>
             </div>
 
@@ -83,6 +85,8 @@ const FeeManagementPage: React.FC = () => {
             )}
 
             {activeTab === 'extra' && <ExtraBillsPanel />}
+
+            {activeTab === 'overseas' && <OverseasFeesPanel courses={courses} grades={grades} />}
 
             {activeTab === 'grades' && (
                 loading ? (

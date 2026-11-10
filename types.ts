@@ -150,8 +150,12 @@ export interface HouseholdFees {
   total_generated: number;
   total_paid: number;
   total_due: number;
-  /** Razorpay on (Admin -> App update "Fee payment mode" = razorpay); else families upload a screenshot. */
+  /** Overseas family (billed in a foreign currency, pays online by card) or Razorpay on for India too; else families upload a screenshot. */
   online_payments_enabled?: boolean;
+  /** 'INR' for Indian families; the billing currency of an overseas family. */
+  currency?: string;
+  currency_symbol?: string;
+  overseas?: boolean;
   upi?: { id?: string; name?: string; mode?: string; button?: { id: string; name: string } | null } | null;
   /** Unpaid bills outside this month: extra bills (costumes, uniforms…) and older months. */
   other_due?: number;

@@ -18,6 +18,8 @@ export interface Person {
     created_at: string | null;
     status: string | null;
     class_preference: string | null;
+    /** Overseas family: billed in this currency and pays online. null = India (INR, screenshot). */
+    billing_currency?: string | null;
     photo_url: string | null;
     courses: string[];
     father_name: string | null;

@@ -1040,7 +1040,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
                 children: [
                   Text('All paid for $month',
                       style: AppTextStyles.labelLarge),
-                  Text('${FeeFormat.rupees(d.totalPaid)} paid · View receipts',
+                  Text('${FeeFormat.money(FeeFormat.symbolOf(d.fees), d.totalPaid)} paid · View receipts',
                       style: AppTextStyles.caption
                           .copyWith(color: AppColors.textSecondary)),
                 ],
@@ -1094,7 +1094,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
           ),
           const SizedBox(height: 4),
           Text(
-            FeeFormat.rupees(onlyOther ? d.otherDue : d.totalDue),
+            FeeFormat.money(FeeFormat.symbolOf(d.fees), onlyOther ? d.otherDue : d.totalDue),
             style: AppTextStyles.h1.copyWith(
                 fontWeight: FontWeight.w700, color: AppColors.textPrimary),
           ),
@@ -1107,8 +1107,8 @@ class _HomeDashboardState extends State<HomeDashboard> {
                 : [
                     if (due != null)
                       'Pay by ${FeeFormat.shortDate(d.fees?['due_date'] as String?)}',
-                    if (d.totalVerifying > 0) '${FeeFormat.rupees(d.totalVerifying)} being verified',
-                    if (d.totalPaid > 0) '${FeeFormat.rupees(d.totalPaid)} already paid',
+                    if (d.totalVerifying > 0) '${FeeFormat.money(FeeFormat.symbolOf(d.fees), d.totalVerifying)} being verified',
+                    if (d.totalPaid > 0) '${FeeFormat.money(FeeFormat.symbolOf(d.fees), d.totalPaid)} already paid',
                   ].join('  ·  '),
             style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
           ),
@@ -1116,7 +1116,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
-                '+ ${FeeFormat.rupees(d.otherDue)} other dues (costumes, uniforms…)',
+                '+ ${FeeFormat.money(FeeFormat.symbolOf(d.fees), d.otherDue)} other dues (costumes, uniforms…)',
                 style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textPrimary, fontWeight: FontWeight.w600),
               ),
@@ -1191,7 +1191,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
 
   Widget _feeStatusText(MemberFees f) {
     if (f.due > 0) {
-      return Text('${FeeFormat.rupees(f.due)} due',
+      return Text('${FeeFormat.money(FeeFormat.symbolOf(_data?.fees), f.due)} due',
           style: AppTextStyles.labelLarge.copyWith(color: AppColors.textPrimary));
     }
     if (f.allPaid) {

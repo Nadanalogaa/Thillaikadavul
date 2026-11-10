@@ -23,6 +23,14 @@ interface Props {
     onSaved: (p: Person) => void;
 }
 
+// Overseas families are billed in one of these (Admin → Fees → Overseas fees).
+export const BILLING_CURRENCIES: [string, string][] = [
+    ['USD', 'USA · $ USD'], ['CAD', 'Canada · C$ CAD'], ['GBP', 'UK · £ GBP'], ['EUR', 'Europe · € EUR'],
+    ['AUD', 'Australia · A$ AUD'], ['NZD', 'New Zealand · NZ$ NZD'], ['SGD', 'Singapore · S$ SGD'], ['MYR', 'Malaysia · RM MYR'],
+    ['AED', 'UAE · AED'], ['SAR', 'Saudi Arabia · SAR'], ['QAR', 'Qatar · QAR'], ['OMR', 'Oman · OMR'], ['KWD', 'Kuwait · KD'], ['BHD', 'Bahrain · BD'],
+    ['LKR', 'Sri Lanka · LKR'], ['HKD', 'Hong Kong · HK$ HKD'], ['JPY', 'Japan · ¥ JPY'], ['CHF', 'Switzerland · CHF'],
+];
+
 const PersonEditModal: React.FC<Props> = ({ isOpen, personId, onClose, onSaved }) => {
     const [person, setPerson] = useState<Person | null>(null);
     const [form, setForm] = useState<Partial<Person>>({});
@@ -52,6 +60,7 @@ const PersonEditModal: React.FC<Props> = ({ isOpen, personId, onClose, onSaved }
                     date_of_joining: dateInput(p.date_of_joining),
                     status: (p.status || 'active').toLowerCase(),
                     class_preference: p.class_preference || 'Offline',
+                    billing_currency: p.billing_currency || '',
                     photo_url: p.photo_url || '',
                     notes: p.notes || '',
                     father_name: p.father_name || '',
@@ -159,6 +168,15 @@ const PersonEditModal: React.FC<Props> = ({ isOpen, personId, onClose, onSaved }
                             {isStudent && (
                                 <Field label="Parent / guardian" span={6} htmlFor="p-father">
                                     <input id="p-father" value={form.father_name || ''} onChange={e => set('father_name', e.target.value)} className={inputClass} />
+                                </Field>
+                            )}
+                            {isStudent && (
+                                <Field label="Fees billed in" span={6} htmlFor="p-currency"
+                                    hint={form.billing_currency ? 'Overseas: billed from the overseas fee list in this currency, pays online by card.' : 'India: rupees, pays by UPI screenshot.'}>
+                                    <select id="p-currency" value={form.billing_currency || ''} onChange={e => set('billing_currency', e.target.value)} className={selectClass}>
+                                        <option value="">India · ₹ INR</option>
+                                        {BILLING_CURRENCIES.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+                                    </select>
                                 </Field>
                             )}
                             <Field label="Address" span={6} htmlFor="p-address">

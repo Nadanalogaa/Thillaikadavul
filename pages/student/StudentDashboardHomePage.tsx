@@ -260,7 +260,7 @@ const StudentDashboardHomePage: React.FC = () => {
                           {fees.has_bill && (
                             <>
                               <p className={`text-3xl font-bold mt-1 ${fees.all_paid ? 'text-emerald-600 dark:text-emerald-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
-                                ₹{Math.round(amount).toLocaleString()}
+                                {fees.currency_symbol || '₹'}{Math.round(amount).toLocaleString()}
                               </p>
                               {!fees.all_paid && fees.due_date && (
                                 <p className={`text-xs mt-0.5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -273,7 +273,7 @@ const StudentDashboardHomePage: React.FC = () => {
                                     <li key={s.student_id} className={`flex justify-between text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
                                       <span>{s.student_name}</span>
                                       <span className="font-medium">
-                                        ₹{Math.round(fees.all_paid ? s.month_paid : s.month_due).toLocaleString()}{fees.all_paid ? ' paid' : ' due'}
+                                        {fees.currency_symbol || '₹'}{Math.round(fees.all_paid ? s.month_paid : s.month_due).toLocaleString()}{fees.all_paid ? ' paid' : ' due'}
                                       </span>
                                     </li>
                                   ))}

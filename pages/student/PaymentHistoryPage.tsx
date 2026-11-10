@@ -56,6 +56,8 @@ const PaymentHistoryPage: React.FC = () => {
     const [receiptNo, setReceiptNo] = useState<string | null>(null);
     // How families pay: screenshot upload (default) or Razorpay when switched on.
     const [online, setOnline] = useState(false);
+    // ₹ for Indian families; an overseas family's own currency symbol.
+    const [sym, setSym] = useState('₹');
     const [upiId, setUpiId] = useState<string | null>(null);
     const [upload, setUpload] = useState<UploadBill[] | null>(null);
     const [notice, setNotice] = useState<string | null>(null);
@@ -72,6 +74,7 @@ const PaymentHistoryPage: React.FC = () => {
                     getHouseholdFees().catch(() => null),
                 ]);
                 setOnline(!!hf?.online_payments_enabled);
+                setSym(hf?.currency_symbol || '₹');
                 setUpiId(hf?.upi?.id || null);
                 
                 setCurrentUser(user);
@@ -177,7 +180,7 @@ const PaymentHistoryPage: React.FC = () => {
                                     Total Amount
                                 </p>
                                 <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                                    ₹{totalAmount.toLocaleString()}
+                                    {sym}{totalAmount.toLocaleString()}
                                 </p>
                             </div>
                         </div>
@@ -197,7 +200,7 @@ const PaymentHistoryPage: React.FC = () => {
                                     Paid Amount
                                 </p>
                                 <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                                    ₹{paidAmount.toLocaleString()}
+                                    {sym}{paidAmount.toLocaleString()}
                                 </p>
                             </div>
                         </div>
@@ -217,7 +220,7 @@ const PaymentHistoryPage: React.FC = () => {
                                     Pending Amount
                                 </p>
                                 <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                                    ₹{pendingAmount.toLocaleString()}
+                                    {sym}{pendingAmount.toLocaleString()}
                                 </p>
                             </div>
                         </div>
@@ -240,7 +243,7 @@ const PaymentHistoryPage: React.FC = () => {
                                 Family Due — Combined
                             </h3>
                             <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-                                ₹{pendingAmount.toLocaleString()}
+                                {sym}{pendingAmount.toLocaleString()}
                             </p>
                         </div>
                         <div className="space-y-2">
@@ -253,7 +256,7 @@ const PaymentHistoryPage: React.FC = () => {
                                         <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>{s.name}</span>
                                     </div>
                                     <span className={`text-sm font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                                        ₹{s.amount.toLocaleString()}
+                                        {sym}{s.amount.toLocaleString()}
                                     </span>
                                 </div>
                             ))}
@@ -261,7 +264,7 @@ const PaymentHistoryPage: React.FC = () => {
                         {!online && unpaidToSend.length > 1 && (
                             <button type="button" onClick={() => setUpload(unpaidToSend.map(inv => ({ id: inv.id, label: `${inv.student?.name || 'Student'} · ${inv.courseName} · ${inv.billingPeriod}`, amount: inv.amount })))}
                                 className="mt-4 w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700">
-                                Upload one screenshot for all · ₹{unpaidToSend.reduce((t, i) => t + i.amount, 0).toLocaleString('en-IN')}
+                                Upload one screenshot for all · {sym}{unpaidToSend.reduce((t, i) => t + i.amount, 0).toLocaleString('en-IN')}
                             </button>
                         )}
                     </motion.div>
@@ -360,7 +363,7 @@ const PaymentHistoryPage: React.FC = () => {
                                                     </div>
                                                     {!!invoice.discountAmount && invoice.discountAmount > 0 && !!invoice.originalAmount && (
                                                         <div className={`text-xs font-medium ${theme === 'dark' ? 'text-emerald-300' : 'text-emerald-700'}`}>
-                                                            ₹{invoice.originalAmount.toLocaleString('en-IN')} − {invoice.discountPercentage ? `${invoice.discountPercentage}% ` : ''}discount ₹{invoice.discountAmount.toLocaleString('en-IN')} = ₹{invoice.amount.toLocaleString('en-IN')}
+                                                            {sym}{invoice.originalAmount.toLocaleString('en-IN')} − {invoice.discountPercentage ? `${invoice.discountPercentage}% ` : ''}discount {sym}{invoice.discountAmount.toLocaleString('en-IN')} = {sym}{invoice.amount.toLocaleString('en-IN')}
                                                         </div>
                                                     )}
                                                     {invoice.status !== InvoiceStatus.Paid && invoice.proofStatus === 'submitted' && (

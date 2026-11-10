@@ -158,11 +158,11 @@ class MemberDetailScreen extends StatelessWidget {
                 Text(paid ? 'Paid for ${data.period}' : 'Due for ${data.period}',
                     style: AppTextStyles.bodySmall
                         .copyWith(color: AppColors.textSecondary)),
-                Text(FeeFormat.rupees(paid ? f.paid : f.due),
+                Text(FeeFormat.money(FeeFormat.symbolOf(data.fees), paid ? f.paid : f.due),
                     style: AppTextStyles.h2.copyWith(
                         fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
                 if (!paid && f.paid > 0)
-                  Text('${FeeFormat.rupees(f.paid)} already paid',
+                  Text('${FeeFormat.money(FeeFormat.symbolOf(data.fees), f.paid)} already paid',
                       style: AppTextStyles.caption
                           .copyWith(color: AppColors.textSecondary)),
               ],
@@ -207,13 +207,13 @@ class MemberDetailScreen extends StatelessWidget {
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text('${FeeFormat.rupees(c.netAmount)}/month',
+                    Text('${FeeFormat.money(FeeFormat.symbolOf(data.fees), c.netAmount)}/month',
                         style: AppTextStyles.labelLarge),
                     if (c.discountPercentage > 0)
                       Text(
-                          '${FeeFormat.rupees(c.monthlyFee)} − '
+                          '${FeeFormat.money(FeeFormat.symbolOf(data.fees), c.monthlyFee)} − '
                           '${c.discountPercentage.toStringAsFixed(c.discountPercentage % 1 == 0 ? 0 : 1)}% discount '
-                          '${FeeFormat.rupees(c.monthlyFee - c.netAmount)} = ${FeeFormat.rupees(c.netAmount)}',
+                          '${FeeFormat.money(FeeFormat.symbolOf(data.fees), c.monthlyFee - c.netAmount)} = ${FeeFormat.money(FeeFormat.symbolOf(data.fees), c.netAmount)}',
                           style: AppTextStyles.caption
                               .copyWith(color: AppColors.success)),
                   ],

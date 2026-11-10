@@ -665,6 +665,15 @@ async function startServer() {
                 await client.query(`ALTER TABLE class_sessions ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ`);
                 await client.query(`ALTER TABLE class_sessions ADD COLUMN IF NOT EXISTS closed_by_name VARCHAR(200)`);
                 await client.query(`ALTER TABLE class_sessions ADD COLUMN IF NOT EXISTS reminded_at TIMESTAMPTZ`);
+        // Overseas families: billed in their own currency (USD, GBP, …) from the
+        // overseas fee list, and they pay online by card. NULL = India (INR,
+        // pays by UPI screenshot; no online payment).
+        await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS billing_currency VARCHAR(3)`);
+        await client.query(`CREATE TABLE IF NOT EXISTS overseas_fees (
+            id SERIAL PRIMARY KEY, currency VARCHAR(3) NOT NULL, course_id INTEGER NOT NULL, grade_id INTEGER,
+            monthly_fee NUMERIC NOT NULL DEFAULT 0, updated_at TIMESTAMPTZ DEFAULT NOW())`);
+        await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS overseas_fees_unique
+            ON overseas_fees (currency, course_id, COALESCE(grade_id, 0))`);
                 console.log('[DB] ✓ Ensured attendance tables exist');
             } catch (error) {
                 console.error('[DB] ✗ Failed to create attendance tables:', error.message);
@@ -1795,6 +1804,23 @@ async function startServer() {
         WHERE b.course_id = scg.course_id AND scg.student_id = ANY(b.student_ids) AND b.monthly_fee > 0
         ORDER BY b.id LIMIT 1)`;
     const EFFECTIVE_FEE_SQL = `COALESCE(${BATCH_FEE_SQL}, g.monthly_fee)`;
+    // An overseas student (users.billing_currency set, alias su) is billed from the
+    // overseas fee list in that currency: the exact grade's fee if listed, else the
+    // course's. No listing = no fee (shows as "Fee not set up"). Everyone else: INR.
+    const OVERSEAS_FEE_SQL = `(SELECT o.monthly_fee FROM overseas_fees o
+        WHERE o.currency = su.billing_currency AND o.course_id = scg.course_id
+          AND (o.grade_id = scg.grade_id OR o.grade_id IS NULL)
+        ORDER BY o.grade_id NULLS LAST LIMIT 1)`;
+    const STUDENT_FEE_SQL = `CASE WHEN COALESCE(su.billing_currency, 'INR') <> 'INR' THEN ${OVERSEAS_FEE_SQL} ELSE ${EFFECTIVE_FEE_SQL} END`;
+    const STUDENT_CURRENCY_SQL = `COALESCE(NULLIF(su.billing_currency, ''), 'INR')`;
+    const CURRENCY_SYMBOLS = { INR: '₹', USD: '$', CAD: 'C$', AUD: 'A$', SGD: 'S$', GBP: '£', EUR: '€', AED: 'AED ', MYR: 'RM ', NZD: 'NZ$', CHF: 'CHF ', SAR: 'SAR ', QAR: 'QAR ', OMR: 'OMR ', KWD: 'KD ', BHD: 'BD ', LKR: 'LKR ', JPY: '¥', HKD: 'HK$' };
+    const normalizeCurrency = (c) => { const v = String(c || '').trim().toUpperCase(); return /^[A-Z]{3}$/.test(v) && v !== 'INR' ? v : null; };
+    const money = (n, currency) => {
+        const cur = String(currency || 'INR').toUpperCase();
+        if (cur === 'INR') return `₹${Math.round(Number(n || 0)).toLocaleString('en-IN')}`;
+        const v = Number(n || 0);
+        return `${CURRENCY_SYMBOLS[cur] || `${cur} `}${(Math.round(v * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: 2 })}`;
+    };
 
     // Create this month's invoice for every active student, from their course +
     // grade + batch fee. Idempotent: one invoice per student+course+month.
@@ -1809,8 +1835,8 @@ async function startServer() {
         // Grade-based fees: a student's grade in each course.
         const gradeMapRes = await pool.query(`
             SELECT scg.student_id, scg.course_id, scg.grade_id, c.name AS course_name,
-                   g.name AS grade_name, ${EFFECTIVE_FEE_SQL} AS monthly_fee, scg.created_at AS enrolled_at
-            FROM student_course_grades scg
+                   g.name AS grade_name, ${STUDENT_FEE_SQL} AS monthly_fee, ${STUDENT_CURRENCY_SQL} AS currency, scg.created_at AS enrolled_at
+            FROM student_course_grades scg LEFT JOIN users su ON su.id = scg.student_id
             LEFT JOIN courses c ON scg.course_id = c.id
             LEFT JOIN grades g ON scg.grade_id = g.id
             WHERE g.is_active = true
@@ -1836,8 +1862,9 @@ async function startServer() {
         const newLines = []; // for one "fees ready" message per family
 
         // Create one idempotent, discount-aware, pro-rata-aware bill line.
-        const createLine = async (student, courseName, courseId, monthly, gradeId, batchId, terms) => {
-            if (!monthly || monthly <= 0) return;
+        let overseasNoFee = 0;
+        const createLine = async (student, courseName, courseId, monthly, gradeId, batchId, terms, currency = 'INR') => {
+            if (!monthly || monthly <= 0) { if (currency !== 'INR') overseasNoFee++; return; }
             // Duplicate check by COURSE (not the "Course - Grade" label: a grade change
             // mid-month renamed the label and produced a second bill). Legacy rows with
             // no course_id still match by label. The unique index backs this up.
@@ -1848,7 +1875,9 @@ async function startServer() {
                 [student.id, billingPeriod, courseId || null, courseName]
             );
             if (exists.rows.length > 0) { skipped++; return; }
-            const base = Math.round(monthly * terms.factor);
+            // INR bills are whole rupees; other currencies keep cents.
+            const round = (v) => currency === 'INR' ? Math.round(v) : Math.round(v * 100) / 100;
+            const base = round(monthly * terms.factor);
             let discountPct = null, discountAmt = null, finalAmount = base;
             if (courseId) {
                 const dRes = await pool.query(
@@ -1859,8 +1888,8 @@ async function startServer() {
                 );
                 if (dRes.rows.length > 0) {
                     discountPct = parseFloat(dRes.rows[0].discount_percentage);
-                    discountAmt = Math.round((base * discountPct) / 100);
-                    finalAmount = base - discountAmt;
+                    discountAmt = round((base * discountPct) / 100);
+                    finalAmount = round(base - discountAmt);
                 }
             }
             try {
@@ -1868,13 +1897,13 @@ async function startServer() {
                     `INSERT INTO invoices (student_id, fee_structure_id, course_name, amount, currency, issue_date, due_date,
                         billing_period, status, original_amount, discount_percentage, discount_amount, course_id, grade_id,
                         batch_id, prorated_from)
-                     VALUES ($1, NULL, $2, $3, 'INR', $4, $5, $6, 'pending', $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+                     VALUES ($1, NULL, $2, $3, $14, $4, $5, $6, 'pending', $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
                     [student.id, courseName, finalAmount, terms.issueDate, terms.dueDate, billingPeriod, base,
-                        discountPct, discountAmt, courseId || null, gradeId || null, batchId || null, terms.proratedFrom]
+                        discountPct, discountAmt, courseId || null, gradeId || null, batchId || null, terms.proratedFrom, currency]
                 );
                 created++;
                 if (terms.proratedFrom) prorated++;
-                newLines.push({ studentId: student.id, studentName: student.name, courseName, amount: finalAmount, dueDate: terms.dueDate });
+                newLines.push({ studentId: student.id, studentName: student.name, courseName, amount: finalAmount, dueDate: terms.dueDate, currency });
                 console.log(`[MonthlyInvoices] Invoice #${inv.rows[0].id} for ${student.name} (${courseName}) ${billingPeriod}${terms.proratedFrom ? ` pro-rata from ${terms.proratedFrom}` : ''}`);
             } catch (e) {
                 if (e.code === '23505') { skipped++; return; } // another run created it first
@@ -1927,7 +1956,7 @@ async function startServer() {
                         };
                     }
                     await createLine(s, label, gf.course_id, Number(gf.monthly_fee), gf.grade_id,
-                        resolveBatchId(s.id, gf.course_id), courseTerms);
+                        resolveBatchId(s.id, gf.course_id), courseTerms, String(gf.currency || 'INR').toUpperCase());
                 }
             } else {
                 noGrade++;
@@ -1949,13 +1978,13 @@ async function startServer() {
                     const who = [...new Set(lines.map(l => l.studentName))].join(', ');
                     const due = lines.map(l => l.dueDate).sort()[0];
                     createNotificationForUser(contact.userId, `${billingPeriod} fees ready`,
-                        `${inr(total)} for ${who}. Please pay by ${due}.`, 'Info');
+                        `${money(total, lines[0].currency)} for ${who}. Please pay by ${due}.`, 'Info');
                 }
             } catch (e) { console.error('[MonthlyInvoices] fee-ready notify failed:', e.message); }
         })();
 
-        console.log(`[MonthlyInvoices] ${billingPeriod}: created ${created} (${prorated} pro-rata), skipped ${skipped} (existed), ${noGrade} with no grade, ${notYetJoined} not yet joined.`);
-        return { billingPeriod, created, prorated, skipped, noGrade, notYetJoined };
+        console.log(`[MonthlyInvoices] ${billingPeriod}: created ${created} (${prorated} pro-rata), skipped ${skipped} (existed), ${noGrade} with no grade, ${overseasNoFee} overseas with no fee listed, ${notYetJoined} not yet joined.`);
+        return { billingPeriod, created, prorated, skipped, noGrade, overseasNoFee, notYetJoined };
     };
 
     // Manual trigger so an admin can generate this month's invoices on demand.
@@ -3365,12 +3394,12 @@ Please review and approve this registration in the admin panel.`;
             if (studentIds.length > 0) {
                 const gradeRows = await pool.query(
                     `SELECT scg.student_id, scg.course_id, c.name AS course_name, g.name AS grade_name,
-                            ${EFFECTIVE_FEE_SQL} AS monthly_fee, g.currency,
+                            ${STUDENT_FEE_SQL} AS monthly_fee, ${STUDENT_CURRENCY_SQL} AS currency,
                             (SELECT sd.discount_percentage FROM student_discounts sd
                              WHERE sd.student_id = scg.student_id AND sd.course_id = scg.course_id AND sd.is_active = TRUE
                              ORDER BY CASE WHEN sd.discount_type = 'batch' THEN 1 ELSE 2 END, sd.discount_percentage DESC
                              LIMIT 1) AS discount_percentage
-                     FROM student_course_grades scg
+                     FROM student_course_grades scg LEFT JOIN users su ON su.id = scg.student_id
                      LEFT JOIN courses c ON scg.course_id = c.id
                      LEFT JOIN grades g ON scg.grade_id = g.id
                      WHERE scg.student_id = ANY($1)`, [studentIds]);
@@ -3566,6 +3595,9 @@ Please review and approve this registration in the admin panel.`;
             } else if (Number(id) === Number(req.session.user.id)) {
                 delete userData.is_super_admin;   // never demote yourself by accident
             }
+
+            // Overseas family: a 3-letter currency, or nothing for India.
+            if (userData.billing_currency !== undefined) userData.billing_currency = normalizeCurrency(userData.billing_currency);
 
             // "Family email" on a child: a child's own login address is a
             // stand-in, so the address goes on the family's login (the parent,
@@ -3927,12 +3959,12 @@ Please review and approve this registration in the admin panel.`;
                 // the admin student list uses.
                 const gradeRows = await pool.query(
                     `SELECT scg.student_id, c.name AS course_name, g.name AS grade_name,
-                            ${EFFECTIVE_FEE_SQL} AS monthly_fee, g.currency,
+                            ${STUDENT_FEE_SQL} AS monthly_fee, ${STUDENT_CURRENCY_SQL} AS currency,
                             (SELECT sd.discount_percentage FROM student_discounts sd
                              WHERE sd.student_id = scg.student_id AND sd.course_id = scg.course_id AND sd.is_active = TRUE
                              ORDER BY CASE WHEN sd.discount_type = 'batch' THEN 1 ELSE 2 END, sd.discount_percentage DESC
                              LIMIT 1) AS discount_percentage
-                     FROM student_course_grades scg
+                     FROM student_course_grades scg LEFT JOIN users su ON su.id = scg.student_id
                      LEFT JOIN courses c ON scg.course_id = c.id
                      LEFT JOIN grades g ON scg.grade_id = g.id
                      WHERE scg.student_id = ANY($1)`, [studentIds]);
@@ -3988,8 +4020,15 @@ Please review and approve this registration in the admin panel.`;
             if (studentIds.length === 0) {
                 return res.json({ period, total_generated: 0, total_paid: 0, total_due: 0,
                     has_bill: false, all_paid: false, due_date: null, students: [],
+                    currency: 'INR', currency_symbol: '₹', overseas: false,
                     online_payments_enabled: false });
             }
+            // An overseas family (any student billed in a foreign currency) pays
+            // online by card; Indian families upload a UPI screenshot.
+            const householdCurrency = (await pool.query(
+                `SELECT billing_currency FROM users WHERE id = ANY($1) AND COALESCE(billing_currency, 'INR') <> 'INR' LIMIT 1`,
+                [studentIds])).rows[0]?.billing_currency || 'INR';
+            const overseas = householdCurrency !== 'INR';
             const invRes = await pool.query(
                 `SELECT i.id, i.student_id, i.course_name, i.amount, i.currency, i.status, i.billing_period,
                         i.issue_date, i.due_date, i.payment_details, i.prorated_from,
@@ -4061,9 +4100,12 @@ Please review and approve this registration in the admin panel.`;
                 // Razorpay keys exist AND Admin -> App update "Fee payment mode"
                 // is 'razorpay' — keys alone (e.g. test keys) must not bring
                 // back a Pay button while families upload screenshots.
-                online_payments_enabled: razorpayConfigured() && feePayMode === 'razorpay',
-                // Pay-by-UPI details (Admin -> App update).
-                upi: await (async () => {
+                currency: householdCurrency,
+                currency_symbol: CURRENCY_SYMBOLS[householdCurrency] || `${householdCurrency} `,
+                overseas,
+                online_payments_enabled: razorpayConfigured() && (overseas || feePayMode === 'razorpay'),
+                // Pay-by-UPI details (Admin -> App update); not for overseas families.
+                upi: overseas ? null : await (async () => {
                     const st = await readAppSettings({
                         upi_id: APP_VERSION_KEYS.upi_id, upi_payee_name: APP_VERSION_KEYS.upi_payee_name,
                         upi_merchant_code: APP_VERSION_KEYS.upi_merchant_code, upi_txn_ref: APP_VERSION_KEYS.upi_txn_ref,
@@ -4149,8 +4191,8 @@ Please review and approve this registration in the admin panel.`;
 
             const gradesByStudent = new Map();
             for (const g of (await pool.query(`
-                SELECT scg.student_id, scg.course_id, c.name AS course_name, g.name AS grade_name, ${EFFECTIVE_FEE_SQL} AS monthly_fee
-                FROM student_course_grades scg
+                SELECT scg.student_id, scg.course_id, c.name AS course_name, g.name AS grade_name, ${STUDENT_FEE_SQL} AS monthly_fee, ${STUDENT_CURRENCY_SQL} AS currency
+                FROM student_course_grades scg LEFT JOIN users su ON su.id = scg.student_id
                 JOIN grades g ON g.id = scg.grade_id AND g.is_active = true
                 LEFT JOIN courses c ON c.id = scg.course_id`)).rows) {
                 if (!gradesByStudent.has(g.student_id)) gradesByStudent.set(g.student_id, []);
@@ -4928,6 +4970,7 @@ Please review and approve this registration in the admin panel.`;
                LEFT JOIN student_course_grades scg ON scg.student_id = i.student_id AND scg.course_id = i.course_id
                LEFT JOIN grades g ON g.id = scg.grade_id
               WHERE i.billing_period = $1 AND i.course_id = $2 AND i.student_id = ANY($3::int[])
+                AND COALESCE(i.currency, 'INR') = 'INR'
                 AND LOWER(COALESCE(i.status, '')) <> 'paid'
                 AND NOT EXISTS (SELECT 1 FROM invoice_payments p WHERE p.invoice_id = i.id AND p.status IN ('approved', 'submitted'))`,
             [period, batch.course_id, ids])).rows;
@@ -5968,13 +6011,13 @@ Please review and approve this registration in the admin panel.`;
             const { id } = req.params;
             const result = await pool.query(
                 `SELECT scg.id, scg.course_id, c.name AS course_name, scg.grade_id,
-                        g.name AS grade_name, ${EFFECTIVE_FEE_SQL} AS monthly_fee, g.currency,
+                        g.name AS grade_name, ${STUDENT_FEE_SQL} AS monthly_fee, ${STUDENT_CURRENCY_SQL} AS currency,
                         ${BATCH_FEE_SQL} AS batch_fee,
                         (SELECT sd.discount_percentage FROM student_discounts sd
                          WHERE sd.student_id = scg.student_id AND sd.course_id = scg.course_id AND sd.is_active = TRUE
                          ORDER BY CASE WHEN sd.discount_type = 'batch' THEN 1 ELSE 2 END, sd.discount_percentage DESC
                          LIMIT 1) AS discount_percentage
-                 FROM student_course_grades scg
+                 FROM student_course_grades scg LEFT JOIN users su ON su.id = scg.student_id
                  LEFT JOIN courses c ON scg.course_id = c.id
                  LEFT JOIN grades g ON scg.grade_id = g.id
                  WHERE scg.student_id = $1 ORDER BY c.name`, [id]
@@ -6788,6 +6831,50 @@ Please review and approve this registration in the admin panel.`;
         } catch (error) {
             console.error('Error closing make-up:', error);
             res.status(500).json({ message: 'Server error closing the make-up.' });
+        }
+    });
+
+    // Overseas fee list: monthly fee per currency and course (optionally per grade).
+    app.get('/api/overseas-fees', ensureAdmin, async (req, res) => {
+        try {
+            const rows = (await pool.query(
+                `SELECT o.id, o.currency, o.course_id, c.name AS course_name, o.grade_id, g.name AS grade_name, o.monthly_fee
+                   FROM overseas_fees o LEFT JOIN courses c ON c.id = o.course_id LEFT JOIN grades g ON g.id = o.grade_id
+                  ORDER BY o.currency, c.name, g.name NULLS FIRST`)).rows;
+            const students = (await pool.query(
+                `SELECT billing_currency AS currency, COUNT(*)::int AS students FROM users
+                  WHERE is_deleted = false AND COALESCE(billing_currency, 'INR') <> 'INR' GROUP BY billing_currency`)).rows;
+            res.json({ rows: rows.map(r => ({ ...r, monthly_fee: Number(r.monthly_fee) })), students, symbols: CURRENCY_SYMBOLS });
+        } catch (error) {
+            console.error('Error listing overseas fees:', error);
+            res.status(500).json({ message: 'Server error listing overseas fees.' });
+        }
+    });
+    app.put('/api/overseas-fees', ensureAdmin, async (req, res) => {
+        try {
+            const currency = normalizeCurrency(req.body?.currency);
+            const courseId = Number(req.body?.course_id);
+            const gradeId = req.body?.grade_id ? Number(req.body.grade_id) : null;
+            const fee = Number(req.body?.monthly_fee);
+            if (!currency || !courseId) return res.status(400).json({ message: 'Currency and course are required.' });
+            if (!(fee > 0)) return res.status(400).json({ message: 'Enter the monthly fee.' });
+            const row = (await pool.query(
+                `INSERT INTO overseas_fees (currency, course_id, grade_id, monthly_fee) VALUES ($1, $2, $3, $4)
+                 ON CONFLICT (currency, course_id, COALESCE(grade_id, 0)) DO UPDATE SET monthly_fee = $4, updated_at = NOW()
+                 RETURNING *`, [currency, courseId, gradeId, fee])).rows[0];
+            res.json({ ...row, monthly_fee: Number(row.monthly_fee) });
+        } catch (error) {
+            console.error('Error saving overseas fee:', error);
+            res.status(500).json({ message: 'Server error saving the overseas fee.' });
+        }
+    });
+    app.delete('/api/overseas-fees/:id', ensureSuperAdmin, async (req, res) => {
+        try {
+            await pool.query('DELETE FROM overseas_fees WHERE id = $1', [req.params.id]);
+            res.json({ ok: true });
+        } catch (error) {
+            console.error('Error deleting overseas fee:', error);
+            res.status(500).json({ message: 'Server error deleting the overseas fee.' });
         }
     });
 
@@ -8341,30 +8428,31 @@ Please review and approve this registration in the admin panel.`;
         }
         for (const { contact, lines } of byContact.values()) {
             const total = lines.reduce((s, l) => s + Number(l.amount || 0), 0);
+            const cur = lines[0]?.currency || 'INR';
             const who = [...new Set(lines.map(l => l.studentName))].join(', ');
             const detail = lines
-                .map(l => `  • ${l.studentName} – ${l.courseName || 'Fees'} · ${l.billingPeriod || ''} · ${inr(l.amount)}`)
+                .map(l => `  • ${l.studentName} – ${l.courseName || 'Fees'} · ${l.billingPeriod || ''} · ${money(l.amount, l.currency)}`)
                 .join('\n');
             let title, message, subject, body;
             if (kind === 'reversed') {
                 title = 'Payment reversed';
-                message = `Receipt ${receipt.receiptNumber} (${inr(total)}) for ${who} was reversed: ${receipt.reason}. This amount is due again.`;
+                message = `Receipt ${receipt.receiptNumber} (${money(total, cur)}) for ${who} was reversed: ${receipt.reason}. This amount is due again.`;
                 subject = `Receipt ${receipt.receiptNumber} reversed`;
                 body = `Dear ${contact.emailName},\n\n`
                     + `Receipt ${receipt.receiptNumber} has been reversed by the academy.\n\n`
                     + `Reason   : ${receipt.reason}\nDate     : ${istDateTime(receipt.reversedAt)}\n\n`
-                    + `Bills that are due again:\n${detail}\n\nAmount due: ${inr(total)}\n\n`
+                    + `Bills that are due again:\n${detail}\n\nAmount due: ${money(total, cur)}\n\n`
                     + `If you have any questions, please contact the office.\n\nRegards,\nNadanaloga Fine Arts Academy`;
             } else {
                 title = 'Payment received ✅';
-                message = `${inr(total)} received for ${who}. Receipt ${receipt.receiptNumber}.`;
+                message = `${money(total, cur)} received for ${who}. Receipt ${receipt.receiptNumber}.`;
                 subject = `Payment received – Receipt ${receipt.receiptNumber}`;
                 body = `Dear ${contact.emailName},\n\n`
                     + `We have received your fee payment. Thank you!\n\n`
                     + `Receipt number : ${receipt.receiptNumber}\n`
                     + `Date & time    : ${istDateTime(receipt.paidAt)}\n`
                     + `Paid by        : ${methodLabel(receipt.method, receipt.collectedByName)}\n\n`
-                    + `Details:\n${detail}\n\nTotal paid: ${inr(total)}\n\n`
+                    + `Details:\n${detail}\n\nTotal paid: ${money(total, cur)}\n\n`
                     + `You can see this payment anytime in the Nadanaloga app under Fees.\n\n`
                     + `Regards,\nNadanaloga Fine Arts Academy`;
             }
@@ -8443,7 +8531,7 @@ Please review and approve this registration in the admin panel.`;
                     }, r.id]
                 );
                 lines.push({
-                    invoiceId: r.id, studentId: r.student_id, courseName: r.course_name,
+                    invoiceId: r.id, studentId: r.student_id, courseName: r.course_name, currency: r.currency || 'INR',
                     billingPeriod: r.billing_period, amount: Number(r.amount),
                 });
             }
@@ -8562,11 +8650,11 @@ Please review and approve this registration in the admin panel.`;
         (async () => {
             try {
                 const who = receipt.lines.map(l => l.studentName).join(', ');
-                const adminMsg = `${who} paid ${inr(receipt.total)} online (${invoice.course_name || 'fees'}). Receipt ${receipt.receiptNumber}.`;
+                const adminMsg = `${who} paid ${money(receipt.total, receipt.lines[0]?.currency)} online (${invoice.course_name || 'fees'}). Receipt ${receipt.receiptNumber}.`;
                 for (const admin of await getActiveAdmins()) {
                     createNotificationForUser(admin.id, 'Fee Payment Received', adminMsg, 'Success');
                 }
-                notifyAdminWhatsApp(who, inr(receipt.total), paymentId, invoiceId);
+                notifyAdminWhatsApp(who, money(receipt.total, receipt.lines[0]?.currency), paymentId, invoiceId);
             } catch (e) { console.error('[Razorpay] admin notify error:', e.message); }
         })();
     };
@@ -8624,7 +8712,7 @@ Please review and approve this registration in the admin panel.`;
                 // the bill (order notes alone aren't on every payment event).
                 checkout: {
                     notes: { invoice_id: String(id), student_id: String(invoice.student_id || '') },
-                    ...(RAZORPAY_UPI_ONLY ? {
+                    ...(RAZORPAY_UPI_ONLY && String(invoice.currency || 'INR').toUpperCase() === 'INR' ? {
                         method: { upi: true, card: false, netbanking: false, wallet: false, emi: false, paylater: false },
                         config: {
                             display: {

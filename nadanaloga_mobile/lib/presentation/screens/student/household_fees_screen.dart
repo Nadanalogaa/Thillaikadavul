@@ -42,6 +42,7 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
   /// Strict: anything other than an explicit true means the upload path,
   /// which always works, rather than a Pay button that may not.
   bool get _onlinePayments => _fees?['online_payments_enabled'] == true;
+  String get _sym => FeeFormat.symbolOf(_fees);
 
   @override
   void initState() {
@@ -273,18 +274,18 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
           if (hasBill) ...[
             const SizedBox(height: 4),
             Text(
-              FeeFormat.rupees(allPaid ? paid : due),
+              FeeFormat.money(_sym, allPaid ? paid : due),
               style: AppTextStyles.h3
                   .copyWith(color: accent, fontWeight: FontWeight.w700),
             ),
             if (!allPaid && verifying > 0)
               Text(allVerifying
                       ? 'The academy will confirm your payment soon.'
-                      : '${FeeFormat.rupees(verifying)} being verified',
+                      : '${FeeFormat.money(_sym, verifying)} being verified',
                   style: AppTextStyles.caption
                       .copyWith(color: AppColors.info)),
             if (!allPaid && paid > 0)
-              Text('${FeeFormat.rupees(paid)} already paid this month',
+              Text('${FeeFormat.money(_sym, paid)} already paid this month',
                   style: AppTextStyles.caption
                       .copyWith(color: AppColors.textSecondary)),
           ],
@@ -298,7 +299,7 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      '${FeeFormat.rupees(otherDue)} other dues (costumes, uniforms…)',
+                      '${FeeFormat.money(_sym, otherDue)} other dues (costumes, uniforms…)',
                       style: AppTextStyles.bodySmall.copyWith(
                           color: AppColors.textPrimary, fontWeight: FontWeight.w600),
                     ),
@@ -312,8 +313,8 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
               onPressed: _payAll,
               icon: const Icon(Icons.payments_outlined, size: 18),
               label: Text(uploadOnly(_fees)
-                  ? 'Upload one screenshot for all ${FeeFormat.rupees(billsTotal(_payable))}'
-                  : 'Pay all ${FeeFormat.rupees(billsTotal(_payable))} (${_payable.length} bills)'),
+                  ? 'Upload one screenshot for all ${FeeFormat.money(_sym, billsTotal(_payable))}'
+                  : 'Pay all ${FeeFormat.money(_sym, billsTotal(_payable))} (${_payable.length} bills)'),
               style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(44)),
             ),
             const SizedBox(height: 4),
@@ -382,9 +383,9 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
           subtitle: Text(
             [
               monthDue > 0
-                  ? '${FeeFormat.rupees(monthDue)} due this month'
+                  ? '${FeeFormat.money(_sym, monthDue)} due this month'
                   : 'Nothing due this month',
-              if (otherDue > 0) '+ ${FeeFormat.rupees(otherDue)} other',
+              if (otherDue > 0) '+ ${FeeFormat.money(_sym, otherDue)} other',
             ].join(' · '),
             style:
                 AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
@@ -410,7 +411,7 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
     if (off <= 0 || full <= 0) return null;
     final pct = n(inv['discount_percentage']) ?? 0;
     final pctText = pct > 0 ? '${pct % 1 == 0 ? pct.toStringAsFixed(0) : pct.toString()}% ' : '';
-    return '${FeeFormat.rupees(full)} − ${pctText}discount ${FeeFormat.rupees(off)} = ${FeeFormat.rupees(amount)}';
+    return '${FeeFormat.money(_sym, full)} − ${pctText}discount ${FeeFormat.money(_sym, off)} = ${FeeFormat.money(_sym, amount)}';
   }
 
   Widget _invoiceRow(Map<String, dynamic> inv) {
@@ -477,7 +478,7 @@ class _HouseholdFeesScreenState extends State<HouseholdFeesScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(FeeFormat.rupees(amount),
+                  Text(FeeFormat.money(_sym, amount),
                       style: AppTextStyles.labelLarge),
                   Text(statusText,
                       style:

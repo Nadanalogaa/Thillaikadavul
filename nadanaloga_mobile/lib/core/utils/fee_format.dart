@@ -36,6 +36,32 @@ class FeeFormat {
     return '${negative ? '-' : ''}₹$grouped';
   }
 
+  /// The family's currency symbol from GET /api/household/fees: ₹ for Indian
+  /// families, their own symbol ($, £, …) for an overseas family.
+  static String symbolOf(Map<String, dynamic>? fees) {
+    final s = fees?['currency_symbol'];
+    return s is String && s.isNotEmpty ? s : '₹';
+  }
+
+  /// An amount in the family's currency: rupees as before (Indian grouping, no
+  /// decimals); other currencies with plain grouping and cents when needed.
+  static String money(String symbol, num? value) {
+    if (symbol == '₹') return rupees(value);
+    final v = value ?? 0;
+    final negative = v < 0;
+    final abs = v.abs();
+    final whole = abs.floor();
+    final cents = ((abs - whole) * 100).round();
+    final digits = whole.toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) buf.write(',');
+      buf.write(digits[i]);
+    }
+    final frac = cents == 0 ? '' : '.${cents.toString().padLeft(2, '0')}';
+    return '${negative ? '-' : ''}$symbol$buf$frac';
+  }
+
   /// "Now" as a wall-clock DateTime in IST (fields are IST; the object is UTC).
   static DateTime nowIst() => DateTime.now().toUtc().add(_ist);
 

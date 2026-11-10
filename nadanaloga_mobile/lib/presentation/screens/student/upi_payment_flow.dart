@@ -99,7 +99,7 @@ Future<void> payBillsByUpi(
             groupInvoiceIds: ids,
             groupLines: [
               for (final b in bills)
-                '${b['student_name'] ?? ''} · ${b['course_name'] ?? 'Fee'} · ${b['billing_period'] ?? ''} · ${FeeFormat.rupees((b['amount'] as num?)?.toDouble() ?? 0)}',
+                '${b['student_name'] ?? ''} · ${b['course_name'] ?? 'Fee'} · ${b['billing_period'] ?? ''} · ${FeeFormat.money(FeeFormat.symbolOf(fees), (b['amount'] as num?)?.toDouble() ?? 0)}',
             ],
             groupTotal: total,
           ),
