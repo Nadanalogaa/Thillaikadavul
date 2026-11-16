@@ -10,6 +10,7 @@ import '../../../config/theme/app_text_styles.dart';
 import '../../../core/network/api_client.dart';
 import '../../../data/models/user_model.dart';
 import '../../../di/injection_container.dart';
+import 'edit_member_sheet.dart';
 
 /// Students Profile — the same view the web "Students Profile" menu shows:
 /// every student in the household with their details, tap to open that
@@ -102,6 +103,8 @@ class _StudentsProfileScreenState extends State<StudentsProfileScreen> {
         ['Class preference', s.classPreference!],
       if (s.dateOfJoining != null && s.dateOfJoining!.isNotEmpty)
         ['Joined', formatDisplayDate(s.dateOfJoining!)],
+      if (s.fatherName != null && s.fatherName!.isNotEmpty) ['Parent / guardian', s.fatherName!],
+      if (s.address != null && s.address!.isNotEmpty) ['Address', s.address!],
     ];
     return Card(
       shape: RoundedRectangleBorder(
@@ -133,6 +136,14 @@ class _StudentsProfileScreenState extends State<StudentsProfileScreen> {
                                 .copyWith(color: AppColors.textSecondary)),
                     ],
                   ),
+                ),
+                IconButton(
+                  tooltip: 'Edit details',
+                  icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
+                  onPressed: () async {
+                    final saved = await showEditMemberSheet(context, s);
+                    if (saved && mounted) _load();
+                  },
                 ),
                 TextButton(
                   onPressed: () => context.go('/student', extra: {

@@ -2041,6 +2041,48 @@ async function startServer() {
     // children gets a Parent login with each child as a Student under it; an
     // adult learning themselves is the Student login (any other learners are
     // their children). Children sign in through the family's phone number.
+    // A family edits its own details from the app: a child's or the parent's
+    // name, date of birth, gender, school, standard, guardian name, address and
+    // class preference. Phone number and email stay with the academy (they are
+    // the login), as do courses, grades, batches and fees.
+    const FAMILY_EDITABLE = {
+        name: 'text', dob: 'date', sex: 'text', school_name: 'text', standard: 'text',
+        father_name: 'text', address: 'text', class_preference: 'text',
+    };
+    app.put('/api/household/members/:id', ensureAuthenticated, async (req, res) => {
+        try {
+            const id = Number(req.params.id);
+            const { memberIds } = await householdFor(req);
+            if (!memberIds.map(Number).includes(id)) return res.status(403).json({ message: 'Not a member of your family.' });
+            const sets = [], vals = [];
+            const add = (col, v) => { vals.push(v); sets.push(`${col} = $${vals.length}`); };
+            for (const [key, type] of Object.entries(FAMILY_EDITABLE)) {
+                if (req.body?.[key] === undefined) continue;
+                let v = req.body[key];
+                if (v === null || v === '') v = null;
+                else if (type === 'date') {
+                    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(v))) return res.status(400).json({ message: 'Date of birth must be a date.' });
+                } else v = String(v).trim().slice(0, key === 'address' ? 500 : 120);
+                if (key === 'name') {
+                    if (!v) return res.status(400).json({ message: 'Name cannot be empty.' });
+                    add('display_name', v);
+                }
+                add(key, v);
+            }
+            if (!sets.length) return res.status(400).json({ message: 'Nothing to update.' });
+            vals.push(id);
+            const row = (await pool.query(
+                `UPDATE users SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${vals.length} AND is_deleted = false
+                 RETURNING id, name, display_name, role, to_char(dob, 'YYYY-MM-DD') AS dob, sex, school_name, standard, father_name, address, class_preference`,
+                vals)).rows[0];
+            if (!row) return res.status(404).json({ message: 'Member not found.' });
+            res.json(row);
+        } catch (error) {
+            console.error('Error updating family member:', error);
+            res.status(500).json({ message: 'Server error saving the details.' });
+        }
+    });
+
     app.post('/api/register-family', async (req, res) => {
         const body = req.body || {};
         const g = body.guardian || {};

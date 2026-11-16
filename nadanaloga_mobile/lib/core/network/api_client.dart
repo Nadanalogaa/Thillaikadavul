@@ -168,6 +168,12 @@ class ApiClient {
     return _dio.put(ApiEndpoints.userById(id), data: data);
   }
 
+  /// A family updates one of its own members' details.
+  Future<Response> updateHouseholdMember(int id, Map<String, dynamic> data) {
+    return _dio.put(ApiEndpoints.householdMember(id), data: data,
+        options: Options(validateStatus: (_) => true));
+  }
+
   Future<Response> deleteUser(int id) {
     return _dio.delete(ApiEndpoints.userById(id));
   }

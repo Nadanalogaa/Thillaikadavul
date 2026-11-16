@@ -25,6 +25,8 @@ class ApiEndpoints {
   // Users
   static const String users = '$apiPrefix/users';
   static String userById(int id) => '$apiPrefix/users/$id';
+  /// A family edits one of its own members (name, DOB, school…; never phone/email).
+  static String householdMember(int id) => '$apiPrefix/household/members/$id';
   static const String trashedUsers = '$apiPrefix/users/trashed/all';
   static String restoreUser(int id) => '$apiPrefix/users/$id/restore';
   static String permanentDeleteUser(int id) => '$apiPrefix/users/$id/permanent';
