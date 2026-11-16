@@ -7,8 +7,9 @@ import '../../../data/models/user_model.dart';
 import '../../../di/injection_container.dart';
 
 /// A parent edits a student's details: name, date of birth, gender, school,
-/// standard, parent / guardian name, address, class preference. Phone number
-/// and email are the family's login and are changed by the academy only.
+/// standard, parent / guardian name, address and the family email. The phone
+/// number is the family's login and is changed by the academy only; class
+/// preference, courses and batches are the academy's to set.
 /// Returns true when something was saved.
 Future<bool> showEditMemberSheet(BuildContext context, UserModel member) async {
   final saved = await showModalBottomSheet<bool>(
@@ -34,9 +35,9 @@ class _EditMemberSheetState extends State<_EditMemberSheet> {
   late final TextEditingController _standard;
   late final TextEditingController _guardian;
   late final TextEditingController _address;
+  late final TextEditingController _email;
   String? _dob; // YYYY-MM-DD
   String? _sex;
-  String? _mode;
   bool _busy = false;
   String? _error;
 
@@ -49,9 +50,11 @@ class _EditMemberSheetState extends State<_EditMemberSheet> {
     _standard = TextEditingController(text: m.standard ?? '');
     _guardian = TextEditingController(text: m.fatherName ?? '');
     _address = TextEditingController(text: m.address ?? '');
+    // A child's own address is a stand-in; the family's real email is contactEmail.
+    final own = m.email.toLowerCase().endsWith('.nadanaloga.local') ? '' : m.email;
+    _email = TextEditingController(text: m.contactEmail ?? own);
     _dob = _dateOnly(m.dob);
     _sex = _pick(m.sex, const ['Male', 'Female', 'Other']);
-    _mode = _pick(m.classPreference, const ['Offline', 'Online', 'Hybrid']);
   }
 
   /// "YYYY-MM-DD" from what the server sends: a plain date, or a timestamp
@@ -74,7 +77,7 @@ class _EditMemberSheetState extends State<_EditMemberSheet> {
 
   @override
   void dispose() {
-    for (final c in [_name, _school, _standard, _guardian, _address]) {
+    for (final c in [_name, _school, _standard, _guardian, _address, _email]) {
       c.dispose();
     }
     super.dispose();
@@ -114,7 +117,7 @@ class _EditMemberSheetState extends State<_EditMemberSheet> {
       'standard': _standard.text.trim(),
       'father_name': _guardian.text.trim(),
       'address': _address.text.trim(),
-      'class_preference': _mode,
+      'email': _email.text.trim(),
     });
     if (!mounted) return;
     final code = r.statusCode ?? 0;
@@ -151,7 +154,7 @@ class _EditMemberSheetState extends State<_EditMemberSheet> {
                 style: AppTextStyles.h4),
             const SizedBox(height: 4),
             Text(
-              'Phone number and email are your sign-in; ask the academy to change those.',
+              'The phone number is your sign-in; ask the academy to change it. Courses, batches and class timings are set by the academy.',
               style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 16),
@@ -199,15 +202,11 @@ class _EditMemberSheetState extends State<_EditMemberSheet> {
             const SizedBox(height: 12),
             TextField(controller: _address, decoration: _dec('Address'), maxLines: 2, textCapitalization: TextCapitalization.sentences),
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              value: _mode,
-              decoration: _dec('Class preference'),
-              items: const [
-                DropdownMenuItem(value: 'Offline', child: Text('At the academy')),
-                DropdownMenuItem(value: 'Online', child: Text('Online')),
-                DropdownMenuItem(value: 'Hybrid', child: Text('Both')),
-              ],
-              onChanged: (v) => setState(() => _mode = v),
+            TextField(
+              controller: _email,
+              decoration: _dec('Family email', hint: 'you@example.com'),
+              keyboardType: TextInputType.emailAddress,
+              autocorrect: false,
             ),
             if (_error != null) ...[
               const SizedBox(height: 12),

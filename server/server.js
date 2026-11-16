@@ -2042,18 +2042,39 @@ async function startServer() {
     // adult learning themselves is the Student login (any other learners are
     // their children). Children sign in through the family's phone number.
     // A family edits its own details from the app: a child's or the parent's
-    // name, date of birth, gender, school, standard, guardian name, address and
-    // class preference. Phone number and email stay with the academy (they are
-    // the login), as do courses, grades, batches and fees.
+    // name, date of birth, gender, school, standard, guardian name, address,
+    // and the family email. The phone number is the login and stays with the
+    // academy, as do class preference, courses, grades, batches and fees.
     const FAMILY_EDITABLE = {
         name: 'text', dob: 'date', sex: 'text', school_name: 'text', standard: 'text',
-        father_name: 'text', address: 'text', class_preference: 'text',
+        father_name: 'text', address: 'text',
     };
     app.put('/api/household/members/:id', ensureAuthenticated, async (req, res) => {
         try {
             const id = Number(req.params.id);
             const { memberIds } = await householdFor(req);
             if (!memberIds.map(Number).includes(id)) return res.status(403).json({ message: 'Not a member of your family.' });
+            // Email: a child's own address is a stand-in, so the family's address
+            // goes on the login that carries it (the parent, else the main login
+            // on this phone, else the member itself). Must not belong to anyone else.
+            if (req.body?.email !== undefined && String(req.body.email || '').trim()) {
+                const email = String(req.body.email).trim().toLowerCase();
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ message: 'That email does not look right.' });
+                const member = (await pool.query('SELECT id, email, parent_id, contact_number FROM users WHERE id = $1', [id])).rows[0];
+                let loginId = id;
+                if (member && isPlaceholderEmail(member.email)) {
+                    const parent = member.parent_id
+                        ? (await pool.query('SELECT id FROM users WHERE id = $1 AND is_deleted = false', [member.parent_id])).rows[0] : null;
+                    const main = !parent && member.contact_number ? (await pool.query(
+                        `SELECT id FROM users WHERE is_deleted = false AND contact_number = $1 AND id <> $2
+                          ORDER BY is_primary DESC NULLS LAST, (email NOT ILIKE '%.nadanaloga.local') DESC, id LIMIT 1`,
+                        [member.contact_number, id])).rows[0] : null;
+                    loginId = (parent || main || member).id;
+                }
+                const taken = (await pool.query('SELECT id FROM users WHERE lower(email) = $1 AND id <> $2 AND is_deleted = false', [email, loginId])).rows[0];
+                if (taken) return res.status(409).json({ message: 'That email is already used by another account.' });
+                await pool.query('UPDATE users SET email = $1, updated_at = NOW() WHERE id = $2', [email, loginId]);
+            }
             const sets = [], vals = [];
             const add = (col, v) => { vals.push(v); sets.push(`${col} = $${vals.length}`); };
             for (const [key, type] of Object.entries(FAMILY_EDITABLE)) {
@@ -2069,7 +2090,10 @@ async function startServer() {
                 }
                 add(key, v);
             }
-            if (!sets.length) return res.status(400).json({ message: 'Nothing to update.' });
+            if (!sets.length) {
+                if (req.body?.email) return res.json({ id, email: String(req.body.email).trim().toLowerCase() });
+                return res.status(400).json({ message: 'Nothing to update.' });
+            }
             vals.push(id);
             const row = (await pool.query(
                 `UPDATE users SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${vals.length} AND is_deleted = false
