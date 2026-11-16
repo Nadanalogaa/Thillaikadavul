@@ -3880,6 +3880,10 @@ Please review and approve this registration in the admin panel.`;
                     }
                 }
             }
+            // A changed joining date re-prices this month's unpaid bill (pro-rata or full).
+            if (userData.date_of_joining !== undefined && String(before?.role || '').toLowerCase() === 'student') {
+                try { await repriceStudentMonth(Number(id)); } catch (e) { console.error('[Joining date] re-price failed:', e.message); }
+            }
             res.json((await attachContactEmails([parseUserData(result.rows[0])]))[0]);
         } catch (error) {
             console.error('Error updating user:', error);
@@ -5189,6 +5193,58 @@ Please review and approve this registration in the admin panel.`;
             changed++;
         }
         if (changed) console.log(`[Batch fee] ${batch.batch_name}: re-priced ${changed} unpaid ${period} bill(s).`);
+        return changed;
+    };
+
+    // After a student's joining date changes: re-price this month's unpaid
+    // monthly bills the way the generator would make them now — full month
+    // from the 1st (due the 10th), or pro-rata from the new joining day (due a
+    // week later). Paid or part-paid bills, and extra bills, are left alone.
+    const repriceStudentMonth = async (studentId) => {
+        const now = new Date();
+        const period = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
+        const monthFirst = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthTenth = new Date(now.getFullYear(), now.getMonth(), 10);
+        const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        const u = (await pool.query('SELECT date_of_joining FROM users WHERE id = $1', [studentId])).rows[0];
+        if (!u) return 0;
+        const joined = u.date_of_joining ? parseLocalDate(u.date_of_joining) : null;
+        const joinedThisMonth = joined && joined.getFullYear() === now.getFullYear()
+            && joined.getMonth() === now.getMonth() && joined.getDate() > 1;
+        let terms;
+        if (joinedThisMonth) {
+            const weekAfter = new Date(joined.getFullYear(), joined.getMonth(), joined.getDate() + 7);
+            terms = { factor: (daysInMonth - joined.getDate() + 1) / daysInMonth, issueDate: toDateStr(joined),
+                dueDate: toDateStr(weekAfter > monthTenth ? weekAfter : monthTenth), proratedFrom: toDateStr(joined) };
+        } else {
+            terms = { factor: 1, issueDate: toDateStr(monthFirst), dueDate: toDateStr(monthTenth), proratedFrom: null };
+        }
+        const rows = (await pool.query(
+            `SELECT i.id, i.amount, i.discount_percentage, i.currency, ${STUDENT_FEE_SQL} AS monthly_fee
+               FROM invoices i
+               JOIN student_course_grades scg ON scg.student_id = i.student_id AND scg.course_id = i.course_id
+               LEFT JOIN grades g ON g.id = scg.grade_id
+               LEFT JOIN users su ON su.id = scg.student_id
+              WHERE i.student_id = $1 AND i.billing_period = $2 AND i.charge_id IS NULL
+                AND LOWER(COALESCE(i.status, '')) <> 'paid'
+                AND NOT EXISTS (SELECT 1 FROM invoice_payments p WHERE p.invoice_id = i.id AND p.status IN ('approved', 'submitted'))`,
+            [studentId, period])).rows;
+        let changed = 0;
+        for (const r of rows) {
+            const monthly = Number(r.monthly_fee || 0);
+            if (!(monthly > 0)) continue;
+            const round = (v) => String(r.currency || 'INR').toUpperCase() === 'INR' ? Math.round(v) : Math.round(v * 100) / 100;
+            const base = round(monthly * terms.factor);
+            const pct = r.discount_percentage != null ? Number(r.discount_percentage) : 0;
+            const off = pct > 0 ? round((base * pct) / 100) : null;
+            const final = round(base - (off || 0));
+            await pool.query(
+                `UPDATE invoices SET amount = $1, original_amount = $2, discount_amount = $3, issue_date = $4, due_date = $5, prorated_from = $6
+                  WHERE id = $7`,
+                [final, base, off, terms.issueDate, terms.dueDate, terms.proratedFrom, r.id]);
+            if (final !== Number(r.amount)) changed++;
+        }
+        if (changed) console.log(`[Joining date] student ${studentId}: re-priced ${changed} unpaid ${period} bill(s).`);
         return changed;
     };
 
