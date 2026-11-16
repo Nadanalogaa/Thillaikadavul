@@ -4450,10 +4450,20 @@ Please review and approve this registration in the admin panel.`;
                 });
             }
             const count = (st) => rows.filter(r => r.status === st).length;
+            // Collected, split by how it was paid (cash at the office, UPI
+            // screenshot, online card/UPI) so the office can tally the cash box.
+            const byMethod = {};
+            for (const r of rows) for (const b of r.bills) {
+                if (b.status !== 'paid') continue;
+                const m = String(b.payment_method || 'other').toLowerCase();
+                const key = m === 'cash' ? 'cash' : m === 'razorpay' || m === 'online' ? 'online' : m.includes('upi') || m.includes('screenshot') || m.includes('proof') ? 'upi' : 'other';
+                byMethod[key] = (byMethod[key] || 0) + Number(b.amount || 0);
+            }
             const summary = {
                 students: rows.length,
                 billed: rows.reduce((t, r) => t + r.billed, 0),
                 collected: rows.reduce((t, r) => t + r.paid, 0),
+                collected_by_method: byMethod,
                 outstanding: rows.reduce((t, r) => t + r.due, 0),
                 counts: {
                     paid: count('paid'), pending: count('pending'), overdue: count('overdue'),

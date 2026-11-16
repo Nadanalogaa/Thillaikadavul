@@ -517,6 +517,8 @@ export interface FeeRosterSummary {
   students: number;
   billed: number;
   collected: number;
+  /** Collected split by method: cash / upi (screenshot) / online / other. */
+  collected_by_method?: Record<string, number>;
   outstanding: number;
   counts: Record<FeeRosterStatus, number> & { screenshot?: number };
 }

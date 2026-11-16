@@ -291,6 +291,14 @@ const FeesRosterPanel: React.FC = () => {
                         <p className={`mt-1 truncate text-lg font-semibold tabular-nums sm:text-2xl ${t.cls}`}>
                             {summary ? formatRupees(t.value) : '—'}
                         </p>
+                        {t.label === 'Collected' && summary?.collected_by_method && (
+                            <p className={`mt-1 truncate text-xs ${muted}`}>
+                                {([['cash', 'Cash'], ['upi', 'UPI'], ['online', 'Online'], ['other', 'Other']] as [string, string][])
+                                    .filter(([k]) => (summary.collected_by_method![k] || 0) > 0)
+                                    .map(([k, l]) => `${l} ${formatRupees(summary.collected_by_method![k])}`)
+                                    .join(' · ') || 'Nothing yet'}
+                            </p>
+                        )}
                     </div>
                 ))}
             </div>
