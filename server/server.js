@@ -2049,6 +2049,24 @@ async function startServer() {
         name: 'text', dob: 'date', sex: 'text', school_name: 'text', standard: 'text',
         father_name: 'text', address: 'text',
     };
+    // A family reads one of its own members (the signed-in account included),
+    // with the family email, for the Profile screen.
+    app.get('/api/household/members/:id', ensureAuthenticated, async (req, res) => {
+        try {
+            const id = Number(req.params.id);
+            const { memberIds } = await householdFor(req);
+            if (!memberIds.map(Number).includes(id)) return res.status(403).json({ message: 'Not a member of your family.' });
+            const row = (await pool.query('SELECT * FROM users WHERE id = $1 AND is_deleted = false', [id])).rows[0];
+            if (!row) return res.status(404).json({ message: 'Member not found.' });
+            const u = (await attachContactEmails([parseUserData(row)]))[0];
+            delete u.password;
+            res.json(u);
+        } catch (error) {
+            console.error('Error reading family member:', error);
+            res.status(500).json({ message: 'Server error reading the details.' });
+        }
+    });
+
     app.put('/api/household/members/:id', ensureAuthenticated, async (req, res) => {
         try {
             const id = Number(req.params.id);

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/utils/date_display.dart';
 
-import '../../widgets/user_avatar.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../config/theme/app_colors.dart';
@@ -10,7 +8,7 @@ import '../../../config/theme/app_text_styles.dart';
 import '../../../core/network/api_client.dart';
 import '../../../data/models/user_model.dart';
 import '../../../di/injection_container.dart';
-import 'edit_member_sheet.dart';
+import 'member_profile_card.dart';
 
 /// Students Profile — the same view the web "Students Profile" menu shows:
 /// every student in the household with their details, tap to open that
@@ -90,90 +88,9 @@ class _StudentsProfileScreenState extends State<StudentsProfileScreen> {
     );
   }
 
-  Widget _card(UserModel s) {
-    final rows = <List<String>>[
-      if (s.userId != null && s.userId!.isNotEmpty) ['ID', s.userId!],
-      if (s.dob != null && s.dob!.isNotEmpty) ['Date of birth', formatDisplayDate(s.dob!)],
-      if (s.sex != null && s.sex!.isNotEmpty) ['Gender', s.sex!],
-      if (s.schoolName != null && s.schoolName!.isNotEmpty) ['School', s.schoolName!],
-      if (s.standard != null && s.standard!.isNotEmpty) ['Standard', s.standard!],
-      if (s.gradeLabel != null) ['Grade', s.gradeLabel!],
-      if (s.batchLabel != null) ['Batches', s.batchLabel!],
-      if (s.classPreference != null && s.classPreference!.isNotEmpty)
-        ['Class preference', s.classPreference!],
-      if (s.dateOfJoining != null && s.dateOfJoining!.isNotEmpty)
-        ['Joined', formatDisplayDate(s.dateOfJoining!)],
-      if (s.fatherName != null && s.fatherName!.isNotEmpty) ['Parent / guardian', s.fatherName!],
-      if (s.address != null && s.address!.isNotEmpty) ['Address', s.address!],
-    ];
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: AppColors.primary.withValues(alpha: 0.15)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                UserAvatar(
-                  photoUrl: s.photoUrl,
-                  name: s.name,
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  foreground: AppColors.primary,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(s.name, style: AppTextStyles.labelLarge),
-                      if (s.coursesLabel != null)
-                        Text(s.coursesLabel!,
-                            style: AppTextStyles.caption
-                                .copyWith(color: AppColors.textSecondary)),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Edit details',
-                  icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
-                  onPressed: () async {
-                    final saved = await showEditMemberSheet(context, s);
-                    if (saved && mounted) _load();
-                  },
-                ),
-                TextButton(
-                  onPressed: () => context.go('/student', extra: {
-                    'studentId': s.id,
-                    'student': s,
-                  }),
-                  child: const Text('Open'),
-                ),
-              ],
-            ),
-            if (rows.isNotEmpty) const Divider(height: 18),
-            for (final r in rows)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 3),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: 130,
-                      child: Text(r[0],
-                          style: AppTextStyles.caption
-                              .copyWith(color: AppColors.textSecondary)),
-                    ),
-                    Expanded(child: Text(r[1], style: AppTextStyles.bodyMedium)),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _card(UserModel s) => MemberProfileCard(
+        member: s,
+        onChanged: _load,
+        onOpen: () => context.go('/student', extra: {'studentId': s.id, 'student': s}),
+      );
 }

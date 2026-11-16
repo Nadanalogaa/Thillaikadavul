@@ -41,6 +41,8 @@ class _EditMemberSheetState extends State<_EditMemberSheet> {
   bool _busy = false;
   String? _error;
 
+  bool get _isParent => widget.member.role.trim().toLowerCase() == 'parent';
+
   @override
   void initState() {
     super.initState();
@@ -113,9 +115,9 @@ class _EditMemberSheetState extends State<_EditMemberSheet> {
       'name': name,
       'dob': _dob,
       'sex': _sex,
-      'school_name': _school.text.trim(),
-      'standard': _standard.text.trim(),
-      'father_name': _guardian.text.trim(),
+      if (!_isParent) 'school_name': _school.text.trim(),
+      if (!_isParent) 'standard': _standard.text.trim(),
+      if (!_isParent) 'father_name': _guardian.text.trim(),
       'address': _address.text.trim(),
       'email': _email.text.trim(),
     });
@@ -150,7 +152,7 @@ class _EditMemberSheetState extends State<_EditMemberSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Edit ${widget.member.name.split(' ').first}\'s details',
+            Text(_isParent ? 'Edit your details' : 'Edit ${widget.member.name.split(' ').first}\'s details',
                 style: AppTextStyles.h4),
             const SizedBox(height: 4),
             Text(
@@ -189,16 +191,19 @@ class _EditMemberSheetState extends State<_EditMemberSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(flex: 3, child: TextField(controller: _school, decoration: _dec('School'), textCapitalization: TextCapitalization.words)),
-                const SizedBox(width: 12),
-                Expanded(flex: 2, child: TextField(controller: _standard, decoration: _dec('Standard', hint: 'e.g. 5'))),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextField(controller: _guardian, decoration: _dec('Parent / guardian name'), textCapitalization: TextCapitalization.words),
+            // School, standard and guardian belong to a student, not a parent's login.
+            if (!_isParent) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(flex: 3, child: TextField(controller: _school, decoration: _dec('School'), textCapitalization: TextCapitalization.words)),
+                  const SizedBox(width: 12),
+                  Expanded(flex: 2, child: TextField(controller: _standard, decoration: _dec('Standard', hint: 'e.g. 5'))),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(controller: _guardian, decoration: _dec('Parent / guardian name'), textCapitalization: TextCapitalization.words),
+            ],
             const SizedBox(height: 12),
             TextField(controller: _address, decoration: _dec('Address'), maxLines: 2, textCapitalization: TextCapitalization.sentences),
             const SizedBox(height: 12),

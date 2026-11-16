@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
 import '../../../core/network/api_client.dart';
-import '../../../core/utils/date_display.dart';
 import '../../../data/models/user_model.dart';
 import '../../../di/injection_container.dart';
 import '../../bloc/auth/auth_bloc.dart';
+import '../../bloc/auth/auth_event.dart';
 import '../../bloc/auth/auth_state.dart';
 import '../../widgets/user_avatar.dart';
+import 'member_profile_card.dart';
 
 /// More → Profile: the signed-in account (a parent, or a student who signs
-/// in for themself) and, underneath, every student in the family with their
-/// ID, courses, grades and batches. Courses belong to the students, never to
-/// a parent's login, so they are read from the household, not the account.
+/// in for themself) and, underneath, every student in the family — the same
+/// cards as Students Profile, each with the edit pencil. The account's own
+/// details come fresh from the server, so an edit shows at once.
 class StudentProfileScreen extends StatefulWidget {
   const StudentProfileScreen({super.key});
 
@@ -22,28 +24,11 @@ class StudentProfileScreen extends StatefulWidget {
   State<StudentProfileScreen> createState() => _StudentProfileScreenState();
 }
 
-class _FamilyStudent {
-  final int id;
-  final String name;
-  final String? userId;
-  final String? photoUrl;
-  final List<String> courses; // "Bharatham · Grade 2"
-  final List<String> batches;
-
-  const _FamilyStudent({
-    required this.id,
-    required this.name,
-    this.userId,
-    this.photoUrl,
-    this.courses = const [],
-    this.batches = const [],
-  });
-}
-
 class _StudentProfileScreenState extends State<StudentProfileScreen> {
   bool _loading = true;
   String? _error;
-  List<_FamilyStudent> _students = const [];
+  UserModel? _account;
+  List<UserModel> _students = const [];
 
   @override
   void initState() {
@@ -57,50 +42,36 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
       _error = null;
     });
     try {
-      final r = await sl<ApiClient>().getHousehold();
+      final api = sl<ApiClient>();
+      final auth = context.read<AuthBloc>().state;
+      final me = auth is AuthAuthenticated ? auth.user : null;
+      final results = await Future.wait([
+        api.getFamily(),
+        if (me != null) api.getHouseholdMember(me.id),
+      ]);
       if (!mounted) return;
-      if (r.statusCode != 200 || r.data is! Map) {
-        setState(() {
-          _error = 'Could not load your family details.';
-          _loading = false;
-        });
-        return;
-      }
-      final members = ((r.data as Map)['members'] as List? ?? const [])
-          .whereType<Map>()
-          .map((m) => Map<String, dynamic>.from(m))
-          .where((m) => '${m['role']}'.toLowerCase() == 'student');
-      final list = <_FamilyStudent>[];
-      for (final m in members) {
-        final grades = (m['course_grades'] as List? ?? const [])
-            .whereType<Map>()
-            .map((g) {
-          final c = '${g['course_name'] ?? ''}'.trim();
-          final gr = '${g['grade_name'] ?? ''}'.trim();
-          return gr.isEmpty ? c : '$c · $gr';
-        }).where((s) => s.isNotEmpty).toList();
-        // A course with no grade yet still shows.
-        final graded = grades.map((s) => s.split(' · ').first.toLowerCase()).toSet();
-        final plain = (m['courses'] as List? ?? const [])
-            .map((c) => '$c'.trim())
-            .where((c) => c.isNotEmpty && !graded.contains(c.toLowerCase()));
-        list.add(_FamilyStudent(
-          id: m['id'] is int ? m['id'] as int : int.tryParse('${m['id']}') ?? 0,
-          name: '${m['name'] ?? 'Student'}',
-          userId: m['user_id'] as String?,
-          photoUrl: m['photo_url'] as String?,
-          courses: [...grades, ...plain],
-          batches: (m['batch_names'] as List? ?? const []).map((b) => '$b').toList(),
-        ));
+      final fam = results[0];
+      final students = fam.statusCode == 200 && fam.data is List
+          ? (fam.data as List)
+              .whereType<Map>()
+              .map((u) => UserModel.fromJson(Map<String, dynamic>.from(u)))
+              .toList()
+          : <UserModel>[];
+      UserModel? account = me;
+      if (results.length > 1 && results[1].statusCode == 200 && results[1].data is Map) {
+        account = UserModel.fromJson(Map<String, dynamic>.from(results[1].data as Map));
       }
       setState(() {
-        _students = list;
+        _account = account;
+        // A student who signs in for themself is the account, not a second card.
+        _students = students.where((s) => s.id != account?.id).toList();
         _loading = false;
+        if (fam.statusCode != 200) _error = 'Could not load your family details.';
       });
     } catch (_) {
       if (mounted) {
         setState(() {
-          _error = 'Could not load your family details. Please check your connection.';
+          _error = 'Could not load your details. Please check your connection.';
           _loading = false;
         });
       }
@@ -109,67 +80,68 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, state) {
-        final user = state is AuthAuthenticated ? state.user : null;
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Profile'),
-            backgroundColor: AppColors.studentAccent,
-          ),
-          body: user == null
-              ? const Center(child: CircularProgressIndicator())
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      _header(user),
-                      const SizedBox(height: 20),
-                      Text('Account', style: AppTextStyles.h4),
-                      const SizedBox(height: 10),
-                      _card([
-                        _row(Icons.person, 'Name', user.name),
-                        if ((user.contactNumber ?? '').isNotEmpty)
-                          _row(Icons.phone, 'Phone (your login)', user.contactNumber!),
-                        _row(Icons.email, 'Email',
-                            user.shownEmail.isEmpty ? 'Not given' : user.shownEmail),
-                        if ((user.userId ?? '').isNotEmpty)
-                          _row(Icons.badge, 'Account ID', user.userId!),
-                        if ((user.address ?? '').trim().isNotEmpty)
-                          _row(Icons.home_outlined, 'Address', user.address!.trim()),
-                        if ((user.dateOfJoining ?? user.createdAt) != null)
-                          _row(Icons.calendar_today, 'Joined',
-                              formatDisplayDate(user.dateOfJoining ?? user.createdAt)),
-                      ]),
-                      const SizedBox(height: 20),
-                      Text(_students.length > 1 ? 'Your family' : 'Student',
-                          style: AppTextStyles.h4),
-                      const SizedBox(height: 10),
-                      if (_loading)
-                        const Padding(
-                          padding: EdgeInsets.all(24),
-                          child: Center(child: CircularProgressIndicator()),
-                        )
-                      else if (_error != null)
-                        _card([
-                          Text(_error!, style: AppTextStyles.bodyMedium),
-                          TextButton(onPressed: _load, child: const Text('Try again')),
-                        ])
-                      else if (_students.isEmpty)
-                        _card([
-                          Text('No students are linked to this login yet.',
-                              style: AppTextStyles.bodyMedium
-                                  .copyWith(color: AppColors.textSecondary)),
-                        ])
-                      else
-                        for (final s in _students) _studentCard(s),
-                    ],
+    final account = _account;
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Profile'),
+        backgroundColor: AppColors.studentAccent,
+      ),
+      body: account == null && _loading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                children: [
+                  if (account != null) ...[
+                    _header(account),
+                    const SizedBox(height: 20),
+                    Text('Your account', style: AppTextStyles.h4),
+                    const SizedBox(height: 10),
+                    MemberProfileCard(member: account, isAccount: true, onChanged: _load),
+                    const SizedBox(height: 6),
+                    Text(
+                      'The phone number is your sign-in; ask the academy to change it.',
+                      style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                  if (_students.isNotEmpty || _loading || _error != null) ...[
+                    Text(_students.length > 1 ? 'Your children' : 'Student', style: AppTextStyles.h4),
+                    const SizedBox(height: 10),
+                  ],
+                  if (_loading)
+                    const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (_error != null)
+                    Column(
+                      children: [
+                        Text(_error!, style: AppTextStyles.bodyMedium),
+                        TextButton(onPressed: _load, child: const Text('Try again')),
+                      ],
+                    )
+                  else
+                    for (final s in _students)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: MemberProfileCard(
+                          member: s,
+                          onChanged: _load,
+                          onOpen: () => context.go('/student', extra: {'studentId': s.id, 'student': s}),
+                        ),
+                      ),
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: () => context.read<AuthBloc>().add(AuthLogoutRequested()),
+                    icon: const Icon(Icons.logout, size: 18),
+                    label: const Text('Log out'),
                   ),
-                ),
-        );
-      },
+                ],
+              ),
+            ),
     );
   }
 
@@ -198,98 +170,5 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                     color: AppColors.studentAccent, fontWeight: FontWeight.w600)),
           ),
         ],
-      );
-
-  Widget _studentCard(_FamilyStudent s) => Card(
-        margin: const EdgeInsets.only(bottom: 12),
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.divider),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  UserAvatar(
-                    photoUrl: s.photoUrl,
-                    name: s.name,
-                    radius: 24,
-                    color: AppColors.studentAccent.withValues(alpha: 0.15),
-                    foreground: AppColors.studentAccent,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(s.name, style: AppTextStyles.labelLarge),
-                        if ((s.userId ?? '').isNotEmpty)
-                          Text(s.userId!,
-                              style: AppTextStyles.caption
-                                  .copyWith(color: AppColors.textSecondary)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              if (s.courses.isEmpty)
-                _line(Icons.menu_book_outlined, 'No course yet')
-              else
-                for (final c in s.courses) _line(Icons.menu_book_outlined, c),
-              for (final b in s.batches) _line(Icons.group_work_outlined, b),
-            ],
-          ),
-        ),
-      );
-
-  Widget _card(List<Widget> children) => Card(
-        elevation: 0,
-        margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.divider),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
-        ),
-      );
-
-  Widget _row(IconData icon, String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 18, color: AppColors.studentAccent),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label,
-                      style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
-                  Text(value,
-                      style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w500)),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-
-  Widget _line(IconData icon, String text) => Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Row(
-          children: [
-            Icon(icon, size: 16, color: AppColors.textSecondary),
-            const SizedBox(width: 8),
-            Expanded(child: Text(text, style: AppTextStyles.bodyMedium)),
-          ],
-        ),
       );
 }
